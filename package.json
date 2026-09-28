@@ -1,0 +1,26 @@
+{
+  "name": "group-deal",
+  "version": "1.0.0",
+  "description": "GroupDeal - Group buying for digital goods on Arc Testnet",
+  "scripts": {
+    "test:contracts": "npm --prefix contracts test",
+    "test:accounting": "npm --prefix backend run test:accounting",
+    "test": "npm run test:contracts && npm run test:accounting",
+    "compile": "npm --prefix contracts run compile",
+    "deploy:local": "npm --prefix contracts run deploy:local",
+    "deploy:arc": "npm --prefix contracts run deploy:arc",
+    "seed:local": "cd contracts && npx hardhat run scripts/seed_demo.ts --network localhost",
+    "backend:dev": "npm --prefix backend run dev",
+    "frontend:dev": "npm --prefix frontend run dev",
+    "frontend:build": "npm --prefix frontend run build"
+  },
+  "keywords": [
+    "arc-testnet",
+    "groupdeal",
+    "smart-contracts",
+    "usdc",
+    "group-buying"
+  ],
+  "author": "GroupDeal Team",
+  "license": "MIT"
+}
