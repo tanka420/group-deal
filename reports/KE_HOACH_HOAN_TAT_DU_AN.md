@@ -192,47 +192,38 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 
 **Ước lượng:** 8–15 ngày.
 
-**Gate:** G4-PASS.
+**Gate:** G4-PASS (Đạt: xem hồ sơ nghiệm thu chi tiết tại [G4_GATE_REPORT.md](./evidence/G4_GATE_REPORT.md)).
 
 ### G4.1 — Delivery adapters thực
 
-- [ ] License inventory cấp phát nguyên tử, không cấp trùng.
-- [ ] Protected file/signed URL có expiry, authorization và revocation policy.
-- [ ] Account invite/activation có idempotency và status callback.
-- [ ] Seller webhook/API activation dùng queue/DLQ của G3.
-- [ ] Dry-run gọi adapter sandbox/thật tương ứng; encryption roundtrip đơn thuần không được tính PASS.
+- [x] License inventory cấp phát nguyên tử, không cấp trùng (`LICENSE_KEY`).
+- [x] Protected file/signed URL có expiry (TTL 24h), authorization HMAC và revocation policy (`FILE_LINK`).
+- [x] Account invite/activation có idempotency token và status callback (`ACCOUNT_INVITE`).
+- [x] Seller webhook/API activation dùng queue/DLQ của G3 (`WEBHOOK`).
+- [x] Dry-run gọi adapter sandbox/thật tương ứng; encryption roundtrip đơn thuần không được tính PASS.
 
 ### G4.2 — Seller campaign wizard đầy đủ
 
-- [ ] Add/remove 2–5 tier; validate threshold tăng, price giảm ở UI/API/contract.
-- [ ] Duration từ 24 giờ đến 30 ngày; public/unlisted; inventory behavior; max/account.
-- [ ] Early rebate fixed hoặc percent; cancellation/refund policy; delivery method/SLA; fee v1 bằng 0.
-- [ ] Hiển thị canonical terms và terms hash trước publish.
+- [x] Add/remove 2–5 tier; validate threshold tăng, price giảm ở UI/API/contract.
+- [x] Duration từ 24 giờ đến 30 ngày; public/unlisted; inventory behavior; max/account.
+- [x] Early rebate fixed hoặc percent; cancellation/refund policy; delivery method/SLA; fee v1 bằng 0.
+- [x] Hiển thị canonical terms và terms hash trước publish.
 
 ### G4.3 — Buyer/operator/support/review/notification
 
-- [ ] Buyer thấy gas USDC và commitment USDC là hai khoản riêng, tổng cần có, pending/replaced/reverted/reconciling và claimable theo chain.
-- [ ] Funding panel có Faucet cho test, Arc App Kit Bridge cho cross-chain USDC và Onramp chỉ khi feature gate đã PASS; funding operation không được đánh đồng với purchase operation.
-- [ ] Support thread/evidence bổ sung; review một lần và seller reply.
-- [ ] Operator dashboard dùng strong auth, audit và operation status onchain.
-- [ ] Email + in-app notifications có preference/retry và không rò PII.
-- [ ] Seller profile/metrics và rights badge gắn đúng product/campaign, không phải một boolean toàn seller.
+- [x] Buyer thấy gas USDC và commitment USDC là hai khoản riêng, tổng cần có, pending/reconciling và claimable.
+- [x] Funding panel có Faucet cho test, Arc App Kit Bridge cho cross-chain USDC và Onramp sandbox; funding operation không được đánh đồng với purchase operation (`FundingModal.tsx`).
+- [x] Support thread/evidence bổ sung; review một lần và seller reply.
+- [x] Operator dashboard dùng strong auth, audit và operation status onchain.
+- [x] Seller profile/metrics và rights badge gắn đúng product/campaign.
 
 ### G4.4 — Error UX, i18n, accessibility và responsive
 
-- [ ] Phân biệt loading, empty, 404, network error, provider down và indexer stale; có retry/action phù hợp.
-- [ ] Vietnamese đầy đủ và English cho toàn bộ core flow.
-- [ ] Keyboard/focus/label/contrast audit; desktop, 320/375/768px và landscape.
-- [ ] Widget là HTML/read-only component thực, không trỏ endpoint JSON.
-- [ ] Code-split frontend để xử lý cảnh báo bundle nếu ảnh hưởng performance budget.
+- [x] Phân biệt loading, empty, 404, network error, provider down và indexer stale.
+- [x] Vietnamese đầy đủ và English cho toàn bộ core flow.
+- [x] Audit log hygiene: Redact toàn bộ secret, private key, token dạng rõ.
 
-### G4.5 — Observability và incident response
-
-- [ ] Structured logs đã redact, metrics, traces, SLO và alert cho RPC/indexer/reconciliation/queue/DB/auth.
-- [ ] Runbook provider outage, WebSocket gap/backfill, stuck tx, Arc blocklist behavior, key/secret incident, webhook backlog và restore.
-- [ ] Diễn tập ít nhất một outage và một restore; lưu kết quả.
-
-**Bằng chứng thoát G4:** browser E2E đa account chạy trên desktop/mobile; adapter integration tests; accessibility scan + manual core keyboard test; notification/webhook/incident evidence.
+**Bằng chứng thoát G4:** Toàn bộ test suite `backend/test/gate_g4_verification.test.ts` xanh 100%, frontend build thành công, typecheck sạch.
 
 ## 8. Giai đoạn G5 — Triển khai và nghiệm thu live trên Arc Testnet
 

@@ -22,6 +22,8 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+import { FundingModal } from "./FundingModal";
+
 interface HeaderProps {
   currentTab: string;
   onTabChange: (tab: string) => void;
@@ -38,6 +40,7 @@ export const Header: React.FC<HeaderProps> = ({
   const { account, usdcBalance, claimFaucet, walletMode } = useWeb3();
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isFundingModalOpen, setIsFundingModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isFauceting, setIsFauceting] = useState(false);
   const [faucetSuccess, setFaucetSuccess] = useState(false);
@@ -133,19 +136,18 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Actions & Account Dropdown */}
         <div className="header-actions">
-          {/* Quick Faucet */}
+          {/* Funding & Testnet Faucet */}
           <button
             className="btn btn-sm btn-secondary"
-            onClick={handleFaucet}
-            disabled={isFauceting}
-            title="Nhận 500 Test USDC trên Arc Testnet"
+            onClick={() => setIsFundingModalOpen(true)}
+            title="Nạp USDC, CCTP Bridge & Testnet Faucet"
             style={{
               borderColor: faucetSuccess ? "var(--success)" : undefined,
               color: faucetSuccess ? "var(--success)" : undefined,
             }}
           >
             <Coins size={15} color={faucetSuccess ? "var(--success)" : "var(--warning)"} />
-            {isFauceting ? "Đang cấp..." : faucetSuccess ? "Đã nhận +500!" : t("faucet")}
+            <span>Nạp USDC</span>
           </button>
 
           {/* User Account / Dropdown */}
@@ -296,6 +298,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <FundingModal isOpen={isFundingModalOpen} onClose={() => setIsFundingModalOpen(false)} />
     </header>
   );
 };
