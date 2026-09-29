@@ -1,0 +1,62 @@
+{
+  "environment": "arc-testnet",
+  "networkName": "Arc Testnet",
+  "chainId": 5042002,
+  "chainIdHex": "0x4CEF52",
+  "rpc": {
+    "primary": "https://rpc.testnet.arc.io",
+    "ws": "wss://rpc.testnet.arc.io",
+    "fallbacks": [
+      "https://rpc.blockdaemon.testnet.arc.io",
+      "https://rpc.drpc.testnet.arc.io",
+      "https://rpc.quicknode.testnet.arc.io"
+    ]
+  },
+  "explorerUrl": "https://explorer.testnet.arc.io",
+  "faucetUrl": "https://faucet.circle.com",
+  "cctpDomain": 26,
+  "contracts": {
+    "USDC": {
+      "address": "0x3600000000000000000000000000000000000000",
+      "symbol": "USDC",
+      "businessDecimals": 6,
+      "nativeGasDecimals": 18,
+      "isPredeploy": true,
+      "isMock": false
+    },
+    "EURC": {
+      "address": "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a",
+      "decimals": 6
+    },
+    "CCTP_TokenMessengerV2": {
+      "address": "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
+      "domain": 26
+    },
+    "CREATE2_Factory": {
+      "address": "0x4e59b44847b379578588920cA78FbF26c0B4956C"
+    },
+    "Multicall3": {
+      "address": "0xcA11bde05977b3631167028862bE2a173976CA11"
+    },
+    "Permit2": {
+      "address": "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+    },
+    "GroupDealHub": {
+      "address": "",
+      "deploymentBlock": 0,
+      "bytecodeHash": ""
+    }
+  },
+  "roles": {
+    "securityAuthority": "",
+    "operator": "",
+    "authorizedSigner": ""
+  },
+  "arcDifferences": {
+    "minBaseFeeGwei": 20,
+    "deterministicFinality": true,
+    "nonDecreasingTimestamps": true,
+    "blocklistTestAddress": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    "zeroAddressValueTransferForbidden": true
+  }
+}

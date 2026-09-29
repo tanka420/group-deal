@@ -2,7 +2,9 @@
 
 **Ngày lập:** 29/09/2026
 
-**Căn cứ:** [PLAN.md](../PLAN.md) và [BAO_CAO_THAM_TRA_NGHIEM_THU_CUOI.md](./BAO_CAO_THAM_TRA_NGHIEM_THU_CUOI.md)
+**Phiên bản:** 1.2 — chốt kiến trúc Arc, funding và deterministic-finality indexer
+
+**Căn cứ:** [PLAN.md](../PLAN.md), [BAO_CAO_THAM_TRA_NGHIEM_THU_CUOI.md](./BAO_CAO_THAM_TRA_NGHIEM_THU_CUOI.md) và [KIEN_TRUC_ARC_VA_PHAM_VI_TICH_HOP.md](./KIEN_TRUC_ARC_VA_PHAM_VI_TICH_HOP.md)
 
 **Thay thế:** [KE_HOACH_THUC_THI.md](./KE_HOACH_THUC_THI.md) cho phần công việc còn lại. Kế hoạch cũ không được dùng làm bằng chứng hoàn thành vì checklist chưa phản ánh kết quả thẩm tra mới.
 
@@ -37,34 +39,28 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 
 **Mục tiêu:** Biến working tree hiện tại thành mốc có thể truy vết, không mất thay đổi và không lẫn kết quả test với artifact cũ.
 
-**Ước lượng:** 0,5–1 ngày.
+**Ước lượng:** 1–2 ngày.
 
 **Gate:** G0-PASS.
 
-- [ ] **G0.1 — Kiểm kê thay đổi hiện tại**
-  - Lưu `git status`, `git diff --stat`, checksum bốn báo cáo và artifact hiện tại.
-  - Phân loại file nguồn, generated artifact, evidence và dữ liệu runtime; không commit secret/data người dùng.
-- [ ] **G0.2 — Tạo branch/commit baseline**
-  - Tạo branch theo quy ước `codex/` hoặc branch release của nhóm.
-  - Commit toàn bộ thay đổi hợp lệ; loại artifact/dữ liệu runtime khỏi Git bằng quy tắc rõ ràng.
-- [ ] **G0.3 — Sửa reproducibility tooling**
-  - Áp dụng Hardhat data-dir workaround cho cả `compile` và `test`, không chỉ `test`.
-  - Thêm script root duy nhất: clean compile → tests → builds → typecheck/lint → package smoke → `git diff --check`.
-- [ ] **G0.4 — Loại artifact cũ khỏi bằng chứng ABI**
-  - Xóa/rebuild cache và artifact trong job sạch.
-  - Sinh backend ABI/type bindings từ artifact vừa compile; bỏ ABI chuỗi viết tay hoặc kiểm toàn bộ interface tự động.
+- [x] **G0.1 — Kiểm kê thay đổi hiện tại** (Đạt: [reports/G0_BASELINE_INVENTORY.md](./G0_BASELINE_INVENTORY.md) và git clean tracking)
+- [x] **G0.2 — Tạo branch/commit baseline** (Đạt: branch `codex/arc-candidate`, commit baseline sạch)
+- [x] **G0.3 — Sửa reproducibility tooling** (Đạt: Hardhat cache fix cho compile/test, thêm `verify:pipeline`)
+- [x] **G0.4 — Loại artifact cũ khỏi bằng chứng ABI** (Đạt: tự động sinh `hubAbi.ts` cho backend & frontend từ artifact vừa compile)
+- [x] **G0.5 — Kiểm chứng Arc Testnet sớm, chưa mở luồng tài chính** (Đạt: 2 manifest `local.json` và `arc-testnet.json`, probe RPC live xác nhận Chain ID 5042002, USDC predeploy, min fee 20 Gwei, zero address & blocklist revert tại [G0_GATE_REPORT.md](./evidence/G0_GATE_REPORT.md))
 
 **Bằng chứng thoát G0:**
 
 - Clean checkout trên máy/CI thứ hai chạy cùng lệnh và cho cùng kết quả.
 - Không có thay đổi source sau khi chạy pipeline, trừ output được ignore.
 - Báo cáo kết quả ghi commit SHA, Node/npm version và checksum artifact.
+- Hồ sơ Arc smoke ghi RPC/chain ID, manifest hash và deployment/read result; không được gọi đây là live acceptance.
 
 ## 4. Giai đoạn G1 — Đóng P0 về auth, ví và trạng thái tài chính
 
 **Mục tiêu:** Không thể chiếm/bind ví bằng replay, backend không giữ khóa user, và không có thành công tài chính giả.
 
-**Ước lượng:** 4–7 ngày.
+**Ước lượng:** 6–10 ngày.
 
 **Gate:** G1-PASS; chưa đạt thì cấm deploy public testnet.
 
@@ -88,7 +84,20 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 
 **Quyết định không được để mở:** nếu không tích hợp Circle User-Controlled, phải sửa `PLAN.md`/phạm vi sản phẩm bằng quyết định của chủ dự án; không được tiếp tục gắn nhãn Circle cho custodial relayer.
 
-### G1.3 — Email OTP và strong auth thật
+### G1.3 — Tích hợp wallet/App Kit đúng vai trò, không trộn ba sản phẩm khác nhau
+
+- [ ] **Reown AppKit cho ví EVM bên ngoài:** thay kết nối `window.ethereum` tự viết bằng connector/session chuẩn; cấu hình Arc Testnet như custom EVM network nếu adapter yêu cầu.
+- [ ] Test MetaMask, WalletConnect QR/mobile wallet, account switch, chain switch, reconnect, disconnect, rejected signature và stale session.
+- [ ] **Circle User-Controlled Wallet SDK:** giữ là luồng ví nhúng riêng của G1.2; không coi Reown AppKit email/social wallet là bằng chứng thay thế Circle User-Controlled.
+- [ ] **Arc App Kit Bridge/CCTP V2:** đưa vào funding UX v1 để buyer chuyển USDC từ chain được hỗ trợ sang Arc; hiển thị quote expiry, fee, operation/progress, retry và destination balance trước khi cho commit.
+- [ ] **Arc App Kit Onramp:** thực hiện spike sandbox bắt buộc; chỉ bật sau feature flag khi quốc gia, KYC/compliance, CSP/iframe, server-side session, lifecycle/webhook, fee và support flow đều qua gate.
+- [ ] **Không đưa vào v1:** Swap, Send và Earn. Unified Balance/Gateway chỉ xem xét sau v1; mọi thay đổi quyết định phải có product/security review và test surface riêng.
+- [ ] Mọi App Kit phải dùng adapter chính thức, khóa phiên bản, CSP/domain configuration và integration test; không nhúng API key/secret vào bundle frontend.
+- [ ] Preflight mua hàng đọc một số dư USDC ERC-20 6 decimals, ước lượng gas USDC riêng và kiểm `commitment + gas`; cấm cộng native balance với ERC-20 balance.
+
+**Tài liệu chuẩn cần chốt khi thực thi:** Circle Wallets/User-Controlled Wallets, Arc App Kit và Reown AppKit React/Ethers từ tài liệu chính thức hiện hành. Không dùng tên “AppKit” chung chung trong ticket hoặc báo cáo.
+
+### G1.4 — Email OTP và strong auth thật
 
 - [ ] Tích hợp email provider production; response chống enumeration và không chứa OTP.
 - [ ] Rate limit theo email, IP và device; cooldown, attempt cap, TTL, audit và alert abuse.
@@ -96,10 +105,10 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 - [ ] Operator và seller dùng MFA/step-up cho dispute resolution, badge, payout change, cancel và secret rotation.
 - [ ] Fail-fast tất cả secret production, gồm campaign identity secret và deployer/operator credentials.
 
-### G1.4 — Receipt/event verifier dùng chung
+### G1.5 — Receipt/event verifier dùng chung
 
 - [ ] Xây `verifyExpectedTransaction(intent, txHash)` kiểm:
-  - chain ID và finality/confirmation;
+  - chain ID và deterministic finality của Arc;
   - `tx.to` đúng contract;
   - sender/principal đúng;
   - selector và calldata đúng intent;
@@ -108,9 +117,9 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
   - event campaign/order/termsHash/proofHash/amount đúng;
   - tx hash chưa gắn intent khác.
 - [ ] Draft không được gán `onchainCampaignId` trước event `CampaignCreated`.
-- [ ] Mọi operation có state `PENDING_BROADCAST`, `PENDING_CONFIRMATION`, `CONFIRMED`, `REVERTED`, `REPLACED`, `DROPPED`, `RECONCILING`.
+- [ ] Mọi operation có state `PENDING_BROADCAST`, `PENDING_FINALITY`, `CONFIRMED`, `REVERTED`, `REPLACED`, `DROPPED`, `RECONCILING`.
 
-### G1.5 — Xóa toàn bộ cập nhật tài chính DB-only
+### G1.6 — Xóa toàn bộ cập nhật tài chính DB-only
 
 - [ ] `confirmReceipt`, `openDispute`, `resolveDispute`, SLA breach và auto-settlement phải gửi/nhận tx onchain.
 - [ ] Route trả operation/tx state; không trực tiếp set `sellerAllocated`, `buyerRefundAllocated` hoặc trạng thái cuối.
@@ -169,7 +178,7 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 
 ## 6. Giai đoạn G3 — Indexer, database, reconciliation và webhook
 
-**Mục tiêu:** Có thể rebuild nguồn đọc, chịu reorg/restart và vận hành có phục hồi.
+**Mục tiêu:** Có thể rebuild nguồn đọc, chịu restart/gap/RPC outage và vận hành có phục hồi theo deterministic finality của Arc.
 
 **Ước lượng:** 6–10 ngày.
 
@@ -182,21 +191,24 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 - [ ] Versioned migrations với forward/backward policy; không auto-seed production.
 - [ ] Audit append-only/tamper-evident cho thao tác nhạy cảm.
 
-### G3.2 — Indexer xác nhận, rollback và rebuild
+### G3.2 — Arc indexer finality, backfill và rebuild
 
 - [ ] Manifest chứa chainId, contract, deployment block, artifact/bytecode hash.
-- [ ] Journal lưu block number/hash/parent hash, chain, contract, tx và log index.
-- [ ] Chỉ project sau confirmation depth; reorg rollback projection/journal theo block hash rồi replay.
+- [ ] WebSocket nhận block/event mới; HTTP backfill từ checkpoint khi restart, đứt kết nối hoặc phát hiện gap.
+- [ ] Journal lưu block number/hash, transaction index, chain, contract/emitter, tx và log index; unique/idempotent theo chain+emitter+tx+logIndex.
+- [ ] Project ngay sau Arc finality; không thêm confirmation buffer hoặc reorg rollback kiểu Ethereum. Block hash vẫn lưu để audit và fixed-block reconciliation.
+- [ ] Sắp thứ tự bằng block number/transaction index/log index, không dùng timestamp cho event order.
 - [ ] Rebuild từ deployment block vào schema trống cho kết quả deterministic.
 - [ ] Không map campaign/order bằng giả định local ID bằng onchain ID.
 - [ ] `FundsClaimed` phải có định danh đủ hoặc projection đọc contract state per order để không đánh dấu hàng loạt sai.
+- [ ] Theo dõi event `GroupDealHub` làm nguồn chính; USDC Transfer/blocklist/CCTP event chỉ phục vụ đối soát, funding và cảnh báo theo emitter/address đã được G0 xác minh.
 
 ### G3.3 — Reconciliation tại fixed block
 
 - [ ] Chụp block number/hash; đọc balance, campaign escrow, order allocations và claimed amounts tại cùng block/tag.
 - [ ] So contract state với projection per campaign/order và aggregate.
 - [ ] Trạng thái gồm `HEALTHY`, `UNVERIFIED`, `STALE`, `ERROR`, `DISCREPANCY_DETECTED`; có severity/alert.
-- [ ] Test RPC down, stale provider, reorg, shortfall, surplus, missing event và corrupted projection.
+- [ ] Test RPC down, stale provider, WebSocket gap, backfill, shortfall, surplus, missing event và corrupted projection.
 
 ### G3.4 — Backup/restore/retention
 
@@ -211,7 +223,7 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 - [ ] Resolve mọi A/AAAA, chặn private/metadata/special ranges, pin connection target và kiểm lại từng redirect.
 - [ ] Egress proxy/firewall nếu hạ tầng hỗ trợ; test DNS rebinding và redirect-to-private.
 
-**Bằng chứng thoát G3:** restart/reorg/rebuild/restore tests xanh; projection sau rebuild bằng projection trước; webhook job sống qua process crash và DLQ replay được; reconciliation đúng tại block đã ghi.
+**Bằng chứng thoát G3:** restart/gap/backfill/rebuild/restore tests xanh; projection sau rebuild bằng projection trước; webhook job sống qua process crash và DLQ replay được; reconciliation đúng tại block đã ghi.
 
 ## 7. Giai đoạn G4 — Hoàn thiện sản phẩm, delivery, UX và vận hành
 
@@ -238,7 +250,8 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 
 ### G4.3 — Buyer/operator/support/review/notification
 
-- [ ] Buyer thấy gas/commitment, pending/replaced/reverted/reconciling và claimable theo chain.
+- [ ] Buyer thấy gas USDC và commitment USDC là hai khoản riêng, tổng cần có, pending/replaced/reverted/reconciling và claimable theo chain.
+- [ ] Funding panel có Faucet cho test, Arc App Kit Bridge cho cross-chain USDC và Onramp chỉ khi feature gate đã PASS; funding operation không được đánh đồng với purchase operation.
 - [ ] Support thread/evidence bổ sung; review một lần và seller reply.
 - [ ] Operator dashboard dùng strong auth, audit và operation status onchain.
 - [ ] Email + in-app notifications có preference/retry và không rò PII.
@@ -255,7 +268,7 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 ### G4.5 — Observability và incident response
 
 - [ ] Structured logs đã redact, metrics, traces, SLO và alert cho RPC/indexer/reconciliation/queue/DB/auth.
-- [ ] Runbook provider outage, reorg, stuck tx, key/secret incident, webhook backlog và restore.
+- [ ] Runbook provider outage, WebSocket gap/backfill, stuck tx, Arc blocklist behavior, key/secret incident, webhook backlog và restore.
 - [ ] Diễn tập ít nhất một outage và một restore; lưu kết quả.
 
 **Bằng chứng thoát G4:** browser E2E đa account chạy trên desktop/mobile; adapter integration tests; accessibility scan + manual core keyboard test; notification/webhook/incident evidence.
@@ -271,6 +284,7 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 ### G5.1 — Deployment fail-closed
 
 - [ ] `deploy:arc` bắt buộc Arc chain ID, token address đã phê duyệt, deployer secret, operator và security multisig; không tự deploy MockUSDC.
+- [ ] Deploy dùng đúng USDC predeploy, xử lý tách biệt 6-decimal business amount và 18-decimal native gas, đồng thời kiểm buyer đủ cả commitment lẫn gas.
 - [ ] Verify bytecode/source; ghi deployment block, receipts, artifact/bytecode hash và role addresses vào manifest theo môi trường.
 - [ ] App/backend/indexer từ chối khởi động nếu manifest/chain/bytecode không khớp.
 
@@ -278,6 +292,7 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 
 - [ ] Seller: đăng nhập/MFA, tạo profile, chứng minh payout, dry-run adapter, tạo và publish campaign.
 - [ ] Buyer 1 dùng Circle User-Controlled; Buyer 2 dùng external EVM; thử multi-wallet principal conflict.
+- [ ] Ít nhất một buyer nhận USDC qua Arc App Kit Bridge rồi mới commit; Onramp chỉ là case bắt buộc nếu module đã qua gate và được bật.
 - [ ] Commit, tier unlock, sold-out/early-slot race, finalize, rebate.
 - [ ] Nhánh A: delivery → confirm → seller claim.
 - [ ] Nhánh B: delivery → dispute → operator resolution → buyer/seller claims.
@@ -286,7 +301,7 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 
 ### G5.3 — Failure and recovery journey
 
-- [ ] RPC/provider down trước và sau broadcast; tx revert/replacement/drop; indexer lag/restart/reorg simulation.
+- [ ] RPC/provider down trước và sau broadcast; tx revert/replacement/drop; Arc fee/blocklist/zero-address cases; indexer lag/restart/WebSocket-gap/backfill.
 - [ ] Backend/delivery/webhook worker down rồi hồi phục idempotent.
 - [ ] Database restore + chain rebuild + reconciliation tại block cố định.
 
@@ -325,13 +340,14 @@ npm run lint
 npm run typecheck
 npm run test:integration
 npm run test:browser
-npm run test:rebuild-reorg
+npm run test:arc-smoke
+npm run test:indexer-restart-rebuild
 npm run test:restore
 npm run smoke:package
 git diff --check
 ```
 
-Các lệnh live Arc phải tách riêng, chỉ chạy với environment manifest và test funds được phê duyệt; không để test unit mặc định gửi giao dịch mạng ngoài.
+Các lệnh live Arc phải tách riêng (`test:arc-live` hoặc tương đương), chỉ chạy với environment manifest và test funds được phê duyệt; không để test unit mặc định gửi giao dịch mạng ngoài.
 
 ## 11. Definition of Done chung
 

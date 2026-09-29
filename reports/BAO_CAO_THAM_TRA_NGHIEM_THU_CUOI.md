@@ -23,7 +23,7 @@ Lý do quyết định không nằm ở việc giao diện chưa đẹp hoặc t
 3. Ví được gọi là “Circle User-Controlled EOA” vẫn là khóa do backend tự tạo, lưu và sử dụng.
 4. Cơ chế chống replay vẫn có nhánh bỏ qua challenge; frontend chưa dùng endpoint challenge mới.
 5. `finalizeCampaign` và `emergencyCancelCampaign` vẫn lặp toàn bộ order, trái yêu cầu xử lý theo từng phần.
-6. Indexer chưa rollback/rebuild an toàn theo block hash/reorg; reconciliation chưa đối chiếu state từng campaign/order tại cùng một block.
+6. Indexer chưa backfill/rebuild an toàn theo deterministic finality của Arc; reconciliation chưa đối chiếu state từng campaign/order tại cùng một block.
 7. Hạ tầng dữ liệu, webhook, email, xác thực mạnh, backup/restore, monitoring và incident drill chưa đạt yêu cầu vận hành.
 8. UI và cấu hình sản phẩm vẫn thiếu các hành vi bắt buộc; chưa có browser E2E sau khắc phục.
 
@@ -53,7 +53,7 @@ Do đó không thể suy ra “toàn bộ A01–A14 PASS” từ bảng bằng c
 | A02: đã xóa hoàn toàn fail-open/offline success | **Không đúng; còn điểm chặn** | Draft được gán sẵn `onchainCampaignId` cục bộ tại [campaignRoutes.ts](../backend/src/routes/campaignRoutes.ts#L99). Nhánh publish dùng `txHash` chỉ kiểm tra receipt thành công, không bắt buộc event đúng contract/terms; nếu không đọc được event vẫn có thể giữ ID cục bộ rồi đặt `ACTIVE` tại [campaignRoutes.ts](../backend/src/routes/campaignRoutes.ts#L272). Delivery cũng chỉ kiểm tra receipt chung tại [deliveryService.ts](../backend/src/services/deliveryService.ts#L69). Confirm/dispute/auto-settlement vẫn ghi DB trực tiếp tại [deliveryService.ts](../backend/src/services/deliveryService.ts#L139), [disputeService.ts](../backend/src/services/disputeService.ts#L9), [index.ts](../backend/src/index.ts#L180). |
 | A03: relayer đã an toàn | **Một phần** | Allowlist target/selector là cải thiện thật. Nhưng backend vẫn giải mã private key và ký/gửi giao dịch tại [walletRoutes.ts](../backend/src/routes/walletRoutes.ts#L129), đồng thời endpoint `sign-message` ký chuỗi tùy ý. Đây vẫn là ví custodial do server kiểm soát, không phải Circle User-Controlled. Test relayer tự chép lại hàm validation thay vì gọi route thật tại [wallet_relay_security.test.ts](../backend/test/wallet_relay_security.test.ts#L9), nên có thể drift khỏi production code. |
 | A05: Security Authority độc lập | **Một phần, chưa đạt PLAN** | Modifier đã chỉ chấp nhận `securityAuthority`, nhưng constructor vẫn gán authority bằng operator tại [GroupDealHub.sol](../contracts/contracts/GroupDealHub.sol#L75); owner có thể đổi trực tiếp một bước tại [GroupDealHub.sol](../contracts/contracts/GroupDealHub.sol#L98). Deploy script không cấu hình multisig riêng. Không có bằng chứng multisig live, two-step rotation hoặc runbook. |
-| A06: indexer đã đúng và bền vững | **Một phần** | Có deployment cursor và journal, nhưng không lưu/kiểm block hash, confirmation depth hoặc rollback projection. Khi head lùi, code chỉ lùi cursor; journal cũ vẫn làm log bị skip tại [indexerService.ts](../backend/src/services/indexerService.ts#L55). `FundsClaimed` vẫn đánh dấu toàn bộ order phù hợp recipient/campaign đã claim dù event không mang order ID tại [indexerService.ts](../backend/src/services/indexerService.ts#L286). |
+| A06: indexer đã đúng và bền vững | **Một phần** | Có deployment cursor và journal, nhưng chưa có Arc WebSocket + HTTP backfill, gap recovery, canonical block/tx/log ordering, deterministic rebuild hoặc fixed-block reconciliation. `FundsClaimed` vẫn đánh dấu toàn bộ order phù hợp recipient/campaign đã claim dù event không mang order ID tại [indexerService.ts](../backend/src/services/indexerService.ts#L286). Arc deterministic finality không cần Ethereum-style confirmation depth/reorg rollback. |
 | A07: reconciliation trung thực | **Đóng lỗi “HEALTHY khi RPC down”, nhưng chưa đạt nghiệm thu** | `UNVERIFIED` khi RPC lỗi là đúng. Tuy nhiên service chỉ so aggregate DB với balance token, không đọc claimable/state từng campaign/order tại một block cố định; DB và projection cùng sai vẫn có thể cho kết quả “HEALTHY” tại [reconciliationService.ts](../backend/src/services/reconciliationService.ts#L21). |
 | A09: zero data loss/storage đã đạt | **Chỉ đóng lỗi parse-wipe** | File hỏng được giữ lại và process dừng là cải thiện. Store vẫn là một JSON file, không transaction đa bản ghi, không lock đa process, migration, PITR, backup/restore drill hay audit bất biến tại [store.ts](../backend/src/db/store.ts#L214). |
 | A11: challenge nonce chống replay đã cưỡng chế | **Không đúng; còn bypass** | Nếu không tìm thấy challenge và message không chứa marker mới, `consumeWalletChallenge` trả về thành công tại [authService.ts](../backend/src/services/authService.ts#L184). Frontend vẫn tự tạo message cũ và ký trước khi gọi bind/profile tại [AuthContext.tsx](../frontend/src/context/AuthContext.tsx#L97). Test chỉ phủ đường challenge mới nên không phát hiện nhánh bypass. |
@@ -86,7 +86,7 @@ Do đó không thể suy ra “toàn bộ A01–A14 PASS” từ bảng bằng c
 | A03 — relayer/custody | **Không đạt PLAN** | Policy relayer tốt hơn, nhưng mô hình vẫn server-custodial và có signing oracle; không phải Circle User-Controlled. |
 | A04 — secret/backdoor/auth | **Một phần** | Nút admin demo đã bỏ và production fail-fast một số secret. Vẫn có default deployer key cho Arc config, seed operator production, chưa có email OTP thật và MFA/step-up. |
 | A05 — Security Multisig | **Một phần** | Modifier tách quyền nhưng cấu hình/deployment/lifecycle multisig chưa tồn tại. |
-| A06 — indexer | **Không đạt** | Chưa confirmation/reorg rollback/rebuild proof; projection claim còn mơ hồ. |
+| A06 — indexer | **Không đạt** | Chưa có gap recovery/backfill/rebuild proof theo Arc; projection claim còn mơ hồ. |
 | A07 — reconciliation | **Một phần** | Đã có `UNVERIFIED`; chưa đối chiếu contract state chi tiết tại block cố định. |
 | A08 — Arc live readiness | **Không đạt** | Chỉ có local Hardhat metadata và simulation. |
 | A09 — storage/operations | **Không đạt** | Chỉ sửa corruption handling; kiến trúc dữ liệu và phục hồi vận hành chưa đáp ứng. |
@@ -108,15 +108,15 @@ Do đó không thể suy ra “toàn bộ A01–A14 PASS” từ bảng bằng c
 | 6. Danh tính/ví/quyền tài chính | **Không đạt** | Custodial wallet gắn nhãn Circle, challenge bypass, authorization vẫn ký `maxQuantity` thay vì quantity yêu cầu và fallback khi RPC lỗi. |
 | 7. Giao hàng/refund/dispute | **Không đạt runtime** | Confirm/dispute/SLA worker còn DB-only; emergency path không do buyer kiểm soát khi backend ngừng hoạt động. |
 | 8. Claim/cancel/bảo toàn | **Một phần** | Một số invariant local đã sửa; cancel loop unbounded và Security Multisig live chưa đạt. |
-| 9. Nguồn sự thật/kiến trúc | **Không đạt** | DB vẫn tự ghi state tài chính; indexer/reconcile chưa đủ rebuild/reorg/prove. |
+| 9. Nguồn sự thật/kiến trúc | **Không đạt** | DB vẫn tự ghi state tài chính; indexer/reconcile chưa đủ backfill/rebuild/prove theo Arc. |
 | 10. Vận hành/tích hợp/UX | **Không đạt** | JSON store, thiếu migration/backup/PITR/monitoring/email/DLQ/MFA; UI và SDK chưa đủ hồ sơ nghiệm thu. |
-| 11. Kiểm thử/nghiệm thu | **Không đạt** | Không có clean candidate, browser/API E2E, outage/reorg/restore/load test và live Arc dossier. |
+| 11. Kiểm thử/nghiệm thu | **Không đạt** | Không có clean candidate, browser/API E2E, outage/gap/backfill/restore/load test và live Arc dossier. |
 
 ## 6. Các điểm chặn phát hành phải đóng trước khi triển khai public Arc Testnet
 
 ### B01 — P0 — Xóa toàn bộ đường thành công DB-only và receipt không ràng buộc nghiệp vụ
 
-Mọi thay đổi `ACTIVE`, `DELIVERED`, `CONFIRMED`, `DISPUTED`, `RESOLVED`, refund hoặc seller allocation phải xuất phát từ event đã xác minh: đúng chain, đúng contract, đúng tx target, đúng selector, đúng campaign/order/principal/terms/proof và đủ confirmation. API chỉ tạo intent `PENDING_*`; indexer là nơi dựng projection.
+Mọi thay đổi `ACTIVE`, `DELIVERED`, `CONFIRMED`, `DISPUTED`, `RESOLVED`, refund hoặc seller allocation phải xuất phát từ event đã xác minh: đúng chain, đúng contract, đúng tx target, đúng selector, đúng campaign/order/principal/terms/proof và đã đạt deterministic finality của Arc. API chỉ tạo intent `PENDING_*`; indexer là nơi dựng projection.
 
 ### B02 — P0 — Chốt lại mô hình ví theo đúng PLAN
 
@@ -132,7 +132,7 @@ Finalize/cancel phải O(1) hoặc khởi tạo trạng thái rồi phân bổ l
 
 ### B05 — P1 — Hoàn thiện source-of-truth, data và operations
 
-Indexer phải có confirmation depth, block hash, rollback/replay, journal theo chain/contract/tx/logIndex và rebuild sạch. Reconciliation phải đọc contract state ở block cố định. Dữ liệu phải chuyển sang store transactional có migration/backup/restore; webhook dùng durable queue/DLQ và SSRF kiểm DNS/redirect/egress.
+Indexer Arc phải dùng deterministic finality, WebSocket + HTTP backfill, gap detection, canonical block/tx/log ordering, journal idempotent theo chain/emitter/tx/logIndex và rebuild sạch; không áp confirmation buffer/reorg rollback kiểu Ethereum. Reconciliation phải đọc contract state ở block cố định. Dữ liệu phải chuyển sang store transactional có migration/backup/restore; webhook dùng durable queue/DLQ và SSRF kiểm DNS/redirect/egress.
 
 ### B06 — P1 — Hoàn thiện sản phẩm và hồ sơ live
 

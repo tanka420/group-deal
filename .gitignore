@@ -1,16 +1,23 @@
 # Dependency directories
 node_modules/
+*/node_modules/
 
 # Build artifacts
 dist/
+*/dist/
 build/
+*/build/
 artifacts/
+contracts/artifacts/
 cache/
+contracts/cache/
 typechain-types/
+contracts/typechain-types/
 *.tsbuildinfo
 
 # Runtime and storage data
 data/
+backend/data/
 *.log
 *.sqlite
 *.sqlite3

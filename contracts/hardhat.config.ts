@@ -2,10 +2,17 @@ import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import * as dotenv from "dotenv";
 
+import * as path from "path";
+import * as os from "os";
+
+if (!process.env.LOCALAPPDATA) {
+  process.env.LOCALAPPDATA = path.join(os.tmpdir(), "groupdeal-hardhat-cache");
+}
+
 dotenv.config();
 
 const ARC_TESTNET_RPC = process.env.ARC_TESTNET_RPC || "https://rpc.testnet.arc.io";
-const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY || "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+const ARC_TESTNET_ACCOUNTS: string[] = process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [];
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -30,7 +37,7 @@ const config: HardhatUserConfig = {
     arcTestnet: {
       url: ARC_TESTNET_RPC,
       chainId: 5042002,
-      accounts: [DEPLOYER_PRIVATE_KEY],
+      accounts: ARC_TESTNET_ACCOUNTS,
     },
   },
   paths: {
