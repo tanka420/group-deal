@@ -12,6 +12,7 @@ import { faucetRouter } from "./routes/faucetRoutes";
 import { walletRouter } from "./routes/walletRoutes";
 import { IndexerService } from "./services/indexerService";
 import { DeliveryService } from "./services/deliveryService";
+import { validateManifestAndEnvironment } from "./services/manifestValidator";
 import { ethers } from "ethers";
 
 const app = express();
@@ -264,6 +265,18 @@ app.listen(PORT, async () => {
   console.log(`💵  USDC Token: ${config.usdcAddress}`);
   console.log(`🌐  Arc RPC: ${config.arcRpcUrl} (Chain ID: ${config.arcChainId})`);
   console.log(`=================================================\n`);
+
+  try {
+    const valResult = await validateManifestAndEnvironment();
+    console.log(`[Startup] Environment manifest verified (${valResult.environment}, Chain ID: ${valResult.chainId})`);
+  } catch (err: any) {
+    if (config.isProduction || config.arcChainId === 5042002) {
+      console.error(`[CRITICAL] Manifest validation failed:`, err.message);
+      process.exit(1);
+    } else {
+      console.warn(`[Startup Warning] Manifest check skipped for local dev:`, err.message);
+    }
+  }
 
   // Start onchain indexer
   await IndexerService.start();

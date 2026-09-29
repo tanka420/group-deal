@@ -18,6 +18,7 @@
     "verify:pipeline": "node scripts/pipeline_verification.cjs",
     "deploy:local": "npm --prefix contracts run deploy:local",
     "deploy:arc": "npm --prefix contracts run deploy:arc",
+    "test:arc-live": "npm --prefix backend exec -- tsx ../scripts/arc_live_journey.ts",
     "seed:local": "cd contracts && npx hardhat run scripts/seed_demo.ts --network localhost"
   },
   "keywords": [

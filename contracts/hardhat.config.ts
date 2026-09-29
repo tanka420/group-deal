@@ -9,6 +9,7 @@ if (!process.env.LOCALAPPDATA) {
   process.env.LOCALAPPDATA = path.join(os.tmpdir(), "groupdeal-hardhat-cache");
 }
 
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 dotenv.config();
 
 const ARC_TESTNET_RPC = process.env.ARC_TESTNET_RPC || "https://rpc.testnet.arc.io";
@@ -38,6 +39,8 @@ const config: HardhatUserConfig = {
       url: ARC_TESTNET_RPC,
       chainId: 5042002,
       accounts: ARC_TESTNET_ACCOUNTS,
+      gasPrice: 25_000_000_000,
+      timeout: 120_000,
     },
   },
   paths: {

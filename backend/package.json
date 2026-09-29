@@ -16,7 +16,8 @@
     "test:g1": "tsx test/gate_g1_verification.test.ts",
     "test:g3": "tsx test/gate_g3_verification.test.ts",
     "test:g4": "tsx test/gate_g4_verification.test.ts",
-    "test": "tsx test/accounting.test.ts && tsx test/auth_security.test.ts && tsx test/services_audit.test.ts && tsx test/abi_contract_sync.test.ts && tsx test/wallet_relay_security.test.ts && tsx test/wallet_challenge_replay.test.ts && tsx test/gate_g1_verification.test.ts && tsx test/gate_g3_verification.test.ts && tsx test/gate_g4_verification.test.ts"
+    "test:g5": "tsx test/gate_g5_verification.test.ts",
+    "test": "tsx test/accounting.test.ts && tsx test/auth_security.test.ts && tsx test/services_audit.test.ts && tsx test/abi_contract_sync.test.ts && tsx test/wallet_relay_security.test.ts && tsx test/wallet_challenge_replay.test.ts && tsx test/gate_g1_verification.test.ts && tsx test/gate_g3_verification.test.ts && tsx test/gate_g4_verification.test.ts && tsx test/gate_g5_verification.test.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",
