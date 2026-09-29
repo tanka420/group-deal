@@ -46,18 +46,37 @@ export function decryptEntitlement(encryptedPayload: string, customKey?: string)
 /**
  * Derives a cryptographic pseudo-anonymous campaign identity for a user.
  * Cannot be linked cross-campaign or reversed to an email/account ID.
+ * Bound to dedicated salt so JWT rotation does not corrupt identities.
  */
 export function deriveCampaignIdentity(accountId: string, campaignId: string): string {
-  const salt = config.jwtSecret;
+  const salt = config.campaignIdentitySecret;
   const payload = `${accountId}:${campaignId}:${salt}`;
   return ethers.keccak256(ethers.toUtf8Bytes(payload));
+}
+
+/**
+ * Deterministic recursive canonical stringification.
+ * Correctly preserves nested tier thresholds, prices, and properties at all depths.
+ */
+export function canonicalStringify(obj: any): string {
+  if (obj === null || typeof obj !== "object") {
+    return JSON.stringify(obj);
+  }
+  if (Array.isArray(obj)) {
+    return "[" + obj.map(canonicalStringify).join(",") + "]";
+  }
+  const sortedKeys = Object.keys(obj).sort();
+  const pairs = sortedKeys.map(
+    (key) => JSON.stringify(key) + ":" + canonicalStringify(obj[key])
+  );
+  return "{" + pairs.join(",") + "}";
 }
 
 /**
  * Computes canonical terms hash for contract immutability
  */
 export function computeTermsHash(terms: any): string {
-  const canonicalString = JSON.stringify(terms, Object.keys(terms).sort());
+  const canonicalString = canonicalStringify(terms);
   return ethers.keccak256(ethers.toUtf8Bytes(canonicalString));
 }
 

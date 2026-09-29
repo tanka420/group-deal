@@ -83,22 +83,6 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  // Demo shortcut: Switch to operator account
-  const handleSwitchToAdmin = async () => {
-    try {
-      const res = await fetch("/api/auth/otp/request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "operator@groupdeal.io" }),
-      });
-      const data = await res.json();
-      await verifyOtp("operator@groupdeal.io", data.code || "123456");
-      setIsDropdownOpen(false);
-      onTabChange("operator");
-    } catch (e: any) {
-      alert("Lỗi chuyển tài khoản Admin: " + e.message);
-    }
-  };
 
   const truncate = (str: string, len = 6) =>
     str ? `${str.substring(0, len)}...${str.substring(str.length - 4)}` : "";
@@ -288,17 +272,6 @@ export const Header: React.FC<HeaderProps> = ({
                       <span>Ngôn ngữ: <strong>{language === "vi" ? "Tiếng Việt" : "English"}</strong></span>
                     </button>
 
-                    {/* Demo shortcut to switch to Admin */}
-                    {!isOperator && (
-                      <button
-                        className="dropdown-menu-item"
-                        onClick={handleSwitchToAdmin}
-                        style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}
-                      >
-                        <ShieldCheck size={15} color="#fbbf24" />
-                        <span>Đăng nhập Admin (Test Demo)</span>
-                      </button>
-                    )}
 
                     <div className="dropdown-divider" />
 

@@ -98,18 +98,29 @@ export const SellerDashboard: React.FC = () => {
     fetchSellerData();
   }, [user]);
 
-  // Handle dry-run delivery test
+  // Handle dry-run delivery test (F21 fail-closed fix)
   const handleTestDeliveryFlow = async () => {
     try {
-      const res = await fetch("/api/campaigns/test-delivery-temp", {
+      const token = localStorage.getItem("groupdeal_token");
+      const res = await fetch("/api/campaigns/test-delivery", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ method: deliveryMethod, samplePayload }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ deliveryMethod, samplePayload }),
       });
+      const data = await res.json();
+      if (!res.ok) {
+        setIsDryRunVerified(false);
+        alert("❌ Kiểm tra giao thử nghiệm thất bại: " + (data.error || "Lỗi không xác định"));
+        return;
+      }
       setIsDryRunVerified(true);
       alert("✅ Kiểm tra thử luồng mã hóa & giải mã thành công! Bạn có thể xuất bản chiến dịch.");
-    } catch (e) {
-      setIsDryRunVerified(true);
+    } catch (e: any) {
+      setIsDryRunVerified(false);
+      alert("❌ Lỗi kiểm tra thử: " + e.message);
     }
   };
 
@@ -153,7 +164,7 @@ export const SellerDashboard: React.FC = () => {
       if (!res.ok) throw new Error(data.error);
 
       // 2. Mark dry run verified & publish
-      await fetch(`/api/campaigns/${data.campaign.id}/test-delivery`, {
+      const testRes = await fetch(`/api/campaigns/${data.campaign.id}/test-delivery`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -161,11 +172,19 @@ export const SellerDashboard: React.FC = () => {
         },
         body: JSON.stringify({ samplePayload }),
       });
+      const testData = await testRes.json();
+      if (!testRes.ok) {
+        throw new Error(testData.error || "Giao thử nghiệm thất bại trước khi publish");
+      }
 
-      await fetch(`/api/campaigns/${data.campaign.id}/publish`, {
+      const publishRes = await fetch(`/api/campaigns/${data.campaign.id}/publish`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
+      const publishData = await publishRes.json();
+      if (!publishRes.ok) {
+        throw new Error(publishData.error || "Xuất bản chiến dịch thất bại");
+      }
 
       alert("🎉 Chiến dịch đã được tạo và xuất bản thành công trên Arc Testnet!");
       setActiveTab("CAMPAIGNS");

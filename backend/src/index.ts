@@ -9,6 +9,7 @@ import { sellerRouter } from "./routes/sellerRoutes";
 import { operatorRouter } from "./routes/operatorRoutes";
 import { publicRouter } from "./routes/publicRoutes";
 import { faucetRouter } from "./routes/faucetRoutes";
+import { walletRouter } from "./routes/walletRoutes";
 import { IndexerService } from "./services/indexerService";
 import { DeliveryService } from "./services/deliveryService";
 import { ethers } from "ethers";
@@ -19,7 +20,7 @@ app.use(cors());
 app.use(express.json());
 
 // Health check
-app.get("/health", (req, res) => {
+const healthHandler = (req: express.Request, res: express.Response) => {
   res.json({
     status: "OK",
     service: "GroupDeal API",
@@ -28,7 +29,9 @@ app.get("/health", (req, res) => {
     usdcAddress: config.usdcAddress,
     timestamp: Date.now(),
   });
-});
+};
+app.get("/health", healthHandler);
+app.get("/api/health", healthHandler);
 
 // Mount Routes
 app.use("/api/auth", authRouter);
@@ -38,6 +41,7 @@ app.use("/api/seller", sellerRouter);
 app.use("/api/operator", operatorRouter);
 app.use("/api/v1", publicRouter);
 app.use("/api/faucet", faucetRouter);
+app.use("/api/wallet", walletRouter);
 
 // Initialize demo users and campaigns if empty
 function initializeInitialState() {

@@ -52,6 +52,33 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ onSelectCampaign }) =>
     return `${days} ngày ${hours}h`;
   };
 
+  // Dynamic metrics calculation from real campaign data
+  const totalVolumeUSDC = campaigns.reduce((acc, c) => {
+    return acc + Number(c.totalGrossCommitted || 0) / 1e6;
+  }, 0);
+
+  const activeCampaignsCount = campaigns.filter(
+    (c) => c.status === "ACTIVE" || c.status === "PUBLISHED"
+  ).length;
+
+  const discounts = campaigns
+    .map((c) => {
+      if (c.tiers && c.tiers.length >= 2) {
+        const initialPrice = Number(c.tiers[0].price);
+        const lowestPrice = Number(c.tiers[c.tiers.length - 1].price);
+        if (initialPrice > 0) {
+          return ((initialPrice - lowestPrice) / initialPrice) * 100;
+        }
+      }
+      return 0;
+    })
+    .filter((d) => d > 0);
+
+  const avgDiscount =
+    discounts.length > 0
+      ? (discounts.reduce((a, b) => a + b, 0) / discounts.length).toFixed(1)
+      : "0";
+
   return (
     <div>
       {/* Hero Section */}
@@ -122,7 +149,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ onSelectCampaign }) =>
               {t("totalVolume")}
             </div>
             <div className="font-mono" style={{ fontSize: "1.6rem", fontWeight: 800, color: "var(--cyan)" }}>
-              $42,850 USDC
+              ${totalVolumeUSDC.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} USDC
             </div>
           </div>
 
@@ -131,7 +158,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ onSelectCampaign }) =>
               {t("activeCampaigns")}
             </div>
             <div className="font-mono" style={{ fontSize: "1.6rem", fontWeight: 800, color: "var(--primary-light)" }}>
-              {campaigns.length} Chiến dịch
+              {activeCampaignsCount} Chiến dịch
             </div>
           </div>
 
@@ -140,7 +167,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ onSelectCampaign }) =>
               {t("avgDiscount")}
             </div>
             <div className="font-mono" style={{ fontSize: "1.6rem", fontWeight: 800, color: "var(--success)" }}>
-              -42.5% Off
+              -{avgDiscount}% Off
             </div>
           </div>
         </div>

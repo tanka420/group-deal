@@ -128,6 +128,8 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
       });
 
       setTxHash(result.txHash);
+      setTxStep("SYNCING");
+      await new Promise((r) => setTimeout(r, 1500));
       setTxStep("CONFIRMED");
 
       // Trigger victory celebration
@@ -158,7 +160,7 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
         <ArrowLeft size={16} /> Quay lại danh sách
       </button>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: "2rem" }}>
+      <div className="campaign-detail-grid">
         {/* Left Column: Details & Tier Progression */}
         <div>
           {/* Main Visual Header */}

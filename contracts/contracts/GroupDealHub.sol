@@ -52,9 +52,21 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
 
     // Invariant tracking: campaignId => total active USDC locked in this contract for the campaign
     mapping(uint256 => uint256) public campaignEscrowBalance;
+    // Cumulative claimed USDC by buyer per orderId (pull pattern preservation)
+    mapping(uint256 => uint256) public buyerClaimedAmount;
+
+    address public securityAuthority;
 
     modifier onlyOperator() {
         require(msg.sender == operatorAddress || msg.sender == owner(), "Unauthorized operator");
+        _;
+    }
+
+    modifier onlySecurityAuthority() {
+        require(
+            msg.sender == securityAuthority,
+            "Unauthorized security authority: only designated security authority can execute"
+        );
         _;
     }
 
@@ -70,6 +82,7 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
         usdcToken = IERC20(_usdcToken);
         authorizedSigner = _authorizedSigner;
         operatorAddress = _operatorAddress;
+        securityAuthority = _operatorAddress;
     }
 
     function setAuthorizedSigner(address _signer) external onlyOwner {
@@ -80,6 +93,11 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
     function setOperatorAddress(address _operator) external onlyOwner {
         require(_operator != address(0), "Zero address");
         operatorAddress = _operator;
+    }
+
+    function setSecurityAuthority(address _authority) external onlyOwner {
+        require(_authority != address(0), "Zero address");
+        securityAuthority = _authority;
     }
 
     /**
@@ -94,6 +112,7 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
         require(terms.durationSeconds >= 24 hours && terms.durationSeconds <= 30 days, "Duration 24h to 30d");
         require(terms.deliverySlaSeconds == 24 hours || terms.deliverySlaSeconds == 48 hours, "SLA must be 24h or 48h");
         require(terms.maxPerAccount > 0, "maxPerAccount must be > 0");
+        require(terms.platformFeeBps == 0, "Platform fee must be 0 in v1");
 
         // Validate strictly ascending thresholds and strictly descending prices
         for (uint256 i = 0; i < tiers.length; i++) {
@@ -285,11 +304,6 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
         // Check if next tiers are unlocked by the updated metric
         _checkAndUnlockTiers(campaignId);
 
-        // Auto-finalize if inventory reached 100% sold-out
-        if (terms.inventoryLimit > 0 && state.totalUnitsCommitted >= terms.inventoryLimit) {
-            _finalizeCampaignInternal(campaignId);
-        }
-
         // Create Order
         orderId = nextOrderId++;
         orders[orderId] = Order({
@@ -316,6 +330,11 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
 
         _campaignOrderIds[campaignId].push(orderId);
         campaignEscrowBalance[campaignId] += committedGross;
+
+        // Auto-finalize if inventory reached 100% sold-out (now includes current order for rebate calculation)
+        if (terms.inventoryLimit > 0 && state.totalUnitsCommitted >= terms.inventoryLimit) {
+            _finalizeCampaignInternal(campaignId);
+        }
 
         // Pull USDC from buyer wallet to contract
         usdcToken.safeTransferFrom(msg.sender, address(this), committedGross);
@@ -472,6 +491,8 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
      * Seller proceeds become claimable immediately.
      */
     function confirmReceipt(uint256 campaignId, uint256 orderId) external nonReentrant {
+        CampaignState storage state = campaignStates[campaignId];
+        require(state.status != CampaignStatus.CANCELLED, "Campaign cancelled");
         Order storage order = orders[orderId];
         require(order.campaignId == campaignId, "Mismatched campaign/order");
         require(msg.sender == order.buyerPrincipal, "Only buyer principal can confirm");
@@ -485,6 +506,8 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
      * @notice Settle order to seller if 48h dispute window passed with no disputes.
      */
     function settleUndisputedOrder(uint256 campaignId, uint256 orderId) external nonReentrant {
+        CampaignState storage state = campaignStates[campaignId];
+        require(state.status != CampaignStatus.CANCELLED, "Campaign cancelled");
         Order storage order = orders[orderId];
         require(order.campaignId == campaignId, "Mismatched campaign/order");
         require(order.deliveryStatus == DeliveryStatus.DELIVERED, "Order not DELIVERED");
@@ -500,11 +523,18 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
         CampaignState storage state = campaignStates[campaignId];
 
         order.deliveryStatus = DeliveryStatus.CONFIRMED;
+        uint256 alreadyAllocated = order.rebateAllocated + order.sellerAllocated + order.buyerRefundAllocated;
+        require(order.committedGross >= alreadyAllocated, "Invariant error: over-allocated");
+        uint256 unallocated = order.committedGross - alreadyAllocated;
+
         uint256 remainingGross = order.committedGross - order.rebateAllocated;
         uint256 fee = (remainingGross * terms.platformFeeBps) / 10000;
         uint256 sellerProceeds = remainingGross - fee;
+        if (sellerProceeds > unallocated) {
+            sellerProceeds = unallocated;
+        }
 
-        order.sellerAllocated = sellerProceeds;
+        order.sellerAllocated += sellerProceeds;
         state.totalSellerClaimable += sellerProceeds;
     }
 
@@ -583,12 +613,15 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
     ) external onlyOperator nonReentrant {
         Order storage order = orders[orderId];
         CampaignState storage state = campaignStates[campaignId];
+        require(state.status != CampaignStatus.CANCELLED, "Campaign cancelled");
 
         require(order.campaignId == campaignId, "Mismatched campaign/order");
         require(order.deliveryStatus == DeliveryStatus.DISPUTED, "Order not DISPUTED");
 
-        uint256 remainingGross = order.committedGross - order.rebateAllocated;
-        require(buyerShare + sellerShare == remainingGross, "Conservation violated: sum != remainingGross");
+        uint256 alreadyAllocated = order.rebateAllocated + order.sellerAllocated + order.buyerRefundAllocated;
+        require(order.committedGross >= alreadyAllocated, "Over-allocated");
+        uint256 unallocated = order.committedGross - alreadyAllocated;
+        require(buyerShare + sellerShare == unallocated, "Conservation violated: sum != remainingGross");
 
         order.buyerRefundAllocated += buyerShare;
         order.sellerAllocated += sellerShare;
@@ -606,17 +639,39 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
         uint256 campaignId,
         uint256[] calldata orderIds
     ) external nonReentrant returns (uint256 totalClaimed) {
+        CampaignState storage state = campaignStates[campaignId];
         for (uint256 i = 0; i < orderIds.length; i++) {
             Order storage order = orders[orderIds[i]];
             require(order.campaignId == campaignId, "Mismatched campaign");
             require(order.buyerPrincipal == msg.sender, "Caller not order buyer principal");
-            require(!order.buyerClaimed, "Order already claimed by buyer");
 
-            uint256 claimable = order.rebateAllocated + order.buyerRefundAllocated;
-            if (claimable > 0) {
-                order.buyerClaimed = true;
-                totalClaimed += claimable;
+            // Lazy rebate allocation fallback if order was not pre-allocated during finalize
+            if (state.status == CampaignStatus.FINALIZED && order.rebateAllocated == 0 && state.finalClearingPrice > 0) {
+                uint256 unitDiff = order.lockedUnitPrice > state.finalClearingPrice
+                    ? order.lockedUnitPrice - state.finalClearingPrice
+                    : 0;
+                uint256 totalRebate = (unitDiff * order.quantity) + order.earlyRebateValue;
+                if (totalRebate > order.committedGross) {
+                    totalRebate = order.committedGross;
+                }
+                order.rebateAllocated = totalRebate;
             }
+
+            // Lazy cancel allocation fallback if campaign was emergency cancelled
+            if (state.status == CampaignStatus.CANCELLED) {
+                uint256 allocated = order.rebateAllocated + order.sellerAllocated + order.buyerRefundAllocated;
+                if (order.committedGross > allocated) {
+                    order.buyerRefundAllocated += (order.committedGross - allocated);
+                }
+            }
+
+            uint256 totalAllocated = order.rebateAllocated + order.buyerRefundAllocated;
+            require(totalAllocated > buyerClaimedAmount[orderIds[i]], "Order already claimed by buyer");
+
+            uint256 claimable = totalAllocated - buyerClaimedAmount[orderIds[i]];
+            buyerClaimedAmount[orderIds[i]] += claimable;
+            order.buyerClaimed = (buyerClaimedAmount[orderIds[i]] == totalAllocated);
+            totalClaimed += claimable;
         }
 
         require(totalClaimed > 0, "No claimable funds for buyer");
@@ -669,6 +724,37 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
     }
 
     /**
+     * @notice Allocate rebates in batches for large campaigns exceeding single-tx gas limits.
+     */
+    function allocateRebatesBatch(
+        uint256 campaignId,
+        uint256 startIndex,
+        uint256 count
+    ) external {
+        CampaignState storage state = campaignStates[campaignId];
+        require(state.status == CampaignStatus.FINALIZED, "Campaign not finalized");
+        uint256[] storage orderIds = _campaignOrderIds[campaignId];
+        uint256 end = startIndex + count;
+        if (end > orderIds.length) {
+            end = orderIds.length;
+        }
+
+        for (uint256 i = startIndex; i < end; i++) {
+            Order storage order = orders[orderIds[i]];
+            if (order.rebateAllocated == 0 && state.finalClearingPrice > 0) {
+                uint256 unitDiff = order.lockedUnitPrice > state.finalClearingPrice
+                    ? order.lockedUnitPrice - state.finalClearingPrice
+                    : 0;
+                uint256 totalRebate = (unitDiff * order.quantity) + order.earlyRebateValue;
+                if (totalRebate > order.committedGross) {
+                    totalRebate = order.committedGross;
+                }
+                order.rebateAllocated = totalRebate;
+            }
+        }
+    }
+
+    /**
      * @notice Security Multisig / Operator Emergency Cancellation:
      * Only unallocated funds are credited to buyer refund pools.
      * Settled or claimed funds are NOT clawed back.
@@ -676,7 +762,7 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
     function emergencyCancelCampaign(
         uint256 campaignId,
         bytes32 reasonHash
-    ) external onlyOperator nonReentrant {
+    ) external onlySecurityAuthority nonReentrant {
         CampaignState storage state = campaignStates[campaignId];
         require(state.status != CampaignStatus.CANCELLED, "Already cancelled");
 
@@ -692,6 +778,13 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
                 uint256 unallocated = order.committedGross - allocated;
                 order.buyerRefundAllocated += unallocated;
                 totalRefundPool += unallocated;
+            }
+            if (
+                order.deliveryStatus != DeliveryStatus.CONFIRMED &&
+                order.deliveryStatus != DeliveryStatus.RESOLVED &&
+                order.deliveryStatus != DeliveryStatus.BREACHED_REFUNDED
+            ) {
+                order.deliveryStatus = DeliveryStatus.BREACHED_REFUNDED;
             }
         }
 

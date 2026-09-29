@@ -1,6 +1,7 @@
 import { ethers } from "ethers";
 import { store, OrderRecord } from "../db/store";
 import { encryptEntitlement, decryptEntitlement } from "../utils/crypto";
+import { OnchainService } from "./onchainService";
 
 export class DeliveryService {
   /**
@@ -32,14 +33,15 @@ export class DeliveryService {
   }
 
   /**
-   * Seller fulfills an order with encrypted digital entitlements.
+   * Seller fulfills an order with encrypted digital entitlements and records delivery onchain.
    * The secret is encrypted offchain and NEVER touches the blockchain or logs!
    */
-  public static fulfillOrder(
+  public static async fulfillOrder(
     sellerId: string,
     orderId: string,
-    secretContent: string
-  ): { order: OrderRecord; proofHash: string } {
+    secretContent: string,
+    txHash?: string
+  ): Promise<{ order: OrderRecord; proofHash: string; txHash?: string }> {
     const order = store.db.orders[orderId];
     if (!order) throw new Error("Order not found");
 
@@ -67,21 +69,46 @@ export class DeliveryService {
     const proofHash = ethers.keccak256(ethers.toUtf8Bytes(secretContent));
     const now = Math.floor(Date.now() / 1000);
 
+    let recordedTxHash = txHash;
+    const user = store.db.users[sellerId];
+
+    if (txHash) {
+      // Validate tx receipt
+      const receipt = await OnchainService.verifyTxReceipt(txHash);
+      recordedTxHash = receipt.hash;
+    } else if (user?.circleWallet?.encryptedPrivateKey) {
+      // Broadcast onchain delivery via embedded wallet
+      const sellerKey = decryptEntitlement(user.circleWallet.encryptedPrivateKey);
+      const result = await OnchainService.recordDeliveryOnchain(
+        campaign.onchainCampaignId,
+        order.onchainOrderId,
+        proofHash,
+        sellerKey
+      );
+      recordedTxHash = result.txHash;
+    } else {
+      throw new Error("Cannot fulfill order: valid onchain transaction hash or embedded seller wallet is required.");
+    }
+
     order.deliveredEntitlementEncrypted = encrypted;
     order.deliveryProofHash = proofHash;
     order.deliveryTimestamp = now;
     order.disputeDeadline = now + 48 * 3600; // 48-hour dispute window
     order.deliveryStatus = "DELIVERED";
+    if (recordedTxHash) {
+      order.txHash = recordedTxHash;
+    }
 
     store.addAuditLog(sellerId, "seller", "ORDER_FULFILLED", {
       orderId,
       campaignId: order.campaignId,
       proofHash,
       disputeDeadline: order.disputeDeadline,
+      txHash: recordedTxHash,
     });
     store.save();
 
-    return { order, proofHash };
+    return { order, proofHash, txHash: recordedTxHash };
   }
 
   /**

@@ -32,6 +32,10 @@ export class GroupDealSDK {
     }
 
     const timestamp = parseInt(timestampHeader, 10);
+    if (isNaN(timestamp)) {
+      return false;
+    }
+
     const now = Math.floor(Date.now() / 1000);
     if (Math.abs(now - timestamp) > toleranceSeconds) {
       return false; // Replay attack detected
@@ -43,8 +47,15 @@ export class GroupDealSDK {
       .update(message)
       .digest("hex");
 
-    const providedSig = signatureHeader.replace(/^sha256=/, "");
-    return crypto.timingSafeEqual(Buffer.from(expectedSig), Buffer.from(providedSig));
+    const providedSig = signatureHeader.replace(/^sha256=/, "").trim();
+    const expectedBuf = Buffer.from(expectedSig);
+    const providedBuf = Buffer.from(providedSig);
+
+    if (expectedBuf.length !== providedBuf.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(expectedBuf, providedBuf);
   }
 
   /**

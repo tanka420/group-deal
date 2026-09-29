@@ -48,12 +48,13 @@ publicRouter.get("/campaigns/:id", (req, res) => {
     res.status(404).json({ error: "Campaign not found" });
     return;
   }
+  const { deliveryContentTemplate, ...safeCampaign } = c;
   const seller = store.db.users[c.sellerId]?.sellerProfile;
   res.json({
     version: "1.0",
     network: "Arc Testnet (5042002)",
     campaign: {
-      ...c,
+      ...safeCampaign,
       seller: {
         displayName: seller?.displayName || "Seller",
         payoutWallet: c.sellerPayoutWallet,
@@ -67,7 +68,7 @@ publicRouter.get("/campaigns/:id", (req, res) => {
 // GET /api/v1/campaigns/:id/widget-data (Read-only widget embed data)
 publicRouter.get("/campaigns/:id/widget-data", (req, res) => {
   const c = store.db.campaigns[req.params.id];
-  if (!c) {
+  if (!c || c.status === "DRAFT") {
     res.status(404).json({ error: "Campaign not found" });
     return;
   }

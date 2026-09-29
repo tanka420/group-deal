@@ -42,22 +42,23 @@ export const SellerRegisterModal: React.FC<SellerRegisterModalProps> = ({
     setError(null);
 
     try {
-      // Create a signer based on current wallet
-      let signer: ethers.Signer;
-      if (user?.circleWallet?.encryptedPrivateKey) {
-        const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
-        signer = new ethers.Wallet(user.circleWallet.encryptedPrivateKey, provider);
-      } else if (window.ethereum) {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        signer = await provider.getSigner();
-      } else {
-        throw new Error("Không tìm thấy ví hợp lệ để ký chứng thực.");
+      let signer: ethers.Signer | undefined;
+      const normalizedPayout = ethers.getAddress(payoutWallet);
+      const isCircleWallet = user?.circleWallet?.address?.toLowerCase() === normalizedPayout.toLowerCase();
+
+      if (!isCircleWallet) {
+        if (window.ethereum) {
+          const provider = new ethers.BrowserProvider(window.ethereum);
+          signer = await provider.getSigner();
+        } else {
+          throw new Error("Vui lòng kết nối MetaMask để chứng thực quyền kiểm soát ví nhận tiền ngoài.");
+        }
       }
 
       await setupSellerProfile({
         displayName,
         bio,
-        payoutWallet: ethers.getAddress(payoutWallet),
+        payoutWallet: normalizedPayout,
         signer,
       });
 

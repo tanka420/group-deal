@@ -8,7 +8,6 @@ export interface User {
   activeWallet: string | null;
   circleWallet?: {
     address: string;
-    encryptedPrivateKey: string;
   };
   sellerProfile?: {
     displayName: string;
@@ -30,7 +29,7 @@ interface AuthContextType {
     displayName: string;
     bio: string;
     payoutWallet: string;
-    signer: ethers.Signer;
+    signer?: ethers.Signer;
   }) => Promise<User>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -119,11 +118,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     displayName: string;
     bio: string;
     payoutWallet: string;
-    signer: ethers.Signer;
+    signer?: ethers.Signer;
   }) => {
     if (!token) throw new Error("Must be logged in to setup seller profile");
     const challengeMessage = `GroupDeal Seller Payout Wallet Verification\nWallet: ${profileData.payoutWallet}\nTimestamp: ${Date.now()}`;
-    const proofSignature = await profileData.signer.signMessage(challengeMessage);
+    let proofSignature: string;
+
+    if (profileData.signer) {
+      proofSignature = await profileData.signer.signMessage(challengeMessage);
+    } else {
+      // Use embedded wallet signer endpoint
+      const signRes = await fetch("/api/wallet/sign-message", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ message: challengeMessage }),
+      });
+      const signData = await signRes.json();
+      if (!signRes.ok) throw new Error(signData.error || "Failed to sign payout challenge");
+      proofSignature = signData.signature;
+    }
 
     const res = await fetch("/api/auth/seller/profile", {
       method: "POST",

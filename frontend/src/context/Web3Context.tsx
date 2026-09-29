@@ -45,21 +45,30 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   const [hubAddress, setHubAddress] = useState<string>("");
   const [usdcAddress, setUsdcAddress] = useState<string>("");
 
-  // Load contract addresses from health check
+  // Load contract addresses from health check via /api/health
   useEffect(() => {
-    fetch("/health")
+    fetch("/api/health")
       .then((r) => r.json())
       .then((data) => {
         if (data.hubAddress) setHubAddress(data.hubAddress);
         if (data.usdcAddress) setUsdcAddress(data.usdcAddress);
       })
-      .catch((e) => console.warn("Could not load /health", e));
+      .catch((e) => console.warn("Could not load /api/health", e));
   }, []);
 
-  // Sync wallet with User's Circle Wallet by default when logged in
+  // UI03 Fix: Sync wallet with User account; handle login/logout/switch cleanly
   useEffect(() => {
-    if (user && walletMode === "DISCONNECTED") {
-      if (user.circleWallet) {
+    if (!user) {
+      if (walletMode === "CIRCLE_EMBEDDED") {
+        setAccount(null);
+        setWalletMode("DISCONNECTED");
+        setUsdcBalance("0.00");
+      }
+      return;
+    }
+
+    if (walletMode === "DISCONNECTED" || walletMode === "CIRCLE_EMBEDDED") {
+      if (user.circleWallet?.address) {
         setAccount(user.circleWallet.address);
         setWalletMode("CIRCLE_EMBEDDED");
         setChainId(5042002);
@@ -67,39 +76,53 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         setAccount(user.activeWallet);
       }
     }
-  }, [user, walletMode]);
+  }, [user]);
 
-  const getSignerAndProvider = async (): Promise<{
-    signer: ethers.Signer;
-    provider: ethers.Provider;
-  }> => {
-    if (walletMode === "CIRCLE_EMBEDDED" && user?.circleWallet?.encryptedPrivateKey) {
-      // Connect using Circle User-Controlled EOA key
-      const rpcUrl = "http://127.0.0.1:8545"; // or Arc Testnet RPC
-      const provider = new ethers.JsonRpcProvider(rpcUrl);
-      const signer = new ethers.Wallet(user.circleWallet.encryptedPrivateKey, provider);
-      return { signer, provider };
-    }
-
+  const getReadProvider = (): ethers.Provider => {
     if (window.ethereum) {
-      const browserProvider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await browserProvider.getSigner();
-      return { signer, provider: browserProvider };
+      return new ethers.BrowserProvider(window.ethereum);
     }
+    return new ethers.JsonRpcProvider("https://rpc.testnet.arc.io");
+  };
 
-    throw new Error("No wallet available. Please log in or connect MetaMask.");
+  const getInjectedSigner = async (): Promise<ethers.Signer> => {
+    if (!window.ethereum) {
+      throw new Error("Không phát hiện ví EVM. Vui lòng cài đặt MetaMask hoặc sử dụng ví nhúng.");
+    }
+    const browserProvider = new ethers.BrowserProvider(window.ethereum);
+    return await browserProvider.getSigner();
+  };
+
+  /**
+   * Helper to relay transaction on behalf of embedded Circle wallet via secure backend API
+   */
+  const relayTx = async (to: string, data: string, value?: string): Promise<{ txHash: string }> => {
+    const token = localStorage.getItem("groupdeal_token");
+    if (!token) throw new Error("Chưa đăng nhập. Vui lòng đăng nhập để thực hiện giao dịch.");
+
+    const res = await fetch("/api/wallet/relay", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ to, data, value }),
+    });
+
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || "Giao dịch ví nhúng thất bại");
+    return { txHash: result.txHash };
   };
 
   const refreshBalance = async () => {
     if (!account || !usdcAddress) return;
     try {
-      const { provider } = await getSignerAndProvider();
+      const provider = getReadProvider();
       const usdcAbi = ["function balanceOf(address) external view returns (uint256)"];
       const usdcContract = new ethers.Contract(usdcAddress, usdcAbi, provider);
       const bal = await usdcContract.balanceOf(account);
       setUsdcBalance(Number(ethers.formatUnits(bal, 6)).toFixed(2));
     } catch (e) {
-      // Fallback
       console.warn("Could not fetch balance:", e);
     }
   };
@@ -112,7 +135,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const connectInjectedWallet = async (): Promise<string> => {
     if (!window.ethereum) {
-      throw new Error("No EVM wallet detected. Please install MetaMask or use your Circle Wallet.");
+      throw new Error("Không tìm thấy ví EVM. Vui lòng cài đặt MetaMask hoặc sử dụng Ví Nhúng.");
     }
     setIsConnecting(true);
     try {
@@ -130,7 +153,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const switchToCircleWallet = () => {
-    if (user?.circleWallet) {
+    if (user?.circleWallet?.address) {
       setAccount(user.circleWallet.address);
       setWalletMode("CIRCLE_EMBEDDED");
       setChainId(5042002);
@@ -138,14 +161,14 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const claimFaucet = async (): Promise<{ success: boolean; txHash: string }> => {
-    if (!account) throw new Error("Wallet not connected");
+    if (!account) throw new Error("Ví chưa được kết nối");
     const res = await fetch("/api/faucet/usdc", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ address: account }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Faucet failed");
+    if (!res.ok) throw new Error(data.error || "Nhận Test USDC thất bại");
     await refreshBalance();
     return { success: true, txHash: data.txHash };
   };
@@ -160,92 +183,161 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     authSignature: string;
     lockedUnitPriceUSDC: string;
   }): Promise<{ txHash: string }> => {
-    const { signer } = await getSignerAndProvider();
-
-    // 1. Approve USDC transfer
     const totalGross = BigInt(params.lockedUnitPriceUSDC) * BigInt(params.quantity);
-    const usdcAbi = [
-      "function allowance(address, address) external view returns (uint256)",
-      "function approve(address, uint256) external returns (bool)",
-    ];
-    const usdcContract = new ethers.Contract(usdcAddress, usdcAbi, signer);
-    const allowance = await usdcContract.allowance(await signer.getAddress(), hubAddress);
 
-    if (allowance < totalGross) {
-      console.log("[Web3] Approving USDC allowance for Hub...");
-      const approveTx = await usdcContract.approve(hubAddress, ethers.MaxUint256);
-      await approveTx.wait();
+    if (walletMode === "CIRCLE_EMBEDDED") {
+      // 1. Relay Approve USDC
+      const usdcInterface = new ethers.Interface([
+        "function approve(address spender, uint256 amount) external returns (bool)",
+      ]);
+      const approveData = usdcInterface.encodeFunctionData("approve", [hubAddress, ethers.MaxUint256]);
+      await relayTx(usdcAddress, approveData);
+
+      // 2. Relay commitToBuy
+      const hubInterface = new ethers.Interface([
+        "function commitToBuy(uint256 campaignId, bytes32 campaignIdentity, uint256 quantity, bool requireEarlySlot, uint256 maxAuthQuantity, uint256 authDeadline, bytes calldata authSignature) external returns (uint256 orderId)",
+      ]);
+      const commitData = hubInterface.encodeFunctionData("commitToBuy", [
+        BigInt(params.campaignId),
+        params.campaignIdentity,
+        BigInt(params.quantity),
+        params.requireEarlySlot,
+        BigInt(params.maxAuthQuantity),
+        BigInt(params.authDeadline),
+        params.authSignature,
+      ]);
+
+      const { txHash } = await relayTx(hubAddress, commitData);
+      await refreshBalance();
+      return { txHash };
+    } else {
+      // INJECTED Wallet (MetaMask)
+      const signer = await getInjectedSigner();
+      const usdcAbi = [
+        "function allowance(address, address) external view returns (uint256)",
+        "function approve(address, uint256) external returns (bool)",
+      ];
+      const usdcContract = new ethers.Contract(usdcAddress, usdcAbi, signer);
+      const allowance = await usdcContract.allowance(await signer.getAddress(), hubAddress);
+
+      if (allowance < totalGross) {
+        console.log("[Web3] Phê duyệt hạn mức USDC cho Hub...");
+        const approveTx = await usdcContract.approve(hubAddress, ethers.MaxUint256);
+        await approveTx.wait();
+      }
+
+      const hubAbi = [
+        "function commitToBuy(uint256 campaignId, bytes32 campaignIdentity, uint256 quantity, bool requireEarlySlot, uint256 maxAuthQuantity, uint256 authDeadline, bytes calldata authSignature) external returns (uint256 orderId)",
+      ];
+      const hubContract = new ethers.Contract(hubAddress, hubAbi, signer);
+
+      console.log("[Web3] Gửi giao dịch commitToBuy lên Arc...");
+      const tx = await hubContract.commitToBuy(
+        BigInt(params.campaignId),
+        params.campaignIdentity,
+        BigInt(params.quantity),
+        params.requireEarlySlot,
+        BigInt(params.maxAuthQuantity),
+        BigInt(params.authDeadline),
+        params.authSignature
+      );
+
+      const txHash = tx.hash;
+      await tx.wait();
+      await refreshBalance();
+      return { txHash };
     }
-
-    // 2. Call commitToBuy on GroupDealHub
-    const hubAbi = [
-      "function commitToBuy(uint256 campaignId, bytes32 campaignIdentity, uint256 quantity, bool requireEarlySlot, uint256 maxAuthQuantity, uint256 authDeadline, bytes calldata authSignature) external returns (uint256 orderId)",
-    ];
-    const hubContract = new ethers.Contract(hubAddress, hubAbi, signer);
-
-    console.log("[Web3] Submitting commitToBuy transaction on Arc...");
-    const tx = await hubContract.commitToBuy(
-      BigInt(params.campaignId),
-      params.campaignIdentity,
-      BigInt(params.quantity),
-      params.requireEarlySlot,
-      BigInt(params.maxAuthQuantity),
-      BigInt(params.authDeadline),
-      params.authSignature
-    );
-
-    const receipt = await tx.wait();
-    await refreshBalance();
-    return { txHash: receipt.hash };
   };
 
   const claimBuyerFundsOnchain = async (campaignId: number, orderIds: number[]) => {
-    const { signer } = await getSignerAndProvider();
     const hubAbi = ["function claimBuyerFunds(uint256, uint256[]) external returns (uint256)"];
-    const hubContract = new ethers.Contract(hubAddress, hubAbi, signer);
 
-    const tx = await hubContract.claimBuyerFunds(
-      BigInt(campaignId),
-      orderIds.map((id) => BigInt(id))
-    );
-    const receipt = await tx.wait();
-    await refreshBalance();
-    return { txHash: receipt.hash };
+    if (walletMode === "CIRCLE_EMBEDDED") {
+      const hubInterface = new ethers.Interface(hubAbi);
+      const data = hubInterface.encodeFunctionData("claimBuyerFunds", [
+        BigInt(campaignId),
+        orderIds.map((id) => BigInt(id)),
+      ]);
+      const { txHash } = await relayTx(hubAddress, data);
+      await refreshBalance();
+      return { txHash };
+    } else {
+      const signer = await getInjectedSigner();
+      const hubContract = new ethers.Contract(hubAddress, hubAbi, signer);
+      const tx = await hubContract.claimBuyerFunds(
+        BigInt(campaignId),
+        orderIds.map((id) => BigInt(id))
+      );
+      const txHash = tx.hash;
+      await tx.wait();
+      await refreshBalance();
+      return { txHash };
+    }
   };
 
   const claimSellerProceedsOnchain = async (campaignId: number, orderIds: number[]) => {
-    const { signer } = await getSignerAndProvider();
     const hubAbi = ["function claimSellerProceeds(uint256, uint256[]) external returns (uint256)"];
-    const hubContract = new ethers.Contract(hubAddress, hubAbi, signer);
 
-    const tx = await hubContract.claimSellerProceeds(
-      BigInt(campaignId),
-      orderIds.map((id) => BigInt(id))
-    );
-    const receipt = await tx.wait();
-    await refreshBalance();
-    return { txHash: receipt.hash };
+    if (walletMode === "CIRCLE_EMBEDDED") {
+      const hubInterface = new ethers.Interface(hubAbi);
+      const data = hubInterface.encodeFunctionData("claimSellerProceeds", [
+        BigInt(campaignId),
+        orderIds.map((id) => BigInt(id)),
+      ]);
+      const { txHash } = await relayTx(hubAddress, data);
+      await refreshBalance();
+      return { txHash };
+    } else {
+      const signer = await getInjectedSigner();
+      const hubContract = new ethers.Contract(hubAddress, hubAbi, signer);
+      const tx = await hubContract.claimSellerProceeds(
+        BigInt(campaignId),
+        orderIds.map((id) => BigInt(id))
+      );
+      const txHash = tx.hash;
+      await tx.wait();
+      await refreshBalance();
+      return { txHash };
+    }
   };
 
   const confirmReceiptOnchain = async (campaignId: number, orderId: number) => {
-    const { signer } = await getSignerAndProvider();
     const hubAbi = ["function confirmReceipt(uint256, uint256) external"];
-    const hubContract = new ethers.Contract(hubAddress, hubAbi, signer);
 
-    const tx = await hubContract.confirmReceipt(BigInt(campaignId), BigInt(orderId));
-    const receipt = await tx.wait();
-    return { txHash: receipt.hash };
+    if (walletMode === "CIRCLE_EMBEDDED") {
+      const hubInterface = new ethers.Interface(hubAbi);
+      const data = hubInterface.encodeFunctionData("confirmReceipt", [BigInt(campaignId), BigInt(orderId)]);
+      return await relayTx(hubAddress, data);
+    } else {
+      const signer = await getInjectedSigner();
+      const hubContract = new ethers.Contract(hubAddress, hubAbi, signer);
+      const tx = await hubContract.confirmReceipt(BigInt(campaignId), BigInt(orderId));
+      const txHash = tx.hash;
+      await tx.wait();
+      return { txHash };
+    }
   };
 
   const openDisputeOnchain = async (campaignId: number, orderId: number, reason: string) => {
-    const { signer } = await getSignerAndProvider();
     const reasonHash = ethers.keccak256(ethers.toUtf8Bytes(reason));
     const hubAbi = ["function openDispute(uint256, uint256, bytes32) external"];
-    const hubContract = new ethers.Contract(hubAddress, hubAbi, signer);
 
-    const tx = await hubContract.openDispute(BigInt(campaignId), BigInt(orderId), reasonHash);
-    const receipt = await tx.wait();
-    return { txHash: receipt.hash };
+    if (walletMode === "CIRCLE_EMBEDDED") {
+      const hubInterface = new ethers.Interface(hubAbi);
+      const data = hubInterface.encodeFunctionData("openDispute", [
+        BigInt(campaignId),
+        BigInt(orderId),
+        reasonHash,
+      ]);
+      return await relayTx(hubAddress, data);
+    } else {
+      const signer = await getInjectedSigner();
+      const hubContract = new ethers.Contract(hubAddress, hubAbi, signer);
+      const tx = await hubContract.openDispute(BigInt(campaignId), BigInt(orderId), reasonHash);
+      const txHash = tx.hash;
+      await tx.wait();
+      return { txHash };
+    }
   };
 
   return (

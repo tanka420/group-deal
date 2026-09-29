@@ -4,14 +4,17 @@ import { store } from "../db/store";
 
 export interface ReconciliationReport {
   timestamp: number;
+  blockNumber: number;
   totalOrdersCount: number;
   totalGrossCommittedUSDC: string;
   totalRebatesAllocatedUSDC: string;
   totalSellerProceedsUSDC: string;
   totalRefundsAllocatedUSDC: string;
+  expectedEscrowLiabilitiesUSDC: string;
+  onchainHubBalanceUSDC: string;
   conservationLawPassed: boolean;
   onchainBalanceVerified: boolean;
-  status: "HEALTHY" | "DISCREPANCY_DETECTED";
+  status: "HEALTHY" | "DISCREPANCY_DETECTED" | "UNVERIFIED";
   discrepancies: string[];
 }
 
@@ -25,6 +28,7 @@ export class ReconciliationService {
     let totalRebate = 0n;
     let totalSeller = 0n;
     let totalRefund = 0n;
+    let totalExpectedEscrow = 0n;
     const discrepancies: string[] = [];
 
     // Verify per-order conservation
@@ -55,17 +59,41 @@ export class ReconciliationService {
           `Order ${o.id} violates Conservation Law: gross (${gross}) != sum (${totalAllocated})`
         );
       }
+
+      // Calculate onchain liabilities for this order:
+      // What the contract Hub must hold for this order:
+      // unallocated + (buyer hasn't claimed yet ? rebate + refund : 0) + (seller hasn't claimed yet ? seller : 0)
+      let orderLiability = unallocated;
+      if (!o.buyerClaimed) {
+        orderLiability += rebate + refund;
+      }
+      if (!o.sellerClaimed) {
+        orderLiability += seller;
+      }
+      totalExpectedEscrow += orderLiability;
     }
 
     let onchainBalanceVerified = true;
+    let contractBalance = 0n;
+    let currentBlock = 0;
+
     try {
-      const provider = new ethers.JsonRpcProvider(config.arcRpcUrl);
+      const provider = new ethers.JsonRpcProvider(config.arcRpcUrl, config.arcChainId, {
+        staticNetwork: true,
+      });
+      currentBlock = await provider.getBlockNumber();
       const usdcAbi = ["function balanceOf(address) external view returns (uint256)"];
       const usdcContract = new ethers.Contract(config.usdcAddress, usdcAbi, provider);
-      const contractBalance = await usdcContract.balanceOf(config.hubAddress);
+      contractBalance = await usdcContract.balanceOf(config.hubAddress);
 
-      // Total currently locked in escrow should be >= active unallocated + unclaimed allocations
-      console.log(`[RECONCILE] Onchain Hub USDC Balance: ${ethers.formatUnits(contractBalance, 6)} USDC`);
+      if (contractBalance < totalExpectedEscrow) {
+        discrepancies.push(
+          `Onchain Escrow Shortfall at block ${currentBlock}: Contract holds ${ethers.formatUnits(
+            contractBalance,
+            6
+          )} USDC, but total expected liabilities is ${ethers.formatUnits(totalExpectedEscrow, 6)} USDC`
+        );
+      }
     } catch (e: any) {
       console.warn("[RECONCILE] Could not query onchain balance:", e.message);
       onchainBalanceVerified = false;
@@ -73,15 +101,25 @@ export class ReconciliationService {
 
     const report: ReconciliationReport = {
       timestamp: Date.now(),
+      blockNumber: currentBlock,
       totalOrdersCount: orders.length,
       totalGrossCommittedUSDC: ethers.formatUnits(totalGross, 6),
       totalRebatesAllocatedUSDC: ethers.formatUnits(totalRebate, 6),
       totalSellerProceedsUSDC: ethers.formatUnits(totalSeller, 6),
       totalRefundsAllocatedUSDC: ethers.formatUnits(totalRefund, 6),
+      expectedEscrowLiabilitiesUSDC: ethers.formatUnits(totalExpectedEscrow, 6),
+      onchainHubBalanceUSDC: ethers.formatUnits(contractBalance, 6),
       conservationLawPassed: discrepancies.length === 0,
       onchainBalanceVerified,
-      status: discrepancies.length === 0 ? "HEALTHY" : "DISCREPANCY_DETECTED",
-      discrepancies,
+      status:
+        discrepancies.length > 0
+          ? "DISCREPANCY_DETECTED"
+          : !onchainBalanceVerified
+          ? "UNVERIFIED"
+          : "HEALTHY",
+      discrepancies: !onchainBalanceVerified
+        ? [...discrepancies, "Onchain escrow balance unverified: RPC endpoint unreachable"]
+        : discrepancies,
     };
 
     return report;

@@ -10,10 +10,10 @@ import { BuyerDashboard } from "./pages/BuyerDashboard";
 import { SellerDashboard } from "./pages/SellerDashboard";
 import { OperatorPortal } from "./pages/OperatorPortal";
 import { DeveloperDocs } from "./pages/DeveloperDocs";
-import { Store, ShieldAlert, Sparkles, Lock, ArrowRight } from "lucide-react";
+import { Store, Sparkles, Lock, ArrowRight } from "lucide-react";
 
 const MainApp: React.FC = () => {
-  const { user, verifyOtp } = useAuth();
+  const { user } = useAuth();
   const [currentTab, setCurrentTab] = useState<string>("explore");
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
   const [isSellerModalOpen, setIsSellerModalOpen] = useState(false);
@@ -62,22 +62,6 @@ const MainApp: React.FC = () => {
     setCurrentTab(tab);
     setSelectedCampaignId(null);
     window.location.hash = `#${tab}`;
-  };
-
-  // Demo shortcut: login as operator
-  const handleLoginAsOperator = async () => {
-    try {
-      const res = await fetch("/api/auth/otp/request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "operator@groupdeal.io" }),
-      });
-      const data = await res.json();
-      await verifyOtp("operator@groupdeal.io", data.code || "123456");
-      setCurrentTab("operator");
-    } catch (e: any) {
-      alert("Lỗi: " + e.message);
-    }
   };
 
   const isSeller = user?.roles?.includes("seller");
@@ -180,10 +164,6 @@ const MainApp: React.FC = () => {
                   <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
                     <button className="btn btn-secondary" onClick={handleBackToExplore}>
                       Về trang chủ
-                    </button>
-                    <button className="btn btn-primary" onClick={handleLoginAsOperator}>
-                      <ShieldAlert size={16} />
-                      Đăng nhập tài khoản Admin (Test Demo)
                     </button>
                   </div>
                 </div>

@@ -2,7 +2,7 @@ import React from "react";
 import { useLanguage } from "../context/LanguageContext";
 import { CheckCircle2, Clock, AlertTriangle, ExternalLink, Loader2 } from "lucide-react";
 
-export type TxStep = "AUTH" | "APPROVE" | "BROADCAST" | "CONFIRMED" | "REVERTED" | "FAILED";
+export type TxStep = "AUTH" | "APPROVE" | "BROADCAST" | "SYNCING" | "CONFIRMED" | "REVERTED" | "FAILED";
 
 interface TxTrackerModalProps {
   isOpen: boolean;
@@ -88,6 +88,7 @@ export const TxTrackerModal: React.FC<TxTrackerModalProps> = ({
           {step === "AUTH" && "1/3. Đang ký chứng thực quyền mua EIP-712..."}
           {step === "APPROVE" && "2/3. Đang cấp quyền chi tiêu USDC cho Smart Contract..."}
           {step === "BROADCAST" && "3/3. Đang cam kết USDC & mở khóa tier trên Arc Testnet..."}
+          {step === "SYNCING" && "Đang đồng bộ hóa dữ liệu Onchain vào hệ thống GroupDeal..."}
           {step === "CONFIRMED" &&
             "Bằng chứng onchain đã được xác nhận. Đơn hàng của bạn đã được ghi nhận an toàn."}
           {(step === "REVERTED" || step === "FAILED") &&

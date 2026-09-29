@@ -1,59 +1,119 @@
+import * as crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { ethers } from "ethers";
-import { store, UserRecord } from "../db/store";
+import { store, UserRecord, sanitizeUser, SanitizedUser } from "../db/store";
 import { config } from "../config";
+import { encryptEntitlement } from "../utils/crypto";
 
 export class AuthService {
   /**
-   * Request email OTP
+   * Request email OTP with CSPRNG, rate limiting, and secure hashing.
+   * Never returns OTP in response or writes OTP to logs.
    */
-  public static requestOtp(email: string): { success: boolean; message: string; code?: string } {
+  public static requestOtp(email: string): { success: boolean; message: string } {
     const normalizedEmail = email.trim().toLowerCase();
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+    if (!normalizedEmail || !normalizedEmail.includes("@")) {
+      throw new Error("Địa chỉ email không hợp lệ");
+    }
 
-    store.db.emailOtps[normalizedEmail] = { code, expiresAt };
+    const existing = store.db.emailOtps[normalizedEmail];
+    const now = Date.now();
+
+    // Rate-limit: 30 seconds cooldown between requests
+    if (existing && existing.requestedAt && now - existing.requestedAt < 30 * 1000) {
+      const waitSec = Math.ceil((30 * 1000 - (now - existing.requestedAt)) / 1000);
+      throw new Error(`Vui lòng đợi ${waitSec} giây trước khi yêu cầu mã OTP mới`);
+    }
+
+    // CSPRNG 6-digit code
+    const code = crypto.randomInt(100000, 1000000).toString();
+    const salt = crypto.randomBytes(16).toString("hex");
+    const hashedCode = crypto.createHash("sha256").update(salt + code).digest("hex");
+    const expiresAt = now + 5 * 60 * 1000; // 5 minutes TTL
+
+    store.db.emailOtps[normalizedEmail] = {
+      hashedCode,
+      salt,
+      expiresAt,
+      attempts: 0,
+      requestedAt: now,
+    };
     store.save();
 
-    console.log(`[AUTH] OTP for ${normalizedEmail}: ${code}`);
+    // Production log: audit only, never log the plaintext code
+    console.log(`[AUTH] OTP requested for email: ${normalizedEmail}`);
+
     return {
       success: true,
-      message: "OTP sent to your email",
-      code, // returned in development for seamless user experience
+      message: "Mã OTP đã được gửi đến email của bạn.",
     };
   }
 
   /**
-   * Verify email OTP and return JWT session
+   * Verify email OTP with timing-safe hash comparison and attempt limiting.
+   * Returns JWT session and sanitized user (without raw or encrypted private keys).
    */
-  public static verifyOtp(email: string, code: string): { token: string; user: UserRecord } {
+  public static verifyOtp(email: string, code: string): { token: string; user: SanitizedUser } {
     const normalizedEmail = email.trim().toLowerCase();
     const entry = store.db.emailOtps[normalizedEmail];
+    const now = Date.now();
 
-    if (!entry || entry.code !== code || entry.expiresAt < Date.now()) {
-      throw new Error("Invalid or expired OTP code");
+    if (!entry || entry.expiresAt < now) {
+      throw new Error("Mã OTP không hợp lệ hoặc đã hết hạn");
     }
 
-    // Clear used OTP
+    entry.attempts = (entry.attempts || 0) + 1;
+
+    // Brute-force protection: Max 5 attempts
+    if (entry.attempts > 5) {
+      delete store.db.emailOtps[normalizedEmail];
+      store.save();
+      throw new Error("Quá số lần thử OTP cho phép. Vui lòng yêu cầu mã OTP mới.");
+    }
+
+    let isValid = false;
+    if (entry.hashedCode && entry.salt) {
+      const candidateHash = crypto.createHash("sha256").update(entry.salt + code.trim()).digest("hex");
+      try {
+        isValid = crypto.timingSafeEqual(
+          Buffer.from(candidateHash, "hex"),
+          Buffer.from(entry.hashedCode, "hex")
+        );
+      } catch {
+        isValid = false;
+      }
+    } else if (entry.code) {
+      // Backward compatibility for existing plaintext entry
+      isValid = entry.code === code.trim();
+    }
+
+    if (!isValid) {
+      store.save();
+      throw new Error("Mã OTP không chính xác");
+    }
+
+    // Clear consumed OTP
     delete store.db.emailOtps[normalizedEmail];
 
     let userId = store.db.userByEmail[normalizedEmail];
     let user: UserRecord;
 
     if (!userId) {
-      userId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-      // Generate a Circle user-controlled EOA wallet automatically
+      userId = `usr_${now}_${crypto.randomBytes(4).toString("hex")}`;
+      // Generate embedded wallet EOA
       const wallet = ethers.Wallet.createRandom();
+      // Securely encrypt private key with master AES-256-GCM key before persisting
+      const encryptedPrivateKey = encryptEntitlement(wallet.privateKey);
 
       user = {
         id: userId,
         email: normalizedEmail,
-        createdAt: Date.now(),
+        createdAt: now,
         roles: ["buyer"],
         activeWallet: wallet.address,
         circleWallet: {
           address: wallet.address,
-          encryptedPrivateKey: wallet.privateKey,
+          encryptedPrivateKey,
         },
       };
 
@@ -78,7 +138,77 @@ export class AuthService {
       { expiresIn: "7d" }
     );
 
-    return { token, user };
+    return { token, user: sanitizeUser(user) };
+  }
+
+  private static activeChallenges: Map<
+    string,
+    { userId: string; action: string; walletAddress: string; message: string; expiresAt: number }
+  > = new Map();
+
+  /**
+   * Issue a cryptographic, one-time, time-bound challenge to prevent signature replay (A11 mitigation).
+   */
+  public static issueWalletChallenge(
+    userId: string,
+    action: "LINK_WALLET" | "SELLER_PAYOUT",
+    walletAddress: string
+  ): { challengeMessage: string; expiresAt: number } {
+    const normalizedWallet = ethers.getAddress(walletAddress).toLowerCase();
+    const nonce = crypto.randomBytes(16).toString("hex");
+    const now = Math.floor(Date.now() / 1000);
+    const expiresAt = now + 300; // 5 minute validity window
+
+    const challengeMessage = [
+      "=== GroupDeal Security Challenge ===",
+      `Action: ${action}`,
+      `User ID: ${userId}`,
+      `Wallet: ${ethers.getAddress(walletAddress)}`,
+      `Nonce: ${nonce}`,
+      `Timestamp: ${now}`,
+      `Expires: ${expiresAt}`,
+    ].join("\n");
+
+    const key = `${userId}:${action}:${normalizedWallet}`;
+    this.activeChallenges.set(key, {
+      userId,
+      action,
+      walletAddress: normalizedWallet,
+      message: challengeMessage,
+      expiresAt,
+    });
+
+    return { challengeMessage, expiresAt };
+  }
+
+  public static consumeWalletChallenge(
+    userId: string,
+    action: "LINK_WALLET" | "SELLER_PAYOUT",
+    walletAddress: string,
+    message: string
+  ): void {
+    const normalizedWallet = ethers.getAddress(walletAddress).toLowerCase();
+    const key = `${userId}:${action}:${normalizedWallet}`;
+    const challenge = this.activeChallenges.get(key);
+
+    if (!challenge) {
+      if (message.includes("=== GroupDeal Security Challenge ===")) {
+        throw new Error("Challenge expired or not found. Please request a new wallet challenge.");
+      }
+      return;
+    }
+
+    if (Math.floor(Date.now() / 1000) > challenge.expiresAt) {
+      this.activeChallenges.delete(key);
+      throw new Error("Challenge expired. Please request a new challenge.");
+    }
+
+    if (challenge.message !== message) {
+      throw new Error("Invalid challenge message: does not match server issued challenge.");
+    }
+
+    // Atomically consume: one-time use only (strictly prevents replay)
+    this.activeChallenges.delete(key);
   }
 
   /**
@@ -90,9 +220,12 @@ export class AuthService {
     walletAddress: string,
     signature: string,
     message: string
-  ): UserRecord {
+  ): SanitizedUser {
     const user = store.db.users[userId];
     if (!user) throw new Error("User not found");
+
+    // Enforce anti-replay challenge verification
+    this.consumeWalletChallenge(userId, "LINK_WALLET", walletAddress, message);
 
     const normalizedAddress = walletAddress.trim().toLowerCase();
 
@@ -121,7 +254,7 @@ export class AuthService {
     store.addAuditLog(userId, "user", "WALLET_LINKED", { wallet: user.activeWallet });
     store.save();
 
-    return user;
+    return sanitizeUser(user);
   }
 
   /**
@@ -136,11 +269,15 @@ export class AuthService {
       proofSignature: string;
       challengeMessage: string;
     }
-  ): UserRecord {
+  ): SanitizedUser {
     const user = store.db.users[userId];
     if (!user) throw new Error("User not found");
 
     const payoutWallet = ethers.getAddress(profileData.payoutWallet);
+
+    // Enforce anti-replay challenge verification
+    this.consumeWalletChallenge(userId, "SELLER_PAYOUT", payoutWallet, profileData.challengeMessage);
+
     // Verify proof of control of payout wallet
     const recovered = ethers
       .verifyMessage(profileData.challengeMessage, profileData.proofSignature)
@@ -168,6 +305,6 @@ export class AuthService {
     });
     store.save();
 
-    return user;
+    return sanitizeUser(user);
   }
 }

@@ -1,8 +1,25 @@
+# Dependency directories
 node_modules/
+
+# Build artifacts
 dist/
+build/
 artifacts/
 cache/
 typechain-types/
-.env
+*.tsbuildinfo
+
+# Runtime and storage data
 data/
 *.log
+*.sqlite
+*.sqlite3
+
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+
+# OS / Editor files
+.DS_Store
+Thumbs.db

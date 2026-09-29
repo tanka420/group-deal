@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { AuthService } from "../services/authService";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth";
-import { store } from "../db/store";
+import { store, sanitizeUser } from "../db/store";
 
 export const authRouter = Router();
 
@@ -28,6 +28,21 @@ authRouter.post("/otp/verify", (req, res) => {
     }
     const result = AuthService.verifyOtp(email, code);
     res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Request cryptographic time-bound challenge nonce to bind wallet or payout
+authRouter.post("/wallet/challenge", authMiddleware, (req: AuthenticatedRequest, res) => {
+  try {
+    const { action, walletAddress } = req.body;
+    if (!action || !walletAddress) {
+      res.status(400).json({ error: "Action and walletAddress are required" });
+      return;
+    }
+    const challenge = AuthService.issueWalletChallenge(req.user!.userId, action, walletAddress);
+    res.json({ success: true, ...challenge });
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
@@ -78,5 +93,5 @@ authRouter.get("/me", authMiddleware, (req: AuthenticatedRequest, res) => {
     res.status(404).json({ error: "User not found" });
     return;
   }
-  res.json({ user });
+  res.json({ user: sanitizeUser(user) });
 });

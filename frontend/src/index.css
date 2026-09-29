@@ -753,3 +753,24 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--border-subtle);
   margin: 0.35rem 0;
 }
+
+/* Responsive Campaign Detail Grid (UI02) */
+.campaign-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 2rem;
+}
+
+@media (max-width: 992px) {
+  .campaign-detail-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .campaign-detail-grid {
+    grid-template-columns: 100%;
+    gap: 1.25rem;
+  }
+}

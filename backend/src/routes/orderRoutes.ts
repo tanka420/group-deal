@@ -91,8 +91,36 @@ orderRouter.post("/:id/dispute", authMiddleware, (req: AuthenticatedRequest, res
   }
 });
 
+function authorizeOrderParty(req: AuthenticatedRequest, orderId: string) {
+  const order = store.db.orders[orderId];
+  if (!order) {
+    return { error: "Order not found", status: 404 };
+  }
+  const campaign = store.db.campaigns[order.campaignId];
+  const isOperator = req.user!.roles.includes("operator");
+  const isSeller = campaign && campaign.sellerId === req.user!.userId;
+  const isBuyer = order.buyerAccountId === req.user!.userId;
+
+  if (!isOperator && !isSeller && !isBuyer) {
+    return { error: "Access denied: you are not a party to this order thread", status: 403 };
+  }
+
+  const role: "operator" | "seller" | "buyer" = isOperator
+    ? "operator"
+    : isSeller
+    ? "seller"
+    : "buyer";
+
+  return { order, campaign, role };
+}
+
 // GET support messages
 orderRouter.get("/:id/messages", authMiddleware, (req: AuthenticatedRequest, res) => {
+  const auth = authorizeOrderParty(req, req.params.id);
+  if (auth.error) {
+    res.status(auth.status!).json({ error: auth.error });
+    return;
+  }
   const messages = DisputeService.getMessages(req.params.id);
   res.json({ messages });
 });
@@ -100,22 +128,22 @@ orderRouter.get("/:id/messages", authMiddleware, (req: AuthenticatedRequest, res
 // POST support message
 orderRouter.post("/:id/messages", authMiddleware, (req: AuthenticatedRequest, res) => {
   try {
+    const auth = authorizeOrderParty(req, req.params.id);
+    if (auth.error) {
+      res.status(auth.status!).json({ error: auth.error });
+      return;
+    }
     const { text } = req.body;
-    if (!text) {
+    if (!text || typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "Message text is required" });
       return;
     }
-    const role = req.user!.roles.includes("operator")
-      ? "operator"
-      : req.user!.roles.includes("seller")
-      ? "seller"
-      : "buyer";
 
     const msg = DisputeService.addMessage(
       req.params.id,
-      role,
+      auth.role!,
       req.user!.activeWallet || req.user!.email,
-      text
+      text.trim()
     );
     res.json({ success: true, message: msg });
   } catch (err: any) {

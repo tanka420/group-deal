@@ -60,6 +60,10 @@ export class DisputeService {
     const buyerShare = BigInt(buyerShareBaseUSDC);
     const sellerShare = BigInt(sellerShareBaseUSDC);
 
+    if (buyerShare < 0n || sellerShare < 0n) {
+      throw new Error("Phần phân bổ cho buyer và seller phải là số không âm");
+    }
+
     if (buyerShare + sellerShare !== remainingGross) {
       throw new Error(
         `Conservation Law violated: buyerShare (${buyerShare}) + sellerShare (${sellerShare}) !== remainingGross (${remainingGross})`
@@ -136,8 +140,12 @@ export class DisputeService {
       throw new Error("Only the buyer can leave a review");
     }
 
-    if (order.deliveryStatus === "PENDING") {
-      throw new Error("Cannot review an undelivered order");
+    if (
+      order.deliveryStatus !== "DELIVERED" &&
+      order.deliveryStatus !== "CONFIRMED" &&
+      order.deliveryStatus !== "RESOLVED"
+    ) {
+      throw new Error("Chỉ có thể đánh giá những đơn hàng đã được giao sản phẩm.");
     }
 
     if (order.review) {

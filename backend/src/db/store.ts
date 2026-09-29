@@ -9,7 +9,7 @@ export interface UserRecord {
   activeWallet: string | null; // 1-to-1 atomic binding
   circleWallet?: {
     address: string;
-    encryptedPrivateKey: string;
+    encryptedPrivateKey?: string;
   };
   sellerProfile?: {
     displayName: string;
@@ -19,6 +19,53 @@ export interface UserRecord {
     verifiedRightsBadge: boolean;
     payoutProofSignature?: string;
   };
+}
+
+export interface SanitizedUser {
+  id: string;
+  email: string;
+  createdAt: number;
+  roles: ("buyer" | "seller" | "operator")[];
+  activeWallet: string | null;
+  circleWallet?: {
+    address: string;
+  };
+  sellerProfile?: {
+    displayName: string;
+    bio: string;
+    payoutWallet: string;
+    verifiedSellerBadge: boolean;
+    verifiedRightsBadge: boolean;
+  };
+}
+
+export function sanitizeUser(user: UserRecord): SanitizedUser {
+  return {
+    id: user.id,
+    email: user.email,
+    createdAt: user.createdAt,
+    roles: user.roles,
+    activeWallet: user.activeWallet,
+    circleWallet: user.circleWallet ? { address: user.circleWallet.address } : undefined,
+    sellerProfile: user.sellerProfile
+      ? {
+          displayName: user.sellerProfile.displayName,
+          bio: user.sellerProfile.bio,
+          payoutWallet: user.sellerProfile.payoutWallet,
+          verifiedSellerBadge: user.sellerProfile.verifiedSellerBadge,
+          verifiedRightsBadge: user.sellerProfile.verifiedRightsBadge,
+        }
+      : undefined,
+  };
+}
+
+export interface OtpRecord {
+  code?: string;
+  hashedCode?: string;
+  salt?: string;
+  expiresAt: number;
+  attempts?: number;
+  requestedAt?: number;
 }
 
 export interface CampaignRecord {
@@ -55,6 +102,7 @@ export interface CampaignRecord {
   deliveryMethod: "LICENSE_KEY" | "FILE_LINK" | "ACCOUNT_INVITE" | "WEBHOOK";
   deliveryContentTemplate: string;
   dryRunDeliveryVerified: boolean;
+  txHash?: string;
   amendments: { id: string; timestamp: number; note: string; hash: string }[];
 }
 
@@ -134,16 +182,33 @@ export interface AuditLogRecord {
   details: any;
 }
 
+export interface EventJournalRecord {
+  id: string; // `${txHash}_${logIndex}`
+  blockNumber: number;
+  txHash: string;
+  logIndex: number;
+  eventName: string;
+  payload: any;
+  processedAt: number;
+}
+
+export interface SyncState {
+  lastIndexedBlock: number;
+  lastSyncTimestamp: number;
+}
+
 export interface DatabaseSchema {
   users: Record<string, UserRecord>;
   userByEmail: Record<string, string>; // email -> userId
   userByWallet: Record<string, string>; // wallet -> userId (atomic unique index)
-  emailOtps: Record<string, { code: string; expiresAt: number }>;
+  emailOtps: Record<string, OtpRecord>;
   campaigns: Record<string, CampaignRecord>;
   orders: Record<string, OrderRecord>;
   supportMessages: Record<string, SupportMessageRecord[]>; // orderId -> messages
   webhooks: Record<string, WebhookSubscription>;
   auditLogs: AuditLogRecord[];
+  eventJournal: Record<string, EventJournalRecord>;
+  syncState: SyncState;
 }
 
 export class JsonStore {
@@ -163,9 +228,22 @@ export class JsonStore {
     if (fs.existsSync(this.filePath)) {
       try {
         const raw = fs.readFileSync(this.filePath, "utf8");
-        return JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        if (!parsed.eventJournal) parsed.eventJournal = {};
+        if (!parsed.syncState) parsed.syncState = { lastIndexedBlock: 0, lastSyncTimestamp: 0 };
+        return parsed;
       } catch (e) {
-        console.warn("[DB] Failed to parse db file, starting fresh", e);
+        console.error("[DB CRITICAL] Failed to parse db file! Preserving corrupted copy to avoid silent data loss.", e);
+        const backupPath = `${this.filePath}.corrupted.${Date.now()}`;
+        try {
+          fs.copyFileSync(this.filePath, backupPath);
+          console.error(`[DB CRITICAL] Corrupted database preserved at: ${backupPath}`);
+        } catch (backupErr) {
+          console.error("[DB CRITICAL] Failed to create backup of corrupted file:", backupErr);
+        }
+        throw new Error(
+          `[DB CRITICAL] Fatal corruption in database file ${this.filePath}. Preserved at ${backupPath}. System will not wipe data!`
+        );
       }
     }
     return {
@@ -178,12 +256,19 @@ export class JsonStore {
       supportMessages: {},
       webhooks: {},
       auditLogs: [],
+      eventJournal: {},
+      syncState: { lastIndexedBlock: 0, lastSyncTimestamp: 0 },
     };
   }
 
   public save(): void {
     const tempPath = `${this.filePath}.tmp`;
-    fs.writeFileSync(tempPath, JSON.stringify(this.data, null, 2), "utf8");
+    const serialized = JSON.stringify(
+      this.data,
+      (_key, value) => (typeof value === "bigint" ? value.toString() : value),
+      2
+    );
+    fs.writeFileSync(tempPath, serialized, "utf8");
     fs.renameSync(tempPath, this.filePath);
   }
 

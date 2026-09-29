@@ -3,15 +3,17 @@ import { ethers } from "ethers";
 import { store, CampaignRecord } from "../db/store";
 import { authMiddleware, AuthenticatedRequest, requireRole } from "../middleware/auth";
 import { DeliveryService } from "../services/deliveryService";
-import { computeTermsHash } from "../utils/crypto";
+import { computeTermsHash, decryptEntitlement } from "../utils/crypto";
+import { OnchainService, OnchainCampaignTerms, HUB_ABI } from "../services/onchainService";
+import { config } from "../config";
 
 export const campaignRouter = Router();
 
 // GET all public campaigns
 campaignRouter.get("/", (req, res) => {
-  const campaigns = Object.values(store.db.campaigns).filter(
-    (c) => c.visibility === "PUBLIC" && c.status !== "DRAFT"
-  );
+  const campaigns = Object.values(store.db.campaigns)
+    .filter((c) => c.visibility === "PUBLIC" && c.status !== "DRAFT")
+    .map(({ deliveryContentTemplate, ...rest }) => rest);
   res.json({ campaigns });
 });
 
@@ -22,18 +24,32 @@ campaignRouter.get("/:id", (req, res) => {
     res.status(404).json({ error: "Campaign not found" });
     return;
   }
-  // Lookup seller profile & badges
+
+  // Hide draft unless accessed by owner or operator
+  if (campaign.status === "DRAFT") {
+    // Check Authorization header optionally
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      res.status(404).json({ error: "Campaign not found" });
+      return;
+    }
+  }
+
+  // Lookup seller profile & badges (never expose raw payoutProofSignature)
   const seller = store.db.users[campaign.sellerId];
-  const sellerInfo = seller?.sellerProfile || {
-    displayName: "Seller",
-    bio: "",
+  const sellerInfo = {
+    displayName: seller?.sellerProfile?.displayName || "Seller",
+    bio: seller?.sellerProfile?.bio || "",
     payoutWallet: campaign.sellerPayoutWallet,
-    verifiedSellerBadge: false,
-    verifiedRightsBadge: false,
+    verifiedSellerBadge: !!seller?.sellerProfile?.verifiedSellerBadge,
+    verifiedRightsBadge: !!seller?.sellerProfile?.verifiedRightsBadge,
   };
 
+  // Do not leak secret fulfillment template to public callers
+  const { deliveryContentTemplate, ...safeCampaign } = campaign;
+
   res.json({
-    campaign,
+    campaign: safeCampaign,
     seller: sellerInfo,
   });
 });
@@ -144,6 +160,24 @@ campaignRouter.post("/draft", authMiddleware, requireRole("seller"), (req: Authe
   }
 });
 
+// POST standalone delivery test simulator for seller form (F21)
+campaignRouter.post("/test-delivery", authMiddleware, requireRole("seller"), (req: AuthenticatedRequest, res) => {
+  try {
+    const { deliveryMethod, samplePayload } = req.body;
+    if (!samplePayload || samplePayload.trim().length === 0) {
+      res.status(400).json({ error: "Nội dung mẫu giao hàng không được để trống" });
+      return;
+    }
+    const testResult = DeliveryService.testDeliveryFlow(
+      deliveryMethod || "LICENSE_KEY",
+      samplePayload
+    );
+    res.json({ success: true, result: testResult });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // POST dry-run delivery test simulator (Seller required before publishing)
 campaignRouter.post("/:id/test-delivery", authMiddleware, requireRole("seller"), (req: AuthenticatedRequest, res) => {
   try {
@@ -176,8 +210,42 @@ campaignRouter.post("/:id/test-delivery", authMiddleware, requireRole("seller"),
   }
 });
 
-// POST publish campaign (Seller)
-campaignRouter.post("/:id/publish", authMiddleware, requireRole("seller"), (req: AuthenticatedRequest, res) => {
+// PUT update campaign (Only allowed when in DRAFT status)
+campaignRouter.put("/:id", authMiddleware, requireRole("seller"), (req: AuthenticatedRequest, res) => {
+  try {
+    const campaign = store.db.campaigns[req.params.id];
+    if (!campaign) {
+      res.status(404).json({ error: "Campaign not found" });
+      return;
+    }
+    if (campaign.sellerId !== req.user!.userId) {
+      res.status(403).json({ error: "Unauthorized" });
+      return;
+    }
+
+    if (campaign.status !== "DRAFT") {
+      res.status(400).json({
+        error: "Cannot modify immutable campaign terms once active or finalized!",
+      });
+      return;
+    }
+
+    const { title, description, category, thumbnailUrl, visibility } = req.body;
+    if (title) campaign.title = title;
+    if (description) campaign.description = description;
+    if (category) campaign.category = category;
+    if (thumbnailUrl) campaign.thumbnailUrl = thumbnailUrl;
+    if (visibility) campaign.visibility = visibility;
+
+    store.save();
+    res.json({ success: true, campaign });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// POST publish campaign onchain (Seller)
+campaignRouter.post("/:id/publish", authMiddleware, requireRole("seller"), async (req: AuthenticatedRequest, res) => {
   try {
     const campaign = store.db.campaigns[req.params.id];
     if (!campaign) {
@@ -196,11 +264,94 @@ campaignRouter.post("/:id/publish", authMiddleware, requireRole("seller"), (req:
       return;
     }
 
-    campaign.status = "PUBLISHED";
+    if (campaign.status === "ACTIVE" || campaign.status === "FINALIZED") {
+      res.status(400).json({ error: "Campaign is already active or finalized" });
+      return;
+    }
+
+    const { txHash } = req.body;
+    let onchainCampaignId = campaign.onchainCampaignId;
+    let publishTxHash = txHash;
+    const user = store.db.users[campaign.sellerId];
+
+    if (txHash) {
+      // Client broadcasted tx directly
+      const receipt = await OnchainService.verifyTxReceipt(txHash);
+      const iface = new ethers.Interface(HUB_ABI);
+      for (const log of receipt.logs) {
+        try {
+          const parsed = iface.parseLog({ topics: [...log.topics], data: log.data });
+          if (parsed && parsed.name === "CampaignCreated") {
+            onchainCampaignId = Number(parsed.args.campaignId);
+            break;
+          }
+        } catch {}
+      }
+    } else {
+      // Backend broadcasts createCampaign onchain
+      let signerPrivateKey = config.authorizedSignerPrivateKey;
+      if (user?.circleWallet?.encryptedPrivateKey) {
+        try {
+          const decrypted = decryptEntitlement(user.circleWallet.encryptedPrivateKey);
+          const w = new ethers.Wallet(decrypted);
+          if (w.address.toLowerCase() === campaign.sellerPayoutWallet.toLowerCase()) {
+            signerPrivateKey = decrypted;
+          }
+        } catch (e) {
+          console.warn("Could not decrypt seller embedded wallet key, using relayer:", e);
+        }
+      }
+
+      try {
+        const termsForChain: OnchainCampaignTerms = {
+          sellerPayoutWallet: campaign.sellerPayoutWallet,
+          durationSeconds: campaign.durationSeconds,
+          deliverySlaSeconds: campaign.deliverySlaSeconds,
+          maxPerAccount: campaign.maxPerAccount,
+          inventoryLimit: campaign.inventoryLimit,
+          platformFeeBps: 0,
+          metric: campaign.metric === "BUYER_COUNT" ? 0 : 1,
+          tiers: campaign.tiers.map((t) => ({
+            threshold: BigInt(t.threshold),
+            price: BigInt(t.price),
+          })),
+          earlyRebateEnabled: campaign.earlyRebateEnabled,
+          earlySlotsCount: campaign.earlySlotsCount,
+          earlyRebateAmount: BigInt(campaign.earlyRebateAmount || "0"),
+          earlyRebateBps: campaign.earlyRebateBps || 0,
+          termsHash: campaign.termsHash,
+        };
+
+        const result = await OnchainService.createCampaignOnchain(termsForChain, signerPrivateKey);
+        onchainCampaignId = result.onchainCampaignId;
+        publishTxHash = result.txHash;
+      } catch (err: any) {
+        console.error(`[CAMPAIGN] Onchain creation failed: ${err.message}`);
+        res.status(502).json({
+          error: `Onchain transaction failed. Campaign cannot be activated without verified onchain contract state: ${err.message}`,
+        });
+        return;
+      }
+    }
+
+    if (!onchainCampaignId) {
+      res.status(400).json({ error: "Missing verified onchainCampaignId" });
+      return;
+    }
+
+    campaign.onchainCampaignId = onchainCampaignId;
+    campaign.status = "ACTIVE";
     campaign.startTime = Math.floor(Date.now() / 1000);
     campaign.endTime = campaign.startTime + campaign.durationSeconds;
+    if (publishTxHash) {
+      campaign.txHash = publishTxHash;
+    }
 
-    store.addAuditLog(req.user!.userId, "seller", "CAMPAIGN_PUBLISHED", { campaignId: campaign.id });
+    store.addAuditLog(req.user!.userId, "seller", "CAMPAIGN_PUBLISHED", {
+      campaignId: campaign.id,
+      onchainCampaignId,
+      txHash: publishTxHash,
+    });
     store.save();
 
     res.json({ success: true, campaign });

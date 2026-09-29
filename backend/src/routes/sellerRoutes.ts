@@ -36,17 +36,18 @@ sellerRouter.get("/orders", authMiddleware, requireRole("seller"), (req: Authent
 });
 
 // POST fulfill order with encrypted entitlement
-sellerRouter.post("/orders/:id/deliver", authMiddleware, requireRole("seller"), (req: AuthenticatedRequest, res) => {
+sellerRouter.post("/orders/:id/deliver", authMiddleware, requireRole("seller"), async (req: AuthenticatedRequest, res) => {
   try {
-    const { secretContent } = req.body;
+    const { secretContent, txHash } = req.body;
     if (!secretContent) {
       res.status(400).json({ error: "Digital entitlement secret content is required" });
       return;
     }
-    const result = DeliveryService.fulfillOrder(
+    const result = await DeliveryService.fulfillOrder(
       req.user!.userId,
       req.params.id,
-      secretContent
+      secretContent,
+      txHash
     );
     res.json({ success: true, ...result });
   } catch (err: any) {

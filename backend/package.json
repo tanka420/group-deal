@@ -7,7 +7,12 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test:accounting": "tsx test/accounting.test.ts"
+    "test:accounting": "tsx test/accounting.test.ts",
+    "test:security": "tsx test/auth_security.test.ts",
+    "test:services": "tsx test/services_audit.test.ts",
+    "test:abi": "tsx test/abi_contract_sync.test.ts",
+    "test:wallet": "tsx test/wallet_relay_security.test.ts && tsx test/wallet_challenge_replay.test.ts",
+    "test": "tsx test/accounting.test.ts && tsx test/auth_security.test.ts && tsx test/services_audit.test.ts && tsx test/abi_contract_sync.test.ts && tsx test/wallet_relay_security.test.ts && tsx test/wallet_challenge_replay.test.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { store } from "../db/store";
+import { store, sanitizeUser } from "../db/store";
 import { authMiddleware, AuthenticatedRequest, requireRole } from "../middleware/auth";
 import { DisputeService } from "../services/disputeService";
 import { ReconciliationService } from "../services/reconciliationService";
@@ -59,7 +59,9 @@ operatorRouter.post("/disputes/:id/resolve", (req: AuthenticatedRequest, res) =>
 
 // GET sellers for verification
 operatorRouter.get("/sellers", (req, res) => {
-  const sellers = Object.values(store.db.users).filter((u) => u.sellerProfile);
+  const sellers = Object.values(store.db.users)
+    .filter((u) => u.sellerProfile)
+    .map(sanitizeUser);
   res.json({ sellers });
 });
 
