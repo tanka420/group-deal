@@ -62,30 +62,40 @@ orderRouter.get("/:id/entitlement", authMiddleware, (req: AuthenticatedRequest, 
 });
 
 // POST confirm receipt early
-orderRouter.post("/:id/confirm", authMiddleware, (req: AuthenticatedRequest, res) => {
+orderRouter.post("/:id/confirm", authMiddleware, async (req: AuthenticatedRequest, res) => {
   try {
-    const order = DeliveryService.confirmReceipt(req.user!.userId, req.params.id);
-    res.json({ success: true, order });
+    const { txHash } = req.body;
+    if (!txHash) {
+      res.status(400).json({ error: "Missing required txHash for onchain confirmation" });
+      return;
+    }
+    const result = await DeliveryService.confirmReceipt(req.user!.userId, req.params.id, txHash);
+    res.json(result);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
 });
 
 // POST open dispute
-orderRouter.post("/:id/dispute", authMiddleware, (req: AuthenticatedRequest, res) => {
+orderRouter.post("/:id/dispute", authMiddleware, async (req: AuthenticatedRequest, res) => {
   try {
-    const { reason, evidenceUrls } = req.body;
+    const { reason, evidenceUrls, txHash } = req.body;
     if (!reason) {
       res.status(400).json({ error: "Dispute reason is required" });
       return;
     }
-    const order = DisputeService.openDispute(
+    if (!txHash) {
+      res.status(400).json({ error: "Missing required onchain txHash for dispute" });
+      return;
+    }
+    const result = await DisputeService.openDispute(
       req.user!.userId,
       req.params.id,
       reason,
-      evidenceUrls || []
+      evidenceUrls || [],
+      txHash
     );
-    res.json({ success: true, order });
+    res.json({ success: true, ...result });
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }

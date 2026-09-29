@@ -35,23 +35,28 @@ operatorRouter.get("/disputes", (req, res) => {
 });
 
 // POST resolve dispute
-operatorRouter.post("/disputes/:id/resolve", (req: AuthenticatedRequest, res) => {
+operatorRouter.post("/disputes/:id/resolve", async (req: AuthenticatedRequest, res) => {
   try {
-    const { buyerShareBaseUSDC, sellerShareBaseUSDC, notes } = req.body;
+    const { buyerShareBaseUSDC, sellerShareBaseUSDC, notes, txHash } = req.body;
     if (!buyerShareBaseUSDC || !sellerShareBaseUSDC) {
       res.status(400).json({ error: "buyerShareBaseUSDC and sellerShareBaseUSDC are required" });
       return;
     }
+    if (!txHash) {
+      res.status(400).json({ error: "Missing required onchain txHash for resolving dispute" });
+      return;
+    }
 
-    const order = DisputeService.resolveDispute(
+    const result = await DisputeService.resolveDispute(
       req.user!.userId,
       req.params.id,
       buyerShareBaseUSDC,
       sellerShareBaseUSDC,
-      notes || "Arbitrated by GroupDeal Operator"
+      notes || "Arbitrated by GroupDeal Operator",
+      txHash
     );
 
-    res.json({ success: true, order });
+    res.json({ success: true, ...result });
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }

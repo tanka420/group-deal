@@ -1,15 +1,18 @@
 import { store, OrderRecord, SupportMessageRecord } from "../db/store";
+import { TransactionVerifier } from "./transactionVerifier";
+import { config } from "../config";
 
 export class DisputeService {
   /**
-   * Buyer opens a dispute within 48h of delivery.
+   * Buyer opens a dispute within 48h of delivery with verified onchain transaction.
    */
-  public static openDispute(
+  public static async openDispute(
     userId: string,
     orderId: string,
     reason: string,
-    evidenceUrls: string[]
-  ): OrderRecord {
+    evidenceUrls: string[],
+    txHash: string
+  ): Promise<{ order: OrderRecord; txHash: string; blockNumber: number }> {
     const order = store.db.orders[orderId];
     if (!order) throw new Error("Order not found");
 
@@ -25,35 +28,75 @@ export class DisputeService {
       throw new Error("48-hour dispute window has expired");
     }
 
+    if (!txHash) {
+      throw new Error("Missing required onchain transaction hash for openDispute");
+    }
+
+    const campaign = store.db.campaigns[order.campaignId];
+    if (!campaign || !campaign.onchainCampaignId) {
+      throw new Error("Campaign has not been published onchain");
+    }
+
+    // Verify expected onchain transaction (G1.5 & G1.6)
+    const verification = await TransactionVerifier.verifyExpectedTransaction(
+      {
+        intentId: `dispute_${order.id}_${txHash}`,
+        expectedTo: config.hubAddress,
+        expectedEvent: "OrderDisputed",
+        expectedEventArgs: {
+          campaignId: campaign.onchainCampaignId,
+          orderId: order.onchainOrderId,
+        },
+      },
+      txHash
+    );
+
     order.deliveryStatus = "DISPUTED";
     order.disputeReason = reason;
     order.disputeEvidence = evidenceUrls || [];
+    order.txHash = verification.txHash;
 
     // Add initial support message
     DisputeService.addMessage(orderId, "buyer", order.buyerPrincipal, `Dispute opened: ${reason}`);
 
-    store.addAuditLog(userId, "buyer", "DISPUTE_OPENED", { orderId, reason });
+    store.addAuditLog(userId, "buyer", "DISPUTE_OPENED", {
+      orderId,
+      reason,
+      txHash: verification.txHash,
+      blockNumber: verification.blockNumber,
+    });
     store.save();
 
-    return order;
+    return { order, txHash: verification.txHash, blockNumber: verification.blockNumber };
   }
 
   /**
    * Operator resolves a dispute by splitting the exact remaining delivery gross.
+   * Strictly verified against onchain DisputeResolved event.
    * Conservation strictly enforced: buyerShare + sellerShare == remainingDeliveryGross.
    */
-  public static resolveDispute(
+  public static async resolveDispute(
     operatorId: string,
     orderId: string,
     buyerShareBaseUSDC: string,
     sellerShareBaseUSDC: string,
-    notes: string
-  ): OrderRecord {
+    notes: string,
+    txHash: string
+  ): Promise<{ order: OrderRecord; txHash: string; blockNumber: number }> {
     const order = store.db.orders[orderId];
     if (!order) throw new Error("Order not found");
 
     if (order.deliveryStatus !== "DISPUTED") {
       throw new Error("Order must be in DISPUTED status to resolve");
+    }
+
+    if (!txHash) {
+      throw new Error("Missing required onchain transaction hash for resolveDispute");
+    }
+
+    const campaign = store.db.campaigns[order.campaignId];
+    if (!campaign || !campaign.onchainCampaignId) {
+      throw new Error("Campaign has not been published onchain");
     }
 
     const remainingGross = BigInt(order.committedGross) - BigInt(order.rebateAllocated);
@@ -70,9 +113,26 @@ export class DisputeService {
       );
     }
 
+    // Verify expected onchain transaction (G1.5 & G1.6)
+    const verification = await TransactionVerifier.verifyExpectedTransaction(
+      {
+        intentId: `resolve_${order.id}_${txHash}`,
+        expectedTo: config.hubAddress,
+        expectedEvent: "DisputeResolved",
+        expectedEventArgs: {
+          campaignId: campaign.onchainCampaignId,
+          orderId: order.onchainOrderId,
+          buyerShare: buyerShareBaseUSDC,
+          sellerShare: sellerShareBaseUSDC,
+        },
+      },
+      txHash
+    );
+
     order.buyerRefundAllocated = buyerShare.toString();
     order.sellerAllocated = sellerShare.toString();
     order.deliveryStatus = "RESOLVED";
+    order.txHash = verification.txHash;
 
     DisputeService.addMessage(
       orderId,
@@ -86,10 +146,12 @@ export class DisputeService {
       buyerShare: buyerShareBaseUSDC,
       sellerShare: sellerShareBaseUSDC,
       notes,
+      txHash: verification.txHash,
+      blockNumber: verification.blockNumber,
     });
     store.save();
 
-    return order;
+    return { order, txHash: verification.txHash, blockNumber: verification.blockNumber };
   }
 
   /**

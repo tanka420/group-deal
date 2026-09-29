@@ -9,7 +9,7 @@ export interface UserRecord {
   activeWallet: string | null; // 1-to-1 atomic binding
   circleWallet?: {
     address: string;
-    encryptedPrivateKey?: string;
+    walletId?: string;
   };
   sellerProfile?: {
     displayName: string;
@@ -37,6 +37,23 @@ export interface SanitizedUser {
     verifiedSellerBadge: boolean;
     verifiedRightsBadge: boolean;
   };
+}
+
+export interface WalletChallengeRecord {
+  userId: string;
+  action: "LINK_WALLET" | "SELLER_PAYOUT";
+  walletAddress: string;
+  message: string;
+  expiresAt: number;
+  nonce: string;
+  chainId: number;
+  origin: string;
+}
+
+export interface ConsumedTxRecord {
+  intentId: string;
+  blockNumber: number;
+  verifiedAt: number;
 }
 
 export function sanitizeUser(user: UserRecord): SanitizedUser {
@@ -202,6 +219,8 @@ export interface DatabaseSchema {
   userByEmail: Record<string, string>; // email -> userId
   userByWallet: Record<string, string>; // wallet -> userId (atomic unique index)
   emailOtps: Record<string, OtpRecord>;
+  walletChallenges: Record<string, WalletChallengeRecord>;
+  consumedTxHashes: Record<string, ConsumedTxRecord>;
   campaigns: Record<string, CampaignRecord>;
   orders: Record<string, OrderRecord>;
   supportMessages: Record<string, SupportMessageRecord[]>; // orderId -> messages
@@ -231,6 +250,8 @@ export class JsonStore {
         const parsed = JSON.parse(raw);
         if (!parsed.eventJournal) parsed.eventJournal = {};
         if (!parsed.syncState) parsed.syncState = { lastIndexedBlock: 0, lastSyncTimestamp: 0 };
+        if (!parsed.walletChallenges) parsed.walletChallenges = {};
+        if (!parsed.consumedTxHashes) parsed.consumedTxHashes = {};
         return parsed;
       } catch (e) {
         console.error("[DB CRITICAL] Failed to parse db file! Preserving corrupted copy to avoid silent data loss.", e);
@@ -251,6 +272,8 @@ export class JsonStore {
       userByEmail: {},
       userByWallet: {},
       emailOtps: {},
+      walletChallenges: {},
+      consumedTxHashes: {},
       campaigns: {},
       orders: {},
       supportMessages: {},
@@ -262,14 +285,41 @@ export class JsonStore {
   }
 
   public save(): void {
-    const tempPath = `${this.filePath}.tmp`;
+    const tempPath = `${this.filePath}.tmp.${Date.now()}.${Math.random().toString(36).substring(2, 6)}`;
     const serialized = JSON.stringify(
       this.data,
       (_key, value) => (typeof value === "bigint" ? value.toString() : value),
       2
     );
     fs.writeFileSync(tempPath, serialized, "utf8");
-    fs.renameSync(tempPath, this.filePath);
+    let saved = false;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        fs.renameSync(tempPath, this.filePath);
+        saved = true;
+        break;
+      } catch (err: any) {
+        if (err.code === "EPERM" || err.code === "EBUSY") {
+          try {
+            fs.copyFileSync(tempPath, this.filePath);
+            fs.unlinkSync(tempPath);
+            saved = true;
+            break;
+          } catch {
+            const start = Date.now();
+            while (Date.now() - start < 15) {}
+          }
+        } else {
+          break;
+        }
+      }
+    }
+    if (!saved) {
+      fs.writeFileSync(this.filePath, serialized, "utf8");
+      if (fs.existsSync(tempPath)) {
+        try { fs.unlinkSync(tempPath); } catch {}
+      }
+    }
   }
 
   public get db(): DatabaseSchema {

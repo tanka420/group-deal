@@ -88,8 +88,8 @@ async function runAuthSecurityTests() {
     sellerClaimed: false,
   };
 
-  assert.throws(
-    () => DisputeService.resolveDispute("op", "test_order_99", "-10000000", "110000000", "bad"),
+  await assert.rejects(
+    async () => DisputeService.resolveDispute("op", "test_order_99", "-10000000", "110000000", "bad", "0x0000000000000000000000000000000000000000000000000000000000000001"),
     /số không âm/
   );
   console.log("✔ Dispute resolution rejects negative allocations");

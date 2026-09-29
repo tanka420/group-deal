@@ -2,6 +2,8 @@ import { ethers } from "ethers";
 import { store, OrderRecord } from "../db/store";
 import { encryptEntitlement, decryptEntitlement } from "../utils/crypto";
 import { OnchainService } from "./onchainService";
+import { TransactionVerifier } from "./transactionVerifier";
+import { config } from "../config";
 
 export class DeliveryService {
   /**
@@ -69,26 +71,27 @@ export class DeliveryService {
     const proofHash = ethers.keccak256(ethers.toUtf8Bytes(secretContent));
     const now = Math.floor(Date.now() / 1000);
 
-    let recordedTxHash = txHash;
-    const user = store.db.users[sellerId];
-
-    if (txHash) {
-      // Validate tx receipt
-      const receipt = await OnchainService.verifyTxReceipt(txHash);
-      recordedTxHash = receipt.hash;
-    } else if (user?.circleWallet?.encryptedPrivateKey) {
-      // Broadcast onchain delivery via embedded wallet
-      const sellerKey = decryptEntitlement(user.circleWallet.encryptedPrivateKey);
-      const result = await OnchainService.recordDeliveryOnchain(
-        campaign.onchainCampaignId,
-        order.onchainOrderId,
-        proofHash,
-        sellerKey
-      );
-      recordedTxHash = result.txHash;
-    } else {
-      throw new Error("Cannot fulfill order: valid onchain transaction hash or embedded seller wallet is required.");
+    if (!txHash) {
+      throw new Error("Cannot fulfill order: valid onchain transaction hash from seller's wallet is required.");
     }
+
+    // Verify expected onchain transaction (G1.5 requirement)
+    const verification = await TransactionVerifier.verifyExpectedTransaction(
+      {
+        intentId: `delivery_${order.id}_${proofHash}`,
+        expectedTo: config.hubAddress,
+        expectedFunction: "recordDelivery",
+        expectedEvent: "DeliveryRecorded",
+        expectedEventArgs: {
+          campaignId: campaign.onchainCampaignId,
+          orderId: order.onchainOrderId,
+          proofHash: proofHash,
+        },
+      },
+      txHash
+    );
+
+    const recordedTxHash = verification.txHash;
 
     order.deliveredEntitlementEncrypted = encrypted;
     order.deliveryProofHash = proofHash;
@@ -130,9 +133,13 @@ export class DeliveryService {
   }
 
   /**
-   * Buyer confirms receipt of the product.
+   * Buyer confirms receipt of the product with verified onchain transaction (G1.6 requirement).
    */
-  public static confirmReceipt(userId: string, orderId: string): OrderRecord {
+  public static async confirmReceipt(
+    userId: string,
+    orderId: string,
+    txHash: string
+  ): Promise<{ success: boolean; status: string; txHash: string; blockNumber: number }> {
     const order = store.db.orders[orderId];
     if (!order) throw new Error("Order not found");
 
@@ -144,14 +151,49 @@ export class DeliveryService {
       throw new Error("Order must be in DELIVERED status to confirm receipt");
     }
 
+    if (!txHash) {
+      throw new Error("Missing required onchain transaction hash for confirmReceipt");
+    }
+
+    const campaign = store.db.campaigns[order.campaignId];
+    if (!campaign || !campaign.onchainCampaignId) {
+      throw new Error("Associated campaign is not active onchain");
+    }
+
+    // Verify expected onchain transaction (G1.5 & G1.6)
+    const verification = await TransactionVerifier.verifyExpectedTransaction(
+      {
+        intentId: `confirm_${order.id}`,
+        expectedTo: config.hubAddress,
+        expectedFunction: "confirmReceipt",
+        expectedEvent: "OrderConfirmed",
+        expectedEventArgs: {
+          campaignId: campaign.onchainCampaignId,
+          orderId: order.onchainOrderId,
+        },
+      },
+      txHash
+    );
+
+    // Update state to CONFIRMED based on verified onchain event
     order.deliveryStatus = "CONFIRMED";
-    // Remaining gross pending delivery moves to seller allocated
+    order.txHash = verification.txHash;
     const remaining = BigInt(order.committedGross) - BigInt(order.rebateAllocated);
     order.sellerAllocated = remaining.toString();
 
-    store.addAuditLog(userId, "buyer", "ORDER_CONFIRMED", { orderId, sellerAllocated: remaining.toString() });
+    store.addAuditLog(userId, "buyer", "ORDER_CONFIRMED", {
+      orderId,
+      txHash: verification.txHash,
+      blockNumber: verification.blockNumber,
+      sellerAllocated: remaining.toString(),
+    });
     store.save();
 
-    return order;
+    return {
+      success: true,
+      status: "CONFIRMED",
+      txHash: verification.txHash,
+      blockNumber: verification.blockNumber,
+    };
   }
 }

@@ -100,27 +100,17 @@ export class AuthService {
 
     if (!userId) {
       userId = `usr_${now}_${crypto.randomBytes(4).toString("hex")}`;
-      // Generate embedded wallet EOA
-      const wallet = ethers.Wallet.createRandom();
-      // Securely encrypt private key with master AES-256-GCM key before persisting
-      const encryptedPrivateKey = encryptEntitlement(wallet.privateKey);
-
       user = {
         id: userId,
         email: normalizedEmail,
         createdAt: now,
         roles: ["buyer"],
-        activeWallet: wallet.address,
-        circleWallet: {
-          address: wallet.address,
-          encryptedPrivateKey,
-        },
+        activeWallet: null,
       };
 
       store.db.users[userId] = user;
       store.db.userByEmail[normalizedEmail] = userId;
-      store.db.userByWallet[wallet.address.toLowerCase()] = userId;
-      store.addAuditLog(userId, "buyer", "USER_REGISTERED", { email: normalizedEmail, wallet: wallet.address });
+      store.addAuditLog(userId, "buyer", "USER_REGISTERED", { email: normalizedEmail });
     } else {
       user = store.db.users[userId];
     }
@@ -141,44 +131,52 @@ export class AuthService {
     return { token, user: sanitizeUser(user) };
   }
 
-  private static activeChallenges: Map<
-    string,
-    { userId: string; action: string; walletAddress: string; message: string; expiresAt: number }
-  > = new Map();
-
   /**
-   * Issue a cryptographic, one-time, time-bound challenge to prevent signature replay (A11 mitigation).
+   * Issue a cryptographic, one-time, time-bound challenge to prevent signature replay (G1.1 & A11 mitigation).
    */
   public static issueWalletChallenge(
     userId: string,
     action: "LINK_WALLET" | "SELLER_PAYOUT",
-    walletAddress: string
-  ): { challengeMessage: string; expiresAt: number } {
+    walletAddress: string,
+    chainId?: number,
+    origin?: string
+  ): { challengeMessage: string; expiresAt: number; nonce: string } {
     const normalizedWallet = ethers.getAddress(walletAddress).toLowerCase();
     const nonce = crypto.randomBytes(16).toString("hex");
     const now = Math.floor(Date.now() / 1000);
     const expiresAt = now + 300; // 5 minute validity window
+    const targetChainId = chainId || config.arcChainId;
+    const targetOrigin = origin || "groupdeal.app";
 
     const challengeMessage = [
       "=== GroupDeal Security Challenge ===",
       `Action: ${action}`,
       `User ID: ${userId}`,
       `Wallet: ${ethers.getAddress(walletAddress)}`,
+      `Chain ID: ${targetChainId}`,
+      `Origin: ${targetOrigin}`,
       `Nonce: ${nonce}`,
       `Timestamp: ${now}`,
       `Expires: ${expiresAt}`,
     ].join("\n");
 
     const key = `${userId}:${action}:${normalizedWallet}`;
-    this.activeChallenges.set(key, {
+    if (!store.db.walletChallenges) {
+      store.db.walletChallenges = {};
+    }
+    store.db.walletChallenges[key] = {
       userId,
       action,
       walletAddress: normalizedWallet,
       message: challengeMessage,
       expiresAt,
-    });
+      nonce,
+      chainId: targetChainId,
+      origin: targetOrigin,
+    };
+    store.save();
 
-    return { challengeMessage, expiresAt };
+    return { challengeMessage, expiresAt, nonce };
   }
 
   public static consumeWalletChallenge(
@@ -187,28 +185,33 @@ export class AuthService {
     walletAddress: string,
     message: string
   ): void {
+    if (!message || typeof message !== "string") {
+      throw new Error("Challenge message is required and must be a valid string.");
+    }
     const normalizedWallet = ethers.getAddress(walletAddress).toLowerCase();
     const key = `${userId}:${action}:${normalizedWallet}`;
-    const challenge = this.activeChallenges.get(key);
+    if (!store.db.walletChallenges) {
+      store.db.walletChallenges = {};
+    }
+    const challenge = store.db.walletChallenges[key];
 
     if (!challenge) {
-      if (message.includes("=== GroupDeal Security Challenge ===")) {
-        throw new Error("Challenge expired or not found. Please request a new wallet challenge.");
-      }
-      return;
+      throw new Error("Challenge expired or not found or already consumed. Please request a new wallet challenge.");
     }
 
     if (Math.floor(Date.now() / 1000) > challenge.expiresAt) {
-      this.activeChallenges.delete(key);
-      throw new Error("Challenge expired. Please request a new challenge.");
+      delete store.db.walletChallenges[key];
+      store.save();
+      throw new Error("Challenge expired or not found. Please request a new challenge.");
     }
 
-    if (challenge.message !== message) {
+    if (challenge.message.trim() !== message.trim()) {
       throw new Error("Invalid challenge message: does not match server issued challenge.");
     }
 
     // Atomically consume: one-time use only (strictly prevents replay)
-    this.activeChallenges.delete(key);
+    delete store.db.walletChallenges[key];
+    store.save();
   }
 
   /**

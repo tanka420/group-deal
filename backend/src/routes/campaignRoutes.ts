@@ -5,6 +5,7 @@ import { authMiddleware, AuthenticatedRequest, requireRole } from "../middleware
 import { DeliveryService } from "../services/deliveryService";
 import { computeTermsHash, decryptEntitlement } from "../utils/crypto";
 import { OnchainService, OnchainCampaignTerms, HUB_ABI } from "../services/onchainService";
+import { TransactionVerifier } from "../services/transactionVerifier";
 import { config } from "../config";
 
 export const campaignRouter = Router();
@@ -272,35 +273,28 @@ campaignRouter.post("/:id/publish", authMiddleware, requireRole("seller"), async
     const { txHash } = req.body;
     let onchainCampaignId = campaign.onchainCampaignId;
     let publishTxHash = txHash;
-    const user = store.db.users[campaign.sellerId];
 
     if (txHash) {
-      // Client broadcasted tx directly
-      const receipt = await OnchainService.verifyTxReceipt(txHash);
-      const iface = new ethers.Interface(HUB_ABI);
-      for (const log of receipt.logs) {
-        try {
-          const parsed = iface.parseLog({ topics: [...log.topics], data: log.data });
-          if (parsed && parsed.name === "CampaignCreated") {
-            onchainCampaignId = Number(parsed.args.campaignId);
-            break;
-          }
-        } catch {}
+      // Client broadcasted tx directly from their non-custodial wallet
+      try {
+        const verification = await TransactionVerifier.verifyExpectedTransaction(
+          {
+            intentId: `campaign_publish_${campaign.id}`,
+            expectedTo: config.hubAddress,
+            expectedFunction: "createCampaign",
+            expectedEvent: "CampaignCreated",
+          },
+          txHash
+        );
+        onchainCampaignId = Number(verification.parsedEvent.campaignId);
+        publishTxHash = verification.txHash;
+      } catch (verifErr: any) {
+        res.status(400).json({ error: `Onchain transaction verification failed: ${verifErr.message}` });
+        return;
       }
     } else {
-      // Backend broadcasts createCampaign onchain
-      let signerPrivateKey = config.authorizedSignerPrivateKey;
-      if (user?.circleWallet?.encryptedPrivateKey) {
-        try {
-          const decrypted = decryptEntitlement(user.circleWallet.encryptedPrivateKey);
-          const w = new ethers.Wallet(decrypted);
-          if (w.address.toLowerCase() === campaign.sellerPayoutWallet.toLowerCase()) {
-            signerPrivateKey = decrypted;
-          }
-        } catch (e) {
-          console.warn("Could not decrypt seller embedded wallet key, using relayer:", e);
-        }
-      }
+      // Backend operator gas relayer broadcasts createCampaign onchain
+      const signerPrivateKey = config.authorizedSignerPrivateKey;
 
       try {
         const termsForChain: OnchainCampaignTerms = {

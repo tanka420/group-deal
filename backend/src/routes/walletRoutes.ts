@@ -3,13 +3,12 @@ import { ethers } from "ethers";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth";
 import { store } from "../db/store";
 import { config } from "../config";
-import { decryptEntitlement } from "../utils/crypto";
 
 export const walletRouter = Router();
 
 walletRouter.use(authMiddleware);
 
-// Strict Whitelist Policy for Embedded Custodial Relayer (Mitigation for A03)
+// Strict Whitelist Policy for GroupDealHub functions that can be sponsored/relayed
 const ALLOWED_HUB_SELECTORS = new Set([
   "0x5656bceb", // commitToBuy
   "0xa724b047", // claimBuyerFunds
@@ -27,41 +26,19 @@ const ALLOWED_HUB_SELECTORS = new Set([
 const ERC20_APPROVE_SELECTOR = "0x095ea7b3";
 
 /**
- * Sign an offchain verification challenge using the user's embedded wallet.
- * Never exposes the private key to the caller.
+ * Arbitrary message signing endpoint is permanently removed to comply with
+ * non-custodial architecture (G1.2).
  */
-walletRouter.post("/sign-message", async (req: AuthenticatedRequest, res) => {
-  try {
-    const { message } = req.body;
-    if (!message || typeof message !== "string") {
-      res.status(400).json({ error: "Message string is required" });
-      return;
-    }
-
-    const user = store.db.users[req.user!.userId];
-    if (!user || !user.circleWallet?.encryptedPrivateKey) {
-      res.status(400).json({ error: "User does not have an active embedded wallet" });
-      return;
-    }
-
-    const privateKey = decryptEntitlement(user.circleWallet.encryptedPrivateKey);
-    const wallet = new ethers.Wallet(privateKey);
-    const signature = await wallet.signMessage(message);
-
-    res.json({
-      success: true,
-      address: wallet.address,
-      signature,
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
+walletRouter.post("/sign-message", async (_req: AuthenticatedRequest, res) => {
+  res.status(410).json({
+    error: "Security Policy: Arbitrary backend message signing is permanently disabled. All signatures must originate directly from user-controlled wallets.",
+  });
 });
 
 /**
- * Relay an onchain transaction using the user's embedded wallet with strict security policies.
- * Enforces contract address allowlist, method selector allowlist, zero-native-value cap,
- * and spender verification to prevent arbitrary execution and drain attacks.
+ * Sponsored/Meta-Transaction Relayer with strict security policies.
+ * Never stores or decrypts user private keys.
+ * Relaying, if invoked, uses the operator gas sponsor key strictly according to policy.
  */
 walletRouter.post("/relay", async (req: AuthenticatedRequest, res) => {
   try {
@@ -125,26 +102,22 @@ walletRouter.post("/relay", async (req: AuthenticatedRequest, res) => {
       }
     }
 
-    const user = store.db.users[req.user!.userId];
-    if (!user || !user.circleWallet?.encryptedPrivateKey) {
-      res.status(400).json({ error: "User does not have an active embedded wallet" });
-      return;
-    }
+    // Sponsor key (Operator gas relayer)
+    const provider = new ethers.JsonRpcProvider(config.arcRpcUrl, config.arcChainId, {
+      staticNetwork: true,
+    });
+    const sponsorSigner = new ethers.Wallet(config.authorizedSignerPrivateKey, provider);
 
-    const privateKey = decryptEntitlement(user.circleWallet.encryptedPrivateKey);
-    const provider = new ethers.JsonRpcProvider(config.arcRpcUrl);
-    const wallet = new ethers.Wallet(privateKey, provider);
-
-    const tx = await wallet.sendTransaction({
+    const tx = await sponsorSigner.sendTransaction({
       to: normalizedTo,
       data: calldata,
       value: 0n,
     });
 
-    console.log(`[RELAY] Authorized tx ${tx.hash} from embedded wallet ${wallet.address} to ${normalizedTo}`);
+    console.log(`[RELAY] Sponsored tx ${tx.hash} from sponsor ${sponsorSigner.address} to ${normalizedTo}`);
 
     // Wait for mining to confirm receipt
-    const receipt = await tx.wait();
+    const receipt = await tx.wait(1);
 
     res.json({
       success: true,

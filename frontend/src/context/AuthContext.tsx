@@ -97,7 +97,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const linkExternalWallet = async (signer: ethers.Signer) => {
     if (!token) throw new Error("Must be logged in to link wallet");
     const address = await signer.getAddress();
-    const message = `GroupDeal Wallet Link Authentication\nAddress: ${address}\nTimestamp: ${Date.now()}`;
+
+    // 1. Request cryptographic challenge nonce from server (G1.1 requirement)
+    const chalRes = await fetch("/api/auth/wallet/challenge", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ action: "LINK_WALLET", walletAddress: address }),
+    });
+    const chalData = await chalRes.json();
+    if (!chalRes.ok) throw new Error(chalData.error || "Failed to request wallet challenge");
+
+    const message = chalData.challengeMessage;
     const signature = await signer.signMessage(message);
 
     const res = await fetch("/api/auth/wallet/bind", {
@@ -121,25 +134,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signer?: ethers.Signer;
   }) => {
     if (!token) throw new Error("Must be logged in to setup seller profile");
-    const challengeMessage = `GroupDeal Seller Payout Wallet Verification\nWallet: ${profileData.payoutWallet}\nTimestamp: ${Date.now()}`;
-    let proofSignature: string;
-
-    if (profileData.signer) {
-      proofSignature = await profileData.signer.signMessage(challengeMessage);
-    } else {
-      // Use embedded wallet signer endpoint
-      const signRes = await fetch("/api/wallet/sign-message", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ message: challengeMessage }),
-      });
-      const signData = await signRes.json();
-      if (!signRes.ok) throw new Error(signData.error || "Failed to sign payout challenge");
-      proofSignature = signData.signature;
+    if (!profileData.signer) {
+      throw new Error("Vui lòng kết nối ví bên ngoài hoặc ký ví để xác nhận quyền sở hữu ví thanh toán.");
     }
+
+    // 1. Request cryptographic challenge nonce for payout wallet
+    const chalRes = await fetch("/api/auth/wallet/challenge", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ action: "SELLER_PAYOUT", walletAddress: profileData.payoutWallet }),
+    });
+    const chalData = await chalRes.json();
+    if (!chalRes.ok) throw new Error(chalData.error || "Failed to request payout wallet challenge");
+
+    const challengeMessage = chalData.challengeMessage;
+    const proofSignature = await profileData.signer.signMessage(challengeMessage);
 
     const res = await fetch("/api/auth/seller/profile", {
       method: "POST",
