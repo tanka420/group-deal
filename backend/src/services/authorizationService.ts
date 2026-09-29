@@ -69,10 +69,10 @@ export class AuthorizationService {
       throw new Error("Exceeds remaining campaign inventory");
     }
 
-    // Connect to contract to fetch actual onchain nonce
+    // Connect to contract to fetch actual onchain nonce (G2.4 Fail-Closed requirement)
     let onchainNonce = 0;
     try {
-      const provider = new ethers.JsonRpcProvider(config.arcRpcUrl);
+      const provider = new ethers.JsonRpcProvider(config.arcRpcUrl, config.arcChainId, { staticNetwork: true });
       const hubAbi = [
         "function identityNonces(uint256, bytes32) external view returns (uint256)",
         "function campaignIdentityPrincipals(uint256, bytes32) external view returns (address)",
@@ -93,16 +93,17 @@ export class AuthorizationService {
       );
       onchainNonce = Number(nonceBigInt);
     } catch (err: any) {
-      console.warn("[AuthService] Could not fetch onchain nonce, falling back to local count:", err.message);
-      // Fallback: count local orders for this identity
-      onchainNonce = Object.values(store.db.orders).filter(
-        (o) => o.campaignId === campaignId && o.campaignIdentity === campaignIdentity
-      ).length;
+      if (err.message.includes("Onchain principal already pinned")) {
+        throw err;
+      }
+      throw new Error(
+        `[Security Fail-Closed] Failed to verify live onchain nonce from Arc Testnet contract: ${err.message}. Commitment authorization refused.`
+      );
     }
 
     // Authorization valid for 15 minutes
     const deadline = Math.floor(Date.now() / 1000) + 15 * 60;
-    const maxQuantity = campaign.maxPerAccount;
+    const maxQuantity = quantity;
 
     // EIP-712 Domain
     const domain = {

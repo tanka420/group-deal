@@ -56,6 +56,7 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
     mapping(uint256 => uint256) public buyerClaimedAmount;
 
     address public securityAuthority;
+    address public pendingSecurityAuthority;
 
     modifier onlyOperator() {
         require(msg.sender == operatorAddress || msg.sender == owner(), "Unauthorized operator");
@@ -73,16 +74,19 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
     constructor(
         address _usdcToken,
         address _authorizedSigner,
-        address _operatorAddress
+        address _operatorAddress,
+        address _securityAuthority
     ) EIP712("GroupDealHub", "1") Ownable(msg.sender) {
         require(_usdcToken != address(0), "Invalid USDC address");
         require(_authorizedSigner != address(0), "Invalid signer address");
         require(_operatorAddress != address(0), "Invalid operator address");
+        require(_securityAuthority != address(0), "Invalid security authority address");
+        require(_securityAuthority != _operatorAddress, "Security authority must be distinct from operator");
 
         usdcToken = IERC20(_usdcToken);
         authorizedSigner = _authorizedSigner;
         operatorAddress = _operatorAddress;
-        securityAuthority = _operatorAddress;
+        securityAuthority = _securityAuthority;
     }
 
     function setAuthorizedSigner(address _signer) external onlyOwner {
@@ -95,9 +99,19 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
         operatorAddress = _operator;
     }
 
-    function setSecurityAuthority(address _authority) external onlyOwner {
-        require(_authority != address(0), "Zero address");
-        securityAuthority = _authority;
+    function transferSecurityAuthority(address newAuthority) external onlySecurityAuthority {
+        require(newAuthority != address(0), "Zero address");
+        require(newAuthority != operatorAddress, "Security authority cannot be operator");
+        pendingSecurityAuthority = newAuthority;
+        emit SecurityAuthorityTransferStarted(securityAuthority, newAuthority);
+    }
+
+    function acceptSecurityAuthority() external {
+        require(msg.sender == pendingSecurityAuthority, "Only pending security authority can accept");
+        address previous = securityAuthority;
+        securityAuthority = pendingSecurityAuthority;
+        pendingSecurityAuthority = address(0);
+        emit SecurityAuthorityTransferred(previous, securityAuthority);
     }
 
     /**
@@ -372,22 +386,8 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
         state.finalClearingPrice = finalTier.price;
         state.finalTierIndex = state.currentUnlockedTier;
 
-        // Allocate rebates to all existing orders
-        uint256[] storage orderIds = _campaignOrderIds[campaignId];
-        for (uint256 i = 0; i < orderIds.length; i++) {
-            Order storage order = orders[orderIds[i]];
-            // Unit price rebate: difference between price locked at commitment and final clearing price
-            uint256 unitDiff = order.lockedUnitPrice > state.finalClearingPrice
-                ? order.lockedUnitPrice - state.finalClearingPrice
-                : 0;
-            uint256 totalRebate = (unitDiff * order.quantity) + order.earlyRebateValue;
-            
-            // Invariant safeguard: rebate cannot exceed committed gross
-            if (totalRebate > order.committedGross) {
-                totalRebate = order.committedGross;
-            }
-            order.rebateAllocated = totalRebate;
-        }
+        // Note: Individual order rebates are calculated lazily in claimBuyerFunds
+        // to guarantee finalizeCampaign is strictly O(1) gas and invariant to campaign order count.
 
         emit CampaignFinalized(
             campaignId,
@@ -462,10 +462,30 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
     }
 
     /**
+     * @notice Ensures order rebate is lazily evaluated and recorded into storage.
+     * Guarantees finalizeCampaign is O(1) gas invariant.
+     */
+    function _ensureOrderRebateAllocated(uint256 campaignId, uint256 orderId) internal {
+        CampaignState storage state = campaignStates[campaignId];
+        Order storage order = orders[orderId];
+        if ((state.status == CampaignStatus.FINALIZED || state.finalizedAt > 0) && order.rebateAllocated == 0 && state.finalClearingPrice > 0) {
+            uint256 unitDiff = order.lockedUnitPrice > state.finalClearingPrice
+                ? order.lockedUnitPrice - state.finalClearingPrice
+                : 0;
+            uint256 totalRebate = (unitDiff * order.quantity) + order.earlyRebateValue;
+            if (totalRebate > order.committedGross) {
+                totalRebate = order.committedGross;
+            }
+            order.rebateAllocated = totalRebate;
+        }
+    }
+
+    /**
      * @notice Breached delivery triggered if seller misses SLA deadline.
      * Full remaining gross returned to buyer as refund!
      */
     function claimDeliveryBreach(uint256 campaignId, uint256 orderId) external {
+        _ensureOrderRebateAllocated(campaignId, orderId);
         CampaignState storage state = campaignStates[campaignId];
         CampaignTerms storage terms = campaignTerms[campaignId];
         Order storage order = orders[orderId];
@@ -518,6 +538,7 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
     }
 
     function _settleOrderToSeller(uint256 campaignId, uint256 orderId) internal {
+        _ensureOrderRebateAllocated(campaignId, orderId);
         Order storage order = orders[orderId];
         CampaignTerms storage terms = campaignTerms[campaignId];
         CampaignState storage state = campaignStates[campaignId];
@@ -611,6 +632,7 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
         uint256 buyerShare,
         uint256 sellerShare
     ) external onlyOperator nonReentrant {
+        _ensureOrderRebateAllocated(campaignId, orderId);
         Order storage order = orders[orderId];
         CampaignState storage state = campaignStates[campaignId];
         require(state.status != CampaignStatus.CANCELLED, "Campaign cancelled");
@@ -641,27 +663,23 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
     ) external nonReentrant returns (uint256 totalClaimed) {
         CampaignState storage state = campaignStates[campaignId];
         for (uint256 i = 0; i < orderIds.length; i++) {
+            _ensureOrderRebateAllocated(campaignId, orderIds[i]);
             Order storage order = orders[orderIds[i]];
             require(order.campaignId == campaignId, "Mismatched campaign");
             require(order.buyerPrincipal == msg.sender, "Caller not order buyer principal");
-
-            // Lazy rebate allocation fallback if order was not pre-allocated during finalize
-            if (state.status == CampaignStatus.FINALIZED && order.rebateAllocated == 0 && state.finalClearingPrice > 0) {
-                uint256 unitDiff = order.lockedUnitPrice > state.finalClearingPrice
-                    ? order.lockedUnitPrice - state.finalClearingPrice
-                    : 0;
-                uint256 totalRebate = (unitDiff * order.quantity) + order.earlyRebateValue;
-                if (totalRebate > order.committedGross) {
-                    totalRebate = order.committedGross;
-                }
-                order.rebateAllocated = totalRebate;
-            }
 
             // Lazy cancel allocation fallback if campaign was emergency cancelled
             if (state.status == CampaignStatus.CANCELLED) {
                 uint256 allocated = order.rebateAllocated + order.sellerAllocated + order.buyerRefundAllocated;
                 if (order.committedGross > allocated) {
                     order.buyerRefundAllocated += (order.committedGross - allocated);
+                }
+                if (
+                    order.deliveryStatus != DeliveryStatus.CONFIRMED &&
+                    order.deliveryStatus != DeliveryStatus.RESOLVED &&
+                    order.deliveryStatus != DeliveryStatus.BREACHED_REFUNDED
+                ) {
+                    order.deliveryStatus = DeliveryStatus.BREACHED_REFUNDED;
                 }
             }
 
@@ -767,28 +785,12 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
         require(state.status != CampaignStatus.CANCELLED, "Already cancelled");
 
         state.status = CampaignStatus.CANCELLED;
-        uint256 totalRefundPool = 0;
-        uint256[] storage orderIds = _campaignOrderIds[campaignId];
 
-        for (uint256 i = 0; i < orderIds.length; i++) {
-            Order storage order = orders[orderIds[i]];
-            // Calculate unallocated funds for this order
-            uint256 allocated = order.rebateAllocated + order.sellerAllocated + order.buyerRefundAllocated;
-            if (order.committedGross > allocated) {
-                uint256 unallocated = order.committedGross - allocated;
-                order.buyerRefundAllocated += unallocated;
-                totalRefundPool += unallocated;
-            }
-            if (
-                order.deliveryStatus != DeliveryStatus.CONFIRMED &&
-                order.deliveryStatus != DeliveryStatus.RESOLVED &&
-                order.deliveryStatus != DeliveryStatus.BREACHED_REFUNDED
-            ) {
-                order.deliveryStatus = DeliveryStatus.BREACHED_REFUNDED;
-            }
-        }
+        // Note: Individual order refunds are calculated lazily in claimBuyerFunds
+        // to guarantee emergencyCancelCampaign is strictly O(1) gas and invariant to campaign order count.
+        uint256 refundPool = campaignEscrowBalance[campaignId];
 
-        emit EmergencyCancelled(campaignId, reasonHash, totalRefundPool);
+        emit EmergencyCancelled(campaignId, reasonHash, refundPool);
     }
 
     // View helpers
@@ -801,6 +803,34 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
     }
 
     function getOrderDetails(uint256 orderId) external view returns (Order memory) {
-        return orders[orderId];
+        Order memory order = orders[orderId];
+        CampaignState storage state = campaignStates[order.campaignId];
+
+        if ((state.status == CampaignStatus.FINALIZED || state.finalizedAt > 0) && order.rebateAllocated == 0 && state.finalClearingPrice > 0) {
+            uint256 unitDiff = order.lockedUnitPrice > state.finalClearingPrice
+                ? order.lockedUnitPrice - state.finalClearingPrice
+                : 0;
+            uint256 totalRebate = (unitDiff * order.quantity) + order.earlyRebateValue;
+            if (totalRebate > order.committedGross) {
+                totalRebate = order.committedGross;
+            }
+            order.rebateAllocated = totalRebate;
+        }
+
+        if (state.status == CampaignStatus.CANCELLED) {
+            uint256 allocated = order.rebateAllocated + order.sellerAllocated + order.buyerRefundAllocated;
+            if (order.committedGross > allocated) {
+                order.buyerRefundAllocated += (order.committedGross - allocated);
+            }
+            if (
+                order.deliveryStatus != DeliveryStatus.CONFIRMED &&
+                order.deliveryStatus != DeliveryStatus.RESOLVED &&
+                order.deliveryStatus != DeliveryStatus.BREACHED_REFUNDED
+            ) {
+                order.deliveryStatus = DeliveryStatus.BREACHED_REFUNDED;
+            }
+        }
+
+        return order;
     }
 }

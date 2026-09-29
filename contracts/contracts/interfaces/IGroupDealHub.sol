@@ -130,4 +130,6 @@ interface IGroupDealHub {
     event DisputeResolved(uint256 indexed campaignId, uint256 indexed orderId, uint256 buyerShare, uint256 sellerShare);
     event FundsClaimed(uint256 indexed campaignId, address indexed recipient, uint256 amount, uint8 claimType);
     event EmergencyCancelled(uint256 indexed campaignId, bytes32 reasonHash, uint256 refundPool);
+    event SecurityAuthorityTransferStarted(address indexed previousAuthority, address indexed newAuthority);
+    event SecurityAuthorityTransferred(address indexed previousAuthority, address indexed newAuthority);
 }

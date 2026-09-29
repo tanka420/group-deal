@@ -14,6 +14,7 @@ describe("GroupDealHub Core & Conservation Tests", function () {
   let buyer3: SignerWithAddress;
   let operator: SignerWithAddress;
   let authSigner: SignerWithAddress;
+  let securityAuthority: SignerWithAddress;
 
   const USDC_DECIMALS = 6;
   const parseUSDC = (val: number | string) => ethers.parseUnits(val.toString(), USDC_DECIMALS);
@@ -70,7 +71,7 @@ describe("GroupDealHub Core & Conservation Tests", function () {
   }
 
   beforeEach(async function () {
-    [deployer, seller, buyer1, buyer2, buyer3, operator, authSigner] = await ethers.getSigners();
+    [deployer, seller, buyer1, buyer2, buyer3, operator, authSigner, securityAuthority] = await ethers.getSigners();
 
     // Deploy MockUSDC
     const MockUSDCFactory = await ethers.getContractFactory("MockUSDC");
@@ -82,7 +83,8 @@ describe("GroupDealHub Core & Conservation Tests", function () {
     hub = await HubFactory.deploy(
       await usdc.getAddress(),
       authSigner.address,
-      operator.address
+      operator.address,
+      securityAuthority.address
     );
     await hub.waitForDeployment();
 

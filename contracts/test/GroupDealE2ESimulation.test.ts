@@ -14,6 +14,7 @@ describe("GroupDeal Full Lifecycle E2E Simulation on Arc Network", function () {
   let buyer3: SignerWithAddress;
   let operator: SignerWithAddress;
   let authSigner: SignerWithAddress;
+  let securityAuthority: SignerWithAddress;
 
   const parseUSDC = (val: number | string) => ethers.parseUnits(val.toString(), 6);
 
@@ -68,7 +69,7 @@ describe("GroupDeal Full Lifecycle E2E Simulation on Arc Network", function () {
   }
 
   beforeEach(async function () {
-    [deployer, seller, buyer1, buyer2, buyer3, operator, authSigner] = await ethers.getSigners();
+    [deployer, seller, buyer1, buyer2, buyer3, operator, authSigner, securityAuthority] = await ethers.getSigners();
 
     const MockUSDCFactory = await ethers.getContractFactory("MockUSDC");
     usdc = await MockUSDCFactory.deploy();
@@ -78,7 +79,8 @@ describe("GroupDeal Full Lifecycle E2E Simulation on Arc Network", function () {
     hub = await HubFactory.deploy(
       await usdc.getAddress(),
       authSigner.address,
-      operator.address
+      operator.address,
+      securityAuthority.address
     );
     await hub.waitForDeployment();
 

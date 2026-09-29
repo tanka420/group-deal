@@ -11,6 +11,7 @@ describe("GroupDealHub Fuzzing, Property Invariants & Security Tests", function 
   let seller: SignerWithAddress;
   let operator: SignerWithAddress;
   let authSigner: SignerWithAddress;
+  let securityAuthority: SignerWithAddress;
   let buyers: SignerWithAddress[];
 
   const USDC_DECIMALS = 6;
@@ -68,8 +69,8 @@ describe("GroupDealHub Fuzzing, Property Invariants & Security Tests", function 
 
   beforeEach(async function () {
     const signers = await ethers.getSigners();
-    [deployer, seller, operator, authSigner] = signers;
-    buyers = signers.slice(4, 10); // 6 buyer signers
+    [deployer, seller, operator, authSigner, securityAuthority] = signers;
+    buyers = signers.slice(5, 11); // 6 buyer signers
 
     const MockUSDCFactory = await ethers.getContractFactory("MockUSDC");
     usdc = await MockUSDCFactory.deploy();
@@ -79,7 +80,8 @@ describe("GroupDealHub Fuzzing, Property Invariants & Security Tests", function 
     hub = await HubFactory.deploy(
       await usdc.getAddress(),
       authSigner.address,
-      operator.address
+      operator.address,
+      securityAuthority.address
     );
     await hub.waitForDeployment();
 
@@ -210,9 +212,9 @@ describe("GroupDealHub Fuzzing, Property Invariants & Security Tests", function 
     await time.increase(86400 + 1); // past SLA
     await hub.connect(buyers[3]).claimDeliveryBreach(campaignId, 4n);
 
-    // Order 5: Pending delivery when Emergency Cancelled by Operator
+    // Order 5: Pending delivery when Emergency Cancelled by Security Authority
     const rCancel = ethers.keccak256(ethers.toUtf8Bytes("emergency security audit"));
-    await hub.connect(operator).emergencyCancelCampaign(campaignId, rCancel);
+    await hub.connect(securityAuthority).emergencyCancelCampaign(campaignId, rCancel);
 
     // STRICT CONSERVATION LAW TEST ACROSS ALL ORDERS:
     // For EVERY SINGLE order:

@@ -12,10 +12,11 @@ describe("Audit Verified Fixes (F03, F04, F05, F07, F10)", function () {
   let operator: SignerWithAddress;
 
   const u = (val: number | string) => ethers.parseUnits(String(val), 6);
+  let securityAuthority: SignerWithAddress;
   const termsHash = ethers.id("audit-verified-terms");
 
   beforeEach(async function () {
-    [owner, seller, buyer, operator] = await ethers.getSigners();
+    [owner, seller, buyer, operator, securityAuthority] = await ethers.getSigners();
 
     const MockUSDCFactory = await ethers.getContractFactory("MockUSDC");
     usdc = await MockUSDCFactory.deploy();
@@ -24,7 +25,8 @@ describe("Audit Verified Fixes (F03, F04, F05, F07, F10)", function () {
     hub = await GroupDealHubFactory.deploy(
       await usdc.getAddress(),
       owner.address,
-      operator.address
+      operator.address,
+      securityAuthority.address
     );
 
     // Fund buyer with 10,000 USDC
@@ -145,11 +147,23 @@ describe("Audit Verified Fixes (F03, F04, F05, F07, F10)", function () {
     await hub.finalizeCampaign(c2);
     await hub.connect(seller).recordDelivery(c2, o2, ethers.id("proof"));
 
-    // Operator cancels campaign -> unallocated 90 USDC is allocated to buyer refund
-    await hub.connect(operator).emergencyCancelCampaign(c2, ethers.id("emergency-incident"));
+    // Operator or owner attempting cancel MUST be rejected (G2.2 requirement)
+    await expect(
+      hub.connect(operator).emergencyCancelCampaign(c2, ethers.id("emergency-incident"))
+    ).to.be.revertedWith("Unauthorized security authority: only designated security authority can execute");
+
+    await expect(
+      hub.connect(owner).emergencyCancelCampaign(c2, ethers.id("emergency-incident"))
+    ).to.be.revertedWith("Unauthorized security authority: only designated security authority can execute");
+
+    // Designated Security Authority cancels campaign (O(1))
+    await hub.connect(securityAuthority).emergencyCancelCampaign(c2, ethers.id("emergency-incident"));
 
     // Attempting to confirm receipt after cancel must revert
     await expect(hub.connect(buyer).confirmReceipt(c2, o2)).to.be.revertedWith("Campaign cancelled");
+
+    // Buyer claims lazily calculated funds
+    await hub.connect(buyer).claimBuyerFunds(c2, [o2]);
 
     const order = await hub.getOrderDetails(o2);
     const totalAllocated = order.rebateAllocated + order.buyerRefundAllocated + order.sellerAllocated;

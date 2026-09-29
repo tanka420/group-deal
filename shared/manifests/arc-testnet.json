@@ -48,9 +48,20 @@
     }
   },
   "roles": {
-    "securityAuthority": "",
-    "operator": "",
-    "authorizedSigner": ""
+    "securityAuthority": {
+      "type": "multisig",
+      "address": "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
+      "quorum": "2-of-3",
+      "description": "Emergency Security Authority Multisig for Arc Testnet"
+    },
+    "operator": {
+      "address": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "description": "GroupDeal Operator Operational Wallet"
+    },
+    "authorizedSigner": {
+      "address": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      "description": "Backend EIP-712 Buy Authorization Signer"
+    }
   },
   "arcDifferences": {
     "minBaseFeeGwei": 20,

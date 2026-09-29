@@ -24,13 +24,15 @@ async function main() {
 
   const authorizedSigner = process.env.AUTHORIZED_SIGNER_ADDRESS || deployer.address;
   const operatorAddress = process.env.OPERATOR_ADDRESS || deployer.address;
+  const securityAuthority = process.env.SECURITY_AUTHORITY_ADDRESS || "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc";
 
   console.log(`[Deploy] Authorized Signer: ${authorizedSigner}`);
   console.log(`[Deploy] Operator Address: ${operatorAddress}`);
+  console.log(`[Deploy] Security Authority: ${securityAuthority}`);
 
   console.log("[Deploy] Deploying GroupDealHub...");
   const HubFactory = await ethers.getContractFactory("GroupDealHub");
-  const hub = await HubFactory.deploy(usdcAddress, authorizedSigner, operatorAddress);
+  const hub = await HubFactory.deploy(usdcAddress, authorizedSigner, operatorAddress, securityAuthority);
   await hub.waitForDeployment();
   const hubAddress = await hub.getAddress();
   console.log(`[Deploy] GroupDealHub deployed at: ${hubAddress}`);
