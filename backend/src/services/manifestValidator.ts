@@ -19,7 +19,7 @@ export async function validateManifestAndEnvironment(
   const net = await provider.getNetwork();
   const providerChainId = Number(net.chainId);
 
-  const isArc = providerChainId === 5042002 || config.arcChainId === 5042002;
+  const isArc = providerChainId === 5042002;
   const manifestFileName = manifestNameOverride || (isArc ? "arc-testnet.json" : "local.json");
 
   const possiblePaths = [

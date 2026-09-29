@@ -42,9 +42,11 @@
       "address": "0x000000000022D473030F116dDEE9F6B43aC78BA3"
     },
     "GroupDealHub": {
-      "address": "",
-      "deploymentBlock": 0,
-      "bytecodeHash": ""
+      "address": "0x7d4b958b3e19DA4c5374F70F84297748E5a79F9a",
+      "deploymentBlock": 64590728,
+      "bytecodeHash": "0x6fce997dab58d5cecf6da5c4fefd667cdabed90c5a1a0b56d65aeb3beb0cfcb7",
+      "txHash": "0x2f33098dcd841ad382047ae952d6926e764231f1e4107568f18e22f3d1527fa4",
+      "deployedAt": "2026-09-29T10:00:15.690Z"
     }
   },
   "roles": {
@@ -55,11 +57,11 @@
       "description": "Emergency Security Authority Multisig for Arc Testnet"
     },
     "operator": {
-      "address": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "address": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
       "description": "GroupDeal Operator Operational Wallet"
     },
     "authorizedSigner": {
-      "address": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      "address": "0x73307Bdd39d875f98857FfCE0FED1Cdc62F50b6d",
       "description": "Backend EIP-712 Buy Authorization Signer"
     }
   },

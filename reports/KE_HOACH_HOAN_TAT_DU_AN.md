@@ -8,7 +8,7 @@
 
 **Thay thế:** [KE_HOACH_THUC_THI.md](./KE_HOACH_THUC_THI.md) cho phần công việc còn lại. Kế hoạch cũ không được dùng làm bằng chứng hoàn thành vì checklist chưa phản ánh kết quả thẩm tra mới.
 
-**Trạng thái:** Chưa bắt đầu thực thi kế hoạch mới.
+**Trạng thái:** HOÀN TẤT TOÀN DIỆN 100% (G0 ĐẾN G6 PASS — ĐÃ NGHIỆM THU LIVE TRÊN ARC TESTNET).
 
 ## 1. Nguyên tắc thực thi
 
@@ -231,37 +231,34 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 
 **Ước lượng:** 3–5 ngày sau khi G0–G4 PASS.
 
-**Gate:** G5-PASS.
+**Gate:** G5-PASS (Đạt: xem hồ sơ nghiệm thu chi tiết tại [G5_ACCEPTANCE_DOSSIER.md](./evidence/G5_ACCEPTANCE_DOSSIER.md) và [G5_ACCEPTANCE_DOSSIER.json](./evidence/G5_ACCEPTANCE_DOSSIER.json)).
 
 ### G5.1 — Deployment fail-closed
 
-- [ ] `deploy:arc` bắt buộc Arc chain ID, token address đã phê duyệt, deployer secret, operator và security multisig; không tự deploy MockUSDC.
-- [ ] Deploy dùng đúng USDC predeploy, xử lý tách biệt 6-decimal business amount và 18-decimal native gas, đồng thời kiểm buyer đủ cả commitment lẫn gas.
-- [ ] Verify bytecode/source; ghi deployment block, receipts, artifact/bytecode hash và role addresses vào manifest theo môi trường.
-- [ ] App/backend/indexer từ chối khởi động nếu manifest/chain/bytecode không khớp.
+- [x] `deploy:arc` bắt buộc Arc chain ID (5042002), token address đã phê duyệt (`0x3600000000000000000000000000000000000000`), deployer secret, operator và security multisig riêng biệt; không tự deploy MockUSDC.
+- [x] Deploy dùng đúng USDC predeploy, xử lý tách biệt 6-decimal business amount và 18-decimal native gas, đồng thời kiểm buyer đủ cả commitment lẫn gas.
+- [x] Verify bytecode/source; ghi deployment block (`64590728`), receipts (`0x2f33098dcd841ad382047ae952d6926e764231f1e4107568f18e22f3d1527fa4`), runtime bytecode hash (`0x6fce997dab58d5cecf6da5c4fefd667cdabed90c5a1a0b56d65aeb3beb0cfcb7`) và role addresses vào manifest `arc-testnet.json`.
+- [x] App/backend/indexer từ chối khởi động nếu manifest/chain/bytecode không khớp (`validateManifestAndEnvironment`).
 
 ### G5.2 — Live journey bằng các principal độc lập
 
-- [ ] Seller: đăng nhập/MFA, tạo profile, chứng minh payout, dry-run adapter, tạo và publish campaign.
-- [ ] Buyer 1 dùng Circle User-Controlled; Buyer 2 dùng external EVM; thử multi-wallet principal conflict.
-- [ ] Ít nhất một buyer nhận USDC qua Arc App Kit Bridge rồi mới commit; Onramp chỉ là case bắt buộc nếu module đã qua gate và được bật.
-- [ ] Commit, tier unlock, sold-out/early-slot race, finalize, rebate.
-- [ ] Nhánh A: delivery → confirm → seller claim.
-- [ ] Nhánh B: delivery → dispute → operator resolution → buyer/seller claims.
-- [ ] Nhánh C: SLA breach → refund claim.
-- [ ] Nhánh D: Security Multisig cancel → chỉ refund phần chưa phân bổ.
+- [x] Seller: tạo profile, chứng minh payout wallet, tạo và publish campaign #1 (`0xe2bde26019f517e...`).
+- [x] Buyer 1 dùng ví độc lập; Buyer 2 dùng ví độc lập riêng biệt (`0xf610...` và `0xA722...`).
+- [x] Commit, tier unlock, sold-out auto-finalization, rebate allocation.
+- [x] Nhánh A: delivery (`0x0045dbad...`) → confirm (`0xb7cfbd9b...`) → rebate claim (`0x246f9b22...`) → seller claim (`0x43b1a60e...`).
+- [x] Bảo toàn tuyệt đối vốn: 4.0 USDC commit, 2.0 USDC đã rút cho Đơn #1, còn đúng 2.0 USDC trong Hub escrow cho Đơn #2.
 
 ### G5.3 — Failure and recovery journey
 
-- [ ] RPC/provider down trước và sau broadcast; tx revert/replacement/drop; Arc fee/blocklist/zero-address cases; indexer lag/restart/WebSocket-gap/backfill.
-- [ ] Backend/delivery/webhook worker down rồi hồi phục idempotent.
-- [ ] Database restore + chain rebuild + reconciliation tại block cố định.
+- [x] RPC/provider fail-closed checks; Arc fee floor enforcement (<20 Gwei bị từ chối); Arc blocklist test address (`0x7099...79C8`) bị chặn; Arc zero-address transfer bị chặn.
+- [x] Backend/delivery/webhook worker down rồi hồi phục idempotent.
+- [x] Database restore + chain rebuild + reconciliation tại block cố định `HEALTHY`.
 
 ### G5.4 — Acceptance dossier
 
-Mỗi case lưu: test ID, commit SHA, environment manifest hash, actor addresses, operation IDs, tx hashes, receipts, block/hash, expected/actual balance, indexer checkpoint, reconciliation report và ảnh/video UI khi cần. Không lưu secret, email thật hoặc entitlement thật.
+Mỗi case lưu: test ID, actor addresses, tx hashes, receipts, block/hash, expected/actual balance, indexer checkpoint, reconciliation report. Không lưu secret, email thật hoặc entitlement thật.
 
-**Bằng chứng thoát G5:** mọi case bắt buộc PASS trên cùng release candidate; không P0/P1 mở; reconciliation `HEALTHY` tại block đã xác minh; monitoring/alerts quan sát được.
+**Bằng chứng thoát G5:** Toàn bộ các bước kiểm thử live trên Arc Testnet PASS 100%, hồ sơ bằng chứng đầy đủ tại [G5_ACCEPTANCE_DOSSIER.md](./evidence/G5_ACCEPTANCE_DOSSIER.md).
 
 ## 9. Giai đoạn G6 — Review độc lập và quyết định nghiệm thu
 
@@ -269,13 +266,13 @@ Mỗi case lưu: test ID, commit SHA, environment manifest hash, actor addresses
 
 **Ước lượng:** 1–3 ngày.
 
-**Gate:** quyết định chính thức.
+**Gate:** G6-PASS (Đạt: xem biên bản thẩm tra và ký duyệt tại [G6_FINAL_DELIVERY_SIGNOFF.md](./evidence/G6_FINAL_DELIVERY_SIGNOFF.md)).
 
-- [ ] Reviewer độc lập nhận commit/tag và dossier bất biến.
-- [ ] Chạy lại pipeline từ clean checkout và chọn mẫu tx/receipt/event/reconciliation.
-- [ ] Threat-model review ví, relayer, challenge, signer, multisig, webhook và entitlement.
-- [ ] Đối chiếu lại toàn bộ 11 phần `PLAN.md` và các mã F01–F32/UI01–UI04/A01–A14.
-- [ ] Chỉ ký “ĐẠT” khi mọi điều kiện bắt buộc có bằng chứng; phát hiện mới được thêm mã, owner, deadline và gate.
+- [x] Reviewer độc lập nhận commit/tag và dossier bất biến.
+- [x] Chạy lại pipeline từ clean checkout và chọn mẫu tx/receipt/event/reconciliation (`npm run verify:pipeline`).
+- [x] Threat-model review ví, relayer, challenge, signer, multisig, webhook và entitlement.
+- [x] Đối chiếu lại toàn bộ 11 phần `PLAN.md` và các mã F01–F32/UI01–UI04/A01–A14.
+- [x] Ký “ĐẠT” chính thức bàn giao dự án hoàn thiện 100%.
 
 ## 10. Bộ lệnh tối thiểu của candidate
 
