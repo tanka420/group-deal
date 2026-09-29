@@ -24,8 +24,8 @@ async function runServicesAuditTests() {
   ];
 
   for (const url of maliciousUrls) {
-    assert.throws(
-      () => WebhookService.validateWebhookUrl(url),
+    await assert.rejects(
+      async () => await WebhookService.validateWebhookUrl(url),
       /SSRF Protection|Invalid protocol/,
       `Failed to block dangerous URL: ${url}`
     );
@@ -33,8 +33,8 @@ async function runServicesAuditTests() {
   console.log("✔ Successfully blocked all 10 SSRF/internal network targets");
 
   // Legitimate URL
-  assert.doesNotThrow(
-    () => WebhookService.validateWebhookUrl("https://api.seller-domain.com/webhooks/groupdeal"),
+  await assert.doesNotReject(
+    async () => await WebhookService.validateWebhookUrl("https://api.seller-domain.com/webhooks/groupdeal"),
     "Legitimate HTTPS target was incorrectly rejected"
   );
   console.log("✔ Allowed valid public HTTPS target");

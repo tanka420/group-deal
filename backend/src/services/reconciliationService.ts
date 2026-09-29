@@ -5,7 +5,9 @@ import { store } from "../db/store";
 export interface ReconciliationReport {
   timestamp: number;
   blockNumber: number;
+  blockHash: string;
   totalOrdersCount: number;
+  totalCampaignsCount: number;
   totalGrossCommittedUSDC: string;
   totalRebatesAllocatedUSDC: string;
   totalSellerProceedsUSDC: string;
@@ -14,16 +16,23 @@ export interface ReconciliationReport {
   onchainHubBalanceUSDC: string;
   conservationLawPassed: boolean;
   onchainBalanceVerified: boolean;
-  status: "HEALTHY" | "DISCREPANCY_DETECTED" | "UNVERIFIED";
+  indexerLagBlocks: number;
+  status: "HEALTHY" | "DISCREPANCY_DETECTED" | "UNVERIFIED" | "STALE" | "ERROR";
+  severity: "NONE" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   discrepancies: string[];
 }
 
 export class ReconciliationService {
   /**
-   * Run automated reconciliation between database orders and onchain state.
+   * Run automated reconciliation between database orders and onchain state
+   * at a fixed block tag/number.
    */
-  public static async runReconciliation(): Promise<ReconciliationReport> {
+  public static async runReconciliation(options?: {
+    fixedBlockNumber?: number;
+    customProvider?: any;
+  }): Promise<ReconciliationReport> {
     const orders = Object.values(store.db.orders);
+    const campaigns = Object.values(store.db.campaigns);
     let totalGross = 0n;
     let totalRebate = 0n;
     let totalSeller = 0n;
@@ -31,7 +40,7 @@ export class ReconciliationService {
     let totalExpectedEscrow = 0n;
     const discrepancies: string[] = [];
 
-    // Verify per-order conservation
+    // Verify per-order conservation law
     for (const o of orders) {
       const gross = BigInt(o.committedGross);
       const rebate = BigInt(o.rebateAllocated || "0");
@@ -61,8 +70,7 @@ export class ReconciliationService {
       }
 
       // Calculate onchain liabilities for this order:
-      // What the contract Hub must hold for this order:
-      // unallocated + (buyer hasn't claimed yet ? rebate + refund : 0) + (seller hasn't claimed yet ? seller : 0)
+      // Hub must hold: unallocated + (buyer hasn't claimed ? rebate + refund : 0) + (seller hasn't claimed ? seller : 0)
       let orderLiability = unallocated;
       if (!o.buyerClaimed) {
         orderLiability += rebate + refund;
@@ -75,53 +83,92 @@ export class ReconciliationService {
 
     let onchainBalanceVerified = true;
     let contractBalance = 0n;
-    let currentBlock = 0;
+    let targetBlock = options?.fixedBlockNumber || 0;
+    let blockHash = "";
+    let providerError = "";
 
     try {
-      const provider = new ethers.JsonRpcProvider(config.arcRpcUrl, config.arcChainId, {
-        staticNetwork: true,
-      });
-      currentBlock = await provider.getBlockNumber();
+      const provider =
+        options?.customProvider ||
+        new ethers.JsonRpcProvider(config.arcRpcUrl, config.arcChainId, {
+          staticNetwork: true,
+        });
+
+      if (!targetBlock) {
+        targetBlock = await provider.getBlockNumber();
+      }
+
+      const blockInfo = await provider.getBlock(targetBlock);
+      if (blockInfo) {
+        blockHash = blockInfo.hash || "";
+      }
+
       const usdcAbi = ["function balanceOf(address) external view returns (uint256)"];
       const usdcContract = new ethers.Contract(config.usdcAddress, usdcAbi, provider);
-      contractBalance = await usdcContract.balanceOf(config.hubAddress);
+
+      // Query onchain balance at fixed block
+      contractBalance = await usdcContract.balanceOf(config.hubAddress, {
+        blockTag: targetBlock,
+      });
 
       if (contractBalance < totalExpectedEscrow) {
         discrepancies.push(
-          `Onchain Escrow Shortfall at block ${currentBlock}: Contract holds ${ethers.formatUnits(
+          `Onchain Escrow Shortfall at block ${targetBlock}: Contract holds ${ethers.formatUnits(
             contractBalance,
             6
-          )} USDC, but total expected liabilities is ${ethers.formatUnits(totalExpectedEscrow, 6)} USDC`
+          )} USDC, but total expected liabilities is ${ethers.formatUnits(
+            totalExpectedEscrow,
+            6
+          )} USDC`
         );
       }
     } catch (e: any) {
-      console.warn("[RECONCILE] Could not query onchain balance:", e.message);
+      providerError = e.message;
       onchainBalanceVerified = false;
     }
 
-    const report: ReconciliationReport = {
+    const lastIndexed = store.db.syncState?.lastIndexedBlock || 0;
+    const indexerLagBlocks = targetBlock > 0 ? Math.max(0, targetBlock - lastIndexed) : 0;
+    const isStale = indexerLagBlocks > 10;
+
+    let status: ReconciliationReport["status"] = "HEALTHY";
+    let severity: ReconciliationReport["severity"] = "NONE";
+
+    if (discrepancies.length > 0) {
+      status = "DISCREPANCY_DETECTED";
+      severity = "CRITICAL";
+    } else if (!onchainBalanceVerified) {
+      status = "UNVERIFIED";
+      severity = "HIGH";
+      discrepancies.push(
+        `Onchain escrow balance unverified at target block ${targetBlock}: ${providerError || "RPC endpoint unreachable"}`
+      );
+    } else if (isStale) {
+      status = "STALE";
+      severity = "MEDIUM";
+      discrepancies.push(
+        `Indexer lag detected: lastIndexedBlock (${lastIndexed}) is ${indexerLagBlocks} blocks behind targetBlock (${targetBlock})`
+      );
+    }
+
+    return {
       timestamp: Date.now(),
-      blockNumber: currentBlock,
+      blockNumber: targetBlock,
+      blockHash,
       totalOrdersCount: orders.length,
+      totalCampaignsCount: campaigns.length,
       totalGrossCommittedUSDC: ethers.formatUnits(totalGross, 6),
       totalRebatesAllocatedUSDC: ethers.formatUnits(totalRebate, 6),
       totalSellerProceedsUSDC: ethers.formatUnits(totalSeller, 6),
       totalRefundsAllocatedUSDC: ethers.formatUnits(totalRefund, 6),
       expectedEscrowLiabilitiesUSDC: ethers.formatUnits(totalExpectedEscrow, 6),
       onchainHubBalanceUSDC: ethers.formatUnits(contractBalance, 6),
-      conservationLawPassed: discrepancies.length === 0,
+      conservationLawPassed: discrepancies.filter((d) => d.includes("Conservation Law")).length === 0,
       onchainBalanceVerified,
-      status:
-        discrepancies.length > 0
-          ? "DISCREPANCY_DETECTED"
-          : !onchainBalanceVerified
-          ? "UNVERIFIED"
-          : "HEALTHY",
-      discrepancies: !onchainBalanceVerified
-        ? [...discrepancies, "Onchain escrow balance unverified: RPC endpoint unreachable"]
-        : discrepancies,
+      indexerLagBlocks,
+      status,
+      severity,
+      discrepancies,
     };
-
-    return report;
   }
 }

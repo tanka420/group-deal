@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-09-29T08:04:37.814Z",
+  "timestamp": "2026-09-29T09:21:08.143Z",
   "network": "Arc Testnet",
   "chainIdExpected": 5042002,
   "chainIdActual": 5042002,
-  "blockNumber": 64577119,
+  "blockNumber": 64586125,
   "usdcPredeploy": {
     "address": "0x3600000000000000000000000000000000000000",
     "codeHash": "0xc9987bd3af6b26a030951faa7eacc017b68343aeedf3ce5fe68f821c4b93939d",
@@ -27,8 +27,8 @@
     "blocklistRevertMessage": "missing revert data (action=\"estimateGas\", data=null, reason=null, transaction={ \"data\": \"0x\", \"to\": \"0x70997970C51812dc3A010C7d01b50e0d17dc79C8\" }, invocation=null, revert=null, code=CALL_EXCEPTION, version=6.17.0)",
     "minFeeFloorGwei": 25,
     "instantFinalityReport": {
-      "hash": "0xce21f573a4e5758f718e68464fc0789150d4d87e6ac70a0a038e7c541cf5d96c",
-      "timestamp": 1790669076,
+      "hash": "0x0982758833bcdbe940ab3150c9941e5321d5e0964a9241b6baa188a56e6a0f08",
+      "timestamp": 1790673667,
       "baseFeePerGasGwei": "20.0"
     }
   }

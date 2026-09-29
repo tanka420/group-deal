@@ -1,15 +1,27 @@
 import { ethers } from "ethers";
 import { config } from "../config";
-import { store, OrderRecord, EventJournalRecord } from "../db/store";
+import { store, OrderRecord, EventJournalRecord, CampaignRecord } from "../db/store";
 import { WebhookService } from "./webhookService";
 import { HUB_ABI } from "./onchainService";
 
 export class IndexerService {
-  private static provider: ethers.JsonRpcProvider;
-  private static hubContract: ethers.Contract;
+  private static provider: ethers.JsonRpcProvider | null = null;
+  private static wsProvider: ethers.WebSocketProvider | null = null;
+  private static hubContract: ethers.Contract | null = null;
   private static isRunning = false;
   private static pollTimer: NodeJS.Timeout | null = null;
   private static isSyncing = false;
+
+  public static setProvider(provider: any): void {
+    this.provider = provider;
+    if (provider) {
+      this.hubContract = new ethers.Contract(config.hubAddress, HUB_ABI, provider);
+    }
+  }
+
+  public static getProvider(): ethers.JsonRpcProvider | null {
+    return this.provider;
+  }
 
   public static async start(): Promise<void> {
     if (this.isRunning) return;
@@ -22,10 +34,30 @@ export class IndexerService {
 
       this.hubContract = new ethers.Contract(config.hubAddress, HUB_ABI, this.provider);
 
-      // Perform initial catch-up sync
+      // Attempt WebSocket real-time subscription for immediate deterministic block notifications
+      if (config.arcWsUrl) {
+        try {
+          this.wsProvider = new ethers.WebSocketProvider(config.arcWsUrl, config.arcChainId, {
+            staticNetwork: true,
+          });
+          this.wsProvider.on("block", async (blockNumber: number) => {
+            try {
+              await this.syncBlocks();
+            } catch (err: any) {
+              console.warn(`[INDEXER WS] Error syncing on block ${blockNumber}:`, err.message);
+            }
+          });
+          console.log(`[INDEXER WS] Subscribed to real-time blocks on ${config.arcWsUrl}`);
+        } catch (wsErr: any) {
+          console.warn(`[INDEXER WS] WebSocket unavailable, falling back to HTTP poller:`, wsErr.message);
+          this.wsProvider = null;
+        }
+      }
+
+      // Initial catch-up sync
       await this.syncBlocks();
 
-      // Poll periodically every 5 seconds to catch up missed blocks & handle re-orgs
+      // Poll periodically every 5 seconds to catch up any missed blocks / gaps
       this.pollTimer = setInterval(async () => {
         try {
           await this.syncBlocks();
@@ -46,6 +78,12 @@ export class IndexerService {
       clearInterval(this.pollTimer);
       this.pollTimer = null;
     }
+    if (this.wsProvider) {
+      try {
+        this.wsProvider.destroy();
+      } catch {}
+      this.wsProvider = null;
+    }
     this.isRunning = false;
   }
 
@@ -61,12 +99,10 @@ export class IndexerService {
       let lastBlock = store.db.syncState?.lastIndexedBlock || 0;
 
       if (lastBlock === 0) {
-        // Start from configured deployment block or 0
         lastBlock = config.deploymentBlock || 0;
       }
 
       if (currentBlock < lastBlock) {
-        // Potential chain reorganization or node reset
         lastBlock = Math.max(0, currentBlock - 50);
       }
 
@@ -91,17 +127,23 @@ export class IndexerService {
     }
   }
 
-  private static async processBlockRange(fromBlock: number, toBlock: number): Promise<void> {
-    const filter = {
-      address: config.hubAddress,
-      fromBlock,
-      toBlock,
-    };
-
-    const logs = await this.provider.getLogs(filter);
+  /**
+   * Process a list of logs with strict sorting by (blockNumber, transactionIndex, logIndex)
+   * and unique idempotency keys: `${chainId}_${emitter}_${txHash}_${logIndex}`
+   */
+  public static async processLogs(logs: any[]): Promise<void> {
     const iface = new ethers.Interface(HUB_ABI);
 
-    for (const log of logs) {
+    // Strictly sort by blockNumber, transactionIndex, logIndex (ascending)
+    const sortedLogs = [...logs].sort((a, b) => {
+      const bDiff = (a.blockNumber ?? 0) - (b.blockNumber ?? 0);
+      if (bDiff !== 0) return bDiff;
+      const tDiff = (a.transactionIndex ?? 0) - (b.transactionIndex ?? 0);
+      if (tDiff !== 0) return tDiff;
+      return (a.index ?? a.logIndex ?? 0) - (b.index ?? b.logIndex ?? 0);
+    });
+
+    for (const log of sortedLogs) {
       try {
         const parsed = iface.parseLog({
           topics: [...log.topics],
@@ -109,33 +151,108 @@ export class IndexerService {
         });
         if (!parsed) continue;
 
-        const eventKey = `${log.transactionHash}_${log.index}`;
+        const logIdx = log.index ?? log.logIndex ?? 0;
+        const emitter = (log.address || config.hubAddress).toLowerCase();
+        const txHash = (log.transactionHash || "").toLowerCase();
+        const eventKey = `${config.arcChainId}_${emitter}_${txHash}_${logIdx}`;
+
         if (store.db.eventJournal[eventKey]) {
           // Idempotency: skip already processed event
           continue;
         }
 
-        // Process event
-        await this.handleEvent(parsed.name, parsed.args, log);
+        // Process event state projection
+        await this.handleEvent(parsed.name, parsed.args, log, iface);
 
         // Record in journal
         const journalRecord: EventJournalRecord = {
           id: eventKey,
-          blockNumber: log.blockNumber,
+          chainId: config.arcChainId,
+          contractAddress: ethers.getAddress(log.address || config.hubAddress),
+          blockNumber: log.blockNumber ?? 0,
+          blockHash: log.blockHash ?? "",
+          transactionIndex: log.transactionIndex ?? 0,
           txHash: log.transactionHash,
-          logIndex: log.index,
+          logIndex: logIdx,
           eventName: parsed.name,
           payload: parsed.args.toObject ? parsed.args.toObject() : {},
           processedAt: Date.now(),
         };
         store.db.eventJournal[eventKey] = journalRecord;
+        store.save();
       } catch (err: any) {
         console.warn(`[INDEXER] Error processing log at block ${log.blockNumber}:`, err.message);
       }
     }
   }
 
-  private static async handleEvent(eventName: string, args: any, log: ethers.Log): Promise<void> {
+  private static async processBlockRange(fromBlock: number, toBlock: number): Promise<void> {
+    if (!this.provider) return;
+    const filter = {
+      address: config.hubAddress,
+      fromBlock,
+      toBlock,
+    };
+
+    const logs = await this.provider.getLogs(filter);
+    await this.processLogs(logs);
+  }
+
+  /**
+   * Deterministically rebuild projections from clean state
+   */
+  public static async rebuildFromClean(fromBlock?: number, toBlock?: number): Promise<void> {
+    // Reset onchain projections and event journal
+    store.db.eventJournal = {};
+    store.db.syncState = {
+      lastIndexedBlock: 0,
+      lastSyncTimestamp: 0,
+    };
+
+    // Reset campaign onchain counters while preserving seller drafts
+    for (const campaign of Object.values(store.db.campaigns)) {
+      campaign.totalBuyerCount = 0;
+      campaign.totalUnitsCommitted = 0;
+      campaign.totalGrossCommitted = "0";
+      campaign.currentUnlockedTier = 0;
+      if (campaign.status === "ACTIVE" || campaign.status === "FINALIZED" || campaign.status === "CANCELLED") {
+        campaign.status = "DRAFT";
+      }
+    }
+
+    // Reset order onchain projections
+    for (const order of Object.values(store.db.orders)) {
+      order.rebateAllocated = "0";
+      order.sellerAllocated = "0";
+      order.buyerRefundAllocated = "0";
+      order.buyerClaimed = false;
+      order.sellerClaimed = false;
+      order.deliveryStatus = "PENDING";
+    }
+
+    store.save();
+
+    // Replay blocks
+    if (this.provider) {
+      const start = fromBlock !== undefined ? fromBlock : (config.deploymentBlock || 0);
+      const end = toBlock !== undefined ? toBlock : await this.provider.getBlockNumber();
+      const step = 500;
+      for (let from = start; from <= end; from += step) {
+        const to = Math.min(from + step - 1, end);
+        await this.processBlockRange(from, to);
+        store.db.syncState.lastIndexedBlock = to;
+        store.db.syncState.lastSyncTimestamp = Date.now();
+        store.save();
+      }
+    }
+  }
+
+  private static async handleEvent(
+    eventName: string,
+    args: any,
+    log: any,
+    iface: ethers.Interface
+  ): Promise<void> {
     const txHash = log.transactionHash;
 
     switch (eventName) {
@@ -146,7 +263,6 @@ export class IndexerService {
 
         let campaign = store.db.campaigns[campaignId];
         if (!campaign) {
-          // Find matching draft by termsHash
           for (const c of Object.values(store.db.campaigns)) {
             if (c.termsHash === termsHash) {
               campaign = c;
@@ -160,6 +276,44 @@ export class IndexerService {
           campaign.status = "ACTIVE";
           campaign.startTime = Number(args.startTime);
           campaign.endTime = Number(args.endTime);
+          store.save();
+        } else {
+          // Synthesize campaign from onchain event if created outside local drafts
+          const synthesized: CampaignRecord = {
+            id: campaignId,
+            onchainCampaignId: Number(args.campaignId),
+            title: `Onchain Campaign #${campaignId}`,
+            description: "Synchronized directly from Arc Testnet contract event",
+            category: "General",
+            thumbnailUrl: "",
+            sellerId: `seller_${sellerPayoutWallet.toLowerCase().substring(0, 8)}`,
+            sellerPayoutWallet: ethers.getAddress(sellerPayoutWallet),
+            status: "ACTIVE",
+            visibility: "PUBLIC",
+            metric: "BUYER_COUNT",
+            tiers: [],
+            currentUnlockedTier: 0,
+            maxPerAccount: 0,
+            inventoryLimit: 0,
+            durationSeconds: Math.max(0, Number(args.endTime) - Number(args.startTime)),
+            deliverySlaSeconds: 86400,
+            earlyRebateEnabled: false,
+            earlySlotsCount: 0,
+            earlyRebateAmount: "0",
+            earlyRebateBps: 0,
+            platformFeeBps: 0,
+            termsHash: termsHash,
+            startTime: Number(args.startTime),
+            endTime: Number(args.endTime),
+            totalBuyerCount: 0,
+            totalUnitsCommitted: 0,
+            totalGrossCommitted: "0",
+            deliveryMethod: "LICENSE_KEY",
+            deliveryContentTemplate: "",
+            dryRunDeliveryVerified: true,
+            amendments: [],
+          };
+          store.db.campaigns[campaignId] = synthesized;
           store.save();
         }
         break;
@@ -248,7 +402,7 @@ export class IndexerService {
           campaign.finalClearingPrice = finalClearingPrice;
           campaign.finalizedAt = Math.floor(Date.now() / 1000);
 
-          // Update rebate allocations for all orders in this campaign
+          // Update rebate allocations for all orders in this campaign lazily
           for (const ord of Object.values(store.db.orders)) {
             if (ord.campaignId === campaignId) {
               const locked = BigInt(ord.lockedUnitPrice);
@@ -371,19 +525,42 @@ export class IndexerService {
       case "FundsClaimed": {
         const campaignId = args.campaignId.toString();
         const recipient = ethers.getAddress(args.recipient).toLowerCase();
-        const amount = args.amount.toString();
         const claimType = Number(args.claimType); // 0 = BUYER, 1 = SELLER
 
-        for (const order of Object.values(store.db.orders)) {
-          // Strictly restrict to orders belonging to THIS campaign
-          if (order.campaignId !== campaignId) continue;
+        let claimedOrderIds: string[] = [];
+        try {
+          if (this.provider) {
+            const tx = await this.provider.getTransaction(log.transactionHash);
+            if (tx && tx.data) {
+              const parsedTx = iface.parseTransaction({ data: tx.data, value: tx.value });
+              if (parsedTx && (parsedTx.name === "claimBuyerFunds" || parsedTx.name === "claimSellerProceeds")) {
+                claimedOrderIds = parsedTx.args[1].map((id: any) => id.toString());
+              }
+            }
+          }
+        } catch {
+          // Transaction calldata decode fallback
+        }
 
-          if (claimType === 0 && order.buyerPrincipal.toLowerCase() === recipient) {
-            order.buyerClaimed = true;
-          } else if (claimType === 1) {
-            const campaign = store.db.campaigns[order.campaignId];
-            if (campaign && campaign.sellerPayoutWallet.toLowerCase() === recipient) {
-              order.sellerClaimed = true;
+        if (claimedOrderIds.length > 0) {
+          for (const oid of claimedOrderIds) {
+            const ord = store.db.orders[oid];
+            if (ord && ord.campaignId === campaignId) {
+              if (claimType === 0) ord.buyerClaimed = true;
+              if (claimType === 1) ord.sellerClaimed = true;
+            }
+          }
+        } else {
+          // Fallback: match by campaign, recipient and claimType
+          for (const order of Object.values(store.db.orders)) {
+            if (order.campaignId !== campaignId) continue;
+            if (claimType === 0 && order.buyerPrincipal.toLowerCase() === recipient) {
+              order.buyerClaimed = true;
+            } else if (claimType === 1) {
+              const campaign = store.db.campaigns[order.campaignId];
+              if (campaign && campaign.sellerPayoutWallet.toLowerCase() === recipient) {
+                order.sellerClaimed = true;
+              }
             }
           }
         }
@@ -398,8 +575,10 @@ export class IndexerService {
           campaign.status = "CANCELLED";
           for (const order of Object.values(store.db.orders)) {
             if (order.campaignId === campaignId) {
-              // Only unallocated committed funds become buyer refund, preserving already-allocated amounts
-              const allocated = BigInt(order.rebateAllocated || "0") + BigInt(order.sellerAllocated || "0") + BigInt(order.buyerRefundAllocated || "0");
+              const allocated =
+                BigInt(order.rebateAllocated || "0") +
+                BigInt(order.sellerAllocated || "0") +
+                BigInt(order.buyerRefundAllocated || "0");
               const committed = BigInt(order.committedGross);
               if (committed > allocated) {
                 const unallocated = committed - allocated;

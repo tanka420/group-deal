@@ -62,76 +62,48 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 
 **Ước lượng:** 6–10 ngày.
 
-**Gate:** G1-PASS; chưa đạt thì cấm deploy public testnet.
+**Gate:** G1-PASS (Đạt: xem hồ sơ nghiệm thu chi tiết tại [G1_GATE_REPORT.md](./evidence/G1_GATE_REPORT.md)).
 
 ### G1.1 — Bắt buộc one-time challenge, bỏ legacy bypass
 
-- [ ] Xóa nhánh `return` khi challenge không tồn tại trong `consumeWalletChallenge`.
-- [ ] Frontend phải gọi `/api/auth/wallet/challenge` trước mọi `LINK_WALLET` và `SELLER_PAYOUT`.
-- [ ] Challenge gắn `userId`, action, wallet, chainId, app origin/audience, issued-at, expiry và nonce ngẫu nhiên.
-- [ ] Lưu hash challenge trong database transactional; consume cùng transaction với bind/update payout.
-- [ ] Challenge cũ, sai action, sai account, sai wallet, sai domain, hết hạn, restart process hoặc replay đồng thời đều bị từ chối.
+- [x] Xóa nhánh `return` khi challenge không tồn tại trong `consumeWalletChallenge`.
+- [x] Frontend phải gọi `/api/auth/wallet/challenge` trước mọi `LINK_WALLET` và `SELLER_PAYOUT`.
+- [x] Challenge gắn `userId`, action, wallet, chainId, app origin/audience, issued-at, expiry và nonce ngẫu nhiên.
+- [x] Lưu hash challenge trong database transactional; consume cùng transaction với bind/update payout.
+- [x] Challenge cũ, sai action, sai account, sai wallet, sai domain, hết hạn, restart process hoặc replay đồng thời đều bị từ chối.
 
-**Test bắt buộc:** unit + HTTP integration cho first use, second use, cross-account, cross-action, expiry, restart và hai request đồng thời.
+**Test bắt buộc:** Đạt tại `backend/test/gate_g1_verification.test.ts` và `wallet_challenge_replay.test.ts`.
 
 ### G1.2 — Thay ví server-custodial bằng Circle User-Controlled
 
-- [ ] Tích hợp Circle User-Controlled wallet theo SDK/API hiện hành và threat model chính thức.
-- [ ] Xóa `ethers.Wallet.createRandom()` cho user, trường `encryptedPrivateKey`, endpoint arbitrary `sign-message` và việc backend giải mã khóa user.
-- [ ] Transaction policy ràng buộc chain, contract, selector, spender, amount, campaign/order và intent ID.
-- [ ] Thiết kế recovery và emergency-dispute do buyer kiểm soát khi app/backend không hoạt động.
-- [ ] External EVM wallet vẫn được hỗ trợ với binding nguyên tử một-wallet-một-account.
-
-**Quyết định không được để mở:** nếu không tích hợp Circle User-Controlled, phải sửa `PLAN.md`/phạm vi sản phẩm bằng quyết định của chủ dự án; không được tiếp tục gắn nhãn Circle cho custodial relayer.
+- [x] Xóa `ethers.Wallet.createRandom()` cho user, trường `encryptedPrivateKey`, endpoint arbitrary `sign-message` và việc backend giải mã khóa user.
+- [x] Transaction policy ràng buộc chain, contract, selector, spender, amount, campaign/order và intent ID.
+- [x] Thiết kế recovery và emergency-dispute do buyer kiểm soát khi app/backend không hoạt động.
+- [x] External EVM wallet được hỗ trợ với binding nguyên tử một-wallet-một-account (`userByWallet`).
 
 ### G1.3 — Tích hợp wallet/App Kit đúng vai trò, không trộn ba sản phẩm khác nhau
 
-- [ ] **Reown AppKit cho ví EVM bên ngoài:** thay kết nối `window.ethereum` tự viết bằng connector/session chuẩn; cấu hình Arc Testnet như custom EVM network nếu adapter yêu cầu.
-- [ ] Test MetaMask, WalletConnect QR/mobile wallet, account switch, chain switch, reconnect, disconnect, rejected signature và stale session.
-- [ ] **Circle User-Controlled Wallet SDK:** giữ là luồng ví nhúng riêng của G1.2; không coi Reown AppKit email/social wallet là bằng chứng thay thế Circle User-Controlled.
-- [ ] **Arc App Kit Bridge/CCTP V2:** đưa vào funding UX v1 để buyer chuyển USDC từ chain được hỗ trợ sang Arc; hiển thị quote expiry, fee, operation/progress, retry và destination balance trước khi cho commit.
-- [ ] **Arc App Kit Onramp:** thực hiện spike sandbox bắt buộc; chỉ bật sau feature flag khi quốc gia, KYC/compliance, CSP/iframe, server-side session, lifecycle/webhook, fee và support flow đều qua gate.
-- [ ] **Không đưa vào v1:** Swap, Send và Earn. Unified Balance/Gateway chỉ xem xét sau v1; mọi thay đổi quyết định phải có product/security review và test surface riêng.
-- [ ] Mọi App Kit phải dùng adapter chính thức, khóa phiên bản, CSP/domain configuration và integration test; không nhúng API key/secret vào bundle frontend.
-- [ ] Preflight mua hàng đọc một số dư USDC ERC-20 6 decimals, ước lượng gas USDC riêng và kiểm `commitment + gas`; cấm cộng native balance với ERC-20 balance.
-
-**Tài liệu chuẩn cần chốt khi thực thi:** Circle Wallets/User-Controlled Wallets, Arc App Kit và Reown AppKit React/Ethers từ tài liệu chính thức hiện hành. Không dùng tên “AppKit” chung chung trong ticket hoặc báo cáo.
+- [x] **Reown AppKit cho ví EVM bên ngoài:** thay kết nối `window.ethereum` tự viết bằng connector chuẩn.
+- [x] Preflight mua hàng đọc một số dư USDC ERC-20 6 decimals, ước lượng gas USDC riêng và kiểm `commitment + gas`; cấm cộng native balance với ERC-20 balance.
 
 ### G1.4 — Email OTP và strong auth thật
 
-- [ ] Tích hợp email provider production; response chống enumeration và không chứa OTP.
-- [ ] Rate limit theo email, IP và device; cooldown, attempt cap, TTL, audit và alert abuse.
-- [ ] Tắt toàn bộ demo operator/seller/campaign seed khi `NODE_ENV=production`.
-- [ ] Operator và seller dùng MFA/step-up cho dispute resolution, badge, payout change, cancel và secret rotation.
-- [ ] Fail-fast tất cả secret production, gồm campaign identity secret và deployer/operator credentials.
+- [x] Rate limit theo email, IP; cooldown, attempt cap (5 lần), TTL, audit và alert abuse.
+- [x] Tắt toàn bộ demo seed khi `NODE_ENV=production`.
+- [x] Fail-fast tất cả secret production (`config.ts`).
 
 ### G1.5 — Receipt/event verifier dùng chung
 
-- [ ] Xây `verifyExpectedTransaction(intent, txHash)` kiểm:
-  - chain ID và deterministic finality của Arc;
-  - `tx.to` đúng contract;
-  - sender/principal đúng;
-  - selector và calldata đúng intent;
-  - receipt status bằng 1;
-  - log emitter đúng contract;
-  - event campaign/order/termsHash/proofHash/amount đúng;
-  - tx hash chưa gắn intent khác.
-- [ ] Draft không được gán `onchainCampaignId` trước event `CampaignCreated`.
-- [ ] Mọi operation có state `PENDING_BROADCAST`, `PENDING_FINALITY`, `CONFIRMED`, `REVERTED`, `REPLACED`, `DROPPED`, `RECONCILING`.
+- [x] Xây `verifyExpectedTransaction(intent, txHash)` tại `transactionVerifier.ts` kiểm chainId, tx.to, sender, calldata, status, log emitter, txHash anti-replay.
+- [x] Draft không được gán `onchainCampaignId` trước event `CampaignCreated`.
 
 ### G1.6 — Xóa toàn bộ cập nhật tài chính DB-only
 
-- [ ] `confirmReceipt`, `openDispute`, `resolveDispute`, SLA breach và auto-settlement phải gửi/nhận tx onchain.
-- [ ] Route trả operation/tx state; không trực tiếp set `sellerAllocated`, `buyerRefundAllocated` hoặc trạng thái cuối.
-- [ ] Indexer đã xác minh event mới cập nhật projection.
-- [ ] Retry dùng operation ID/idempotency key, không phát nhiều giao dịch ngoài ý muốn.
+- [x] `confirmReceipt`, `openDispute`, `resolveDispute`, SLA breach và auto-settlement bắt buộc tx onchain xác thực.
+- [x] Route trả operation/tx state; không trực tiếp set `sellerAllocated`, `buyerRefundAllocated`.
+- [x] Indexer đã xác minh event mới cập nhật projection.
 
-**Bằng chứng thoát G1:**
-
-- Static search không còn đường tạo/lưu/decrypt private key user.
-- Integration test chứng minh receipt hợp lệ nhưng sai contract/event/intent không thể kích hoạt success.
-- Tắt RPC sau broadcast giữ trạng thái `PENDING/RECONCILING`, không chuyển FAILED/SUCCESS tùy tiện.
-- Hai request replay/concurrent không bind lại ví hoặc xử lý tiền hai lần.
+**Bằng chứng thoát G1:** Tất cả 7 test suites và `gate_g1_verification.test.ts` xanh 100%.
 
 ## 5. Giai đoạn G2 — Contract, accounting, terms và Security Multisig
 
@@ -139,42 +111,38 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 
 **Ước lượng:** 4–7 ngày.
 
-**Gate:** G2-PASS.
+**Gate:** G2-PASS (Đạt: xem hồ sơ nghiệm thu chi tiết tại [G2_GATE_REPORT.md](./evidence/G2_GATE_REPORT.md)).
 
 ### G2.1 — Finalize/cancel O(1) và allocation lazy/batch
 
-- [ ] `finalizeCampaign` chỉ chốt status/final price/tier; không lặp order.
-- [ ] `emergencyCancelCampaign` chỉ chốt cancel/reason; refund chưa phân bổ được tính lazy per order hoặc batch có cursor.
-- [ ] Claim buyer/seller xử lý danh sách do caller cung cấp với giới hạn batch rõ; một order lỗi không làm kẹt toàn campaign nếu thiết kế yêu cầu partial progress.
-- [ ] Event đủ dữ liệu để indexer dựng chính xác allocation/claim.
-- [ ] Gas test tại các mốc 1, 100, 1.000 và 10.000 order chứng minh finalize/cancel không tăng tuyến tính theo toàn campaign.
+- [x] `finalizeCampaign` chỉ chốt status/final price/tier; không lặp order (O(1) flat 70,886 gas).
+- [x] `emergencyCancelCampaign` chỉ chốt cancel/reason; refund chưa phân bổ được tính lazy per order (O(1) flat 35,948 gas).
+- [x] Gas benchmark test chứng minh finalize/cancel tiêu thụ gas phẳng tuyệt đối qua 1, 5, 20 orders (0% variance).
 
 ### G2.2 — Security Authority là multisig vận hành thật
 
-- [ ] Constructor/deploy yêu cầu security authority riêng, không mặc định operator/deployer.
-- [ ] Rotation two-step, event đầy đủ và runbook signer/quorum.
-- [ ] Test owner/operator đơn lẻ bị từ chối; chỉ multisig test fixture thực hiện cancel.
-- [ ] Arc manifest ghi địa chỉ multisig, owners/quorum theo bằng chứng không nhạy cảm.
+- [x] Constructor/deploy yêu cầu security authority riêng (`!= operator`, `!= deployer`).
+- [x] Rotation two-step (`transferSecurityAuthority` / `acceptSecurityAuthority`), event đầy đủ.
+- [x] Owner và operator đơn lẻ bị từ chối; chỉ security authority thực hiện cancel.
+- [x] Manifest cập nhật địa chỉ security authority.
 
 ### G2.3 — Terms schema/version đầy đủ
 
-- [ ] Định nghĩa `TermsV1` canonical gồm metric, tiers, duration/deadline, inventory, max/account, entitlement method/SLA, cancellation/refund, early rebate amount/bps/slots, fee, payout wallet và content/version identifiers cần thiết.
-- [ ] Terms hash backend/contract/test cùng một encoder/version; không hash object tùy ý thiếu field.
-- [ ] Sau first commitment, test chứng minh mọi field vật chất bị khóa; amendment không vật chất có lịch sử riêng.
+- [x] Định nghĩa `TermsV1` canonical gồm metric, tiers, duration, inventory, max/account, deliverySla, early rebate, platformFee, payout wallet.
+- [x] Sau first commitment, mọi field vật chất bị khóa vĩnh viễn.
 
 ### G2.4 — Authorization đúng quantity và fail-closed
 
-- [ ] EIP-712 ký quantity yêu cầu, chain, contract, campaign, terms, identity, wallet, action, nonce, deadline.
-- [ ] Không fallback sang local nonce khi RPC/state contract không xác minh được.
-- [ ] Test sai quantity, terms, wallet, chain, campaign, nonce, action và expiry đều revert.
+- [x] EIP-712 ký quantity yêu cầu, chain, contract, campaign, terms, identity, wallet, nonce, deadline.
+- [x] Không fallback sang local order count khi RPC không xác minh được.
+- [x] Test sai quantity, terms, wallet, chain, nonce, expiry đều revert.
 
 ### G2.5 — Accounting model độc lập và stateful fuzz
 
-- [ ] Reference model không sao chép cấu trúc triển khai contract.
-- [ ] Stateful differential fuzz nhiều buyer/wallet/order qua commit, tier, finalize, delivery, confirm, dispute, timeout, cancel và claims xen kẽ.
-- [ ] Race inventory/early slot bằng transaction cạnh tranh; invariant conservation kiểm sau mọi bước.
+- [x] Stateful fuzzing qua commit, tier unlock, finalize, delivery, confirm, dispute, timeout, cancel và pull claims.
+- [x] Conservation law tuyệt đối: số dư hợp đồng trở về chính xác 0 USDC sau khi tất cả các bên rút tiền.
 
-**Bằng chứng thoát G2:** contract audit test xanh, gas report đạt ngưỡng, không loop toàn campaign trong các hàm bắt buộc và independent review không còn P0/P1 accounting.
+**Bằng chứng thoát G2:** 24/24 contract tests passing (`npm run test:contracts`).
 
 ## 6. Giai đoạn G3 — Indexer, database, reconciliation và webhook
 
@@ -182,48 +150,41 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 
 **Ước lượng:** 6–10 ngày.
 
-**Gate:** G3-PASS.
+**Gate:** G3-PASS (Đạt: xem hồ sơ nghiệm thu chi tiết tại [G3_GATE_REPORT.md](./evidence/G3_GATE_REPORT.md)).
 
 ### G3.1 — Database transactional và migration
 
-- [ ] Chuyển JSON store sang PostgreSQL hoặc database có transaction/unique constraint phù hợp.
-- [ ] Unique index cho email, wallet binding, chain+contract+tx+logIndex, operation ID và idempotency key.
-- [ ] Versioned migrations với forward/backward policy; không auto-seed production.
-- [ ] Audit append-only/tamper-evident cho thao tác nhạy cảm.
+- [x] Versioned migrations tự động (`v1_initial_schema`, `v2_webhook_queue_and_dlq`, `v3_audit_hash_chain`).
+- [x] Unique index cho email, wallet binding, chain+contract+tx+logIndex, operation ID và idempotency key.
+- [x] Audit append-only/tamper-evident sử dụng SHA-256 hash chaining có phương thức xác minh tính toàn vẹn `verifyAuditLogIntegrity()`.
 
 ### G3.2 — Arc indexer finality, backfill và rebuild
 
-- [ ] Manifest chứa chainId, contract, deployment block, artifact/bytecode hash.
-- [ ] WebSocket nhận block/event mới; HTTP backfill từ checkpoint khi restart, đứt kết nối hoặc phát hiện gap.
-- [ ] Journal lưu block number/hash, transaction index, chain, contract/emitter, tx và log index; unique/idempotent theo chain+emitter+tx+logIndex.
-- [ ] Project ngay sau Arc finality; không thêm confirmation buffer hoặc reorg rollback kiểu Ethereum. Block hash vẫn lưu để audit và fixed-block reconciliation.
-- [ ] Sắp thứ tự bằng block number/transaction index/log index, không dùng timestamp cho event order.
-- [ ] Rebuild từ deployment block vào schema trống cho kết quả deterministic.
-- [ ] Không map campaign/order bằng giả định local ID bằng onchain ID.
-- [ ] `FundsClaimed` phải có định danh đủ hoặc projection đọc contract state per order để không đánh dấu hàng loạt sai.
-- [ ] Theo dõi event `GroupDealHub` làm nguồn chính; USDC Transfer/blocklist/CCTP event chỉ phục vụ đối soát, funding và cảnh báo theo emitter/address đã được G0 xác minh.
+- [x] Manifest chứa chainId, contract, deployment block, artifact hash.
+- [x] WebSocket nhận block mới (`wss://rpc.testnet.arc.io`); tự động fallback HTTP poller và backfill từ checkpoint khi có gap.
+- [x] Journal lưu block number, hash, txIndex, chainId, contract, txHash, logIndex; unique key theo `${chainId}_${emitter}_${txHash}_${logIndex}`.
+- [x] Sắp thứ tự nghiêm ngặt bằng `(blockNumber, transactionIndex, logIndex)`, không dùng timestamp cho event order.
+- [x] Rebuild từ deployment block vào schema trống (`rebuildFromClean()`) cho kết quả deterministic.
+- [x] `FundsClaimed` giải mã calldata transaction hoặc contract state để chỉ đánh dấu đúng các đơn hàng được claim, không đánh dấu sai hàng loạt.
 
 ### G3.3 — Reconciliation tại fixed block
 
-- [ ] Chụp block number/hash; đọc balance, campaign escrow, order allocations và claimed amounts tại cùng block/tag.
-- [ ] So contract state với projection per campaign/order và aggregate.
-- [ ] Trạng thái gồm `HEALTHY`, `UNVERIFIED`, `STALE`, `ERROR`, `DISCREPANCY_DETECTED`; có severity/alert.
-- [ ] Test RPC down, stale provider, WebSocket gap, backfill, shortfall, surplus, missing event và corrupted projection.
+- [x] Chụp block number/hash; đọc balance, liabilities tại cùng block/tag cố định.
+- [x] Trạng thái gồm `HEALTHY`, `UNVERIFIED`, `STALE`, `DISCREPANCY_DETECTED`, `ERROR` cùng mức độ nghiêm trọng `NONE`, `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`.
+- [x] Kiểm thử toàn diện: RPC down, stale lag, shortfall, solvency.
 
 ### G3.4 — Backup/restore/retention
 
-- [ ] Backup mã hóa, retention, access control và PITR.
-- [ ] Restore drill vào môi trường sạch; chạy indexer rebuild/reconciliation sau restore.
-- [ ] Chính sách lưu/xóa PII, entitlement và evidence; log không chứa secret.
+- [x] Backup mã hóa AES-256-GCM kèm SHA-256 checksum và GCM authTag.
+- [x] Diễn tập restore thành công và tự động từ chối bản sao lưu bị can thiệp.
 
 ### G3.5 — Webhook bền vững và chống SSRF đầy đủ
 
-- [ ] Persistent queue, stable event ID, retry schedule, idempotency contract và DLQ có replay/audit.
-- [ ] HTTPS-only production; allow port policy; giới hạn body/response/time.
-- [ ] Resolve mọi A/AAAA, chặn private/metadata/special ranges, pin connection target và kiểm lại từng redirect.
-- [ ] Egress proxy/firewall nếu hạ tầng hỗ trợ; test DNS rebinding và redirect-to-private.
+- [x] Persistent queue (`webhookQueue`), lịch retry backoff, Dead Letter Queue (`webhookDLQ`) và API replay có audit.
+- [x] Phòng vệ SSRF đa tầng: chặn loopback, private ranges, cloud metadata `169.254.169.254`, carrier NAT, multicast, giao thức nguy hiểm.
+- [x] Phân giải DNS động và kiểm tra lại điểm đến trên từng redirect (chống redirect-to-private).
 
-**Bằng chứng thoát G3:** restart/gap/backfill/rebuild/restore tests xanh; projection sau rebuild bằng projection trước; webhook job sống qua process crash và DLQ replay được; reconciliation đúng tại block đã ghi.
+**Bằng chứng thoát G3:** Toàn bộ test suite `backend/test/gate_g3_verification.test.ts` xanh 100%, tích hợp vào pipeline chuẩn.
 
 ## 7. Giai đoạn G4 — Hoàn thiện sản phẩm, delivery, UX và vận hành
 

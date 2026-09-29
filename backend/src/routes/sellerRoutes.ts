@@ -81,14 +81,14 @@ sellerRouter.get("/webhooks", authMiddleware, requireRole("seller"), (req: Authe
 });
 
 // POST save webhook endpoint
-sellerRouter.post("/webhooks", authMiddleware, requireRole("seller"), (req: AuthenticatedRequest, res) => {
+sellerRouter.post("/webhooks", authMiddleware, requireRole("seller"), async (req: AuthenticatedRequest, res) => {
   try {
     const { targetUrl, events } = req.body;
     if (!targetUrl) {
       res.status(400).json({ error: "targetUrl is required" });
       return;
     }
-    const sub = WebhookService.registerWebhook(
+    const sub = await WebhookService.registerWebhook(
       req.user!.userId,
       targetUrl,
       events || ["order.committed", "order.delivered", "order.disputed"]
@@ -97,4 +97,24 @@ sellerRouter.post("/webhooks", authMiddleware, requireRole("seller"), (req: Auth
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
+});
+
+// GET seller DLQ
+sellerRouter.get("/webhooks/dlq", authMiddleware, requireRole("seller"), (req: AuthenticatedRequest, res) => {
+  const sellerId = req.user!.userId;
+  const dlqRecords = Object.values(store.db.webhookDLQ || {}).filter((d) => d.sellerId === sellerId);
+  res.json({ dlq: dlqRecords });
+});
+
+// POST replay DLQ item
+sellerRouter.post("/webhooks/dlq/:dlqId/replay", authMiddleware, requireRole("seller"), async (req: AuthenticatedRequest, res) => {
+  const { dlqId } = req.params;
+  const sellerId = req.user!.userId;
+  const record = store.db.webhookDLQ?.[dlqId];
+  if (!record || record.sellerId !== sellerId) {
+    res.status(404).json({ error: "DLQ record not found" });
+    return;
+  }
+  const success = await WebhookService.replayDLQ(dlqId);
+  res.json({ success });
 });

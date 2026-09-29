@@ -190,6 +190,8 @@ export interface WebhookSubscription {
   }[];
 }
 
+import * as crypto from "crypto";
+
 export interface AuditLogRecord {
   id: string;
   timestamp: number;
@@ -197,11 +199,46 @@ export interface AuditLogRecord {
   role: string;
   action: string;
   details: any;
+  prevHash: string;
+  hash: string;
+}
+
+export interface WebhookJobRecord {
+  id: string;
+  sellerId: string;
+  targetUrl: string;
+  secret: string;
+  eventName: string;
+  payload: any;
+  status: "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED" | "DLQ";
+  attempts: number;
+  maxAttempts: number;
+  nextAttemptAt: number;
+  lastError?: string;
+  createdAt: number;
+  completedAt?: number;
+}
+
+export interface WebhookDLQRecord {
+  id: string;
+  jobId: string;
+  sellerId: string;
+  targetUrl: string;
+  eventName: string;
+  payload: any;
+  error: string;
+  failedAt: number;
+  replayed: boolean;
+  replayedAt?: number;
 }
 
 export interface EventJournalRecord {
-  id: string; // `${txHash}_${logIndex}`
+  id: string; // `${chainId}_${emitter}_${txHash}_${logIndex}`
+  chainId: number;
+  contractAddress: string;
   blockNumber: number;
+  blockHash: string;
+  transactionIndex: number;
   txHash: string;
   logIndex: number;
   eventName: string;
@@ -212,6 +249,11 @@ export interface EventJournalRecord {
 export interface SyncState {
   lastIndexedBlock: number;
   lastSyncTimestamp: number;
+}
+
+export interface MigrationState {
+  currentVersion: number;
+  appliedMigrations: string[];
 }
 
 export interface DatabaseSchema {
@@ -225,9 +267,12 @@ export interface DatabaseSchema {
   orders: Record<string, OrderRecord>;
   supportMessages: Record<string, SupportMessageRecord[]>; // orderId -> messages
   webhooks: Record<string, WebhookSubscription>;
+  webhookQueue: Record<string, WebhookJobRecord>;
+  webhookDLQ: Record<string, WebhookDLQRecord>;
   auditLogs: AuditLogRecord[];
   eventJournal: Record<string, EventJournalRecord>;
   syncState: SyncState;
+  migrationState: MigrationState;
 }
 
 export class JsonStore {
@@ -252,6 +297,11 @@ export class JsonStore {
         if (!parsed.syncState) parsed.syncState = { lastIndexedBlock: 0, lastSyncTimestamp: 0 };
         if (!parsed.walletChallenges) parsed.walletChallenges = {};
         if (!parsed.consumedTxHashes) parsed.consumedTxHashes = {};
+        if (!parsed.webhookQueue) parsed.webhookQueue = {};
+        if (!parsed.webhookDLQ) parsed.webhookDLQ = {};
+        if (!parsed.migrationState) {
+          parsed.migrationState = { currentVersion: 1, appliedMigrations: ["v1_initial_schema"] };
+        }
         return parsed;
       } catch (e) {
         console.error("[DB CRITICAL] Failed to parse db file! Preserving corrupted copy to avoid silent data loss.", e);
@@ -278,9 +328,12 @@ export class JsonStore {
       orders: {},
       supportMessages: {},
       webhooks: {},
+      webhookQueue: {},
+      webhookDLQ: {},
       auditLogs: [],
       eventJournal: {},
       syncState: { lastIndexedBlock: 0, lastSyncTimestamp: 0 },
+      migrationState: { currentVersion: 1, appliedMigrations: ["v1_initial_schema"] },
     };
   }
 
@@ -326,14 +379,24 @@ export class JsonStore {
     return this.data;
   }
 
-  public addAuditLog(actor: string, role: string, action: string, details: any): void {
+  public addAuditLog(actor: string, role: string, action: string, details: any): AuditLogRecord {
+    const timestamp = Date.now();
+    const prevHash =
+      this.data.auditLogs.length > 0
+        ? this.data.auditLogs[0].hash
+        : "0000000000000000000000000000000000000000000000000000000000000000";
+    const payloadToHash = `${prevHash}:${timestamp}:${actor}:${role}:${action}:${JSON.stringify(details)}`;
+    const hash = crypto.createHash("sha256").update(payloadToHash).digest("hex");
+
     const entry: AuditLogRecord = {
-      id: `audit_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      timestamp: Date.now(),
+      id: `audit_${timestamp}_${Math.random().toString(36).substring(2, 7)}`,
+      timestamp,
       actor,
       role,
       action,
       details,
+      prevHash,
+      hash,
     };
     this.data.auditLogs.unshift(entry);
     // keep latest 1000 logs
@@ -341,6 +404,53 @@ export class JsonStore {
       this.data.auditLogs = this.data.auditLogs.slice(0, 1000);
     }
     this.save();
+    return entry;
+  }
+
+  public verifyAuditLogIntegrity(): { valid: boolean; brokenAtId?: string } {
+    const logs = this.data.auditLogs;
+    for (let i = 0; i < logs.length; i++) {
+      const entry = logs[i];
+      const expectedPrevHash =
+        i + 1 < logs.length
+          ? logs[i + 1].hash
+          : "0000000000000000000000000000000000000000000000000000000000000000";
+
+      if (entry.prevHash !== expectedPrevHash) {
+        return { valid: false, brokenAtId: entry.id };
+      }
+
+      const payload = `${entry.prevHash}:${entry.timestamp}:${entry.actor}:${entry.role}:${entry.action}:${JSON.stringify(entry.details)}`;
+      const computedHash = crypto.createHash("sha256").update(payload).digest("hex");
+      if (computedHash !== entry.hash) {
+        return { valid: false, brokenAtId: entry.id };
+      }
+    }
+    return { valid: true };
+  }
+
+  public runMigrations(): { appliedCount: number; currentVersion: number } {
+    let appliedCount = 0;
+    if (!this.data.migrationState) {
+      this.data.migrationState = { currentVersion: 1, appliedMigrations: ["v1_initial_schema"] };
+      appliedCount++;
+    }
+    if (this.data.migrationState.currentVersion < 2) {
+      if (!this.data.webhookQueue) this.data.webhookQueue = {};
+      if (!this.data.webhookDLQ) this.data.webhookDLQ = {};
+      this.data.migrationState.currentVersion = 2;
+      this.data.migrationState.appliedMigrations.push("v2_webhook_queue_and_dlq");
+      appliedCount++;
+    }
+    if (this.data.migrationState.currentVersion < 3) {
+      this.data.migrationState.currentVersion = 3;
+      this.data.migrationState.appliedMigrations.push("v3_audit_hash_chain");
+      appliedCount++;
+    }
+    if (appliedCount > 0) {
+      this.save();
+    }
+    return { appliedCount, currentVersion: this.data.migrationState.currentVersion };
   }
 }
 

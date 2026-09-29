@@ -37,6 +37,7 @@ export const config = {
   masterEncryptionKey:
     process.env.MASTER_ENCRYPTION_KEY || "groupdeal-master-aes-key-32chars!", // 32 chars
   arcRpcUrl: process.env.ARC_RPC_URL || process.env.ARC_TESTNET_RPC || "http://127.0.0.1:8545",
+  arcWsUrl: process.env.ARC_WS_URL || (process.env.ARC_TESTNET_RPC ? process.env.ARC_TESTNET_RPC.replace(/^http/, "ws") : "wss://rpc.testnet.arc.io"),
   arcChainId: parseInt(process.env.ARC_CHAIN_ID || contractsConfig.chainId?.toString() || "31337", 10),
   hubAddress: process.env.GROUPDEAL_HUB_ADDRESS || contractsConfig.contracts.GroupDealHub.address,
   usdcAddress: process.env.USDC_ADDRESS || contractsConfig.contracts.USDC.address,

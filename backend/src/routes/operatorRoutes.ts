@@ -102,10 +102,11 @@ operatorRouter.post("/sellers/:id/badge", (req: AuthenticatedRequest, res) => {
   }
 });
 
-// GET reconciliation report
+// GET reconciliation report (supports optional fixedBlockNumber query)
 operatorRouter.get("/reconciliation", async (req, res) => {
   try {
-    const report = await ReconciliationService.runReconciliation();
+    const blockNum = req.query.blockNumber ? parseInt(req.query.blockNumber as string, 10) : undefined;
+    const report = await ReconciliationService.runReconciliation({ fixedBlockNumber: blockNum });
     res.json({ report });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -115,4 +116,10 @@ operatorRouter.get("/reconciliation", async (req, res) => {
 // GET audit logs
 operatorRouter.get("/audit-logs", (req, res) => {
   res.json({ logs: store.db.auditLogs.slice(0, 200) });
+});
+
+// GET verify audit log hash chain integrity
+operatorRouter.get("/audit-logs/verify", (req, res) => {
+  const result = store.verifyAuditLogIntegrity();
+  res.json(result);
 });
