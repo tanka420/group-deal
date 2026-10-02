@@ -17,7 +17,7 @@ import {
 export const OperatorPortal: React.FC = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const { hubAddress } = useWeb3();
+  const { hubAddress, getExternalSigner, resolveDisputeOnchain } = useWeb3();
 
   const [activeTab, setActiveTab] = useState<"DISPUTES" | "VERIFICATIONS" | "RECONCILIATION" | "LOGS">(
     "DISPUTES"
@@ -75,19 +75,39 @@ export const OperatorPortal: React.FC = () => {
   ) => {
     try {
       const token = localStorage.getItem("groupdeal_token");
-      const body =
-        badgeType === "seller"
-          ? { verifiedSellerBadge: !currentVal }
-          : { verifiedRightsBadge: !currentVal };
-
-      await fetch(`/api/operator/sellers/${sellerId}/badge`, {
+      const signer = await getExternalSigner();
+      const walletAddress = await signer.getAddress();
+      const challengeResponse = await fetch("/api/auth/wallet/challenge", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ action: "OPERATOR_ACTION", walletAddress }),
       });
+      const challenge = await challengeResponse.json();
+      if (!challengeResponse.ok) throw new Error(challenge.error || "Không thể tạo step-up challenge");
+      const signature = await signer.signMessage(challenge.challengeMessage);
+      const body =
+        badgeType === "seller"
+          ? { verifiedSellerBadge: !currentVal }
+          : { verifiedRightsBadge: !currentVal };
+
+      const response = await fetch(`/api/operator/sellers/${sellerId}/badge`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          ...body,
+          walletAddress,
+          signature,
+          challengeMessage: challenge.challengeMessage,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Step-up verification failed");
       fetchOperatorData();
     } catch (e: any) {
       alert("Lỗi cập nhật badge: " + e.message);
@@ -107,6 +127,13 @@ export const OperatorPortal: React.FC = () => {
       const buyerShare = (remainingGross * BigInt(buyerSplitPercent)) / 100n;
       const sellerShare = remainingGross - buyerShare;
 
+      const chainResult = await resolveDisputeOnchain(
+        Number(selectedDispute.onchainCampaignId),
+        Number(selectedDispute.onchainOrderId),
+        buyerShare.toString(),
+        sellerShare.toString()
+      );
+
       const res = await fetch(`/api/operator/disputes/${selectedDispute.id}/resolve`, {
         method: "POST",
         headers: {
@@ -117,6 +144,7 @@ export const OperatorPortal: React.FC = () => {
           buyerShareBaseUSDC: buyerShare.toString(),
           sellerShareBaseUSDC: sellerShare.toString(),
           notes: arbitrationNotes || "Phán quyết bởi Operator tuân thủ Định luật Bảo toàn Tiền tệ",
+          txHash: chainResult.txHash,
         }),
       });
 

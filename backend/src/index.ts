@@ -10,14 +10,24 @@ import { operatorRouter } from "./routes/operatorRoutes";
 import { publicRouter } from "./routes/publicRoutes";
 import { faucetRouter } from "./routes/faucetRoutes";
 import { walletRouter } from "./routes/walletRoutes";
+import { circleRouter } from "./routes/circleRoutes";
+import { notificationRouter } from "./routes/notificationRoutes";
 import { IndexerService } from "./services/indexerService";
 import { DeliveryService } from "./services/deliveryService";
 import { validateManifestAndEnvironment } from "./services/manifestValidator";
 import { ethers } from "ethers";
+import { NotificationService } from "./services/notificationService";
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || config.allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error("Origin is not allowed by GroupDeal CORS policy"));
+    },
+  })
+);
 app.use(express.json());
 
 // Health check
@@ -28,6 +38,12 @@ const healthHandler = (req: express.Request, res: express.Response) => {
     network: "Arc Testnet (5042002)",
     hubAddress: config.hubAddress,
     usdcAddress: config.usdcAddress,
+    dependencies: {
+      circleWalletsConfigured: Boolean(config.circleApiKey),
+      transactionalEmailConfigured: Boolean(
+        config.smtpConfigured || (config.emailProviderUrl && config.emailProviderToken)
+      ),
+    },
     timestamp: Date.now(),
   });
 };
@@ -43,6 +59,8 @@ app.use("/api/operator", operatorRouter);
 app.use("/api/v1", publicRouter);
 app.use("/api/faucet", faucetRouter);
 app.use("/api/wallet", walletRouter);
+app.use("/api/circle", circleRouter);
+app.use("/api/notifications", notificationRouter);
 
 // Initialize demo users and campaigns if empty
 function initializeInitialState() {
@@ -228,34 +246,19 @@ function initializeInitialState() {
   store.save();
 }
 
-initializeInitialState();
+if (!config.isProduction) {
+  initializeInitialState();
+}
 
-// Start background workers (SLA deadline breach checker and auto-settlement)
+// Financial deadlines are never projected from the wall clock alone. Buyers call
+// claimDeliveryBreach and any actor may call settleUndisputedOrder on Arc; the
+// indexer updates SQLite only after the corresponding finalized contract event.
+
 setInterval(() => {
-  const now = Math.floor(Date.now() / 1000);
-  for (const o of Object.values(store.db.orders)) {
-    const c = store.db.campaigns[o.campaignId];
-    // Check SLA breach
-    if (c && c.finalizedAt && o.deliveryStatus === "PENDING") {
-      const slaDeadline = c.finalizedAt + c.deliverySlaSeconds;
-      if (now > slaDeadline) {
-        o.deliveryStatus = "BREACHED_REFUNDED";
-        const rem = BigInt(o.committedGross) - BigInt(o.rebateAllocated);
-        o.buyerRefundAllocated = rem.toString();
-        store.save();
-        console.log(`[WORKER] Order ${o.id} marked BREACHED_REFUNDED due to expired SLA`);
-      }
-    }
-    // Check auto-settlement (48h after delivery without dispute)
-    if (o.deliveryStatus === "DELIVERED" && o.disputeDeadline && now > o.disputeDeadline) {
-      o.deliveryStatus = "CONFIRMED";
-      const rem = BigInt(o.committedGross) - BigInt(o.rebateAllocated);
-      o.sellerAllocated = rem.toString();
-      store.save();
-      console.log(`[WORKER] Order ${o.id} auto-settled to seller after 48h dispute window`);
-    }
-  }
-}, 30000);
+  void NotificationService.processEmailOutbox().catch((error) => {
+    console.warn("[EMAIL OUTBOX] Processing failed:", error instanceof Error ? error.message : error);
+  });
+}, 15_000);
 
 const PORT = config.port;
 app.listen(PORT, async () => {

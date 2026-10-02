@@ -1,11 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import confetti from "canvas-confetti";
+import { ethers } from "ethers";
 import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
 import { useWeb3 } from "../context/Web3Context";
 import { PreTxModal } from "../components/PreTxModal";
 import { TxTrackerModal, TxStep } from "../components/TxTrackerModal";
 import { ShareModal } from "../components/ShareModal";
+import { FundingModal } from "../components/FundingModal";
+import { CheckoutIntent, checkoutKey, paymentLockKey, withCheckoutLock, purchaseBudget, assertPurchaseBudget, verifyArcCommitment, waitForIndexedOrder } from "../services/checkout";
+import { paymentError } from "../services/paymentSafety";
 import {
   Clock,
   Users,
@@ -33,8 +37,8 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
   onGoToOrders,
 }) => {
   const { t } = useLanguage();
-  const { user } = useAuth();
-  const { account, commitToBuyOnchain } = useWeb3();
+  const { user, token } = useAuth();
+  const { account, hubAddress, commitToBuyOnchain } = useWeb3();
 
   const [campaign, setCampaign] = useState<any>(null);
   const [seller, setSeller] = useState<any>(null);
@@ -50,6 +54,11 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
   const [txHash, setTxHash] = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
   const [isCommitting, setIsCommitting] = useState(false);
+  const [fundingIntent, setFundingIntent] = useState<CheckoutIntent | null>(null);
+  const [requiredFunding, setRequiredFunding] = useState<string | undefined>();
+  const committingRef = useRef(false);
+  const accountRef = useRef(account);
+  accountRef.current = account;
 
   const fetchCampaign = () => {
     fetch(`/api/campaigns/${campaignId}`)
@@ -66,6 +75,47 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
     fetchCampaign();
   }, [campaignId]);
 
+  useEffect(() => {
+    if (!account) return;
+    const raw = localStorage.getItem(checkoutKey(account, campaignId));
+    if (!raw) return;
+    try {
+      const intent = JSON.parse(raw) as CheckoutIntent;
+      if (intent.phase === "BUY_PENDING" || intent.phase === "BUY_BROADCAST") {
+        setTxHash(intent.txHash || null); setTxStep("PENDING_CHECK"); setIsTxModalOpen(true);
+        setTxError("Có lượt mua cũ chưa xác minh. Kiểm tra lại lượt này trước khi mua tiếp.");
+      }
+    } catch { setTxStep("PENDING_CHECK"); setIsTxModalOpen(true); setTxError("Hồ sơ checkout cũ không đọc được. Kiểm tra lịch sử ví trước khi mua tiếp."); }
+  }, [account, campaignId]);
+
+  const checkPreviousPurchase = async (locked = false): Promise<void> => {
+    if (!account || !token || committingRef.current) return;
+    const key = checkoutKey(account, campaignId);
+    if (!locked) {
+      try { await withCheckoutLock(paymentLockKey(account), () => checkPreviousPurchase(true)); }
+      catch (error) { setTxStep("PENDING_CHECK"); setTxError(paymentError(error)); }
+      return;
+    }
+    committingRef.current = true;
+    try {
+      const intent = JSON.parse(localStorage.getItem(key) || "null") as CheckoutIntent | null;
+      if (!intent?.txHash || !intent.campaignIdentity || !intent.onchainCampaignId) {
+        if (!window.confirm("Chỉ xóa khóa checkout nếu bạn đã kiểm tra lịch sử ví và chắc chắn CHƯA gửi commitToBuy. Giao dịch approve riêng không tạo đơn. Xác nhận chưa gửi giao dịch mua?")) return;
+        localStorage.removeItem(key); setIsTxModalOpen(false); return;
+      }
+      setTxStep("SYNCING");
+      const proof = await verifyArcCommitment(intent.txHash, { hubAddress, buyer: account, campaignId: intent.onchainCampaignId,
+        campaignIdentity: intent.campaignIdentity, quantity: intent.quantity, maxGross: BigInt(intent.maxGrossUsdc) });
+      await waitForIndexedOrder(token, intent.txHash, account, proof.orderId);
+      localStorage.removeItem(key); setTxStep("CONFIRMED"); setTxError(null); fetchCampaign();
+    } catch (error) {
+      if ((error as { code?: string }).code === "PURCHASE_REVERTED") { localStorage.removeItem(key); setTxStep("REVERTED"); }
+      else setTxStep("PENDING_CHECK");
+      setTxError(paymentError(error));
+    }
+    finally { committingRef.current = false; }
+  };
+
   if (loading || !campaign) {
     return (
       <div style={{ textAlign: "center", padding: "5rem 1rem", color: "var(--text-muted)" }}>
@@ -79,11 +129,27 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
   const lowestPrice = Number(campaign.tiers[campaign.tiers.length - 1].price) / 1e6;
   const currentMetric = campaign.metric === "BUYER_COUNT" ? campaign.totalBuyerCount : campaign.totalUnitsCommitted;
 
-  const handleConfirmPurchase = async (params: { quantity: number; requireEarlySlot: boolean }) => {
+  const handleConfirmPurchase = async (params: { quantity: number; requireEarlySlot: boolean; paymentSource?: "ARC_USDC" | "OTHER_USDC" }, resumed?: CheckoutIntent, locked = false): Promise<void> => {
     if (!account) {
       alert("Vui lòng kết nối ví hoặc đăng nhập trước khi mua!");
       return;
     }
+    if (!token || committingRef.current) return;
+    const buyer = account;
+    const key = checkoutKey(buyer, campaignId);
+    if (!locked) {
+      try { await withCheckoutLock(paymentLockKey(buyer), () => handleConfirmPurchase(params, resumed, true)); }
+      catch (error) { setIsPreTxOpen(false); setIsTxModalOpen(true); setTxStep("FAILED"); setTxError(paymentError(error)); }
+      return;
+    }
+    const existing = localStorage.getItem(key);
+    if (existing) {
+      try {
+        const old = JSON.parse(existing) as CheckoutIntent;
+        if (old.phase !== "FUNDING") { setIsPreTxOpen(false); setIsTxModalOpen(true); setTxStep("PENDING_CHECK"); return; }
+      } catch { setIsTxModalOpen(true); setTxStep("PENDING_CHECK"); setTxError("Hồ sơ checkout cũ không đọc được. Kiểm tra lịch sử ví trước khi mua tiếp."); return; }
+    }
+    committingRef.current = true;
 
     setIsPreTxOpen(false);
     setIsTxModalOpen(true);
@@ -93,17 +159,33 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
     setIsCommitting(true);
 
     try {
+      const maxGross = resumed ? BigInt(resumed.maxGrossUsdc) : BigInt(currentTier.price) * BigInt(params.quantity);
+      const budget = await purchaseBudget(buyer, maxGross);
+      if (!resumed && (params.paymentSource === "OTHER_USDC" || budget.balance < budget.required)) {
+        const intent: CheckoutIntent = { quantity: params.quantity, requireEarlySlot: params.requireEarlySlot,
+          maxGrossUsdc: maxGross.toString(), phase: "FUNDING", createdAt: Date.now() };
+        localStorage.setItem(key, JSON.stringify(intent));
+        const deficit = budget.required > budget.balance ? (budget.required - budget.balance + 999_999_999_999n) / 1_000_000_000_000n : maxGross;
+        setRequiredFunding(ethers.formatUnits(deficit, 6)); setFundingIntent(intent); setIsTxModalOpen(false); return;
+      }
+      assertPurchaseBudget(budget);
+      // Campaign price, inventory, deadline and authorization are checked AFTER funding.
+      const campaignResponse = await fetch(`/api/campaigns/${campaignId}`, { signal: AbortSignal.timeout(10_000) });
+      const fresh = (await campaignResponse.json()).campaign;
+      if (!campaignResponse.ok || !fresh || !["ACTIVE", "PUBLISHED"].includes(fresh.status) || fresh.endTime * 1000 <= Date.now()) throw new Error("Chiến dịch đã đóng; tiền nạp vẫn ở ví, chưa tạo đơn.");
+      const freshPrice = BigInt((fresh.tiers[fresh.currentUnlockedTier] || fresh.tiers[0]).price);
+      if (fresh.termsHash !== campaign.termsHash || fresh.onchainCampaignId !== campaign.onchainCampaignId || freshPrice * BigInt(params.quantity) > maxGross) throw new Error("Điều khoản hoặc giá đã thay đổi. Hãy xem lại chiến dịch trước khi xác nhận mua.");
       // 1. Request EIP-712 buy authorization from backend
       const authRes = await fetch("/api/orders/authorize", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("groupdeal_token") || ""}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           campaignId: campaign.id,
           quantity: params.quantity,
-          walletAddress: account,
+          walletAddress: buyer,
         }),
       });
 
@@ -111,25 +193,33 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
       if (!authRes.ok) {
         throw new Error(authData.error || "Failed to obtain buy authorization");
       }
+      if (accountRef.current?.toLowerCase() !== buyer.toLowerCase() || authData.buyerWallet?.toLowerCase() !== buyer.toLowerCase() ||
+        String(authData.campaignId) !== String(fresh.onchainCampaignId) || authData.termsHash !== fresh.termsHash) throw new Error("Ví hoặc chiến dịch của chứng thực không khớp checkout");
+      const intent: CheckoutIntent = { quantity: params.quantity, requireEarlySlot: params.requireEarlySlot, maxGrossUsdc: maxGross.toString(),
+        phase: "BUY_PENDING", campaignIdentity: authData.campaignIdentity, onchainCampaignId: fresh.onchainCampaignId, createdAt: Date.now() };
+      localStorage.setItem(key, JSON.stringify(intent));
+      setFundingIntent(null);
 
       // 2. Approve USDC & commit to buy on Arc Testnet Smart Contract
       setTxStep("APPROVE");
-      setTxStep("BROADCAST");
 
       const result = await commitToBuyOnchain({
-        campaignId: campaign.onchainCampaignId,
+        campaignId: fresh.onchainCampaignId,
         campaignIdentity: authData.campaignIdentity,
         quantity: params.quantity,
         requireEarlySlot: params.requireEarlySlot,
         maxAuthQuantity: authData.maxQuantity,
         authDeadline: authData.deadline,
         authSignature: authData.signature,
-        lockedUnitPriceUSDC: currentTier.price,
+        lockedUnitPriceUSDC: freshPrice.toString(),
+        onStep: setTxStep,
+        onBroadcast: (hash) => { setTxHash(hash); localStorage.setItem(key, JSON.stringify({ ...intent, phase: "BUY_BROADCAST", txHash: hash })); },
       });
 
       setTxHash(result.txHash);
       setTxStep("SYNCING");
-      await new Promise((r) => setTimeout(r, 1500));
+      await waitForIndexedOrder(token, result.txHash, buyer, result.orderId);
+      localStorage.removeItem(key);
       setTxStep("CONFIRMED");
 
       // Trigger victory celebration
@@ -142,10 +232,15 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
       // Refresh campaign state
       fetchCampaign();
     } catch (err: any) {
-      setTxStep("FAILED");
-      setTxError(err.message);
+      if (err.code === "PURCHASE_REVERTED") localStorage.removeItem(key);
+      const saved = localStorage.getItem(key);
+      let pending = false;
+      try { pending = Boolean(saved && ["BUY_PENDING", "BUY_BROADCAST"].includes(JSON.parse(saved).phase)); } catch { pending = true; }
+      setTxStep(err.code === "PURCHASE_REVERTED" ? "REVERTED" : pending ? "PENDING_CHECK" : "FAILED");
+      setTxError(paymentError(err));
     } finally {
       setIsCommitting(false);
+      committingRef.current = false;
     }
   };
 
@@ -424,6 +519,7 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
               className="btn btn-primary btn-lg"
               style={{ width: "100%", justifyContent: "center", marginBottom: "0.75rem" }}
               onClick={() => setIsPreTxOpen(true)}
+              disabled={isCommitting}
             >
               {t("commitToBuy")}
             </button>
@@ -461,12 +557,22 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
         onConfirm={handleConfirmPurchase}
       />
 
+      <FundingModal isOpen={Boolean(fundingIntent)} requiredUsdc={requiredFunding}
+        onClose={() => setFundingIntent(null)}
+        onContinueCheckout={() => {
+          if (!fundingIntent) return;
+          const intent = fundingIntent;
+          setFundingIntent(null);
+          void handleConfirmPurchase({ quantity: intent.quantity, requireEarlySlot: intent.requireEarlySlot }, intent);
+        }} />
+
       {/* Tx Tracker Modal */}
       <TxTrackerModal
         isOpen={isTxModalOpen}
         step={txStep}
         txHash={txHash}
         errorMessage={txError}
+        onCheck={() => void checkPreviousPurchase()}
         onClose={() => {
           setIsTxModalOpen(false);
           if (txStep === "CONFIRMED") onGoToOrders();

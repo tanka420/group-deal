@@ -38,10 +38,27 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ onSelectCampaign }) =>
     { id: "Thiết kế & Giao diện", label: "Design System & Assets" },
   ];
 
+  // A campaign synchronized only from contract events may not have the
+  // off-chain catalogue metadata (including pricing tiers) required by this
+  // page. Keep those records in the backend for reconciliation, but do not let
+  // an incomplete record crash the public catalogue.
+  const renderableCampaigns = campaigns.filter(
+    (campaign) =>
+      Array.isArray(campaign?.tiers) &&
+      campaign.tiers.length > 0 &&
+      campaign.tiers.every(
+        (tier: any) =>
+          Number.isFinite(Number(tier?.threshold)) &&
+          Number(tier.threshold) > 0 &&
+          Number.isFinite(Number(tier?.price)) &&
+          Number(tier.price) > 0
+      )
+  );
+
   const filteredCampaigns =
     selectedCategory === "ALL"
-      ? campaigns
-      : campaigns.filter((c) => c.category === selectedCategory);
+      ? renderableCampaigns
+      : renderableCampaigns.filter((c) => c.category === selectedCategory);
 
   // Time remaining helper
   const formatTimeLeft = (endTime: number) => {
@@ -57,7 +74,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ onSelectCampaign }) =>
     return acc + Number(c.totalGrossCommitted || 0) / 1e6;
   }, 0);
 
-  const activeCampaignsCount = campaigns.filter(
+  const activeCampaignsCount = renderableCampaigns.filter(
     (c) => c.status === "ACTIVE" || c.status === "PUBLISHED"
   ).length;
 
@@ -207,8 +224,12 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ onSelectCampaign }) =>
       ) : (
         <div className="grid-cards">
           {filteredCampaigns.map((c) => {
-            const currentTier = c.tiers[c.currentUnlockedTier] || c.tiers[0];
-            const nextTier = c.tiers[c.currentUnlockedTier + 1] || null;
+            const currentTierIndex = Math.min(
+              Math.max(Number(c.currentUnlockedTier) || 0, 0),
+              c.tiers.length - 1
+            );
+            const currentTier = c.tiers[currentTierIndex];
+            const nextTier = c.tiers[currentTierIndex + 1] || null;
             const currentPrice = Number(currentTier.price) / 1e6;
             const nextPrice = nextTier ? Number(nextTier.price) / 1e6 : null;
             const initialPrice = Number(c.tiers[0].price) / 1e6;
@@ -216,9 +237,14 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ onSelectCampaign }) =>
               ((initialPrice - Number(c.tiers[c.tiers.length - 1].price) / 1e6) / initialPrice) * 100
             );
 
-            const currentMetric = c.metric === "BUYER_COUNT" ? c.totalBuyerCount : c.totalUnitsCommitted;
+            const currentMetric = Number(
+              c.metric === "BUYER_COUNT" ? c.totalBuyerCount : c.totalUnitsCommitted
+            ) || 0;
             const targetMetric = nextTier ? nextTier.threshold : currentTier.threshold;
-            const progressPercent = Math.min(100, Math.round((currentMetric / targetMetric) * 100));
+            const progressPercent = Math.min(
+              100,
+              Math.round((currentMetric / Number(targetMetric)) * 100)
+            );
 
             return (
               <div
@@ -330,7 +356,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ onSelectCampaign }) =>
                       }}
                     >
                       <span>
-                        Tier {c.currentUnlockedTier + 1}/{c.tiers.length}: {currentMetric}{" "}
+                        Tier {currentTierIndex + 1}/{c.tiers.length}: {currentMetric}{" "}
                         {c.metric === "BUYER_COUNT" ? "người" : "đơn vị"}
                       </span>
                       {nextTier ? (

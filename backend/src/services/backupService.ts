@@ -110,10 +110,8 @@ export class BackupService {
 
     const parsed: DatabaseSchema = JSON.parse(decrypted);
 
-    // Overwrite in-memory store and persist
-    Object.keys(store.db).forEach((k) => delete (store.db as any)[k]);
-    Object.assign(store.db, parsed);
-    store.save();
+    // Validate all database uniqueness constraints and restore atomically.
+    store.replace(parsed);
 
     store.addAuditLog("system", "operator", "BACKUP_RESTORED", {
       backupPath,

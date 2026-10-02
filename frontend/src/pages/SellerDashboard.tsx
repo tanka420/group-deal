@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { ethers } from "ethers";
 import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
 import { useWeb3 } from "../context/Web3Context";
@@ -21,7 +22,13 @@ import {
 export const SellerDashboard: React.FC = () => {
   const { t } = useLanguage();
   const { user, setupSellerProfile } = useAuth();
-  const { account, claimSellerProceedsOnchain } = useWeb3();
+  const {
+    account,
+    createCampaignOnchain,
+    recordDeliveryOnchain,
+    settleUndisputedOrderOnchain,
+    claimSellerProceedsOnchain,
+  } = useWeb3();
 
   const [activeTab, setActiveTab] = useState<"CAMPAIGNS" | "FULFILLMENT" | "WEBHOOKS" | "CREATE">(
     "CAMPAIGNS"
@@ -177,9 +184,14 @@ export const SellerDashboard: React.FC = () => {
         throw new Error(testData.error || "Giao thử nghiệm thất bại trước khi publish");
       }
 
+      const chainResult = await createCampaignOnchain(data.campaign);
       const publishRes = await fetch(`/api/campaigns/${data.campaign.id}/publish`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ txHash: chainResult.txHash }),
       });
       const publishData = await publishRes.json();
       if (!publishRes.ok) {
@@ -203,13 +215,27 @@ export const SellerDashboard: React.FC = () => {
     setIsFulfilling(true);
     try {
       const token = localStorage.getItem("groupdeal_token");
+      const campaign = campaigns.find((item) => item.id === fulfillOrderObj.campaignId);
+      if (!campaign?.onchainCampaignId) {
+        throw new Error("Không tìm thấy campaign Arc tương ứng với đơn hàng");
+      }
+      if (!account || account.toLowerCase() !== campaign.sellerPayoutWallet.toLowerCase()) {
+        throw new Error("Hãy kết nối đúng ví nhận tiền đã đăng ký của người bán");
+      }
+      const proofHash = ethers.keccak256(ethers.toUtf8Bytes(secretContent));
+      const chainResult = await recordDeliveryOnchain(
+        Number(campaign.onchainCampaignId),
+        Number(fulfillOrderObj.onchainOrderId),
+        String(fulfillOrderObj.id),
+        proofHash
+      );
       const res = await fetch(`/api/seller/orders/${fulfillOrderObj.id}/deliver`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ secretContent }),
+        body: JSON.stringify({ secretContent, txHash: chainResult.txHash }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -225,10 +251,29 @@ export const SellerDashboard: React.FC = () => {
     }
   };
 
-  // Claim Seller proceeds
-  const handleClaimSellerProceeds = async (campaignId: string, orderId: string) => {
+  const handleSettleUndisputed = async (order: any) => {
     try {
-      await claimSellerProceedsOnchain(Number(campaignId), [Number(orderId)]);
+      const campaign = campaigns.find((item) => item.id === order.campaignId);
+      if (!campaign?.onchainCampaignId) throw new Error("Thiếu campaign Arc");
+      await settleUndisputedOrderOnchain(
+        Number(campaign.onchainCampaignId),
+        Number(order.onchainOrderId)
+      );
+      fetchSellerData();
+    } catch (error: any) {
+      alert("Lỗi quyết toán đơn hết hạn tranh chấp: " + error.message);
+    }
+  };
+
+  // Claim Seller proceeds
+  const handleClaimSellerProceeds = async (order: any) => {
+    try {
+      const campaign = campaigns.find((item) => item.id === order.campaignId);
+      if (!campaign?.onchainCampaignId) throw new Error("Thiếu campaign Arc");
+      await claimSellerProceedsOnchain(
+        Number(campaign.onchainCampaignId),
+        [Number(order.onchainOrderId)]
+      );
       alert("Đã rút doanh thu về ví thành công!");
       fetchSellerData();
     } catch (e: any) {
@@ -443,12 +488,23 @@ export const SellerDashboard: React.FC = () => {
                         </button>
                       )}
 
+                      {o.deliveryStatus === "DELIVERED" &&
+                        o.disputeDeadline &&
+                        Math.floor(Date.now() / 1000) > Number(o.disputeDeadline) && (
+                          <button
+                            className="btn btn-sm btn-primary"
+                            onClick={() => handleSettleUndisputed(o)}
+                          >
+                            <CheckCircle2 size={14} /> Quyết toán sau 48h
+                          </button>
+                        )}
+
                       {(o.deliveryStatus === "CONFIRMED" || o.deliveryStatus === "RESOLVED") &&
                         !o.sellerClaimed &&
                         sellerAllocated > 0 && (
                           <button
                             className="btn btn-sm btn-success"
-                            onClick={() => handleClaimSellerProceeds(o.campaignId, o.id)}
+                            onClick={() => handleClaimSellerProceeds(o)}
                           >
                             <Coins size={14} /> Rút ${sellerAllocated} USDC
                           </button>

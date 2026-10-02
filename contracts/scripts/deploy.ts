@@ -4,6 +4,49 @@ import * as path from "path";
 
 const ARC_PREDEPLOY_USDC = "0x3600000000000000000000000000000000000000";
 const ARC_BLOCKLIST_TEST_ADDRESS = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
+const PUBLIC_DEVELOPMENT_ADDRESSES = new Set(
+  [
+    "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+    "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+    "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc",
+    "0x90f79bf6eb2c4f870365e785982e1f101e93b906",
+    "0x15d34aaf54267db7d7c367839aaf71a00a2c6a65",
+    "0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc",
+    "0x976ea74026e726554db657fa54763abd0c3a0aa9",
+    "0x14dc79964da2c08b23698b3d3cc7ca32193d9955",
+    "0x23618e81e3f5cdf7f54c3d65f7fbc0abf5b21e8f",
+    "0xa0ee7a142d267c1f36714e4a8f75612f20a79720",
+  ].map((address) => address.toLowerCase())
+);
+
+function requireAddressEnv(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`[Deploy Fail-Closed] ${name} is required for Arc Testnet deployment.`);
+  }
+  if (!ethers.isAddress(value) || value === ethers.ZeroAddress) {
+    throw new Error(`[Deploy Fail-Closed] ${name} must be a non-zero EVM address.`);
+  }
+  const address = ethers.getAddress(value);
+  if (PUBLIC_DEVELOPMENT_ADDRESSES.has(address.toLowerCase())) {
+    throw new Error(`[Deploy Fail-Closed] ${name} cannot use a public development account.`);
+  }
+  return address;
+}
+
+function requireDistinctRoles(roles: Record<string, string>) {
+  const seen = new Map<string, string>();
+  for (const [name, address] of Object.entries(roles)) {
+    const normalized = address.toLowerCase();
+    const previous = seen.get(normalized);
+    if (previous) {
+      throw new Error(
+        `[Deploy Fail-Closed] ${name} must be distinct from ${previous}; both resolve to ${address}.`
+      );
+    }
+    seen.set(normalized, name);
+  }
+}
 
 async function main() {
   const signers = await ethers.getSigners();
@@ -16,6 +59,10 @@ async function main() {
   const deployer = signers[0];
   const net = await ethers.provider.getNetwork();
   const chainId = Number(net.chainId);
+
+  if (network.name === "arcTestnet" && PUBLIC_DEVELOPMENT_ADDRESSES.has(deployer.address.toLowerCase())) {
+    throw new Error("[Deploy Fail-Closed] Deployer cannot use a public development account.");
+  }
 
   console.log(`[Deploy] Initiating deployment...`);
   console.log(`[Deploy] Network: ${network.name} (Chain ID: ${chainId})`);
@@ -46,27 +93,33 @@ async function main() {
     usdcAddress = ARC_PREDEPLOY_USDC;
     console.log(`[Deploy] Strict Arc Predeploy USDC: ${usdcAddress}`);
 
-    // Roles validation
-    authorizedSigner = process.env.AUTHORIZED_SIGNER_ADDRESS || deployer.address;
+    // Every live role is explicit. Arc deployment must never fall back to local/public test accounts.
+    authorizedSigner = requireAddressEnv("AUTHORIZED_SIGNER_ADDRESS");
+    operatorAddress = requireAddressEnv("OPERATOR_ADDRESS");
+    securityAuthority = requireAddressEnv("SECURITY_MULTISIG_ADDRESS");
 
-    // Operator must not be the Arc blocklist test address
-    operatorAddress = process.env.OPERATOR_ADDRESS || "";
-    if (!operatorAddress || operatorAddress.toLowerCase() === ARC_BLOCKLIST_TEST_ADDRESS.toLowerCase()) {
-      // Derive a deterministic fallback address if not provided in env, distinct from deployer
-      const fallbackWallet = ethers.Wallet.createRandom();
-      operatorAddress = process.env.OPERATOR_ADDRESS && process.env.OPERATOR_ADDRESS.toLowerCase() !== ARC_BLOCKLIST_TEST_ADDRESS.toLowerCase()
-        ? process.env.OPERATOR_ADDRESS
-        : "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65";
+    if (operatorAddress.toLowerCase() === ARC_BLOCKLIST_TEST_ADDRESS.toLowerCase()) {
+      throw new Error("[Deploy Fail-Closed] Operator cannot be the Arc blocklist test address.");
     }
 
-    // Security Authority MUST be distinct from operator and deployer
-    securityAuthority = process.env.SECURITY_AUTHORITY_ADDRESS || "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc";
+    requireDistinctRoles({
+      deployer: deployer.address,
+      authorizedSigner,
+      operator: operatorAddress,
+      securityMultisig: securityAuthority,
+    });
 
-    if (securityAuthority.toLowerCase() === operatorAddress.toLowerCase()) {
-      throw new Error("[Deploy Fail-Closed] Security authority MUST NOT equal operator address.");
+    // A security authority must be a deployed multisig contract, not an EOA or EIP-7702 delegation marker.
+    const securityCode = await ethers.provider.getCode(securityAuthority);
+    if (securityCode === "0x") {
+      throw new Error(
+        "[Deploy Fail-Closed] SECURITY_MULTISIG_ADDRESS has no contract bytecode on Arc Testnet."
+      );
     }
-    if (securityAuthority.toLowerCase() === deployer.address.toLowerCase()) {
-      throw new Error("[Deploy Fail-Closed] Security authority MUST NOT equal deployer address.");
+    if (securityCode.toLowerCase().startsWith("0xef0100")) {
+      throw new Error(
+        "[Deploy Fail-Closed] SECURITY_MULTISIG_ADDRESS is an EIP-7702 delegated account, not accepted as proof of a 2-of-3 multisig."
+      );
     }
 
     console.log(`[Deploy] Authorized Signer: ${authorizedSigner}`);
@@ -103,6 +156,19 @@ async function main() {
     const bytecodeHash = ethers.keccak256(runtimeBytecode);
     console.log(`[Deploy] Runtime Bytecode Hash: ${bytecodeHash}`);
 
+    const deployedOwner = await hub.owner();
+    const deployedSigner = await hub.authorizedSigner();
+    const deployedOperator = await hub.operatorAddress();
+    const deployedSecurityAuthority = await hub.securityAuthority();
+    if (
+      deployedOwner.toLowerCase() !== deployer.address.toLowerCase() ||
+      deployedSigner.toLowerCase() !== authorizedSigner.toLowerCase() ||
+      deployedOperator.toLowerCase() !== operatorAddress.toLowerCase() ||
+      deployedSecurityAuthority.toLowerCase() !== securityAuthority.toLowerCase()
+    ) {
+      throw new Error("[Deploy Fail-Closed] On-chain roles do not match the requested deployment roles.");
+    }
+
     // Update shared/manifests/arc-testnet.json
     const arcManifestPath = path.resolve(__dirname, "../../shared/manifests/arc-testnet.json");
     if (fs.existsSync(arcManifestPath)) {
@@ -114,9 +180,25 @@ async function main() {
         txHash: deployTx?.hash,
         deployedAt: new Date().toISOString(),
       };
-      arcManifest.roles.operator.address = operatorAddress;
-      arcManifest.roles.securityAuthority.address = securityAuthority;
-      arcManifest.roles.authorizedSigner.address = authorizedSigner;
+      arcManifest.roles.owner = {
+        address: deployer.address,
+        description: "GroupDealHub owner/deployer for Arc Testnet candidate",
+      };
+      arcManifest.roles.operator = {
+        address: operatorAddress,
+        description: "Dedicated GroupDeal operational wallet",
+      };
+      arcManifest.roles.securityAuthority = {
+        type: "safe-multisig",
+        address: securityAuthority,
+        safeVersion: "1.5.0",
+        quorum: "2-of-3",
+        description: "Verified Safe emergency security multisig for Arc Testnet",
+      };
+      arcManifest.roles.authorizedSigner = {
+        address: authorizedSigner,
+        description: "Dedicated backend EIP-712 Buy Authorization signer",
+      };
       fs.writeFileSync(arcManifestPath, JSON.stringify(arcManifest, null, 2) + "\n");
       console.log(`[Deploy] Updated Arc manifest at: ${arcManifestPath}`);
     }
@@ -141,6 +223,7 @@ async function main() {
         },
       },
       roles: {
+        owner: deployer.address,
         operator: operatorAddress,
         securityAuthority: securityAuthority,
         authorizedSigner: authorizedSigner,

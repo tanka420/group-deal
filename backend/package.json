@@ -12,26 +12,32 @@
     "test:security": "tsx test/auth_security.test.ts",
     "test:services": "tsx test/services_audit.test.ts",
     "test:abi": "tsx test/abi_contract_sync.test.ts",
-    "test:wallet": "tsx test/wallet_relay_security.test.ts && tsx test/wallet_challenge_replay.test.ts",
+    "test:wallet": "tsx test/wallet_relay_security.test.ts && tsx test/wallet_challenge_replay.test.ts && tsx test/circle_session_faucet.test.ts && tsx test/circle_identity.test.ts && tsx test/circle_sdk_runtime.test.ts",
+    "test:checkout": "tsx test/checkout_authorization.test.ts",
+    "test:db": "tsx test/transactional_store.test.ts",
+    "test:notifications": "tsx test/notification_outbox.test.ts",
     "test:g1": "tsx test/gate_g1_verification.test.ts",
     "test:g3": "tsx test/gate_g3_verification.test.ts",
     "test:g4": "tsx test/gate_g4_verification.test.ts",
     "test:g5": "tsx test/gate_g5_verification.test.ts",
-    "test": "tsx test/accounting.test.ts && tsx test/auth_security.test.ts && tsx test/services_audit.test.ts && tsx test/abi_contract_sync.test.ts && tsx test/wallet_relay_security.test.ts && tsx test/wallet_challenge_replay.test.ts && tsx test/gate_g1_verification.test.ts && tsx test/gate_g3_verification.test.ts && tsx test/gate_g4_verification.test.ts && tsx test/gate_g5_verification.test.ts"
+    "test": "tsx test/accounting.test.ts && tsx test/auth_security.test.ts && tsx test/services_audit.test.ts && tsx test/abi_contract_sync.test.ts && tsx test/wallet_relay_security.test.ts && tsx test/wallet_challenge_replay.test.ts && tsx test/circle_session_faucet.test.ts && tsx test/circle_identity.test.ts && tsx test/circle_sdk_runtime.test.ts && tsx test/checkout_authorization.test.ts && tsx test/transactional_store.test.ts && tsx test/notification_outbox.test.ts && tsx test/gate_g1_verification.test.ts && tsx test/gate_g3_verification.test.ts && tsx test/gate_g4_verification.test.ts && tsx test/gate_g5_verification.test.ts"
   },
   "dependencies": {
+    "@circle-fin/user-controlled-wallets": "^10.8.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "ethers": "^6.13.0",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^10.0.13",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.6",
-    "@types/node": "^20.14.0",
+    "@types/node": "^24.19.0",
+    "@types/nodemailer": "^8.0.2",
     "tsx": "^4.11.0",
     "typescript": "^5.4.5"
   }

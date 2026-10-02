@@ -2,7 +2,7 @@ import React from "react";
 import { useLanguage } from "../context/LanguageContext";
 import { CheckCircle2, Clock, AlertTriangle, ExternalLink, Loader2 } from "lucide-react";
 
-export type TxStep = "AUTH" | "APPROVE" | "BROADCAST" | "SYNCING" | "CONFIRMED" | "REVERTED" | "FAILED";
+export type TxStep = "AUTH" | "APPROVE" | "BROADCAST" | "SYNCING" | "PENDING_CHECK" | "CONFIRMED" | "REVERTED" | "FAILED";
 
 interface TxTrackerModalProps {
   isOpen: boolean;
@@ -10,6 +10,7 @@ interface TxTrackerModalProps {
   txHash: string | null;
   errorMessage: string | null;
   onClose: () => void;
+  onCheck?: () => void;
 }
 
 export const TxTrackerModal: React.FC<TxTrackerModalProps> = ({
@@ -18,6 +19,7 @@ export const TxTrackerModal: React.FC<TxTrackerModalProps> = ({
   txHash,
   errorMessage,
   onClose,
+  onCheck,
 }) => {
   const { t } = useLanguage();
 
@@ -81,7 +83,7 @@ export const TxTrackerModal: React.FC<TxTrackerModalProps> = ({
             ? t("txConfirmed")
             : step === "REVERTED" || step === "FAILED"
             ? "Giao dịch thất bại"
-            : "Đang xử lý trên Arc Testnet..."}
+            : step === "PENDING_CHECK" ? "Cần kiểm tra giao dịch cũ" : "Đang xử lý trên Arc Testnet..."}
         </h3>
 
         <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: "1.5rem" }}>
@@ -89,6 +91,7 @@ export const TxTrackerModal: React.FC<TxTrackerModalProps> = ({
           {step === "APPROVE" && "2/3. Đang cấp quyền chi tiêu USDC cho Smart Contract..."}
           {step === "BROADCAST" && "3/3. Đang cam kết USDC & mở khóa tier trên Arc Testnet..."}
           {step === "SYNCING" && "Đang đồng bộ hóa dữ liệu Onchain vào hệ thống GroupDeal..."}
+          {step === "PENDING_CHECK" && (errorMessage || "Chưa xác nhận được đơn hàng. Không mua lại khi trạng thái giao dịch cũ chưa rõ.")}
           {step === "CONFIRMED" &&
             "Bằng chứng onchain đã được xác nhận. Đơn hàng của bạn đã được ghi nhận an toàn."}
           {(step === "REVERTED" || step === "FAILED") &&
@@ -129,7 +132,10 @@ export const TxTrackerModal: React.FC<TxTrackerModalProps> = ({
           </div>
         )}
 
-        {(step === "CONFIRMED" || step === "REVERTED" || step === "FAILED") && (
+        {step === "PENDING_CHECK" && onCheck && <button type="button" className="btn btn-secondary" onClick={onCheck} style={{ width: "100%", marginBottom: "0.5rem" }}>
+          Kiểm tra lại giao dịch / đơn cũ
+        </button>}
+        {(step === "CONFIRMED" || step === "REVERTED" || step === "FAILED" || step === "PENDING_CHECK") && (
           <button className="btn btn-primary" style={{ width: "100%" }} onClick={onClose}>
             {step === "CONFIRMED" ? "Xem đơn hàng của tôi" : "Đóng"}
           </button>

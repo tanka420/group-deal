@@ -127,23 +127,62 @@ async function runTests() {
     }
   }
 
-  // Test 5: Arc Testnet Gas & USDC Segregation Calculation
-  console.log("\n[Test 5] Segregation of 6-decimal business USDC and 18-decimal native gas");
+  // Test 5: Arc Testnet unified USDC balance with two precision interfaces
+  console.log("\n[Test 5] One Arc USDC balance across 6-decimal ERC-20 and 18-decimal native views");
   {
-    const buyerUsdcBal = 100_000_000n; // 100 USDC (6 decimals)
-    const buyerNativeGas = ethers.parseEther("0.05"); // 0.05 native gas (18 decimals)
+    const buyerNativeBalance = ethers.parseEther("100"); // one underlying 100 USDC balance
+    const buyerErc20View = buyerNativeBalance / 10n ** 12n; // 6-decimal view
     const commitAmount = 50_000_000n; // 50 USDC (6 decimals)
+    const commitAmountNative = commitAmount * 10n ** 12n;
     const estimatedGasLimit = 150_000n;
     const minBaseFee = 20_000_000_000n; // 20 Gwei
-    const estimatedGasCost = estimatedGasLimit * minBaseFee; // 0.003 native gas
+    const estimatedGasCost = estimatedGasLimit * minBaseFee; // 0.003 USDC in 18-decimal native precision
 
-    assert(commitAmount <= buyerUsdcBal, "Buyer must have sufficient 6-decimal USDC for commitment");
-    assert(estimatedGasCost <= buyerNativeGas, "Buyer must have sufficient 18-decimal native gas for transaction");
+    assert.strictEqual(buyerErc20View, 100_000_000n, "ERC-20 view must represent the same 100 USDC balance");
+    assert(
+      commitAmountNative + estimatedGasCost <= buyerNativeBalance,
+      "The unified USDC balance must cover commitment plus gas"
+    );
 
-    console.log(`  ✓ Buyer 6-decimal USDC Balance: ${Number(buyerUsdcBal) / 1e6} USDC`);
-    console.log(`  ✓ Buyer 18-decimal Native Gas: ${ethers.formatEther(buyerNativeGas)} Gas Tokens`);
-    console.log(`  ✓ Estimated Gas Fee @ 20 Gwei: ${ethers.formatEther(estimatedGasCost)} Gas Tokens`);
-    console.log("  ✓ Gas & Business funds are strictly segregated and independently validated.");
+    console.log(`  ✓ ERC-20 6-decimal view: ${Number(buyerErc20View) / 1e6} USDC`);
+    console.log(`  ✓ Native 18-decimal view: ${ethers.formatEther(buyerNativeBalance)} USDC`);
+    console.log(`  ✓ Estimated Gas Fee @ 20 Gwei: ${ethers.formatEther(estimatedGasCost)} USDC`);
+    console.log("  ✓ One underlying balance is validated without double-counting the two precision views.");
+  }
+
+  // Test 6: Arc deployment and legacy cleanup are fail-closed
+  console.log("\n[Test 6] Arc deploy roles and legacy cleanup execution are fail-closed");
+  {
+    const deploySource = fs.readFileSync(
+      path.resolve(__dirname, "../../contracts/scripts/deploy.ts"),
+      "utf8"
+    );
+    assert(deploySource.includes('requireAddressEnv("AUTHORIZED_SIGNER_ADDRESS")'));
+    assert(deploySource.includes('requireAddressEnv("OPERATOR_ADDRESS")'));
+    assert(deploySource.includes('requireAddressEnv("SECURITY_MULTISIG_ADDRESS")'));
+    assert(!deploySource.includes("process.env.OPERATOR_ADDRESS ||"));
+    assert(!deploySource.includes("process.env.SECURITY_AUTHORITY_ADDRESS ||"));
+    assert(deploySource.includes('securityCode.toLowerCase().startsWith("0xef0100")'));
+
+    const cleanupSource = fs.readFileSync(
+      path.resolve(__dirname, "../../scripts/arc_cleanup_legacy.ts"),
+      "utf8"
+    );
+    assert(cleanupSource.includes('process.argv.includes("--execute")'));
+    assert(cleanupSource.includes("ALLOW_LEGACY_CLEANUP"));
+    assert(cleanupSource.includes("READ-ONLY DRY RUN"));
+    console.log("  ✓ No live-role fallback; multisig bytecode and explicit cleanup authorization required.");
+
+    const primitiveJourneySource = fs.readFileSync(
+      path.resolve(__dirname, "../../scripts/arc_live_journey.ts"),
+      "utf8"
+    );
+    assert(primitiveJourneySource.includes("ALLOW_ARC_CONTRACT_PRIMITIVE_JOURNEY"));
+    assert(primitiveJourneySource.includes("AUTHORIZED_SIGNER_PRIVATE_KEY"));
+    assert(primitiveJourneySource.includes("authSigner.signTypedData"));
+    assert(primitiveJourneySource.includes("ARC_CONTRACT_PRIMITIVE_JOURNEY.json"));
+    assert(!primitiveJourneySource.includes('"../reports/evidence/G5_ACCEPTANCE_DOSSIER.json"'));
+    console.log("  ✓ Primitive journey cannot impersonate the signer or overwrite G5 acceptance evidence.");
   }
 
   console.log("\n=== ALL GATE G5 VERIFICATION TESTS PASSED SUCCESSFULLY! ===\n");

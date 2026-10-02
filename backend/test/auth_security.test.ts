@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { ethers } from "ethers";
 import { AuthService } from "../src/services/authService";
 import { store, sanitizeUser } from "../src/db/store";
 import { DisputeService } from "../src/services/disputeService";
@@ -47,6 +48,8 @@ async function runAuthSecurityTests() {
     activeWallet: "0x1111111111111111111111111111111111111111",
     circleWallet: {
       address: "0x1111111111111111111111111111111111111111",
+      walletId: "wallet_test_1",
+      blockchain: "ARC-TESTNET" as const,
       encryptedPrivateKey: "super-secret-ciphertext",
     },
     sellerProfile: {
@@ -65,7 +68,52 @@ async function runAuthSecurityTests() {
   assert.equal(sanitized.circleWallet?.address, "0x1111111111111111111111111111111111111111");
   console.log("✔ DTO sanitization strips private keys and proof signatures");
 
-  // 5. Test dispute resolve non-negative constraint
+  // 5. Wallet-first login requires a valid one-time signature and stores no key material.
+  const loginWallet = ethers.Wallet.createRandom();
+  const walletChallenge = AuthService.issueWalletLoginChallenge(
+    loginWallet.address,
+    "http://localhost:5173"
+  );
+  const walletSignature = await loginWallet.signMessage(walletChallenge.challengeMessage);
+  const walletSession = AuthService.verifyWalletLogin(
+    loginWallet.address,
+    walletSignature,
+    walletChallenge.challengeMessage,
+    walletChallenge.nonce
+  );
+  assert.equal(walletSession.user.email, null);
+  assert.equal(walletSession.user.loginMethod, "EVM_WALLET");
+  assert.equal(walletSession.user.activeWallet, loginWallet.address);
+  assert.equal(
+    store.db.userByWallet[loginWallet.address.toLowerCase()],
+    walletSession.user.id,
+    "Wallet login must create the atomic reverse binding"
+  );
+  assert.equal(store.db.notificationPreferences[walletSession.user.id]?.email, false);
+  assert.throws(
+    () =>
+      AuthService.verifyWalletLogin(
+        loginWallet.address,
+        walletSignature,
+        walletChallenge.challengeMessage,
+        walletChallenge.nonce
+      ),
+    /invalid, expired, or already used/,
+    "Wallet login challenge must not be replayable"
+  );
+  console.log("✔ Wallet-first login verifies ownership and prevents signature replay");
+
+  // 6. Test dispute resolve non-negative constraint
+  // Set up the dependency explicitly rather than relying on seeded/live data.
+  store.db.campaigns["1"] = {
+    id: "1", onchainCampaignId: 1, title: "Fixture", description: "", category: "Software", thumbnailUrl: "",
+    sellerId: "fixture-seller", sellerPayoutWallet: ethers.ZeroAddress, status: "FINALIZED", visibility: "PUBLIC",
+    metric: "BUYER_COUNT", tiers: [{ threshold: 1, price: "100000000" }], currentUnlockedTier: 0,
+    maxPerAccount: 1, inventoryLimit: 1, durationSeconds: 86400, deliverySlaSeconds: 86400,
+    earlyRebateEnabled: false, earlySlotsCount: 0, earlyRebateAmount: "0", earlyRebateBps: 0, platformFeeBps: 0, termsHash: ethers.ZeroHash,
+    startTime: 1, endTime: 2, totalBuyerCount: 1, totalUnitsCommitted: 1, totalGrossCommitted: "100000000",
+    deliveryMethod: "LICENSE_KEY", deliveryContentTemplate: "", dryRunDeliveryVerified: true, amendments: [],
+  };
   store.db.orders["test_order_99"] = {
     id: "test_order_99",
     onchainOrderId: 99,

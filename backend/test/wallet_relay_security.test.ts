@@ -1,115 +1,133 @@
-import assert from "node:assert";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { ethers } from "ethers";
+import { config } from "../src/config";
+import { CircleWalletService } from "../src/services/circleWalletService";
 
-async function runWalletRelayPolicyTests() {
-  console.log("=== Running Wallet Relayer Policy Security Tests (A03 Mitigation) ===");
+async function runWalletPolicyTests() {
+  console.log("=== Running Circle User-Controlled Transaction Policy Tests ===");
 
-  const hubAddr = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512".toLowerCase();
-  const usdcAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3".toLowerCase();
-  const randomAttackerAddr = "0x999999cf1046e68e36E1aA2E0E07105eDDD1f08E".toLowerCase();
-
-  const ALLOWED_HUB_SELECTORS = new Set([
-    "0x5656bceb", // commitToBuy
-    "0xa724b047", // claimBuyerFunds
-    "0xdc5369ad", // claimDeliveryBreach
-    "0xde1bf140", // claimSellerProceeds
-    "0xe5b56091", // confirmReceipt
-    "0xd2e21c7e", // openDispute
-    "0x0bb522ec", // createCampaign
-    "0x784cd414", // recordDelivery
-    "0xed6a2f0a", // settleUndisputedOrder
-    "0x16670bcd", // resolveDispute
-    "0xf9b60540", // emergencyOpenDisputeWithSignature
+  const attacker = "0x999999cf1046e68e36E1aA2E0E07105eDDD1f08E";
+  const usdc = new ethers.Interface(["function approve(address,uint256)"]);
+  const hub = new ethers.Interface([
+    "function commitToBuy(uint256,bytes32,uint256,bool,uint256,uint256,bytes) returns (uint256)",
+    "function claimBuyerFunds(uint256,uint256[]) returns (uint256)",
   ]);
 
-  function validateRelayRequest(to: string, data: string, value?: string | number) {
-    const normalizedTo = ethers.getAddress(to).toLowerCase();
-
-    // 1. Target Allowlist
-    if (normalizedTo !== hubAddr && normalizedTo !== usdcAddr) {
-      throw new Error("Target address not allowed");
-    }
-
-    // 2. No native value
-    if (value && BigInt(value) > 0n) {
-      throw new Error("Native value not allowed");
-    }
-
-    const calldata = data || "0x";
-    if (calldata.length < 10) {
-      throw new Error("Calldata too short");
-    }
-    const selector = calldata.slice(0, 10).toLowerCase();
-
-    // 3. USDC contract check
-    if (normalizedTo === usdcAddr) {
-      if (selector !== "0x095ea7b3") {
-        throw new Error("Only approve allowed on USDC");
-      }
-      const spender = ethers.getAddress("0x" + calldata.slice(34, 74)).toLowerCase();
-      if (spender !== hubAddr) {
-        throw new Error("Spender must be hub");
-      }
-    }
-
-    // 4. Hub contract check
-    if (normalizedTo === hubAddr) {
-      if (!ALLOWED_HUB_SELECTORS.has(selector)) {
-        throw new Error(`Selector ${selector} not allowed on Hub`);
-      }
-    }
-
-    return true;
-  }
-
-  // Test 1: Reject unauthorized target
-  assert.throws(
-    () => validateRelayRequest(randomAttackerAddr, "0x1234567800000"),
-    /Target address not allowed/,
-    "Failed to block unauthorized destination contract"
+  const exactApproval = usdc.encodeFunctionData("approve", [config.hubAddress, 25_000_000n]);
+  assert.doesNotThrow(() =>
+    CircleWalletService.validateTransactionPolicy(config.usdcAddress, exactApproval, {
+      type: "USDC_APPROVE",
+      amount: "25000000",
+    })
   );
-  console.log("✔ Blocked arbitrary external target address");
+  console.log("✔ Exact USDC approval to GroupDealHub accepted");
 
-  // Test 2: Reject native transfer
   assert.throws(
-    () => validateRelayRequest(hubAddr, "0x5656bceb00000000000000000000000000000000", "1000000000000000000"),
-    /Native value not allowed/,
-    "Failed to block native currency transfer"
+    () =>
+      CircleWalletService.validateTransactionPolicy(
+        config.usdcAddress,
+        usdc.encodeFunctionData("approve", [attacker, 25_000_000n]),
+        { type: "USDC_APPROVE", amount: "25000000" }
+      ),
+    /spender must be GroupDealHub/
   );
-  console.log("✔ Blocked native value transfer attempt");
-
-  // Test 3: Reject dangerous transfer on USDC
-  const transferSelector = "0xa9059cbb"; // transfer(address,uint256)
   assert.throws(
-    () => validateRelayRequest(usdcAddr, transferSelector + "00".repeat(32)),
-    /Only approve allowed on USDC/,
-    "Failed to block arbitrary token transfer"
+    () =>
+      CircleWalletService.validateTransactionPolicy(
+        config.usdcAddress,
+        usdc.encodeFunctionData("approve", [config.hubAddress, ethers.MaxUint256]),
+        { type: "USDC_APPROVE", amount: ethers.MaxUint256.toString() }
+      ),
+    /policy limit/
   );
-  console.log("✔ Blocked unauthorized token transfer function on USDC");
+  console.log("✔ Arbitrary spender and unlimited approvals rejected");
 
-  // Test 4: Reject approval to attacker address
-  const erc20 = new ethers.Interface(["function approve(address,uint256)"]);
-  const maliciousApprove = erc20.encodeFunctionData("approve", [randomAttackerAddr, 1000000n]);
+  const commit = hub.encodeFunctionData("commitToBuy", [
+    12,
+    ethers.keccak256(ethers.toUtf8Bytes("identity")),
+    2,
+    false,
+    2,
+    Math.floor(Date.now() / 1000) + 300,
+    "0x1234",
+  ]);
+  assert.doesNotThrow(() =>
+    CircleWalletService.validateTransactionPolicy(config.hubAddress, commit, {
+      type: "COMMIT_BUY",
+      campaignId: "12",
+      quantity: "2",
+    })
+  );
   assert.throws(
-    () => validateRelayRequest(usdcAddr, maliciousApprove),
-    /Spender must be hub/,
-    "Failed to block approval to non-hub address"
+    () =>
+      CircleWalletService.validateTransactionPolicy(config.hubAddress, commit, {
+        type: "COMMIT_BUY",
+        campaignId: "12",
+        quantity: "3",
+      }),
+    /does not match/
   );
-  console.log("✔ Blocked malicious approve to non-hub spender");
+  console.log("✔ Campaign and quantity are bound to the declared purchase intent");
 
-  // Test 5: Allow legitimate approve to Hub
-  const legitApprove = erc20.encodeFunctionData("approve", [hubAddr, ethers.MaxUint256]);
-  assert.strictEqual(validateRelayRequest(usdcAddr, legitApprove), true);
-  console.log("✔ Allowed legitimate approve to GroupDealHub");
+  const claim = hub.encodeFunctionData("claimBuyerFunds", [12, [8, 9]]);
+  assert.doesNotThrow(() =>
+    CircleWalletService.validateTransactionPolicy(config.hubAddress, claim, {
+      type: "CLAIM_BUYER",
+      campaignId: "12",
+      orderIds: ["8", "9"],
+    })
+  );
+  assert.throws(
+    () =>
+      CircleWalletService.validateTransactionPolicy(config.hubAddress, claim, {
+        type: "CLAIM_BUYER",
+        campaignId: "12",
+        orderIds: ["9", "8"],
+      }),
+    /order intent/
+  );
+  console.log("✔ Claim order IDs are exact and order-sensitive");
 
-  // Test 6: Allow legitimate commitToBuy on Hub
-  assert.strictEqual(validateRelayRequest(hubAddr, "0x5656bceb" + "00".repeat(32)), true);
-  console.log("✔ Allowed legitimate commitToBuy on GroupDealHub");
+  const routeSource = fs.readFileSync(path.resolve(__dirname, "../src/routes/walletRoutes.ts"), "utf8");
+  const onchainSource = fs.readFileSync(path.resolve(__dirname, "../src/services/onchainService.ts"), "utf8");
+  const campaignRouteSource = fs.readFileSync(path.resolve(__dirname, "../src/routes/campaignRoutes.ts"), "utf8");
+  const workerSource = fs.readFileSync(path.resolve(__dirname, "../src/index.ts"), "utf8");
+  assert.match(routeSource, /status\(410\)/, "Legacy relayer must remain permanently disabled");
+  assert.doesNotMatch(routeSource, /new\s+ethers\.Wallet|sendTransaction\s*\(/, "Backend must not sign user transactions");
+  assert.doesNotMatch(onchainSource, /new\s+ethers\.Wallet/, "Onchain service must be read-only");
+  assert.doesNotMatch(
+    campaignRouteSource,
+    /authorizedSignerPrivateKey|createCampaignOnchain/,
+    "Campaign publishing must never fall back to a backend signer"
+  );
+  assert.match(
+    campaignRouteSource,
+    /const nextId = `draft_\$\{crypto\.randomUUID\(\)\}`/,
+    "Draft IDs must remain local and collision-resistant until CampaignCreated"
+  );
+  assert.doesNotMatch(
+    campaignRouteSource,
+    /onchainCampaignId:\s*Number\(nextId\)/,
+    "Drafts must not fabricate an onchain campaign ID before a verified Arc event"
+  );
+  assert.match(
+    campaignRouteSource,
+    /if \(campaign\.status === "DRAFT"\) \{\s*res\.status\(404\)/,
+    "The public campaign endpoint must not expose drafts based on an unverified header"
+  );
+  assert.doesNotMatch(
+    workerSource,
+    /buyerRefundAllocated\s*=|sellerAllocated\s*=/,
+    "Wall-clock workers must not allocate financial state without an Arc event"
+  );
+  console.log("✔ Legacy signer paths are disabled; financial projection cannot be advanced by a wall-clock worker");
 
-  console.log("🎉 ALL WALLET RELAY POLICY SECURITY TESTS PASSED!\n");
+  console.log("All Circle wallet transaction-policy tests passed!\n");
 }
 
-runWalletRelayPolicyTests().catch((e) => {
-  console.error(e);
+runWalletPolicyTests().catch((error) => {
+  console.error(error);
   process.exit(1);
 });

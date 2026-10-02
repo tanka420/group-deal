@@ -155,6 +155,7 @@ export class DeliveryService {
 
     const campaign = store.db.campaigns[order.campaignId];
     if (!campaign) throw new Error("Campaign not found");
+    if (!campaign.onchainCampaignId) throw new Error("Campaign is not active on Arc");
 
     if (campaign.sellerId !== sellerId) {
       throw new Error("Unauthorized: you are not the seller of this campaign");
@@ -186,6 +187,7 @@ export class DeliveryService {
       {
         intentId: `delivery_${order.id}_${proofHash}`,
         expectedTo: config.hubAddress,
+        expectedSender: campaign.sellerPayoutWallet,
         expectedFunction: "recordDelivery",
         expectedEvent: "DeliveryRecorded",
         expectedEventArgs: {
@@ -271,6 +273,7 @@ export class DeliveryService {
       {
         intentId: `confirm_${order.id}`,
         expectedTo: config.hubAddress,
+        expectedSender: order.buyerPrincipal,
         expectedFunction: "confirmReceipt",
         expectedEvent: "OrderConfirmed",
         expectedEventArgs: {

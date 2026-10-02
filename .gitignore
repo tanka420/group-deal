@@ -10,10 +10,13 @@ build/
 artifacts/
 contracts/artifacts/
 cache/
+.cache/
 contracts/cache/
 typechain-types/
 contracts/typechain-types/
 *.tsbuildinfo
+test-results/
+playwright-report/
 
 # Runtime and storage data
 data/

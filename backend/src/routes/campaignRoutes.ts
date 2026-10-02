@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { ethers } from "ethers";
+import * as crypto from "crypto";
 import { store, CampaignRecord } from "../db/store";
 import { authMiddleware, AuthenticatedRequest, requireRole } from "../middleware/auth";
 import { DeliveryService } from "../services/deliveryService";
 import { computeTermsHash, decryptEntitlement } from "../utils/crypto";
-import { OnchainService, OnchainCampaignTerms, HUB_ABI } from "../services/onchainService";
 import { TransactionVerifier } from "../services/transactionVerifier";
 import { config } from "../config";
 
@@ -26,14 +26,10 @@ campaignRouter.get("/:id", (req, res) => {
     return;
   }
 
-  // Hide draft unless accessed by owner or operator
+  // Drafts are only exposed through authenticated seller-specific endpoints.
   if (campaign.status === "DRAFT") {
-    // Check Authorization header optionally
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      res.status(404).json({ error: "Campaign not found" });
-      return;
-    }
+    res.status(404).json({ error: "Campaign not found" });
+    return;
   }
 
   // Lookup seller profile & badges (never expose raw payoutProofSignature)
@@ -96,27 +92,37 @@ campaignRouter.post("/draft", authMiddleware, requireRole("seller"), (req: Authe
       threshold: Number(t.threshold),
       price: ethers.parseUnits(t.priceUSDC.toString(), 6).toString(),
     }));
+    const earlyRebateAmount = earlyRebateAmountUSDC
+      ? ethers.parseUnits(earlyRebateAmountUSDC.toString(), 6).toString()
+      : "0";
 
-    // Auto-generate campaign ID
-    const nextId = (Object.keys(store.db.campaigns).length + 1).toString();
+    // A draft has no Arc campaign ID. It is re-keyed only from the verified
+    // CampaignCreated event during publish/indexing.
+    const nextId = `draft_${crypto.randomUUID()}`;
     const startTime = Math.floor(Date.now() / 1000);
     const endTime = startTime + durationSeconds;
 
     const termsHash = computeTermsHash({
+      schema: "GroupDealTermsV1",
       sellerPayoutWallet: user.sellerProfile!.payoutWallet,
-      metric,
+      metric: metric === "UNITS_COUNT" ? "UNITS_COUNT" : "BUYER_COUNT",
       tiers: formattedTiers,
       maxPerAccount: maxPerAccount || 5,
       inventoryLimit: inventoryLimit || 0,
+      inventoryBehavior: inventoryLimit > 0 ? "AUTO_FINALIZE_WHEN_SOLD_OUT" : "UNBOUNDED",
       durationSeconds,
       deliverySlaSeconds,
       earlyRebateEnabled: !!earlyRebateEnabled,
       earlySlotsCount: earlySlotsCount || 0,
+      earlyRebateAmount,
+      earlyRebateBps: 0,
+      platformFeeBps: 0,
+      deliveryMethod: deliveryMethod || "LICENSE_KEY",
+      cancellationPolicy: "SECURITY_MULTISIG_REFUNDS_ONLY_UNALLOCATED_ESCROW",
     });
 
     const campaign: CampaignRecord = {
       id: nextId,
-      onchainCampaignId: Number(nextId),
       title,
       description,
       category: category || "Software",
@@ -134,9 +140,7 @@ campaignRouter.post("/draft", authMiddleware, requireRole("seller"), (req: Authe
       deliverySlaSeconds,
       earlyRebateEnabled: !!earlyRebateEnabled,
       earlySlotsCount: earlySlotsCount || 0,
-      earlyRebateAmount: earlyRebateAmountUSDC
-        ? ethers.parseUnits(earlyRebateAmountUSDC.toString(), 6).toString()
-        : "0",
+      earlyRebateAmount,
       earlyRebateBps: 0,
       platformFeeBps: 0,
       termsHash,
@@ -271,69 +275,74 @@ campaignRouter.post("/:id/publish", authMiddleware, requireRole("seller"), async
     }
 
     const { txHash } = req.body;
-    let onchainCampaignId = campaign.onchainCampaignId;
-    let publishTxHash = txHash;
-
-    if (txHash) {
-      // Client broadcasted tx directly from their non-custodial wallet
-      try {
-        const verification = await TransactionVerifier.verifyExpectedTransaction(
-          {
-            intentId: `campaign_publish_${campaign.id}`,
-            expectedTo: config.hubAddress,
-            expectedFunction: "createCampaign",
-            expectedEvent: "CampaignCreated",
-          },
-          txHash
-        );
-        onchainCampaignId = Number(verification.parsedEvent.campaignId);
-        publishTxHash = verification.txHash;
-      } catch (verifErr: any) {
-        res.status(400).json({ error: `Onchain transaction verification failed: ${verifErr.message}` });
-        return;
-      }
-    } else {
-      // Backend operator gas relayer broadcasts createCampaign onchain
-      const signerPrivateKey = config.authorizedSignerPrivateKey;
-
-      try {
-        const termsForChain: OnchainCampaignTerms = {
-          sellerPayoutWallet: campaign.sellerPayoutWallet,
-          durationSeconds: campaign.durationSeconds,
-          deliverySlaSeconds: campaign.deliverySlaSeconds,
-          maxPerAccount: campaign.maxPerAccount,
-          inventoryLimit: campaign.inventoryLimit,
-          platformFeeBps: 0,
-          metric: campaign.metric === "BUYER_COUNT" ? 0 : 1,
-          tiers: campaign.tiers.map((t) => ({
-            threshold: BigInt(t.threshold),
-            price: BigInt(t.price),
-          })),
-          earlyRebateEnabled: campaign.earlyRebateEnabled,
-          earlySlotsCount: campaign.earlySlotsCount,
-          earlyRebateAmount: BigInt(campaign.earlyRebateAmount || "0"),
-          earlyRebateBps: campaign.earlyRebateBps || 0,
-          termsHash: campaign.termsHash,
-        };
-
-        const result = await OnchainService.createCampaignOnchain(termsForChain, signerPrivateKey);
-        onchainCampaignId = result.onchainCampaignId;
-        publishTxHash = result.txHash;
-      } catch (err: any) {
-        console.error(`[CAMPAIGN] Onchain creation failed: ${err.message}`);
-        res.status(502).json({
-          error: `Onchain transaction failed. Campaign cannot be activated without verified onchain contract state: ${err.message}`,
-        });
-        return;
-      }
+    if (typeof txHash !== "string") {
+      res.status(400).json({
+        error: "Seller must create the campaign from a user-controlled wallet and provide its Arc txHash",
+      });
+      return;
     }
+
+    const campaignInterface = new ethers.Interface([
+      "function createCampaign((address sellerPayoutWallet, uint8 metric, uint256 maxPerAccount, uint256 inventoryLimit, uint256 durationSeconds, uint256 deliverySlaSeconds, bool earlyRebateEnabled, uint32 earlySlotsCount, uint256 earlyRebateAmount, uint16 earlyRebateBps, uint16 platformFeeBps, bytes32 termsHash) terms, (uint256 threshold, uint256 price)[] tiers) returns (uint256)",
+    ]);
+    const expectedCalldata = campaignInterface.encodeFunctionData("createCampaign", [
+      {
+        sellerPayoutWallet: campaign.sellerPayoutWallet,
+        metric: campaign.metric === "BUYER_COUNT" ? 0 : 1,
+        maxPerAccount: BigInt(campaign.maxPerAccount),
+        inventoryLimit: BigInt(campaign.inventoryLimit),
+        durationSeconds: BigInt(campaign.durationSeconds),
+        deliverySlaSeconds: BigInt(campaign.deliverySlaSeconds),
+        earlyRebateEnabled: campaign.earlyRebateEnabled,
+        earlySlotsCount: campaign.earlySlotsCount,
+        earlyRebateAmount: BigInt(campaign.earlyRebateAmount),
+        earlyRebateBps: campaign.earlyRebateBps,
+        platformFeeBps: campaign.platformFeeBps,
+        termsHash: campaign.termsHash,
+      },
+      campaign.tiers.map((tier) => ({
+        threshold: BigInt(tier.threshold),
+        price: BigInt(tier.price),
+      })),
+    ]);
+
+    let verification;
+    try {
+      verification = await TransactionVerifier.verifyExpectedTransaction(
+        {
+          intentId: `campaign_publish_${campaign.id}`,
+          expectedTo: config.hubAddress,
+          expectedSender: campaign.sellerPayoutWallet,
+          expectedFunction: "createCampaign",
+          expectedCalldata,
+          expectedEvent: "CampaignCreated",
+          expectedEventArgs: {
+            sellerPayoutWallet: campaign.sellerPayoutWallet,
+            termsHash: campaign.termsHash,
+          },
+        },
+        txHash
+      );
+    } catch (verifErr: any) {
+      res.status(400).json({ error: `Onchain transaction verification failed: ${verifErr.message}` });
+      return;
+    }
+
+    const onchainCampaignId = Number(verification.parsedEvent.campaignId);
+    const publishTxHash = verification.txHash;
 
     if (!onchainCampaignId) {
       res.status(400).json({ error: "Missing verified onchainCampaignId" });
       return;
     }
 
+    const previousDraftId = campaign.id;
     campaign.onchainCampaignId = onchainCampaignId;
+    campaign.id = onchainCampaignId.toString();
+    if (previousDraftId !== campaign.id) {
+      delete store.db.campaigns[previousDraftId];
+      store.db.campaigns[campaign.id] = campaign;
+    }
     campaign.status = "ACTIVE";
     campaign.startTime = Math.floor(Date.now() / 1000);
     campaign.endTime = campaign.startTime + campaign.durationSeconds;

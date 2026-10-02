@@ -45,6 +45,9 @@ orderRouter.get("/buyer", authMiddleware, (req: AuthenticatedRequest, res) => {
       campaignThumbnail: campaign?.thumbnailUrl || "",
       campaignStatus: campaign?.status || "ACTIVE",
       sellerPayoutWallet: campaign?.sellerPayoutWallet,
+      onchainCampaignId: campaign?.onchainCampaignId,
+      finalizedAt: campaign?.finalizedAt,
+      deliverySlaSeconds: campaign?.deliverySlaSeconds,
     };
   });
 

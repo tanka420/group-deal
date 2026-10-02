@@ -20,7 +20,14 @@ import {
 export const BuyerDashboard: React.FC = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const { account, claimBuyerFundsOnchain, confirmReceiptOnchain, openDisputeOnchain, hubAddress } = useWeb3();
+  const {
+    account,
+    claimBuyerFundsOnchain,
+    confirmReceiptOnchain,
+    openDisputeOnchain,
+    claimDeliveryBreachOnchain,
+    hubAddress,
+  } = useWeb3();
 
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,11 +94,20 @@ export const BuyerDashboard: React.FC = () => {
   const handleConfirmReceipt = async (order: any) => {
     if (!confirm("Bạn có chắc chắn muốn xác nhận đã nhận sản phẩm hoạt động tốt? Thao tác này sẽ phân bổ tiền cho người bán.")) return;
     try {
-      await confirmReceiptOnchain(Number(order.campaignId), Number(order.id));
-      await fetch(`/api/orders/${order.id}/confirm`, {
+      const chainResult = await confirmReceiptOnchain(
+        Number(order.onchainCampaignId),
+        Number(order.onchainOrderId)
+      );
+      const response = await fetch(`/api/orders/${order.id}/confirm`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${localStorage.getItem("groupdeal_token") || ""}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("groupdeal_token") || ""}`,
+        },
+        body: JSON.stringify({ txHash: chainResult.txHash }),
       });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Không thể xác minh giao dịch confirm trên Arc");
       fetchOrders();
     } catch (e: any) {
       alert("Lỗi xác nhận: " + e.message);
@@ -105,14 +121,14 @@ export const BuyerDashboard: React.FC = () => {
     setIsSubmittingDispute(true);
     try {
       // 1. Submit onchain dispute
-      await openDisputeOnchain(
-        Number(disputeModalOrder.campaignId),
-        Number(disputeModalOrder.id),
+      const chainResult = await openDisputeOnchain(
+        Number(disputeModalOrder.onchainCampaignId),
+        Number(disputeModalOrder.onchainOrderId),
         disputeReason
       );
 
       // 2. Submit offchain record & evidence
-      await fetch(`/api/orders/${disputeModalOrder.id}/dispute`, {
+      const response = await fetch(`/api/orders/${disputeModalOrder.id}/dispute`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -120,8 +136,11 @@ export const BuyerDashboard: React.FC = () => {
         body: JSON.stringify({
           reason: disputeReason,
           evidenceUrls: disputeEvidence ? [disputeEvidence] : [],
+          txHash: chainResult.txHash,
         }),
       });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Không thể ghi nhận tranh chấp đã xác minh");
 
       setDisputeModalOrder(null);
       setDisputeReason("");
@@ -131,6 +150,18 @@ export const BuyerDashboard: React.FC = () => {
       alert("Lỗi mở tranh chấp: " + e.message);
     } finally {
       setIsSubmittingDispute(false);
+    }
+  };
+
+  const handleClaimDeliveryBreach = async (order: any) => {
+    try {
+      await claimDeliveryBreachOnchain(
+        Number(order.onchainCampaignId),
+        Number(order.onchainOrderId)
+      );
+      fetchOrders();
+    } catch (error: any) {
+      alert("Lỗi yêu cầu hoàn tiền do quá SLA: " + error.message);
     }
   };
 
@@ -162,7 +193,7 @@ export const BuyerDashboard: React.FC = () => {
   // Pull Claim all claimable rebates/refunds
   const handleClaimFunds = async (order: any) => {
     try {
-      await claimBuyerFundsOnchain(Number(order.campaignId), [Number(order.id)]);
+      await claimBuyerFundsOnchain(Number(order.onchainCampaignId), [Number(order.onchainOrderId)]);
       alert("Đã rút tiền thành công về ví!");
       fetchOrders();
     } catch (e: any) {
@@ -409,6 +440,18 @@ export const BuyerDashboard: React.FC = () => {
                         <Coins size={14} /> Rút ${ (rebate + refund).toFixed(2) } USDC
                       </button>
                     )}
+
+                    {o.deliveryStatus === "PENDING" &&
+                      o.finalizedAt &&
+                      Math.floor(Date.now() / 1000) >
+                        Number(o.finalizedAt) + Number(o.deliverySlaSeconds || 0) && (
+                        <button
+                          className="btn btn-sm btn-success"
+                          onClick={() => handleClaimDeliveryBreach(o)}
+                        >
+                          <ShieldAlert size={14} /> Yêu cầu hoàn tiền quá SLA trên Arc
+                        </button>
+                      )}
 
                     {/* Confirm receipt early */}
                     {o.deliveryStatus === "DELIVERED" && (

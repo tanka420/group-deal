@@ -6,6 +6,124 @@ import { config } from "../config";
 import { encryptEntitlement } from "../utils/crypto";
 
 export class AuthService {
+  private static issueSessionToken(user: UserRecord): string {
+    return jwt.sign(
+      {
+        userId: user.id,
+        email: sanitizeUser(user).email,
+        roles: user.roles,
+        activeWallet: user.activeWallet,
+      },
+      config.jwtSecret,
+      { expiresIn: "7d" }
+    );
+  }
+
+  /**
+   * Create or refresh the local application session after Circle has verified
+   * the email OTP and the backend has validated the Circle user token.
+   * Circle tokens and encryption keys are deliberately never persisted.
+   */
+  public static createCircleSession(
+    email: string | null,
+    circleUserId: string,
+    circleWallet?: { walletId: string; address: string; blockchain: "ARC-TESTNET" }
+  ): { token: string; user: SanitizedUser } {
+    const normalizedEmail = email?.trim().toLowerCase() || null;
+    if ((normalizedEmail && !normalizedEmail.includes("@")) || !circleUserId) {
+      throw new Error("Circle identity is incomplete");
+    }
+
+    const byCircle = store.db.userByCircleId[circleUserId];
+    const byEmail = normalizedEmail ? store.db.userByEmail[normalizedEmail] : undefined;
+    // Never claim a pre-existing email account by submitting a Circle token.
+    // Linking identities requires an independently authenticated linking flow.
+    if (byEmail && byCircle !== byEmail) {
+      throw new Error("Circle identity is already bound to another GroupDeal account");
+    }
+
+    let userId = byCircle;
+    let user: UserRecord;
+    if (!userId) {
+      userId = `usr_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+      user = {
+        id: userId,
+        email: normalizedEmail || `circle-${crypto.createHash("sha256").update(circleUserId).digest("hex")}@circle.invalid`,
+        emailVerified: Boolean(normalizedEmail),
+        loginMethod: "CIRCLE_EMAIL",
+        circleUserId,
+        createdAt: Date.now(),
+        roles: ["buyer"],
+        activeWallet: null,
+      };
+      store.db.users[userId] = user;
+      if (normalizedEmail) store.db.userByEmail[normalizedEmail] = userId;
+      store.addAuditLog(userId, "buyer", "CIRCLE_USER_REGISTERED", {
+        circleUserId,
+      });
+    } else {
+      user = store.db.users[userId];
+      if (!user) throw new Error("Bound GroupDeal account no longer exists");
+      if (normalizedEmail && user.emailVerified !== false && user.email !== normalizedEmail) {
+        throw new Error("Circle email does not match the existing GroupDeal account");
+      }
+      if (user.circleUserId && user.circleUserId !== circleUserId) {
+        throw new Error("GroupDeal account is already bound to another Circle identity");
+      }
+      user.circleUserId = circleUserId;
+      if (normalizedEmail) {
+        user.email = normalizedEmail;
+        user.emailVerified = true;
+        store.db.userByEmail[normalizedEmail] = user.id;
+      }
+      user.loginMethod ||= "CIRCLE_EMAIL";
+    }
+
+    store.db.userByCircleId[circleUserId] = user.id;
+
+    if (circleWallet) {
+      const normalizedWallet = ethers.getAddress(circleWallet.address).toLowerCase();
+      const existingWalletOwner = store.db.userByWallet[normalizedWallet];
+      if (existingWalletOwner && existingWalletOwner !== user.id) {
+        throw new Error("Circle wallet is already bound to another GroupDeal account");
+      }
+      user.circleWallet = {
+        walletId: circleWallet.walletId,
+        address: ethers.getAddress(circleWallet.address),
+        blockchain: "ARC-TESTNET",
+      };
+      user.activeWallet = user.circleWallet.address;
+      store.db.userByWallet[normalizedWallet] = user.id;
+    }
+
+    store.save();
+    return { token: this.issueSessionToken(user), user: sanitizeUser(user) };
+  }
+
+  public static bindCircleWallet(
+    userId: string,
+    circleUserId: string,
+    circleWallet: { walletId: string; address: string; blockchain: "ARC-TESTNET" }
+  ): SanitizedUser {
+    const user = store.db.users[userId];
+    if (!user || user.circleUserId !== circleUserId) {
+      throw new Error("Circle wallet cannot be bound to this GroupDeal account");
+    }
+    const normalizedWallet = ethers.getAddress(circleWallet.address).toLowerCase();
+    const existingWalletOwner = store.db.userByWallet[normalizedWallet];
+    if (existingWalletOwner && existingWalletOwner !== user.id) {
+      throw new Error("Circle wallet is already bound to another GroupDeal account");
+    }
+    user.circleWallet = {
+      walletId: circleWallet.walletId,
+      address: ethers.getAddress(circleWallet.address),
+      blockchain: "ARC-TESTNET",
+    };
+    user.activeWallet = user.circleWallet.address;
+    store.db.userByWallet[normalizedWallet] = user.id;
+    store.save();
+    return sanitizeUser(user);
+  }
   /**
    * Request email OTP with CSPRNG, rate limiting, and secure hashing.
    * Never returns OTP in response or writes OTP to logs.
@@ -41,8 +159,6 @@ export class AuthService {
     store.save();
 
     // Production log: audit only, never log the plaintext code
-    console.log(`[AUTH] OTP requested for email: ${normalizedEmail}`);
-
     return {
       success: true,
       message: "Mã OTP đã được gửi đến email của bạn.",
@@ -103,6 +219,7 @@ export class AuthService {
       user = {
         id: userId,
         email: normalizedEmail,
+        loginMethod: "CIRCLE_EMAIL",
         createdAt: now,
         roles: ["buyer"],
         activeWallet: null,
@@ -117,16 +234,7 @@ export class AuthService {
 
     store.save();
 
-    const token = jwt.sign(
-      {
-        userId: user.id,
-        email: user.email,
-        roles: user.roles,
-        activeWallet: user.activeWallet,
-      },
-      config.jwtSecret,
-      { expiresIn: "7d" }
-    );
+    const token = this.issueSessionToken(user);
 
     return { token, user: sanitizeUser(user) };
   }
@@ -136,7 +244,7 @@ export class AuthService {
    */
   public static issueWalletChallenge(
     userId: string,
-    action: "LINK_WALLET" | "SELLER_PAYOUT",
+    action: "LINK_WALLET" | "SELLER_PAYOUT" | "OPERATOR_ACTION",
     walletAddress: string,
     chainId?: number,
     origin?: string
@@ -181,7 +289,7 @@ export class AuthService {
 
   public static consumeWalletChallenge(
     userId: string,
-    action: "LINK_WALLET" | "SELLER_PAYOUT",
+    action: "LINK_WALLET" | "SELLER_PAYOUT" | "OPERATOR_ACTION",
     walletAddress: string,
     message: string
   ): void {
@@ -212,6 +320,167 @@ export class AuthService {
     // Atomically consume: one-time use only (strictly prevents replay)
     delete store.db.walletChallenges[key];
     store.save();
+  }
+
+  /**
+   * Issue a wallet-first login challenge without requiring an existing account.
+   * The nonce is part of the storage key so a second requester cannot overwrite
+   * another user's pending challenge for the same public address.
+   */
+  public static issueWalletLoginChallenge(
+    walletAddress: string,
+    origin = "groupdeal.app"
+  ): { challengeMessage: string; expiresAt: number; nonce: string } {
+    const checksumWallet = ethers.getAddress(walletAddress);
+    const normalizedWallet = checksumWallet.toLowerCase();
+    const nonce = crypto.randomBytes(16).toString("hex");
+    const now = Math.floor(Date.now() / 1000);
+    const expiresAt = now + 300;
+    const subject = `wallet-login:${normalizedWallet}`;
+
+    const challengeMessage = [
+      "=== GroupDeal Wallet Login ===",
+      "Action: WALLET_LOGIN",
+      `Wallet: ${checksumWallet}`,
+      `Chain ID: ${config.arcChainId}`,
+      `Origin: ${origin}`,
+      `Nonce: ${nonce}`,
+      `Timestamp: ${now}`,
+      `Expires: ${expiresAt}`,
+      "This signature does not submit a transaction or spend funds.",
+    ].join("\n");
+
+    const key = `${subject}:WALLET_LOGIN:${nonce}`;
+    const currentTime = Math.floor(Date.now() / 1000);
+    for (const [candidateKey, challenge] of Object.entries(store.db.walletChallenges)) {
+      if (challenge.expiresAt < currentTime) delete store.db.walletChallenges[candidateKey];
+    }
+    store.db.walletChallenges[key] = {
+      userId: subject,
+      action: "WALLET_LOGIN",
+      walletAddress: normalizedWallet,
+      message: challengeMessage,
+      expiresAt,
+      nonce,
+      chainId: config.arcChainId,
+      origin,
+    };
+    store.save();
+    return { challengeMessage, expiresAt, nonce };
+  }
+
+  /**
+   * Verify a one-time wallet signature and create or resume the account bound
+   * to that address. Only the public address is persisted; GroupDeal never
+   * receives a wallet private key or seed phrase.
+   */
+  public static verifyWalletLogin(
+    walletAddress: string,
+    signature: string,
+    message: string,
+    nonce: string
+  ): { token: string; user: SanitizedUser } {
+    const checksumWallet = ethers.getAddress(walletAddress);
+    const normalizedWallet = checksumWallet.toLowerCase();
+    const subject = `wallet-login:${normalizedWallet}`;
+    const key = `${subject}:WALLET_LOGIN:${nonce}`;
+    const challenge = store.db.walletChallenges[key];
+
+    if (
+      !challenge ||
+      challenge.action !== "WALLET_LOGIN" ||
+      challenge.walletAddress !== normalizedWallet ||
+      challenge.nonce !== nonce
+    ) {
+      throw new Error("Wallet login challenge is invalid, expired, or already used");
+    }
+
+    if (Math.floor(Date.now() / 1000) > challenge.expiresAt) {
+      delete store.db.walletChallenges[key];
+      store.save();
+      throw new Error("Wallet login challenge has expired");
+    }
+    if (challenge.message !== message) {
+      delete store.db.walletChallenges[key];
+      store.save();
+      throw new Error("Wallet login message does not match the server challenge");
+    }
+
+    let recovered: string;
+    try {
+      recovered = ethers.verifyMessage(message, signature).toLowerCase();
+    } catch {
+      delete store.db.walletChallenges[key];
+      store.save();
+      throw new Error("Wallet login signature is invalid");
+    }
+    delete store.db.walletChallenges[key];
+    if (recovered !== normalizedWallet) {
+      store.save();
+      throw new Error("Wallet login signature does not match the requested address");
+    }
+
+    let userId: string | undefined = store.db.userByWallet[normalizedWallet];
+    let user = userId ? store.db.users[userId] : undefined;
+    if (userId && !user) {
+      delete store.db.userByWallet[normalizedWallet];
+      userId = undefined;
+    }
+
+    if (!user) {
+      userId = `usr_wallet_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+      const internalEmail = `wallet+${normalizedWallet.slice(2)}@auth.groupdeal.invalid`;
+      user = {
+        id: userId,
+        email: internalEmail,
+        loginMethod: "EVM_WALLET",
+        createdAt: Date.now(),
+        roles: ["buyer"],
+        activeWallet: checksumWallet,
+      };
+      store.db.users[userId] = user;
+      store.db.userByEmail[internalEmail] = userId;
+      store.db.userByWallet[normalizedWallet] = userId;
+      store.db.notificationPreferences[userId] = { inApp: true, email: false };
+      store.addAuditLog(userId, "buyer", "EVM_WALLET_USER_REGISTERED", {
+        wallet: checksumWallet,
+      });
+    } else {
+      user.activeWallet = checksumWallet;
+      store.db.userByWallet[normalizedWallet] = user.id;
+      store.addAuditLog(user.id, "buyer", "EVM_WALLET_LOGIN_VERIFIED", {
+        wallet: checksumWallet,
+      });
+    }
+
+    store.save();
+    return { token: this.issueSessionToken(user), user: sanitizeUser(user) };
+  }
+
+  public static verifyStepUpSignature(
+    userId: string,
+    action: "OPERATOR_ACTION",
+    walletAddress: string,
+    signature: string,
+    message: string
+  ): void {
+    const user = store.db.users[userId];
+    if (!user?.roles.includes("operator")) throw new Error("Operator role is required");
+    const normalizedWallet = ethers.getAddress(walletAddress);
+    if (
+      normalizedWallet.toLowerCase() !== config.operatorAddress.toLowerCase() ||
+      user.activeWallet?.toLowerCase() !== normalizedWallet.toLowerCase()
+    ) {
+      throw new Error("Step-up wallet must be the configured, actively bound operator wallet");
+    }
+    this.consumeWalletChallenge(userId, action, normalizedWallet, message);
+    if (ethers.verifyMessage(message, signature).toLowerCase() !== normalizedWallet.toLowerCase()) {
+      throw new Error("Operator step-up signature is invalid");
+    }
+    store.addAuditLog(userId, "operator", "OPERATOR_STEP_UP_VERIFIED", {
+      wallet: normalizedWallet,
+      action,
+    });
   }
 
   /**

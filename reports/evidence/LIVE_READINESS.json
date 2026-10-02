@@ -1,0 +1,15 @@
+{
+  "verifiedAt": "2026-10-02T13:23:36.211Z",
+  "status": "PASS",
+  "chainId": 5042002,
+  "hubAddress": "0x2A7aECd1CE90f1284EB060488c8dDEF4b1bE0574",
+  "authorizedSignerAddress": "0xc9691f85f149e71C4e1C14c6E6204128546Eef17",
+  "operatorAddress": "0xe48B30eA70F77E5FA6311471c2E9687f8A701Ead",
+  "checks": {
+    "applicationSecrets": "VALID_DISTINCT_VALUES",
+    "circleApiAndAppId": "MATCHED",
+    "gmailSmtpAuthentication": "VERIFIED_NO_MESSAGE_SENT",
+    "reownProjectId": "FORMAT_VALID",
+    "manifestEnvironment": "MATCHED"
+  }
+}

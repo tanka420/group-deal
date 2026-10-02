@@ -16,7 +16,7 @@ export const SellerRegisterModal: React.FC<SellerRegisterModalProps> = ({
   onSuccess,
 }) => {
   const { user, setupSellerProfile } = useAuth();
-  const { account } = useWeb3();
+  const { account, walletMode, getExternalSigner } = useWeb3();
 
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
@@ -42,18 +42,11 @@ export const SellerRegisterModal: React.FC<SellerRegisterModalProps> = ({
     setError(null);
 
     try {
-      let signer: ethers.Signer | undefined;
       const normalizedPayout = ethers.getAddress(payoutWallet);
-      const isCircleWallet = user?.circleWallet?.address?.toLowerCase() === normalizedPayout.toLowerCase();
-
-      if (!isCircleWallet) {
-        if (window.ethereum) {
-          const provider = new ethers.BrowserProvider(window.ethereum);
-          signer = await provider.getSigner();
-        } else {
-          throw new Error("Vui lòng kết nối MetaMask để chứng thực quyền kiểm soát ví nhận tiền ngoài.");
-        }
+      if (walletMode !== "EXTERNAL_REOWN" || account?.toLowerCase() !== normalizedPayout.toLowerCase()) {
+        throw new Error("Vui lòng kết nối đúng ví payout qua Reown AppKit trước khi ký chứng thực.");
       }
+      const signer = await getExternalSigner();
 
       await setupSellerProfile({
         displayName,
@@ -160,7 +153,7 @@ export const SellerRegisterModal: React.FC<SellerRegisterModalProps> = ({
           >
             <ShieldCheck size={18} color="var(--primary-light)" style={{ flexShrink: 0, marginTop: "0.1rem" }} />
             <div>
-              Hệ thống sẽ yêu cầu ví ký một thông điệp xác thực chứng minh bạn sở hữu private key của ví nhận tiền. Thao tác ký này <strong>hoàn toàn miễn phí, không tốn gas</strong>.
+              Ví payout ngoài phải được kết nối qua Reown AppKit. Hệ thống yêu cầu ví ký một challenge dùng một lần để chứng minh quyền kiểm soát; thao tác này <strong>không tốn gas</strong>.
             </div>
           </div>
 

@@ -5,6 +5,7 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
+    "create:security-multisig": "hardhat run scripts/create_security_multisig.ts --network arcTestnet",
     "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
     "deploy:arc": "hardhat run scripts/deploy.ts --network arcTestnet",
     "node": "hardhat node"
@@ -12,6 +13,8 @@
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@openzeppelin/contracts": "^5.0.2",
+    "@safe-global/protocol-kit": "^8.0.7",
+    "@safe-global/safe-deployments": "^1.37.63",
     "dotenv": "^16.4.5",
     "hardhat": "^2.22.18",
     "ts-node": "^10.9.2",

@@ -3,6 +3,7 @@ import { store, sanitizeUser } from "../db/store";
 import { authMiddleware, AuthenticatedRequest, requireRole } from "../middleware/auth";
 import { DisputeService } from "../services/disputeService";
 import { ReconciliationService } from "../services/reconciliationService";
+import { AuthService } from "../services/authService";
 
 export const operatorRouter = Router();
 
@@ -27,6 +28,7 @@ operatorRouter.get("/disputes", (req, res) => {
       buyerEmail: buyer?.email,
       sellerDisplayName: seller?.sellerProfile?.displayName,
       sellerPayoutWallet: campaign?.sellerPayoutWallet,
+      onchainCampaignId: campaign?.onchainCampaignId,
       messages: DisputeService.getMessages(o.id),
     };
   });
@@ -80,6 +82,18 @@ operatorRouter.post("/sellers/:id/badge", (req: AuthenticatedRequest, res) => {
     }
 
     const { verifiedSellerBadge, verifiedRightsBadge } = req.body;
+    const { walletAddress, signature, challengeMessage } = req.body;
+    if (!walletAddress || !signature || !challengeMessage) {
+      res.status(400).json({ error: "Operator wallet step-up signature is required" });
+      return;
+    }
+    AuthService.verifyStepUpSignature(
+      req.user!.userId,
+      "OPERATOR_ACTION",
+      walletAddress,
+      signature,
+      challengeMessage
+    );
     if (verifiedSellerBadge !== undefined) {
       user.sellerProfile.verifiedSellerBadge = !!verifiedSellerBadge;
     }

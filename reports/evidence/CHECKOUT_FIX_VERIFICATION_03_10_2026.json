@@ -1,0 +1,36 @@
+{
+  "localDate": "2026-10-03",
+  "timezone": "Asia/Saigon",
+  "status": "WORKING_TREE_VERIFICATION_NOT_RELEASE_SIGNOFF",
+  "gitHeadAtVerification": "c76ab857c9314ea5a6ee9f84eae2856e00de910b",
+  "dirtyWorkingTree": true,
+  "network": { "name": "Arc Testnet", "chainId": 5042002 },
+  "results": {
+    "backendTestScripts": { "passed": 15, "command": "npm test", "scope": "isolated test databases; provider fixtures in new cases" },
+    "backendTypecheck": "PASS",
+    "backendBuild": "PASS",
+    "frontendTypecheck": "PASS",
+    "frontendBuild": { "status": "PASS", "warnings": ["dependency vm-browserify eval", "large chunks"] },
+    "frontendTests": { "passed": 15, "failed": 0, "command": "npx playwright test --workers=1", "durationSeconds": 33.4, "scope": "mock API, Circle SDK, RPC, signing methods; independent receipt/event and RPC utility checks" },
+    "runtimeSmoke": { "pageStatus": 200, "healthStatus": 200, "javascriptPageErrors": 0, "bridgeUiVisible": true, "scope": "fresh browser, read-only, no login or signing", "limitations": ["Google Fonts network access denied in test environment", "Circle hosted auth request aborted when closing smoke browser"] },
+    "liveReadOnlyRpc": { "status": "PASS", "chainId": 5042002, "address": "0x73307bdd39d875f98857ffce0fed1cdc62f50b6d", "nativeBalanceWei": "64219208650000000000", "nativeBalanceUsdc": "64.21920865", "durationMs": 1106 }
+  },
+  "financialTransactionsSentByAgent": 0,
+  "mainnetDeployed": false,
+  "liveOtpAndWalletAcceptance": "NOT_VERIFIED_IN_THIS_RUN",
+  "arbitraryTokenSwap": "NOT_IMPLEMENTED; TESTNET SOURCE ROUTES UNSUPPORTED",
+  "selectedSourceSha256": {
+    "backend/src/services/circleWalletService.ts": "A51C08D3B7E52AE65A38DEDF6DCBFDC8719696186E135E78EB99EF404CE4D66E",
+    "backend/src/services/authService.ts": "B625CA0DDEA98ADF548B5C017BDCDC212D2D5A5E1DCAEA128FA5EF2CE22DD117",
+    "backend/src/services/arcReadRpc.ts": "AABD29215A7F9C6CAFD29C01361330CF1E759D34F1250899B23614AA7311EBA7",
+    "backend/src/services/authorizationService.ts": "F75E850F18A2CA8AC63A785AFD9E51D1800095E334910180D1E7F0183E8E8774",
+    "frontend/src/services/arcRpc.ts": "653E9F62BBCE408970876AB80E24D1EEA226861D5F8325971883B67EF852B42F",
+    "frontend/src/services/paymentSafety.ts": "EC6DEA5C374A27C05B053AB341EE459C3657C2C3A5F7B971B44304069060C26F",
+    "frontend/src/services/checkout.ts": "78262C54775AD23A30AE6C7AA818A5AEA8B62B6B08959852D8E92677A3A3E803",
+    "frontend/src/context/Web3Context.tsx": "F11862D891AF95FE669AC0E4B08DB4CDE2A7A4523314AF426F4E4B22E94D5CFD",
+    "frontend/src/components/FundingModal.tsx": "15F7424A5BD3CC298EAE0FFD202FB38A77F12A8311D1C8786C78C2D62EE2EE25",
+    "frontend/src/components/PreTxModal.tsx": "209DD93672CD5583925AB94C23700D62CEB460DDF3E6698E446602E9CF4ABB14",
+    "frontend/src/components/TxTrackerModal.tsx": "27FDD380BAA1FF31FDC5543FF0F9D5BE4A894298D34C24266C73853C3A8959A1",
+    "frontend/src/pages/CampaignDetailPage.tsx": "EE289916465A41A054D74FB3C2E8A5FC62B7AD2479E8FA47455E3AAF42C59519"
+  }
+}

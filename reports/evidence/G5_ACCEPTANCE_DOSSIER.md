@@ -3,7 +3,9 @@
 **Dự án:** GroupDeal — Mua chung hàng số trên Arc Testnet  
 **Mạng kiểm thử:** Arc Testnet (EVM Cancun, Chain ID: `5042002`)  
 **Ngày thực thi:** 2026-09-29  
-**Trạng thái nghiệm thu:** **G5-PASS (ĐẠT 100%)**  
+**Trạng thái nghiệm thu:** **ĐÃ THU HỒI — KHÔNG ĐƯỢC DÙNG LÀM BẰNG CHỨNG G5-PASS**
+
+> Cập nhật 30/09/2026: operator `0x15d34...` và security authority `0x996550...` là tài khoản phát triển công khai; security authority không được chứng minh là multisig 2-of-3. Hành trình cũng dùng actor dẫn xuất từ cùng deployer và đã để lại 2 USDC escrow ở order 2. Khoản escrow đó sau này đã được cleanup riêng, nhưng không làm hồ sơ cũ hợp lệ. Các tx hash bên dưới chỉ là lịch sử giao dịch Arc, không phải nghiệm thu sản phẩm.
 
 ---
 
@@ -81,6 +83,6 @@ Hành trình thực tế gồm 7 bước tuần tự hoàn chỉnh theo tiêu ch
 
 ## 6. Kết Luận Gate G5
 
-Hợp đồng `GroupDealHub` đã triển khai thành công trên **Arc Testnet** chính thức, thực thi trọn vẹn toàn bộ vòng đời cam kết, mở khóa tier, auto-finalize, giao nhận, khiếu nại, phân bổ và rút tiền on-chain bằng tiền thật (predeploy USDC). Mọi bằng chứng đã được lưu trữ và kiểm chứng độc lập.
+Các tx hash xác nhận contract primitive từng chạy trên Arc Testnet, nhưng không chứng minh hành trình sản phẩm độc lập: actor được dẫn xuất từ một deployer, role bảo mật không an toàn và order 2 chưa tất toán.
 
-**Quyết định:** **GATE G5 ĐẠT (G5-PASS)**.
+**Quyết định cập nhật:** **GATE G5 CHƯA ĐẠT; KẾT LUẬN PASS CŨ BỊ THU HỒI.**

@@ -140,9 +140,9 @@ async function runGateG4VerificationTests() {
   console.log("✔ Tier monotonicity strictly verified: Thresholds increasing & prices decreasing");
 
   // ---------------------------------------------------------------------------
-  // [G4.3] Preflight Funding & Balance Segregation
+  // [G4.3] Preflight Funding Against Arc's Unified USDC Balance
   // ---------------------------------------------------------------------------
-  console.log("\n[G4.3] Testing Balance Segregation & Funding Preflight:");
+  console.log("\n[G4.3] Testing Unified Arc USDC Balance & Funding Preflight:");
 
   const sampleUserUSDC = "500000000"; // 500.00 USDC (6 decimals)
   const sampleGasFeeUSDC = "5000"; // 0.005 USDC (6 decimals)
@@ -156,9 +156,9 @@ async function runGateG4VerificationTests() {
   assert.strictEqual(totalRequiredWithGas, 200_005_000n, "Commitment + gas is 200.005 USDC");
   assert.ok(
     BigInt(sampleUserUSDC) >= totalRequiredWithGas,
-    "User must hold both commitment and gas in distinct checks"
+    "The one Arc USDC balance must cover both commitment and gas"
   );
-  console.log("✔ Preflight balance check proves 6-decimal business amount is strictly segregated from native gas fees");
+  console.log("✔ Preflight uses one Arc USDC balance while converting business and gas precision correctly");
 
   // ---------------------------------------------------------------------------
   // [G4.4] Audit Log Redaction & Security Hygiene

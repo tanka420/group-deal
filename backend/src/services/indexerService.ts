@@ -3,6 +3,7 @@ import { config } from "../config";
 import { store, OrderRecord, EventJournalRecord, CampaignRecord } from "../db/store";
 import { WebhookService } from "./webhookService";
 import { HUB_ABI } from "./onchainService";
+import { NotificationService } from "./notificationService";
 
 export class IndexerService {
   private static provider: ethers.JsonRpcProvider | null = null;
@@ -272,11 +273,24 @@ export class IndexerService {
         }
 
         if (campaign) {
+          const previousId = campaign.id;
+          campaign.id = campaignId;
           campaign.onchainCampaignId = Number(args.campaignId);
           campaign.status = "ACTIVE";
           campaign.startTime = Number(args.startTime);
           campaign.endTime = Number(args.endTime);
+          if (previousId !== campaignId) {
+            delete store.db.campaigns[previousId];
+            store.db.campaigns[campaignId] = campaign;
+          }
           store.save();
+          NotificationService.create(campaign.sellerId, {
+            type: "CAMPAIGN_PUBLISHED",
+            title: "Chiến dịch đã được xác nhận trên Arc",
+            message: `Campaign #${campaignId} đã phát CampaignCreated và sẵn sàng nhận cam kết.`,
+            link: `#campaign-${campaignId}`,
+            dedupeKey: `${txHash}:CAMPAIGN_PUBLISHED`,
+          });
         } else {
           // Synthesize campaign from onchain event if created outside local drafts
           const synthesized: CampaignRecord = {
@@ -353,6 +367,11 @@ export class IndexerService {
         let buyerAccountId = store.db.userByWallet[buyerPrincipal.toLowerCase()] || "unknown_buyer";
 
         let order = store.db.orders[orderId];
+        const isFirstIdentityOrder = !Object.values(store.db.orders).some(
+          (candidate) =>
+            candidate.campaignId === campaignId &&
+            candidate.campaignIdentity.toLowerCase() === String(campaignIdentity).toLowerCase()
+        );
         if (!order) {
           order = {
             id: orderId,
@@ -385,8 +404,15 @@ export class IndexerService {
           campaign.totalGrossCommitted = (
             BigInt(campaign.totalGrossCommitted || "0") + BigInt(committedGross)
           ).toString();
-          campaign.totalBuyerCount += 1;
+          if (isFirstIdentityOrder) campaign.totalBuyerCount += 1;
           WebhookService.dispatchEvent(campaign.sellerId, "order.committed", order);
+          NotificationService.create(campaign.sellerId, {
+            type: "ORDER_COMMITTED",
+            title: "Có cam kết mua mới",
+            message: `Order #${orderId} đã được xác nhận trên Arc cho campaign #${campaignId}.`,
+            link: "#seller",
+            dedupeKey: `${txHash}:ORDER_COMMITTED`,
+          });
         }
         store.save();
         break;
@@ -400,7 +426,10 @@ export class IndexerService {
         if (campaign) {
           campaign.status = "FINALIZED";
           campaign.finalClearingPrice = finalClearingPrice;
-          campaign.finalizedAt = Math.floor(Date.now() / 1000);
+          const finalizedBlock = this.provider
+            ? await this.provider.getBlock(log.blockNumber)
+            : null;
+          campaign.finalizedAt = Number(finalizedBlock?.timestamp || Math.floor(Date.now() / 1000));
 
           // Update rebate allocations for all orders in this campaign lazily
           for (const ord of Object.values(store.db.orders)) {
@@ -423,6 +452,20 @@ export class IndexerService {
             campaignId,
             finalClearingPrice,
           });
+          const buyerIds = new Set(
+            Object.values(store.db.orders)
+              .filter((order) => order.campaignId === campaignId)
+              .map((order) => order.buyerAccountId)
+          );
+          for (const buyerId of buyerIds) {
+            NotificationService.create(buyerId, {
+              type: "CAMPAIGN_FINALIZED",
+              title: "Giá nhóm đã được chốt",
+              message: `Campaign #${campaignId} đã chốt giá cuối trên Arc.`,
+              link: "#orders",
+              dedupeKey: `${txHash}:CAMPAIGN_FINALIZED`,
+            });
+          }
         }
         break;
       }
@@ -446,6 +489,13 @@ export class IndexerService {
           if (campaign) {
             WebhookService.dispatchEvent(campaign.sellerId, "order.delivered", order);
           }
+          NotificationService.create(order.buyerAccountId, {
+            type: "ORDER_DELIVERED",
+            title: "Sản phẩm số đã được giao",
+            message: `Order #${orderId} đã có bằng chứng giao hàng trên Arc; cửa sổ tranh chấp đã bắt đầu.`,
+            link: "#orders",
+            dedupeKey: `${txHash}:ORDER_DELIVERED`,
+          });
         }
         break;
       }
@@ -464,6 +514,13 @@ export class IndexerService {
           if (campaign) {
             WebhookService.dispatchEvent(campaign.sellerId, "order.breached", order);
           }
+          NotificationService.create(order.buyerAccountId, {
+            type: "DELIVERY_BREACHED",
+            title: "Hoàn tiền do quá SLA",
+            message: `Order #${orderId} đã được phân bổ hoàn tiền trên Arc.`,
+            link: "#orders",
+            dedupeKey: `${txHash}:DELIVERY_BREACHED`,
+          });
         }
         break;
       }
@@ -481,6 +538,13 @@ export class IndexerService {
           const campaign = store.db.campaigns[order.campaignId];
           if (campaign) {
             WebhookService.dispatchEvent(campaign.sellerId, "order.confirmed", order);
+            NotificationService.create(campaign.sellerId, {
+              type: "ORDER_CONFIRMED",
+              title: "Order đã được quyết toán",
+              message: `Order #${orderId} đã phân bổ proceeds cho seller trên Arc.`,
+              link: "#seller",
+              dedupeKey: `${txHash}:ORDER_CONFIRMED`,
+            });
           }
         }
         break;
@@ -497,6 +561,22 @@ export class IndexerService {
           const campaign = store.db.campaigns[order.campaignId];
           if (campaign) {
             WebhookService.dispatchEvent(campaign.sellerId, "order.disputed", order);
+            NotificationService.create(campaign.sellerId, {
+              type: "ORDER_DISPUTED",
+              title: "Order đang tranh chấp",
+              message: `Order #${orderId} đã mở tranh chấp trực tiếp trên Arc.`,
+              link: "#seller",
+              dedupeKey: `${txHash}:ORDER_DISPUTED`,
+            });
+            for (const operator of Object.values(store.db.users).filter((user) => user.roles.includes("operator"))) {
+              NotificationService.create(operator.id, {
+                type: "OPERATOR_DISPUTE_REVIEW",
+                title: "Có tranh chấp cần xử lý",
+                message: `Order #${orderId} đang chờ phán quyết của operator.`,
+                link: "#operator",
+                dedupeKey: `${txHash}:OPERATOR_DISPUTE_REVIEW`,
+              });
+            }
           }
         }
         break;
@@ -517,7 +597,21 @@ export class IndexerService {
           const campaign = store.db.campaigns[order.campaignId];
           if (campaign) {
             WebhookService.dispatchEvent(campaign.sellerId, "order.resolved", order);
+            NotificationService.create(campaign.sellerId, {
+              type: "DISPUTE_RESOLVED",
+              title: "Tranh chấp đã được phân xử",
+              message: `Order #${orderId} đã có phân bổ cuối cùng trên Arc.`,
+              link: "#seller",
+              dedupeKey: `${txHash}:DISPUTE_RESOLVED`,
+            });
           }
+          NotificationService.create(order.buyerAccountId, {
+            type: "DISPUTE_RESOLVED",
+            title: "Tranh chấp đã được phân xử",
+            message: `Order #${orderId} đã có phân bổ cuối cùng trên Arc.`,
+            link: "#orders",
+            dedupeKey: `${txHash}:DISPUTE_RESOLVED`,
+          });
         }
         break;
       }
@@ -551,18 +645,12 @@ export class IndexerService {
             }
           }
         } else {
-          // Fallback: match by campaign, recipient and claimType
-          for (const order of Object.values(store.db.orders)) {
-            if (order.campaignId !== campaignId) continue;
-            if (claimType === 0 && order.buyerPrincipal.toLowerCase() === recipient) {
-              order.buyerClaimed = true;
-            } else if (claimType === 1) {
-              const campaign = store.db.campaigns[order.campaignId];
-              if (campaign && campaign.sellerPayoutWallet.toLowerCase() === recipient) {
-                order.sellerClaimed = true;
-              }
-            }
-          }
+          store.addAuditLog("system", "indexer", "FUNDS_CLAIMED_DECODE_UNVERIFIED", {
+            campaignId,
+            recipient,
+            claimType,
+            txHash,
+          });
         }
         store.save();
         break;
@@ -591,6 +679,22 @@ export class IndexerService {
           }
           store.save();
           WebhookService.dispatchEvent(campaign.sellerId, "campaign.cancelled", { campaignId });
+          NotificationService.create(campaign.sellerId, {
+            type: "CAMPAIGN_CANCELLED",
+            title: "Chiến dịch đã bị hủy khẩn cấp",
+            message: `Campaign #${campaignId} đã được Security Authority hủy trên Arc.`,
+            link: "#seller",
+            dedupeKey: `${txHash}:CAMPAIGN_CANCELLED`,
+          });
+          for (const order of Object.values(store.db.orders).filter((item) => item.campaignId === campaignId)) {
+            NotificationService.create(order.buyerAccountId, {
+              type: "CAMPAIGN_CANCELLED",
+              title: "Chiến dịch đã bị hủy khẩn cấp",
+              message: `Phần escrow chưa phân bổ của order #${order.id} đã chuyển sang quyền hoàn tiền.`,
+              link: "#orders",
+              dedupeKey: `${txHash}:CAMPAIGN_CANCELLED:${order.id}`,
+            });
+          }
         }
         break;
       }

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
 import { useWeb3 } from "../context/Web3Context";
+import { useExternalWallet } from "../context/ExternalWalletContext";
 import { AuthModal } from "./AuthModal";
 import { SellerRegisterModal } from "./SellerRegisterModal";
 import {
@@ -18,8 +19,7 @@ import {
   Copy,
   Check,
   Sparkles,
-  ExternalLink,
-  ShieldCheck,
+  Bell,
 } from "lucide-react";
 
 import { FundingModal } from "./FundingModal";
@@ -36,15 +36,17 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSellerRegistration,
 }) => {
   const { t, language, setLanguage } = useLanguage();
-  const { user, logout, verifyOtp } = useAuth();
-  const { account, usdcBalance, claimFaucet, walletMode } = useWeb3();
+  const { user, token, logout, circleWalletSyncing, circleWalletError, retryCircleWallet, circleCredentials } = useAuth();
+  const { account, usdcBalance, balanceError, walletMode, externalSignerReady, reconnectExternalWallet } = useWeb3();
+  const external = useExternalWallet();
+  const [walletActionError, setWalletActionError] = useState<string | null>(null);
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isFundingModalOpen, setIsFundingModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isFauceting, setIsFauceting] = useState(false);
-  const [faucetSuccess, setFaucetSuccess] = useState(false);
   const [copiedWallet, setCopiedWallet] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -59,21 +61,44 @@ export const Header: React.FC<HeaderProps> = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleFaucet = async () => {
-    if (!account) {
-      setIsAuthModalOpen(true);
+  const refreshNotifications = async () => {
+    if (!token) return;
+    try {
+      const response = await fetch("/api/notifications", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      setNotifications(data.notifications || []);
+      setUnreadNotifications(data.unread || 0);
+    } catch (error) {
+      console.warn("Could not load notifications", error);
+    }
+  };
+
+  useEffect(() => {
+    if (!user || !token) {
+      setNotifications([]);
+      setUnreadNotifications(0);
       return;
     }
-    setIsFauceting(true);
-    setFaucetSuccess(false);
-    try {
-      await claimFaucet();
-      setFaucetSuccess(true);
-      setTimeout(() => setFaucetSuccess(false), 4000);
-    } catch (e: any) {
-      alert("Faucet error: " + e.message);
-    } finally {
-      setIsFauceting(false);
+    void refreshNotifications();
+    const timer = window.setInterval(() => void refreshNotifications(), 30_000);
+    return () => window.clearInterval(timer);
+  }, [user, token]);
+
+  const openNotification = async (notification: any) => {
+    if (!token) return;
+    if (!notification.readAt) {
+      await fetch(`/api/notifications/${notification.id}/read`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      await refreshNotifications();
+    }
+    if (["#orders", "#seller", "#operator"].includes(notification.link)) {
+      onTabChange(notification.link.substring(1));
+      setIsDropdownOpen(false);
     }
   };
 
@@ -92,6 +117,10 @@ export const Header: React.FC<HeaderProps> = ({
 
   const isSeller = user?.roles?.includes("seller");
   const isOperator = user?.roles?.includes("operator");
+  const accountLabel =
+    user?.sellerProfile?.displayName ||
+    user?.email?.split("@")[0] ||
+    (account ? truncate(account, 6) : "Tài khoản ví");
 
   return (
     <header className="header">
@@ -141,12 +170,8 @@ export const Header: React.FC<HeaderProps> = ({
             className="btn btn-sm btn-secondary"
             onClick={() => setIsFundingModalOpen(true)}
             title="Nạp USDC, CCTP Bridge & Testnet Faucet"
-            style={{
-              borderColor: faucetSuccess ? "var(--success)" : undefined,
-              color: faucetSuccess ? "var(--success)" : undefined,
-            }}
           >
-            <Coins size={15} color={faucetSuccess ? "var(--success)" : "var(--warning)"} />
+            <Coins size={15} color="var(--warning)" />
             <span>Nạp USDC</span>
           </button>
 
@@ -158,20 +183,58 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           ) : (
             <div className="account-dropdown-wrapper" ref={dropdownRef}>
+              <button
+                className="btn btn-sm btn-secondary"
+                aria-label={`Thông báo${unreadNotifications ? `, ${unreadNotifications} chưa đọc` : ""}`}
+                onClick={() => {
+                  setIsDropdownOpen((prev) => !prev);
+                  void refreshNotifications();
+                }}
+                style={{ position: "relative", paddingInline: "0.65rem" }}
+              >
+                <Bell size={16} />
+                {unreadNotifications > 0 && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: "-0.35rem",
+                      right: "-0.35rem",
+                      minWidth: "1rem",
+                      height: "1rem",
+                      paddingInline: "0.2rem",
+                      borderRadius: "999px",
+                      background: "var(--danger)",
+                      color: "white",
+                      fontSize: "0.65rem",
+                      lineHeight: "1rem",
+                    }}
+                  >
+                    {Math.min(unreadNotifications, 99)}
+                  </span>
+                )}
+              </button>
               {/* Account Pill Trigger */}
               <button
                 className="account-pill-btn"
                 onClick={() => setIsDropdownOpen((prev) => !prev)}
               >
                 <div className="avatar-circle">
-                  {user.email ? user.email.substring(0, 1).toUpperCase() : "U"}
+                  {user.email
+                    ? user.email.substring(0, 1).toUpperCase()
+                    : account
+                      ? account.substring(2, 3).toUpperCase()
+                      : "U"}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", textAlign: "left", lineHeight: 1.2 }}>
                   <span style={{ fontWeight: 600, fontSize: "0.82rem" }}>
-                    {user.sellerProfile?.displayName || user.email.split("@")[0]}
+                    {accountLabel}
                   </span>
                   <span className="font-mono" style={{ fontSize: "0.72rem", color: "var(--cyan)" }}>
-                    ${usdcBalance} USDC
+                    {account
+                      ? (usdcBalance === null ? balanceError || "Đang tải số dư..." : `${usdcBalance} USDC${balanceError ? " · chưa cập nhật" : ""}`)
+                      : circleWalletSyncing
+                        ? "Đang đồng bộ ví Circle..."
+                        : "Chưa có ví hoạt động"}
                   </span>
                 </div>
                 <ChevronDown size={14} color="var(--text-muted)" />
@@ -182,19 +245,42 @@ export const Header: React.FC<HeaderProps> = ({
                 <div className="account-dropdown-menu">
                   {/* User Profile Header */}
                   <div className="dropdown-user-header">
-                    <div className="dropdown-email">{user.email}</div>
+                    <div className="dropdown-email">
+                      {user.email || (user.loginMethod === "CIRCLE_EMAIL" ? "Đăng nhập email qua Circle" : "Đăng nhập bằng chữ ký ví EVM")}
+                    </div>
                     <div className="dropdown-roles">
                       <span className="role-tag buyer">Buyer</span>
                       {isSeller && <span className="role-tag seller">Seller</span>}
                       {isOperator && <span className="role-tag operator">Admin</span>}
                     </div>
 
+                    {circleWalletSyncing && !account && (
+                      <div style={{ marginTop: "0.65rem", color: "var(--cyan)", fontSize: "0.75rem" }}>
+                        Đã đăng nhập. Ví Arc đang được Circle đồng bộ trong nền.
+                      </div>
+                    )}
+                    {(circleWalletError || walletActionError) && <p role="alert">{circleWalletError || walletActionError}</p>}
+                    {user.loginMethod === "CIRCLE_EMAIL" && !circleWalletSyncing && (
+                      <button className="btn btn-sm btn-secondary" onClick={() => {
+                        if (!circleCredentials) setIsAuthModalOpen(true);
+                        else void retryCircleWallet();
+                      }}>
+                        {circleCredentials ? "Đồng bộ lại ví Circle" : "Xác thực email để ký / đồng bộ ví"}
+                      </button>
+                    )}
+                    {walletMode === "EXTERNAL_REOWN" && !externalSignerReady && (
+                      <button className="btn btn-sm btn-secondary" onClick={() => {
+                        setWalletActionError(null);
+                        void reconnectExternalWallet().catch((error) => setWalletActionError(error.message));
+                      }}>Kết nối lại ví để ký</button>
+                    )}
+
                     {account && (
                       <div className="dropdown-wallet-box">
                         <span>{truncate(account, 6)}</span>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
                           <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
-                            {walletMode === "CIRCLE_EMBEDDED" ? "Circle EOA" : "MetaMask"}
+                            {walletMode === "CIRCLE_EMBEDDED" ? "Circle EOA" : "Reown EVM"}
                           </span>
                           <button
                             onClick={handleCopyWallet}
@@ -205,6 +291,42 @@ export const Header: React.FC<HeaderProps> = ({
                           </button>
                         </div>
                       </div>
+                    )}
+                  </div>
+
+                  <div style={{ padding: "0.75rem", borderBottom: "1px solid var(--border-subtle)" }}>
+                    <div style={{ fontWeight: 700, fontSize: "0.8rem", marginBottom: "0.5rem" }}>
+                      Thông báo {unreadNotifications > 0 && `(${unreadNotifications} mới)`}
+                    </div>
+                    {notifications.length === 0 ? (
+                      <div style={{ color: "var(--text-muted)", fontSize: "0.76rem" }}>
+                        Chưa có thông báo.
+                      </div>
+                    ) : (
+                      notifications.slice(0, 5).map((notification) => (
+                        <button
+                          key={notification.id}
+                          type="button"
+                          onClick={() => void openNotification(notification)}
+                          style={{
+                            width: "100%",
+                            border: 0,
+                            borderRadius: "0.5rem",
+                            background: notification.readAt ? "transparent" : "rgba(34, 211, 238, 0.08)",
+                            color: "inherit",
+                            textAlign: "left",
+                            padding: "0.5rem",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <div style={{ fontSize: "0.76rem", fontWeight: notification.readAt ? 500 : 700 }}>
+                            {notification.title}
+                          </div>
+                          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
+                            {notification.message}
+                          </div>
+                        </button>
+                      ))
                     )}
                   </div>
 
@@ -283,6 +405,8 @@ export const Header: React.FC<HeaderProps> = ({
                       style={{ color: "var(--danger)" }}
                       onClick={() => {
                         logout();
+                        setWalletActionError(null);
+                        void external.disconnect().catch(() => setWalletActionError("Đã đăng xuất ứng dụng, nhưng ví chưa ngắt kết nối."));
                         setIsDropdownOpen(false);
                       }}
                     >

@@ -1,8 +1,9 @@
 # KIẾN TRÚC ARC VÀ PHẠM VI TÍCH HỢP CHO GROUPDEAL
 
-**Ngày lập:** 29/09/2026  
-**Trạng thái:** Quyết định kiến trúc cho kế hoạch hoàn tất dự án  
-**Phạm vi mạng:** Arc Testnet
+**Ngày lập:** 29/09/2026
+
+**Trạng thái:** Đã triển khai ở mức release candidate; live acceptance còn mở
+**Phạm vi đang chạy:** Arc Testnet. **Mục tiêu production cập nhật 03/10/2026:** Arc Mainnet và checkout token khác theo tuyến được hỗ trợ; chưa triển khai hoặc nghiệm thu Mainnet.
 
 ## 1. Arc có mặt trong GroupDeal để làm gì
 
@@ -31,7 +32,7 @@ Circle User-Controlled Wallet hoặc external wallet qua Reown AppKit
 GroupDealHub trên Arc: commit -> finalize/cancel -> delivery proof
                        -> confirm/dispute/timeout -> claim/refund
            |
-           +--> Arc event indexer -> PostgreSQL projection -> UI/operator
+           +--> Arc event indexer -> SQLite WAL transactional projection -> UI/operator
            |
            +--> fixed-block reconciliation -> alert/audit/acceptance dossier
 ```
@@ -50,12 +51,22 @@ GroupDealHub trên Arc: commit -> finalize/cancel -> delivery proof
 | Arc App Kit Bridge / CCTP V2 | Chuyển USDC cross-chain vào Arc | Nút “Đưa USDC vào Arc” trong funding UX; theo dõi quote, fee và tiến trình bridge | **Đưa vào v1** |
 | Arc App Kit Onramp | Mua stablecoin trên Arc bằng fiat qua widget | Phương án nạp tiền cho người chưa có USDC | **Spike bắt buộc; chỉ bật nếu qua gate** |
 | Unified Balance / Gateway | Hợp nhất USDC đa chain | Có thể giảm bước bridge thủ công ở phiên bản sau | **Hoãn sau v1** |
-| App Kit Swap | Đổi token cùng/cross-chain | Không cần cho checkout chỉ nhận USDC; tăng quote/slippage/routing surface | **Không đưa vào v1** |
+| App Kit Swap | Đổi token cùng/cross-chain | Quy đổi token có tuyến/thanh khoản được hỗ trợ thành USDC Arc cho checkout production; cần quote, phí, slippage và recovery | **Đưa vào kế hoạch production; chưa bật trên các mạng nguồn Sepolia** |
 | App Kit Send | Chuyển wallet-to-wallet | Contract đã điều phối escrow/claim; dùng Send sẽ đi vòng ngoài nghiệp vụ | **Không đưa vào v1** |
 | App Kit Earn | Gửi USDC vào vault sinh lợi | Không thuộc escrow marketplace và làm tăng rủi ro tài chính | **Loại khỏi phạm vi** |
 | Opt-in privacy | Giao dịch bảo mật có chọn lọc | PII/entitlement đã phải để offchain; chưa có use case nghiệm thu | **Không dùng v1** |
 | Smart Contract Platform | Deploy/interact/monitor contract qua Circle | Có thể bổ sung monitoring, nhưng không thay pipeline Hardhat và bytecode đã review | **Tùy chọn sau G0 probe** |
 | Chạy Arc node riêng | Hạ tầng RPC/indexing tự quản | Chưa cần cho Testnet acceptance; dùng provider có failover trước | **Hoãn vận hành quy mô** |
+
+### 2.1. Trạng thái triển khai tại candidate 29/09/2026
+
+- Arc Testnet manifest, deployment, read-only smoke probe, receipt verifier, indexer/backfill và fixed-block reconciliation đã có code và test.
+- Circle User-Controlled Wallet đã thay local/custodial wallet path; Circle Web SDK giữ token trong memory và người dùng tự duyệt challenge. Chưa có bằng chứng live vì workspace không có Circle API key/App ID.
+- Reown AppKit đã cấu hình custom Arc Testnet và được tải động cho external wallet. Chưa có bằng chứng giao dịch live vì thiếu Project ID và ví test được nạp tiền.
+- Circle Arc App Kit Bridge/CCTP đã nằm trong funding modal, không còn là external link. Chưa có bridge receipt live.
+- SQLite dùng WAL, transaction và các bảng UNIQUE vật lý cho email, Circle identity, wallet, event identity và idempotency. Đây là lựa chọn persistence của testnet candidate; PostgreSQL chỉ cần khi đổi mục tiêu scale/HA.
+- Native gas 18 decimals và USDC nghiệp vụ 6 decimals là hai giao diện của cùng một số dư; UI chỉ hiển thị một balance và lớp giao dịch quy đổi precision theo từng API.
+- Các kết quả code/test trên không thay thế G5 live journey hoặc G6 review độc lập.
 
 ## 3. Ràng buộc kỹ thuật Arc phải được code hóa
 
@@ -102,9 +113,14 @@ Các giá trị trên là baseline từ tài liệu Arc/Circle hiện hành; G0 
 ### 3.4. Ví và App Kit không được trộn vai trò
 
 - **Circle User-Controlled Wallet:** tạo ví nhúng và yêu cầu chính user duyệt challenge; Circle API key chỉ ở backend.
-- **Reown AppKit:** kết nối ví bên ngoài qua WalletConnect/EIP-6963; không được dùng như bằng chứng đã tích hợp Circle User-Controlled.
-- **Arc App Kit:** payment/liquidity workflow; v1 chỉ dùng Bridge và đánh giá Onramp.
+- **Reown AppKit:** vừa là lựa chọn đăng nhập wallet-first vừa là connector giao dịch cho ví bên ngoài qua WalletConnect/EIP-6963; đăng nhập dùng challenge 5 phút, nonce một lần, bind origin/Arc chain/address và chống replay. Không được dùng như bằng chứng đã tích hợp Circle User-Controlled.
+- **Arc App Kit:** payment/liquidity workflow; candidate Testnet dùng Bridge và đánh giá Onramp. Checkout production bổ sung Swap theo tuyến hỗ trợ, không mở Earn/Onramp hoặc giữ key người dùng để hoàn thành checkout.
+
+**Cập nhật 03/10/2026:** Backend Circle dùng ID người dùng được API xác thực, không dùng device-token ID hoặc email request để merge tài khoản. Số dư và buy authorization có RPC đọc dự phòng kiểm chain. Checkout Testnet nối USDC funding, kiểm lại campaign rồi buyer approve/commit; chỉ xác nhận khi receipt/event và đơn indexer khớp. Chi tiết và giới hạn phục hồi tại [báo cáo checkout](./BAO_CAO_SUA_LOI_VA_CHECKOUT_03_10_2026.md).
+
+Mainnet hiện có chain ID 5042; candidate vẫn dùng Testnet 5042002, không đổi cấu hình mạng trong đợt sửa này. Swap chỉ có trên mainnet và ngoại lệ Arc Testnet, không có trên các mạng nguồn Sepolia đang chọn. [Arc network](https://docs.arc.io/arc/references/connect-to-arc), [App Kit supported blockchains](https://docs.arc.io/app-kit/references/supported-blockchains). Kế hoạch triển khai Mainnet/Swap phải đi sau gate bảo mật và nghiệm thu, không bị loại khỏi mục tiêu production chỉ vì bản thử nghiệm hiện nhận USDC.
 - Mọi connector phải bind đúng `chainId`, account, origin, intent, contract, selector, amount và nonce trước khi ký.
+- Backend SQLite chỉ lưu Circle `walletId`, địa chỉ ví công khai, liên kết account và audit trail. Circle credentials/encryption key chỉ ở memory của phiên; private key Circle được bảo vệ theo mô hình user-controlled 2-of-2 MPC. Với Reown, private key/seed phrase luôn nằm trong ứng dụng hoặc extension ví của người dùng và không đi qua GroupDeal.
 
 ## 4. Funding UX sẽ dùng công nghệ Arc thế nào
 

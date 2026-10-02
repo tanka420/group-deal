@@ -8,6 +8,7 @@ export interface TransactionIntent {
   expectedTo: string;
   expectedSender?: string;
   expectedFunction?: string;
+  expectedCalldata?: string;
   expectedEvent: string;
   expectedEventArgs?: Record<string, any>;
 }
@@ -126,6 +127,13 @@ export class TransactionVerifier {
       } catch (err: any) {
         throw new Error(`[Verifier Security] Failed to decode calldata against Hub ABI: ${err.message}`);
       }
+    }
+
+    if (
+      intent.expectedCalldata &&
+      tx.data.toLowerCase() !== intent.expectedCalldata.toLowerCase()
+    ) {
+      throw new Error("[Verifier Security] Transaction calldata does not match the immutable server intent.");
     }
 
     // 8. Log Emitter & Event Arguments Verification

@@ -1,16 +1,24 @@
-import { ethers } from "ethers";
 import * as fs from "fs";
 import * as path from "path";
-import * as dotenv from "dotenv";
+import { createRequire } from "module";
 
+const requireFromBackend = createRequire(path.resolve(__dirname, "../backend/package.json"));
+const { ethers } = requireFromBackend("ethers");
+const dotenv = requireFromBackend("dotenv");
+
+dotenv.config({ path: path.resolve(__dirname, "../backend/.env") });
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
-dotenv.config();
 
 const ARC_RPC_URL = process.env.ARC_TESTNET_RPC || "https://rpc.testnet.arc.io";
 const ARC_CHAIN_ID = 5042002;
 const ARC_PREDEPLOY_USDC = "0x3600000000000000000000000000000000000000";
 const ARC_BLOCKLIST_ADDRESS = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
 const MIN_GAS_PRICE = 25_000_000_000n; // 25 Gwei
+const LIVE_EXECUTION_ACK = "I_UNDERSTAND_THIS_RUN_SENDS_ARC_TESTNET_TRANSACTIONS";
+
+function sameAddress(left: string, right: string) {
+  return left.toLowerCase() === right.toLowerCase();
+}
 
 interface JourneyLog {
   journey: string;
@@ -40,12 +48,23 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3, delayMs = 2000
 
 export async function runArcLiveJourney() {
   console.log("=================================================");
-  console.log("   ARC TESTNET LIVE JOURNEY ACCEPTANCE RUNNER   ");
+  console.log(" ARC TESTNET CONTRACT-PRIMITIVE JOURNEY RUNNER ");
   console.log("=================================================");
+  console.log("Scope: contract primitives only; this is never G5 product acceptance.");
+
+  if (process.env.ALLOW_ARC_CONTRACT_PRIMITIVE_JOURNEY !== LIVE_EXECUTION_ACK) {
+    throw new Error(
+      `[FAIL-CLOSED] Set ALLOW_ARC_CONTRACT_PRIMITIVE_JOURNEY=${LIVE_EXECUTION_ACK} to authorize transactions.`
+    );
+  }
 
   const deployerKey = process.env.DEPLOYER_PRIVATE_KEY;
   if (!deployerKey) {
     throw new Error("[FAIL-CLOSED] DEPLOYER_PRIVATE_KEY is missing from environment.");
+  }
+  const authorizedSignerKey = process.env.AUTHORIZED_SIGNER_PRIVATE_KEY;
+  if (!authorizedSignerKey) {
+    throw new Error("[FAIL-CLOSED] AUTHORIZED_SIGNER_PRIVATE_KEY is missing from environment.");
   }
 
   const manifestPath = path.resolve(__dirname, "../shared/manifests/arc-testnet.json");
@@ -62,7 +81,33 @@ export async function runArcLiveJourney() {
   }
 
   const deployer = new ethers.Wallet(deployerKey, provider);
+  const authSigner = new ethers.Wallet(authorizedSignerKey, provider);
+
+  const expectedOwner = manifest.roles?.owner?.address;
+  const expectedAuthorizedSigner = manifest.roles?.authorizedSigner?.address;
+  const expectedOperator = manifest.roles?.operator?.address;
+  const expectedSecurityAuthority = manifest.roles?.securityAuthority?.address;
+  for (const [role, address] of Object.entries({
+    owner: expectedOwner,
+    authorizedSigner: expectedAuthorizedSigner,
+    operator: expectedOperator,
+    securityAuthority: expectedSecurityAuthority,
+  })) {
+    if (!address || !ethers.isAddress(address)) {
+      throw new Error(`[FAIL-CLOSED] Manifest ${role} is missing or invalid.`);
+    }
+  }
+  if (!sameAddress(deployer.address, expectedOwner)) {
+    throw new Error(`[FAIL-CLOSED] DEPLOYER_PRIVATE_KEY does not control manifest owner ${expectedOwner}.`);
+  }
+  if (!sameAddress(authSigner.address, expectedAuthorizedSigner)) {
+    throw new Error(
+      `[FAIL-CLOSED] AUTHORIZED_SIGNER_PRIVATE_KEY derives ${authSigner.address}, expected ${expectedAuthorizedSigner}.`
+    );
+  }
+
   console.log(`[Deployer] Address: ${deployer.address}`);
+  console.log(`[Authorized Signer] Address: ${authSigner.address}`);
   const startGas = await provider.getBalance(deployer.address);
   console.log(`[Deployer] Gas Balance: ${ethers.formatEther(startGas)} ETH/USDC`);
 
@@ -80,6 +125,26 @@ export async function runArcLiveJourney() {
   const hubArtifact = await import("../contracts/artifacts/contracts/GroupDealHub.sol/GroupDealHub.json");
   const hub = new ethers.Contract(hubAddress, hubArtifact.abi, deployer);
 
+  const [onchainOwner, onchainAuthorizedSigner, onchainOperator, onchainSecurityAuthority] =
+    await Promise.all([
+      hub.owner(),
+      hub.authorizedSigner(),
+      hub.operatorAddress(),
+      hub.securityAuthority(),
+    ]);
+  const roleChecks = [
+    ["owner", onchainOwner, expectedOwner],
+    ["authorizedSigner", onchainAuthorizedSigner, expectedAuthorizedSigner],
+    ["operator", onchainOperator, expectedOperator],
+    ["securityAuthority", onchainSecurityAuthority, expectedSecurityAuthority],
+  ] as const;
+  for (const [role, actual, expected] of roleChecks) {
+    if (!sameAddress(actual, expected)) {
+      throw new Error(`[FAIL-CLOSED] On-chain ${role} ${actual} does not match manifest ${expected}.`);
+    }
+  }
+  console.log("[Preflight] Manifest, signer keys, and on-chain roles match.");
+
   // Deterministic actors derived from deployerKey to prevent wallet proliferation
   const seller = new ethers.Wallet(ethers.keccak256(ethers.toUtf8Bytes(deployerKey + ":arc:seller")), provider);
   const buyer1 = new ethers.Wallet(ethers.keccak256(ethers.toUtf8Bytes(deployerKey + ":arc:buyer1")), provider);
@@ -92,6 +157,8 @@ export async function runArcLiveJourney() {
 
   const dossier: {
     executedAt: string;
+    scope: string;
+    acceptanceStatus: string;
     network: string;
     chainId: number;
     hubAddress: string;
@@ -100,13 +167,15 @@ export async function runArcLiveJourney() {
     logs: JourneyLog[];
   } = {
     executedAt: new Date().toISOString(),
+    scope: "Arc contract primitives only; excludes Circle/Reown/email/API/browser G5 acceptance",
+    acceptanceStatus: "NOT_A_G5_ACCEPTANCE_ARTIFACT",
     network: "Arc Testnet",
     chainId: ARC_CHAIN_ID,
     hubAddress,
     bytecodeHash: manifest.contracts.GroupDealHub.bytecodeHash,
     actors: {
       deployer: deployer.address,
-      authorizedSigner: deployer.address,
+      authorizedSigner: authSigner.address,
       seller: seller.address,
       buyer1: buyer1.address,
       buyer2: buyer2.address,
@@ -292,7 +361,7 @@ export async function runArcLiveJourney() {
     const deadline = BigInt(now + 3600);
     const identity1 = ethers.keccak256(ethers.toUtf8Bytes(`user-buyer1-${Date.now()}`));
 
-    const authSig1 = await deployer.signTypedData(domain, types, {
+    const authSig1 = await authSigner.signTypedData(domain, types, {
       chainId: BigInt(ARC_CHAIN_ID),
       hubContract: hubAddress,
       campaignId: campaignId,
@@ -340,7 +409,7 @@ export async function runArcLiveJourney() {
     await approveTx2.wait(1);
 
     const identity2 = ethers.keccak256(ethers.toUtf8Bytes(`user-buyer2-${Date.now()}`));
-    const authSig2 = await deployer.signTypedData(domain, types, {
+    const authSig2 = await authSigner.signTypedData(domain, types, {
       chainId: BigInt(ARC_CHAIN_ID),
       hubContract: hubAddress,
       campaignId: campaignId,
@@ -542,7 +611,10 @@ export async function runArcLiveJourney() {
   }
 
   // Write Evidence Files
-  const dossierJsonPath = path.resolve(__dirname, "../reports/evidence/G5_ACCEPTANCE_DOSSIER.json");
+  const dossierJsonPath = path.resolve(
+    __dirname,
+    "../reports/evidence/ARC_CONTRACT_PRIMITIVE_JOURNEY.json"
+  );
   fs.writeFileSync(dossierJsonPath, JSON.stringify(dossier, null, 2) + "\n");
   console.log(`\n[Evidence] Dossier saved to: ${dossierJsonPath}`);
 

@@ -2,6 +2,7 @@ import { ethers } from "ethers";
 import { config } from "../config";
 import { store } from "../db/store";
 import { deriveCampaignIdentity } from "../utils/crypto";
+import { readArcContract } from "./arcReadRpc";
 
 export class AuthorizationService {
   /**
@@ -22,6 +23,7 @@ export class AuthorizationService {
     termsHash: string;
     signature: string;
   }> {
+    if (!Number.isSafeInteger(quantity) || quantity <= 0) throw new Error("Quantity must be a positive safe integer");
     const user = store.db.users[userId];
     if (!user) throw new Error("User not found");
 
@@ -31,6 +33,10 @@ export class AuthorizationService {
     if (campaign.status !== "ACTIVE" && campaign.status !== "PUBLISHED") {
       throw new Error(`Campaign is not open for commitments (status: ${campaign.status})`);
     }
+    if (!campaign.onchainCampaignId) {
+      throw new Error("Campaign does not have a verified Arc campaign ID");
+    }
+    const onchainCampaignId = campaign.onchainCampaignId;
 
     if (Date.now() > campaign.endTime * 1000) {
       throw new Error("Campaign has expired");
@@ -72,26 +78,25 @@ export class AuthorizationService {
     // Connect to contract to fetch actual onchain nonce (G2.4 Fail-Closed requirement)
     let onchainNonce = 0;
     try {
-      const provider = new ethers.JsonRpcProvider(config.arcRpcUrl, config.arcChainId, { staticNetwork: true });
       const hubAbi = [
         "function identityNonces(uint256, bytes32) external view returns (uint256)",
         "function campaignIdentityPrincipals(uint256, bytes32) external view returns (address)",
       ];
-      const hubContract = new ethers.Contract(config.hubAddress, hubAbi, provider);
-      const onchainPrincipal = await hubContract.campaignIdentityPrincipals(
-        BigInt(campaign.onchainCampaignId),
-        campaignIdentity
-      );
+      const hub = new ethers.Interface(hubAbi);
+      const args = [BigInt(onchainCampaignId), campaignIdentity];
+      const [principalData, nonceData] = await Promise.all([
+        readArcContract(hub.encodeFunctionData("campaignIdentityPrincipals", args)),
+        readArcContract(hub.encodeFunctionData("identityNonces", args)),
+      ]);
+      const onchainPrincipal = hub.decodeFunctionResult("campaignIdentityPrincipals", principalData)[0] as string;
 
       if (onchainPrincipal !== ethers.ZeroAddress && onchainPrincipal.toLowerCase() !== buyerWallet.toLowerCase()) {
         throw new Error("Onchain principal already pinned to a different wallet");
       }
 
-      const nonceBigInt = await hubContract.identityNonces(
-        BigInt(campaign.onchainCampaignId),
-        campaignIdentity
-      );
+      const nonceBigInt = hub.decodeFunctionResult("identityNonces", nonceData)[0] as bigint;
       onchainNonce = Number(nonceBigInt);
+      if (!Number.isSafeInteger(onchainNonce)) throw new Error("Onchain nonce exceeds safe integer range");
     } catch (err: any) {
       if (err.message.includes("Onchain principal already pinned")) {
         throw err;
@@ -103,7 +108,8 @@ export class AuthorizationService {
 
     // Authorization valid for 15 minutes
     const deadline = Math.floor(Date.now() / 1000) + 15 * 60;
-    const maxQuantity = quantity;
+    // The contract compares cumulative units to maxAuthQuantity, not this purchase alone.
+    const maxQuantity = unitsAlreadyBought + quantity;
 
     // EIP-712 Domain
     const domain = {
@@ -130,7 +136,7 @@ export class AuthorizationService {
     const value = {
       chainId: BigInt(config.arcChainId),
       hubContract: config.hubAddress,
-      campaignId: BigInt(campaign.onchainCampaignId),
+      campaignId: BigInt(onchainCampaignId),
       termsHash: campaign.termsHash,
       campaignIdentity: campaignIdentity,
       buyerWallet: buyerWallet,
@@ -151,7 +157,7 @@ export class AuthorizationService {
     });
 
     return {
-      campaignId: campaign.onchainCampaignId.toString(),
+      campaignId: onchainCampaignId.toString(),
       campaignIdentity,
       buyerWallet,
       nonce: onchainNonce,

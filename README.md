@@ -1,6 +1,6 @@
 # GroupDeal — Nền tảng Mua Chung Sản Phẩm Số trên Arc Testnet
 
-GroupDeal là nền tảng mua chung sản phẩm số hoàn chỉnh, phi tập trung và minh bạch, xây dựng trực tiếp trên mạng **Arc Testnet (Circle Layer-1 EVM)** với đồng thanh toán và phí gas bằng **USDC**.
+GroupDeal hiện là **release candidate trên Arc Testnet**, chưa phải bản đã nghiệm thu production. Arc là lớp settlement và nguồn sự thật tài chính; ứng dụng hỗ trợ Circle User-Controlled Wallet, ví ngoài qua Reown AppKit và nạp USDC qua Circle Arc App Kit Bridge. Candidate mới là `GroupDealHub` tại `0x2A7a...0574`, dùng Safe 2-of-3 đã xác minh tại `0xdDB2...72e6`; deployment cũ `0x7d4b...9F9a` đã được dọn hết escrow và loại khỏi nghiệm thu. Xem [báo cáo tiến độ live](./reports/BAO_CAO_TIEN_DO_LIVE_ARC_30_09_2026.md). Việc nghiệm thu cuối vẫn cần credential, quyền kiểm soát các principal độc lập, hành trình sản phẩm live G5 và reviewer độc lập G6.
 
 ---
 
@@ -11,8 +11,9 @@ GroupDeal là nền tảng mua chung sản phẩm số hoàn chỉnh, phi tập 
 - **Mạng Arc Testnet**:
   - **Chain ID**: `5042002`
   - **RPC URL**: `https://rpc.testnet.arc.io`
-  - **Native Token / Gas**: `USDC` (6 decimals)
+  - **Native Token / Gas**: `USDC` (native view 18 decimals)
   - **System USDC ERC-20 Address**: `0x3600000000000000000000000000000000000000`
+  - Hai cách hiển thị trên dùng cùng một nguồn giá trị USDC; ứng dụng dùng ERC-20 6 decimals cho nghiệp vụ và không cộng native balance với ERC-20 balance.
   - **Explorer**: `https://testnet.arcscan.app`
 
 ### 2. Định luật Bảo toàn Tài chính Bất biến (Strict Conservation Law)
@@ -32,7 +33,7 @@ $$\text{buyerAllocation} + \text{sellerGrossAllocation} + \text{stillUnallocated
 
 ### 5. Giao Hàng Số Bí Mật & Fallback Tranh Chấp Onchain
 - **Bảo mật Entitlement**: Mã license key, link tải riêng hay token kích hoạt được mã hóa **AES-256-GCM** offchain và chỉ buyer sở hữu đơn hàng mới có thể giải mã.
-- **SLA Giao hàng**: 24 giờ hoặc 48 giờ sau khi chốt chiến dịch. Quá hạn không có bằng chứng giao -> 100% tiền được tự động phân bổ hoàn trả cho người mua.
+- **SLA Giao hàng**: 24 giờ hoặc 48 giờ sau khi chốt chiến dịch. Quá hạn không có bằng chứng giao cho phép buyer gửi `claimDeliveryBreach` lên Arc; indexer chỉ cập nhật projection sau event onchain, không có worker DB tự hoàn tiền.
 - **Cửa sổ Tranh chấp 48h**: Sau khi nhận, người mua có 48h để xác nhận sớm hoặc mở tranh chấp.
 - **Direct Onchain Dispute Fallback**: Nếu ứng dụng web hay máy chủ backend ngừng hoạt động, người mua vẫn có thể gọi trực tiếp hàm `openDispute(campaignId, orderId, reasonHash)` trên Arc Smart Contract để phong tỏa tiền!
 - **Trọng tài Operator**: Chỉ có quyền phân bổ chính xác khoản đang tranh chấp giữa buyer principal và seller payout wallet (tuân thủ 100% định luật bảo toàn).
@@ -60,7 +61,7 @@ group-deal/
 │   │   ├── accounting/      # Reference Accounting Model độc lập
 │   │   ├── services/        # Auth, Delivery (AES-256), Dispute, Indexer, Webhook, Reconciler
 │   │   ├── routes/          # REST API (auth, campaigns, orders, seller, operator, public, faucet)
-│   │   └── db/              # Transactional ACID JSON store
+│   │   └── db/              # SQLite WAL + transaction + UNIQUE constraints
 │   └── test/                # Reference accounting tests
 ├── frontend/                # React 18 + Vite + TypeScript + Custom Design System
 │   ├── src/
@@ -73,46 +74,61 @@ group-deal/
 
 ---
 
-## 🧪 Chạy Kiểm Thử (Unit, Fuzzing, Invariants, E2E)
+## 🧪 Chạy kiểm thử và candidate pipeline
 
-Hệ thống đi kèm bộ test toàn diện 10/10 test suites mô phỏng toàn bộ chu trình sống và chứng minh tính bảo toàn tiền:
+Pipeline chuẩn compile lại artifact, chạy contract/backend/browser test, Arc smoke probe, build/typecheck và kiểm tra working tree:
 
 ```bash
-# Chạy toàn bộ test suites (Smart Contracts + Reference Accounting Model)
-npm run test
+# Candidate pipeline (không gửi giao dịch tài chính live)
+npm run verify:pipeline
 
-# Chạy riêng Smart Contracts tests
+# Các lớp kiểm thử riêng
 npm run test:contracts
-
-# Chạy riêng Reference Accounting Model tests
-npm run test:accounting
+npm run test:backend
+npm run test:browser
+npm run test:arc-smoke
 ```
 
-Kết quả:
-- **Core & Conservation**: 7 suites kiểm tra tier validation, locking immutability, principal pinning, early slot race condition, clearing price, direct onchain dispute fallback, SLA breach refund.
-- **Fuzzing & Invariants**: Kiểm tra định luật bảo toàn tài chính ngẫu nhiên trên nhiều người mua, kiểm tra chống replay attack.
-- **Full E2E Simulation**: Mô phỏng toàn bộ hành trình từ lúc seller tạo chiến dịch -> buyer mua -> tier mở khóa -> giao hàng số -> tranh chấp -> claim pull tiền -> hợp đồng về đúng 0 USDC.
+`test:arc-smoke` chỉ đọc Arc Testnet và kiểm tra chain/predeploy/system behavior. `test:arc-live` chỉ là hành trình **contract primitive**, không phải G5 product acceptance; lệnh fail-closed nếu thiếu acknowledgment riêng, deployer key đúng owner và private key của authorized signer đúng manifest. G5 vẫn phải chạy qua browser/API/Circle/Reown/operator/Safe bằng các principal độc lập.
 
 ---
 
 ## 🛠️ Hướng dẫn Khởi chạy Ứng dụng
 
-### 1. Khởi động Backend API (Port 4000)
+### 0. Cài đặt sau khi clone
+Yêu cầu Node.js 24 LTS và npm. Backend sử dụng `node:sqlite`; đợt kiểm tra gần nhất chạy trên Node.js `24.11.1` và npm `11.6.2`.
+
+Chạy từ thư mục gốc để cài dependency theo các lockfile đã commit:
+
+```bash
+npm ci --prefix contracts
+npm ci --prefix backend
+npm ci --prefix frontend
+```
+
+SDK được build bằng `npm run build:sdk` từ thư mục gốc. Các tệp `.env` thật, dữ liệu runtime, dependency và build artifact được loại khỏi Git; cấu hình riêng trên máy theo các bước bên dưới.
+
+### 1. Cấu hình tích hợp
+Sao chép `backend/.env.example` thành `backend/.env` và `frontend/.env.example` thành `frontend/.env`. Circle yêu cầu API key/App ID và Gmail SMTP được cấu hình trong Circle Console; backend cũng hỗ trợ Gmail SMTP bằng Google App Password cho email thông báo. Reown yêu cầu Project ID. Không đưa `CIRCLE_API_KEY`, Gmail App Password hoặc private key vào frontend.
+
+### 2. Khởi động Backend API (Port 4000)
 ```bash
 npm run backend:dev
 ```
-Backend sẽ khởi chạy tại `http://localhost:4000`, tự động khởi tạo indexer sự kiện onchain và nạp sẵn 3 chiến dịch mẫu thực tế.
+Backend sẽ khởi chạy tại `http://localhost:4000` và tự động khởi tạo indexer sự kiện onchain. Dữ liệu demo chỉ được tạo ở môi trường không phải production.
 
-### 2. Khởi động Frontend Web (Port 5173)
+### 3. Khởi động Frontend Web (Port 5173)
 ```bash
 npm run frontend:dev
 ```
 Truy cập giao diện tại `http://localhost:5173`.
 
-### 3. Sử dụng thử trên Arc Testnet:
-1. Nhấn nút **"Nhận 500 Test USDC"** trên thanh header để nhận 500 USDC testnet vào ví.
-2. Đăng nhập bằng Email OTP (mã hiển thị trực tiếp cho quá trình test).
+### 4. Sử dụng thử trên Arc Testnet:
+1. Nạp test USDC bằng faucet được cấu hình hoặc mở **CCTP Bridge** trong funding panel.
+2. Chọn một trong hai cách đăng nhập: **ví EVM qua Reown** (ký challenge một lần, không gửi giao dịch) hoặc **Gmail OTP qua Circle** để tạo/khôi phục Circle User-Controlled EOA trên Arc Testnet. Lần tạo ví Circle đầu tiên có thể cần tới 90 giây sau khi user hoàn tất challenge.
 3. Duyệt chiến dịch, chọn số lượng, kiểm tra bảng giá & gas fee trong Pre-Tx Modal và cam kết mua.
 4. Xem đơn hàng trong **"Đơn mua của tôi"**, giải mã mã bản quyền số AES-256, xác nhận hoặc mở tranh chấp.
 5. Truy cập **"Kênh Người Bán"** để tạo chiến dịch mới, thực hiện dry-run test giao hàng và cấu hình webhook.
 6. Truy cập **"Quản trị Hệ thống"** để xem báo cáo đối soát tự động Smart Contract và phân bổ tranh chấp.
+
+Xem [kế hoạch hoàn tất](./reports/KE_HOACH_HOAN_TAT_DU_AN.md), [runbook vận hành](./reports/RUNBOOK_VAN_HAN_ARC.md) và báo cáo tái nghiệm thu mới nhất trong thư mục `reports/` trước khi tuyên bố hoàn thành.

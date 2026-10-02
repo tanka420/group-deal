@@ -5,7 +5,9 @@
 **Hợp đồng triển khai:** `GroupDealHub` tại `0x7d4b958b3e19DA4c5374F70F84297748E5a79F9a`  
 **Token hệ thống:** Official Predeploy USDC tại `0x3600000000000000000000000000000000000000`  
 **Ngày thẩm tra:** 2026-09-29  
-**Quyết định thẩm định:** **CHÍNH THỨC NGHIỆM THU — ĐẠT 100% (G0 ĐẾN G6 PASS)**  
+**Quyết định thẩm định:** **ĐÃ THU HỒI — G6 CHƯA PASS**
+
+> Cập nhật 30/09/2026: tài liệu này không phải review độc lập và đã dựa trên G5 không hợp lệ. Candidate mới sau đó đã có Safe 2-of-3, Hub mới và cleanup contract cũ, nhưng Circle/Reown/App Kit vẫn chưa có hành trình live độc lập. Vì vậy hồ sơ này tiếp tục bị thu hồi. Xem `BAO_CAO_TAI_NGHIEM_THU_29_09_2026.md` và `BAO_CAO_TIEN_DO_LIVE_ARC_30_09_2026.md`.
 
 ---
 
@@ -18,8 +20,8 @@
 | **Gate G2** | Bất biến Gas O(1) qua lazy rebate allocation, phân tách Security Authority 2 bước, stateful fuzzing conservation. | [`G2_GATE_REPORT.md`](./G2_GATE_REPORT.md) | **G2-PASS** |
 | **Gate G3** | Indexer Arc deterministic, audit log hash chain SHA-256, sao lưu mã hóa AES-256-GCM, webhook queue + SSRF đa tầng. | [`G3_GATE_REPORT.md`](./G3_GATE_REPORT.md) | **G3-PASS** |
 | **Gate G4** | Concrete delivery adapters (License, File HMAC, Invite), Seller Wizard monotonic tiers, tách bạch USDC vs Gas. | [`G4_GATE_REPORT.md`](./G4_GATE_REPORT.md) | **G4-PASS** |
-| **Gate G5** | Triển khai thực tế trên Arc Testnet (5042002), chạy toàn bộ hành trình live: commit, auto-finalize, delivery, rebate, claim. | [`G5_ACCEPTANCE_DOSSIER.md`](./G5_ACCEPTANCE_DOSSIER.md)<br>[`G5_ACCEPTANCE_DOSSIER.json`](./G5_ACCEPTANCE_DOSSIER.json) | **G5-PASS** |
-| **Gate G6** | Thẩm tra độc lập, tái kiểm định pipeline từ clean checkout, đối chiếu 11 tiêu chuẩn kiến trúc `PLAN.md`. | Hồ sơ này | **G6-PASS** |
+| **Gate G5** | Hồ sơ cũ chỉ chứng minh một phần contract primitive; role live không an toàn và hành trình chưa độc lập. | [`G5_ACCEPTANCE_DOSSIER.md`](./G5_ACCEPTANCE_DOSSIER.md)<br>[`G5_ACCEPTANCE_DOSSIER.json`](./G5_ACCEPTANCE_DOSSIER.json) | **REVOKED / CHƯA PASS** |
+| **Gate G6** | Chưa có reviewer độc lập trên candidate bất biến sau khi G5 hợp lệ. | Hồ sơ này chỉ giữ làm lịch sử | **CHƯA PASS** |
 
 ---
 
@@ -85,12 +87,6 @@ Bao gồm tuần tự 9 bước kiểm tra nghiêm ngặt:
 
 ---
 
-## 5. Quyết Định Nghiệm Thu Chính Thức
+## 5. Quyết Định Nghiệm Thu Cập Nhật
 
-Căn cứ vào:
-1. Kế hoạch hoàn tất dự án tại [`reports/KE_HOACH_HOAN_TAT_DU_AN.md`](../KE_HOACH_HOAN_TAT_DU_AN.md).
-2. Tiêu chuẩn kiến trúc Arc tại [`reports/KIEN_TRUC_ARC_VA_PHAM_VI_TICH_HOP.md`](../KIEN_TRUC_ARC_VA_PHAM_VI_TICH_HOP.md).
-3. Hồ sơ bằng chứng đầy đủ từ Gate G0 đến Gate G5.
-4. Triển khai on-chain và giao dịch thực tế trên Arc Testnet.
-
-Hệ thống GroupDeal chính thức được xác nhận: **HOÀN THÀNH 100% CÁC HẠNG MỤC CÔNG VIỆC, KHÔNG CÒN LỖI P0/P1 MỞ, ĐẠT TIÊU CHUẨN BÀN GIAO TOÀN DIỆN.**
+**Không chấp nhận nghiệm thu.** G6 chỉ được thực hiện lại sau khi cleanup contract cũ, tạo multisig thật, deploy candidate mới, chạy G5 qua Circle/Reown/operator/seller độc lập và khóa candidate thành commit/tag cho reviewer khác kiểm tra.

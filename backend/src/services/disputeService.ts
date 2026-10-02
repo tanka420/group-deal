@@ -1,6 +1,8 @@
 import { store, OrderRecord, SupportMessageRecord } from "../db/store";
 import { TransactionVerifier } from "./transactionVerifier";
 import { config } from "../config";
+import * as crypto from "crypto";
+import { NotificationService } from "./notificationService";
 
 export class DisputeService {
   /**
@@ -42,6 +44,8 @@ export class DisputeService {
       {
         intentId: `dispute_${order.id}_${txHash}`,
         expectedTo: config.hubAddress,
+        expectedSender: order.buyerPrincipal,
+        expectedFunction: "openDispute",
         expectedEvent: "OrderDisputed",
         expectedEventArgs: {
           campaignId: campaign.onchainCampaignId,
@@ -118,6 +122,8 @@ export class DisputeService {
       {
         intentId: `resolve_${order.id}_${txHash}`,
         expectedTo: config.hubAddress,
+        expectedSender: config.operatorAddress,
+        expectedFunction: "resolveDispute",
         expectedEvent: "DisputeResolved",
         expectedEventArgs: {
           campaignId: campaign.onchainCampaignId,
@@ -168,7 +174,7 @@ export class DisputeService {
     }
 
     const msg: SupportMessageRecord = {
-      id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      id: `msg_${crypto.randomUUID()}`,
       orderId,
       senderRole,
       senderWallet,
@@ -178,6 +184,27 @@ export class DisputeService {
 
     store.db.supportMessages[orderId].push(msg);
     store.save();
+
+    const order = store.db.orders[orderId];
+    const campaign = order && store.db.campaigns[order.campaignId];
+    if (order && senderRole !== "buyer") {
+      NotificationService.create(order.buyerAccountId, {
+        type: "SUPPORT_MESSAGE",
+        title: "Có tin nhắn mới về order",
+        message: `Order #${orderId} có phản hồi mới từ ${senderRole}.`,
+        link: "#orders",
+        dedupeKey: msg.id,
+      });
+    }
+    if (campaign && senderRole !== "seller") {
+      NotificationService.create(campaign.sellerId, {
+        type: "SUPPORT_MESSAGE",
+        title: "Có tin nhắn mới về order",
+        message: `Order #${orderId} có phản hồi mới từ ${senderRole}.`,
+        link: "#seller",
+        dedupeKey: msg.id,
+      });
+    }
 
     return msg;
   }

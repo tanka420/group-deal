@@ -1,4 +1,12 @@
 {
+  "acceptanceStatus": "REVOKED",
+  "revokedAt": "2026-09-30",
+  "revocationReasons": [
+    "Operator and security authority are public development accounts",
+    "Security authority was not proven to be a 2-of-3 multisig",
+    "Actors were derived from the deployer instead of independent Circle/Reown principals",
+    "The original run left 2 USDC escrow; it was cleaned later under separate LEGACY_ARC_CLEANUP evidence and does not validate this run"
+  ],
   "executedAt": "2026-09-29T10:10:27.384Z",
   "network": "Arc Testnet",
   "chainId": 5042002,

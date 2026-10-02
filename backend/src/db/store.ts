@@ -1,15 +1,21 @@
 import * as fs from "fs";
 import * as path from "path";
+import * as os from "node:os";
+import { DatabaseSync } from "node:sqlite";
 
 export interface UserRecord {
   id: string;
   email: string;
+  emailVerified?: boolean;
+  loginMethod?: "CIRCLE_EMAIL" | "EVM_WALLET";
   createdAt: number;
   roles: ("buyer" | "seller" | "operator")[];
   activeWallet: string | null; // 1-to-1 atomic binding
+  circleUserId?: string;
   circleWallet?: {
     address: string;
-    walletId?: string;
+    walletId: string;
+    blockchain: "ARC-TESTNET";
   };
   sellerProfile?: {
     displayName: string;
@@ -23,12 +29,15 @@ export interface UserRecord {
 
 export interface SanitizedUser {
   id: string;
-  email: string;
+  email: string | null;
+  loginMethod: "CIRCLE_EMAIL" | "EVM_WALLET";
   createdAt: number;
   roles: ("buyer" | "seller" | "operator")[];
   activeWallet: string | null;
   circleWallet?: {
     address: string;
+    walletId: string;
+    blockchain: "ARC-TESTNET";
   };
   sellerProfile?: {
     displayName: string;
@@ -41,7 +50,7 @@ export interface SanitizedUser {
 
 export interface WalletChallengeRecord {
   userId: string;
-  action: "LINK_WALLET" | "SELLER_PAYOUT";
+  action: "WALLET_LOGIN" | "LINK_WALLET" | "SELLER_PAYOUT" | "OPERATOR_ACTION";
   walletAddress: string;
   message: string;
   expiresAt: number;
@@ -56,14 +65,43 @@ export interface ConsumedTxRecord {
   verifiedAt: number;
 }
 
+export interface CircleOperationRecord {
+  operationId: string;
+  userId: string;
+  walletId: string;
+  payloadHash: string;
+  idempotencyKey: string;
+  challengeId?: string;
+  createdAt: number;
+}
+
+export interface CircleLoginAttemptRecord {
+  id: string;
+  email: string;
+  // Legacy records incorrectly stored the device-token subject as a user ID.
+  circleUserId?: string;
+  bindingVersion?: 2;
+  deviceIdHash: string;
+  expiresAt: number;
+  consumedAt?: number;
+}
+
 export function sanitizeUser(user: UserRecord): SanitizedUser {
+  const loginMethod = user.loginMethod || "CIRCLE_EMAIL";
   return {
     id: user.id,
-    email: user.email,
+    email: loginMethod === "EVM_WALLET" || user.emailVerified === false ? null : user.email,
+    loginMethod,
     createdAt: user.createdAt,
     roles: user.roles,
     activeWallet: user.activeWallet,
-    circleWallet: user.circleWallet ? { address: user.circleWallet.address } : undefined,
+    circleWallet: user.circleWallet
+      ? {
+          address: user.circleWallet.address,
+          walletId: user.circleWallet.walletId,
+          blockchain: user.circleWallet.blockchain,
+        }
+      : undefined,
     sellerProfile: user.sellerProfile
       ? {
           displayName: user.sellerProfile.displayName,
@@ -86,8 +124,8 @@ export interface OtpRecord {
 }
 
 export interface CampaignRecord {
-  id: string; // "1", "2", ...
-  onchainCampaignId: number;
+  id: string;
+  onchainCampaignId?: number;
   title: string;
   description: string;
   category: string;
@@ -256,13 +294,55 @@ export interface MigrationState {
   appliedMigrations: string[];
 }
 
+export interface RateLimitRecord {
+  windowStartedAt: number;
+  count: number;
+  lastAttemptAt: number;
+  blockedUntil?: number;
+}
+
+export interface NotificationRecord {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  message: string;
+  link?: string;
+  createdAt: number;
+  readAt?: number;
+}
+
+export interface NotificationPreferenceRecord {
+  inApp: boolean;
+  email: boolean;
+}
+
+export interface EmailOutboxRecord {
+  id: string;
+  notificationId: string;
+  userId: string;
+  status: "QUEUED" | "PROCESSING" | "SENT" | "RETRY" | "DLQ";
+  attempts: number;
+  nextAttemptAt: number;
+  lastError?: string;
+  createdAt: number;
+  sentAt?: number;
+}
+
 export interface DatabaseSchema {
   users: Record<string, UserRecord>;
   userByEmail: Record<string, string>; // email -> userId
   userByWallet: Record<string, string>; // wallet -> userId (atomic unique index)
+  userByCircleId: Record<string, string>; // Circle user id -> userId (atomic unique index)
   emailOtps: Record<string, OtpRecord>;
   walletChallenges: Record<string, WalletChallengeRecord>;
   consumedTxHashes: Record<string, ConsumedTxRecord>;
+  circleOperations: Record<string, CircleOperationRecord>;
+  circleLoginAttempts: Record<string, CircleLoginAttemptRecord>;
+  rateLimits: Record<string, RateLimitRecord>;
+  notifications: Record<string, NotificationRecord>;
+  notificationPreferences: Record<string, NotificationPreferenceRecord>;
+  emailOutbox: Record<string, EmailOutboxRecord>;
   campaigns: Record<string, CampaignRecord>;
   orders: Record<string, OrderRecord>;
   supportMessages: Record<string, SupportMessageRecord[]>; // orderId -> messages
@@ -275,8 +355,10 @@ export interface DatabaseSchema {
   migrationState: MigrationState;
 }
 
-export class JsonStore {
+export class TransactionalStore {
   private filePath: string;
+  private legacyFilePath: string;
+  private sqlite: DatabaseSync;
   private data: DatabaseSchema;
 
   constructor(storageDir?: string) {
@@ -284,46 +366,65 @@ export class JsonStore {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    this.filePath = path.join(dir, "groupdeal_db.json");
+    this.filePath = path.join(dir, "groupdeal.sqlite");
+    this.legacyFilePath = path.join(dir, "groupdeal_db.json");
+    this.sqlite = new DatabaseSync(this.filePath);
+    this.sqlite.exec("PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; PRAGMA foreign_keys = ON;");
+    this.applySqlMigrations();
     this.data = this.load();
   }
 
-  private load(): DatabaseSchema {
-    if (fs.existsSync(this.filePath)) {
-      try {
-        const raw = fs.readFileSync(this.filePath, "utf8");
-        const parsed = JSON.parse(raw);
-        if (!parsed.eventJournal) parsed.eventJournal = {};
-        if (!parsed.syncState) parsed.syncState = { lastIndexedBlock: 0, lastSyncTimestamp: 0 };
-        if (!parsed.walletChallenges) parsed.walletChallenges = {};
-        if (!parsed.consumedTxHashes) parsed.consumedTxHashes = {};
-        if (!parsed.webhookQueue) parsed.webhookQueue = {};
-        if (!parsed.webhookDLQ) parsed.webhookDLQ = {};
-        if (!parsed.migrationState) {
-          parsed.migrationState = { currentVersion: 1, appliedMigrations: ["v1_initial_schema"] };
-        }
-        return parsed;
-      } catch (e) {
-        console.error("[DB CRITICAL] Failed to parse db file! Preserving corrupted copy to avoid silent data loss.", e);
-        const backupPath = `${this.filePath}.corrupted.${Date.now()}`;
-        try {
-          fs.copyFileSync(this.filePath, backupPath);
-          console.error(`[DB CRITICAL] Corrupted database preserved at: ${backupPath}`);
-        } catch (backupErr) {
-          console.error("[DB CRITICAL] Failed to create backup of corrupted file:", backupErr);
-        }
-        throw new Error(
-          `[DB CRITICAL] Fatal corruption in database file ${this.filePath}. Preserved at ${backupPath}. System will not wipe data!`
-        );
-      }
-    }
+  private applySqlMigrations(): void {
+    this.sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        version INTEGER PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        applied_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS app_state (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        state_json TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS unique_users (
+        user_id TEXT PRIMARY KEY,
+        email TEXT NOT NULL UNIQUE,
+        wallet TEXT UNIQUE,
+        circle_user_id TEXT UNIQUE,
+        circle_wallet_id TEXT UNIQUE
+      );
+      CREATE TABLE IF NOT EXISTS unique_event_journal (
+        event_key TEXT PRIMARY KEY,
+        chain_id INTEGER NOT NULL,
+        tx_hash TEXT NOT NULL,
+        log_index INTEGER NOT NULL,
+        UNIQUE(chain_id, tx_hash, log_index)
+      );
+      CREATE TABLE IF NOT EXISTS unique_circle_operations (
+        operation_id TEXT PRIMARY KEY,
+        idempotency_key TEXT NOT NULL UNIQUE,
+        payload_hash TEXT NOT NULL
+      );
+      INSERT OR IGNORE INTO schema_migrations(version, name, applied_at)
+      VALUES (1, 'v1_transactional_state_and_uniqueness', unixepoch() * 1000);
+    `);
+  }
+
+  private emptySchema(): DatabaseSchema {
     return {
       users: {},
       userByEmail: {},
       userByWallet: {},
+      userByCircleId: {},
       emailOtps: {},
       walletChallenges: {},
       consumedTxHashes: {},
+      circleOperations: {},
+      circleLoginAttempts: {},
+      rateLimits: {},
+      notifications: {},
+      notificationPreferences: {},
+      emailOutbox: {},
       campaigns: {},
       orders: {},
       supportMessages: {},
@@ -337,42 +438,123 @@ export class JsonStore {
     };
   }
 
+  private normalize(parsed: Partial<DatabaseSchema>): DatabaseSchema {
+    const normalized = { ...this.emptySchema(), ...parsed } as DatabaseSchema;
+    normalized.userByCircleId ||= {};
+    normalized.circleOperations ||= {};
+    normalized.circleLoginAttempts ||= {};
+    normalized.rateLimits ||= {};
+    normalized.notifications ||= {};
+    normalized.notificationPreferences ||= {};
+    normalized.emailOutbox ||= {};
+    normalized.eventJournal ||= {};
+    normalized.walletChallenges ||= {};
+    normalized.consumedTxHashes ||= {};
+    normalized.webhookQueue ||= {};
+    normalized.webhookDLQ ||= {};
+    normalized.syncState ||= { lastIndexedBlock: 0, lastSyncTimestamp: 0 };
+    normalized.migrationState ||= {
+      currentVersion: 1,
+      appliedMigrations: ["v1_initial_schema"],
+    };
+    return normalized;
+  }
+
+  private load(): DatabaseSchema {
+    try {
+      const row = this.sqlite.prepare("SELECT state_json FROM app_state WHERE id = 1").get() as
+        | { state_json: string }
+        | undefined;
+      if (row) return this.normalize(JSON.parse(row.state_json));
+
+      if (fs.existsSync(this.legacyFilePath)) {
+        const imported = this.normalize(JSON.parse(fs.readFileSync(this.legacyFilePath, "utf8")));
+        this.data = imported;
+        this.save();
+        console.warn(`[DB MIGRATION] Imported legacy JSON data into SQLite: ${this.legacyFilePath}`);
+        return imported;
+      }
+      const empty = this.emptySchema();
+      this.data = empty;
+      this.save();
+      return empty;
+    } catch (error) {
+      const backupPath = `${this.filePath}.corrupted.${Date.now()}`;
+      try {
+        this.sqlite.close();
+        if (fs.existsSync(this.filePath)) fs.copyFileSync(this.filePath, backupPath);
+      } catch (backupError) {
+        console.error("[DB CRITICAL] Failed to preserve the unreadable SQLite database:", backupError);
+      }
+      throw new Error(
+        `[DB CRITICAL] Unable to load transactional database ${this.filePath}. Snapshot: ${backupPath}. Cause: ${String(error)}`
+      );
+    }
+  }
+
   public save(): void {
-    const tempPath = `${this.filePath}.tmp.${Date.now()}.${Math.random().toString(36).substring(2, 6)}`;
     const serialized = JSON.stringify(
       this.data,
       (_key, value) => (typeof value === "bigint" ? value.toString() : value),
-      2
+      0
     );
-    fs.writeFileSync(tempPath, serialized, "utf8");
-    let saved = false;
-    for (let attempt = 0; attempt < 5; attempt++) {
-      try {
-        fs.renameSync(tempPath, this.filePath);
-        saved = true;
-        break;
-      } catch (err: any) {
-        if (err.code === "EPERM" || err.code === "EBUSY") {
-          try {
-            fs.copyFileSync(tempPath, this.filePath);
-            fs.unlinkSync(tempPath);
-            saved = true;
-            break;
-          } catch {
-            const start = Date.now();
-            while (Date.now() - start < 15) {}
-          }
-        } else {
-          break;
-        }
+    this.sqlite.exec("BEGIN IMMEDIATE");
+    try {
+      this.sqlite.exec(
+        "DELETE FROM unique_users; DELETE FROM unique_event_journal; DELETE FROM unique_circle_operations;"
+      );
+      const insertUser = this.sqlite.prepare(
+        "INSERT INTO unique_users(user_id, email, wallet, circle_user_id, circle_wallet_id) VALUES (?, ?, ?, ?, ?)"
+      );
+      for (const user of Object.values(this.data.users)) {
+        insertUser.run(
+          user.id,
+          user.email.trim().toLowerCase(),
+          user.activeWallet?.toLowerCase() || null,
+          user.circleUserId || null,
+          user.circleWallet?.walletId || null
+        );
       }
-    }
-    if (!saved) {
-      fs.writeFileSync(this.filePath, serialized, "utf8");
-      if (fs.existsSync(tempPath)) {
-        try { fs.unlinkSync(tempPath); } catch {}
+
+      const insertEvent = this.sqlite.prepare(
+        "INSERT INTO unique_event_journal(event_key, chain_id, tx_hash, log_index) VALUES (?, ?, ?, ?)"
+      );
+      for (const [key, event] of Object.entries(this.data.eventJournal)) {
+        insertEvent.run(key, event.chainId, event.txHash.toLowerCase(), event.logIndex);
       }
+
+      const insertCircleOperation = this.sqlite.prepare(
+        "INSERT INTO unique_circle_operations(operation_id, idempotency_key, payload_hash) VALUES (?, ?, ?)"
+      );
+      for (const operation of Object.values(this.data.circleOperations)) {
+        insertCircleOperation.run(operation.operationId, operation.idempotencyKey, operation.payloadHash);
+      }
+
+      this.sqlite
+        .prepare(
+          "INSERT INTO app_state(id, state_json, updated_at) VALUES (1, ?, ?) ON CONFLICT(id) DO UPDATE SET state_json = excluded.state_json, updated_at = excluded.updated_at"
+        )
+        .run(serialized, Date.now());
+      this.sqlite.exec("COMMIT");
+    } catch (error) {
+      this.sqlite.exec("ROLLBACK");
+      throw new Error(`[DB TRANSACTION] Atomic persistence failed: ${String(error)}`);
     }
+  }
+
+  public replace(next: DatabaseSchema): void {
+    const previous = this.data;
+    this.data = this.normalize(next);
+    try {
+      this.save();
+    } catch (error) {
+      this.data = previous;
+      throw error;
+    }
+  }
+
+  public close(): void {
+    this.sqlite.close();
   }
 
   public get db(): DatabaseSchema {
@@ -454,4 +636,11 @@ export class JsonStore {
   }
 }
 
-export const store = new JsonStore();
+// Compatibility alias for existing imports. Persistence is SQLite, never JSON.
+export { TransactionalStore as JsonStore };
+// Test entrypoints must never write backend/data used by a running server.
+// Separate process = separate SQLite directory, including the default test suite.
+const isTestEntrypoint = process.argv.some((arg) => /[\\/]test[\\/].+\.test\.ts$/.test(arg));
+export const store = new TransactionalStore(isTestEntrypoint
+  ? fs.mkdtempSync(path.join(os.tmpdir(), "groupdeal-test-"))
+  : undefined);

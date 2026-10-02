@@ -28,7 +28,7 @@ export const DeveloperDocs: React.FC = () => {
             <strong>RPC URL:</strong> <code className="font-mono">https://rpc.testnet.arc.io</code>
           </div>
           <div>
-            <strong>Native Currency & Gas:</strong> USDC (6 Decimals)
+            <strong>Native Currency & Gas:</strong> USDC (18-decimal native view; cùng nguồn giá trị với ERC-20 USDC 6 decimals, không cộng đôi)
           </div>
           <div>
             <strong>Block Explorer:</strong>{" "}

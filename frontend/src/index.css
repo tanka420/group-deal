@@ -590,6 +590,9 @@ h1, h2, h3, h4, h5, h6 {
 /* Account Dropdown Component */
 .account-dropdown-wrapper {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .account-pill-btn {

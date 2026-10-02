@@ -2,13 +2,13 @@
 
 **Ngày lập:** 29/09/2026
 
-**Phiên bản:** 1.2 — chốt kiến trúc Arc, funding và deterministic-finality indexer
+**Phiên bản:** 1.7 — cập nhật 03/10/2026 sau sửa định danh Circle và tích hợp checkout USDC
 
 **Căn cứ:** [PLAN.md](../PLAN.md), [BAO_CAO_THAM_TRA_NGHIEM_THU_CUOI.md](./BAO_CAO_THAM_TRA_NGHIEM_THU_CUOI.md) và [KIEN_TRUC_ARC_VA_PHAM_VI_TICH_HOP.md](./KIEN_TRUC_ARC_VA_PHAM_VI_TICH_HOP.md)
 
 **Thay thế:** [KE_HOACH_THUC_THI.md](./KE_HOACH_THUC_THI.md) cho phần công việc còn lại. Kế hoạch cũ không được dùng làm bằng chứng hoàn thành vì checklist chưa phản ánh kết quả thẩm tra mới.
 
-**Trạng thái:** HOÀN TẤT TOÀN DIỆN 100% (G0 ĐẾN G6 PASS — ĐÃ NGHIỆM THU LIVE TRÊN ARC TESTNET).
+**Trạng thái:** RELEASE CANDIDATE TESTNET CÓ ĐIỀU KIỆN, CHƯA NGHIỆM THU PRODUCTION. Deployment, Safe và cleanup có bằng chứng lịch sử; không suy ra nghiệm thu sản phẩm. Đã sửa định danh Circle, RPC đọc số dư/authorization và nối USDC funding vào checkout; chưa có đủ OTP/chữ ký/receipt live mới hoặc review độc lập. G1 và G4 vẫn mở. Xem [báo cáo ngày 03/10/2026](./BAO_CAO_SUA_LOI_VA_CHECKOUT_03_10_2026.md). Mục tiêu token khác và Arc Mainnet được bổ sung ở mục 12, không bật trên deployment Testnet.
 
 ## 1. Nguyên tắc thực thi
 
@@ -62,7 +62,7 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 
 **Ước lượng:** 6–10 ngày.
 
-**Gate:** G1-PASS (Đạt: xem hồ sơ nghiệm thu chi tiết tại [G1_GATE_REPORT.md](./evidence/G1_GATE_REPORT.md)).
+**Gate:** CHƯA PASS. Các mục đã kiểm chứng vẫn được giữ; mục thiếu được mở lại bên dưới.
 
 ### G1.1 — Bắt buộc one-time challenge, bỏ legacy bypass
 
@@ -76,19 +76,28 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 
 ### G1.2 — Thay ví server-custodial bằng Circle User-Controlled
 
+- [x] Tích hợp Circle User-Controlled wallet theo SDK/API hiện hành; API key chỉ ở backend và người dùng tự thực thi challenge bằng Circle Web SDK (đã kiểm tra code/policy; live credential còn ở G5).
 - [x] Xóa `ethers.Wallet.createRandom()` cho user, trường `encryptedPrivateKey`, endpoint arbitrary `sign-message` và việc backend giải mã khóa user.
-- [x] Transaction policy ràng buộc chain, contract, selector, spender, amount, campaign/order và intent ID.
+- [x] Xóa relayer ký thay user; `authorizedSignerPrivateKey` chỉ còn ký EIP-712 buy authorization, không gửi transaction. Circle policy ràng buộc chain, contract, selector, spender, amount, campaign/order và operation intent.
 - [x] Thiết kế recovery và emergency-dispute do buyer kiểm soát khi app/backend không hoạt động.
 - [x] External EVM wallet được hỗ trợ với binding nguyên tử một-wallet-một-account (`userByWallet`).
 
 ### G1.3 — Tích hợp wallet/App Kit đúng vai trò, không trộn ba sản phẩm khác nhau
 
-- [x] **Reown AppKit cho ví EVM bên ngoài:** thay kết nối `window.ethereum` tự viết bằng connector chuẩn.
-- [x] Preflight mua hàng đọc một số dư USDC ERC-20 6 decimals, ước lượng gas USDC riêng và kiểm `commitment + gas`; cấm cộng native balance với ERC-20 balance.
+- [x] **Reown AppKit cho ví EVM bên ngoài:** connector chuẩn, custom Arc Testnet và lazy chunk đã được tích hợp; giao dịch live còn ở G5.
+- [x] Reown wallet-first login hoạt động độc lập với Circle: challenge 5 phút bind origin/Arc chain/address, nonce riêng, rate limit, chữ ký một lần và atomic wallet-to-account; backend không nhận private key/seed phrase.
+- [ ] Nghiệm thu preflight mua hàng thật: code đã đọc một số dư USDC, kiểm ngân sách trước approve và estimate từng call trước ký; bigint 6/18 decimals, không cộng hai balance. Còn hiển thị quote gas/tổng đầy đủ trước ký cho từng loại ví và bằng chứng live; không lấy mock test làm nghiệm thu.
 
 ### G1.4 — Email OTP và strong auth thật
 
-- [x] Rate limit theo email, IP; cooldown, attempt cap (5 lần), TTL, audit và alert abuse.
+- [x] Luồng email OTP dùng Circle hosted verification; response chống enumeration và không trả mã OTP. Việc gửi thật qua Circle Console còn phải chứng minh bằng credential live ở G5.
+- [x] Ở mức code và browser mock: đăng ký lại callback trên SDK singleton; tạo phiên ứng dụng ngay sau OTP được backend xác minh, đồng bộ ví trong nền tối đa 120 giây, timeout API và nút thử lại/xác thực lại không cần đăng xuất. Live email login mới và cũ vẫn cần nghiệm thu.
+
+**Cập nhật 03/10/2026:** Không dùng device-token `sub` làm Circle user ID. Backend dùng ID từ API xác thực user token, lookup theo Circle ID, chặn replay/merge bằng email chưa chứng minh. Nếu token không có email đã xác minh thì chưa gắn email nhận thông báo. Yêu cầu OTP mới cho các lượt theo cơ chế cũ; live identity, email liên hệ và recovery vẫn mở.
+- [x] Khôi phục địa chỉ ví đã xác thực sau reload; tách phiên ứng dụng khỏi phiên ký, hỗ trợ kết nối lại và từ chối signer khác tài khoản. Không lưu credentials Circle vào localStorage.
+- [x] Faucet trực tiếp qua API Circle, yêu cầu đăng nhập, kiểm ownership và cooldown; không tự mint hoặc cấp tiền từ treasury. API faucet yêu cầu quyền Console được nâng cấp mainnet, nhưng blockchain nhận vẫn cố định Arc Testnet; receipt cấp token thật còn phải kiểm tra.
+- [x] Rate limit bền vững theo hash email, IP và device; có cooldown, TTL, attempt cap và audit. Alert delivery thật phụ thuộc email provider live.
+- [x] Operator có one-time `OPERATOR_ACTION` signature challenge; seller payout/action tài chính yêu cầu wallet signer đã bind.
 - [x] Tắt toàn bộ demo seed khi `NODE_ENV=production`.
 - [x] Fail-fast tất cả secret production (`config.ts`).
 
@@ -111,7 +120,7 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 
 **Ước lượng:** 4–7 ngày.
 
-**Gate:** G2-PASS (Đạt: xem hồ sơ nghiệm thu chi tiết tại [G2_GATE_REPORT.md](./evidence/G2_GATE_REPORT.md)).
+**Gate:** PASS ở mức contract/code và thiết lập authority live. Safe 2-of-3 đã được tạo, xác minh owners/quorum/bytecode và gắn vào deployment mới; diễn tập emergency cancel bằng hai signer còn nằm trong G5.
 
 ### G2.1 — Finalize/cancel O(1) và allocation lazy/batch
 
@@ -121,10 +130,13 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 
 ### G2.2 — Security Authority là multisig vận hành thật
 
-- [x] Constructor/deploy yêu cầu security authority riêng (`!= operator`, `!= deployer`).
+- [x] Constructor và deploy policy yêu cầu security authority riêng (`!= operator`, `!= deployer`, `!= authorized signer`).
 - [x] Rotation two-step (`transferSecurityAuthority` / `acceptSecurityAuthority`), event đầy đủ.
 - [x] Owner và operator đơn lẻ bị từ chối; chỉ security authority thực hiện cancel.
-- [x] Manifest cập nhật địa chỉ security authority.
+- [x] Deploy policy từ chối EOA, EIP-7702 delegation marker và các tài khoản dev công khai cho security authority.
+- [x] Tạo Safe `0xdDB2458855170cd4A0eF5aff1f65A78782Ca72e6` trên Arc Testnet; xác minh ba owner, threshold `2`, Safe `1.5.0` và runtime bytecode tại [ARC_SECURITY_MULTISIG.json](./evidence/ARC_SECURITY_MULTISIG.json).
+- [x] Deployment mới và manifest ghi đúng địa chỉ multisig; fixed-block verification PASS tại [ARC_CANDIDATE_DEPLOYMENT_VERIFY.json](./evidence/ARC_CANDIDATE_DEPLOYMENT_VERIFY.json).
+- [ ] Diễn tập Safe propose/confirm/execute emergency cancel bằng ít nhất hai owner độc lập trong G5.
 
 ### G2.3 — Terms schema/version đầy đủ
 
@@ -150,12 +162,12 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 
 **Ước lượng:** 6–10 ngày.
 
-**Gate:** G3-PASS (Đạt: xem hồ sơ nghiệm thu chi tiết tại [G3_GATE_REPORT.md](./evidence/G3_GATE_REPORT.md)).
+**Gate:** PASS Ở MỨC CODE/TEST CANDIDATE; restore/rebuild live nằm trong G5. SQLite là persistence authoritative, JSON cũ chỉ được migrate một lần.
 
 ### G3.1 — Database transactional và migration
 
-- [x] Versioned migrations tự động (`v1_initial_schema`, `v2_webhook_queue_and_dlq`, `v3_audit_hash_chain`).
-- [x] Unique index cho email, wallet binding, chain+contract+tx+logIndex, operation ID và idempotency key.
+- [x] Chuyển JSON store sang SQLite WAL có transaction/unique constraint; có migration one-time và test trên database thật.
+- [x] Unique constraint DB cho email, Circle user ID, wallet binding, chain+contract+tx+logIndex, operation ID và idempotency key.
 - [x] Audit append-only/tamper-evident sử dụng SHA-256 hash chaining có phương thức xác minh tính toàn vẹn `verifyAuditLogIntegrity()`.
 
 ### G3.2 — Arc indexer finality, backfill và rebuild
@@ -192,7 +204,7 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 
 **Ước lượng:** 8–15 ngày.
 
-**Gate:** G4-PASS (Đạt: xem hồ sơ nghiệm thu chi tiết tại [G4_GATE_REPORT.md](./evidence/G4_GATE_REPORT.md)).
+**Gate:** CHƯA PASS. Unit/service test không thay thế browser E2E, accessibility và vận hành thật.
 
 ### G4.1 — Delivery adapters thực
 
@@ -211,8 +223,11 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 
 ### G4.3 — Buyer/operator/support/review/notification
 
-- [x] Buyer thấy gas USDC và commitment USDC là hai khoản riêng, tổng cần có, pending/reconciling và claimable.
-- [x] Funding panel có Faucet cho test, Arc App Kit Bridge cho cross-chain USDC và Onramp sandbox; funding operation không được đánh đồng với purchase operation (`FundingModal.tsx`).
+- [ ] Buyer thấy commitment và phí gas là hai chi phí từ cùng số dư USDC, có tổng trước khi ký. Code đã kiểm ngân sách/estimate trong transaction path; còn hoàn thiện hiển thị gas quote đầy đủ và nghiệm thu ví thật.
+- [x] Funding panel tích hợp `@circle-fin/app-kit` Bridge/CCTP trong app với operation lifecycle/retry/explorer; receipt bridge live còn ở G5.
+
+**Cập nhật checkout 03/10/2026:** Đã có hai lựa chọn USDC Arc hoặc USDC các testnet nguồn qua CCTP. Bridge lấy báo giá rồi mới xác nhận; kiểm USDC/ETH nguồn, giữ hồ sơ qua reload và chặn thao tác trùng giữa tab. Mua kiểm lại campaign sau funding, xác minh receipt/CommitmentMade và chờ đơn indexer; không báo thành công theo timer. Hồ sơ localStorage chưa thay phục hồi phía server/thiết bị khác. Token khác vẫn bị khóa trên các mạng nguồn Testnet không hỗ trợ Swap.
+- [x] Email + in-app notifications có preference, event dedupe, persistent outbox, retry/DLQ và payload tối thiểu không chứa entitlement.
 - [x] Support thread/evidence bổ sung; review một lần và seller reply.
 - [x] Operator dashboard dùng strong auth, audit và operation status onchain.
 - [x] Seller profile/metrics và rights badge gắn đúng product/campaign.
@@ -222,6 +237,10 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 - [x] Phân biệt loading, empty, 404, network error, provider down và indexer stale.
 - [x] Vietnamese đầy đủ và English cho toàn bộ core flow.
 - [x] Audit log hygiene: Redact toàn bộ secret, private key, token dạng rõ.
+- [x] Browser E2E với API/SDK giả lập: fail-closed, reload ví, faucet không mở tab, phiên email không chờ callback tạo ví và OTP sau reload. Không phải bằng chứng ký/chuyển tiền live.
+- [ ] Browser E2E đa account live, keyboard/accessibility và responsive 320/375/768px.
+- [x] Runbook/SLO/ngưỡng vận hành cho RPC, indexer, reconciliation, outbox/DLQ và restore tại [RUNBOOK_VAN_HAN_ARC.md](./RUNBOOK_VAN_HAN_ARC.md).
+- [ ] Kênh alert thật và diễn tập incident live với credential production-like.
 
 **Bằng chứng thoát G4:** Toàn bộ test suite `backend/test/gate_g4_verification.test.ts` xanh 100%, frontend build thành công, typecheck sạch.
 
@@ -231,34 +250,38 @@ G1, G2 và phần schema thiết kế của G3 có thể triển khai song song 
 
 **Ước lượng:** 3–5 ngày sau khi G0–G4 PASS.
 
-**Gate:** G5-PASS (Đạt: xem hồ sơ nghiệm thu chi tiết tại [G5_ACCEPTANCE_DOSSIER.md](./evidence/G5_ACCEPTANCE_DOSSIER.md) và [G5_ACCEPTANCE_DOSSIER.json](./evidence/G5_ACCEPTANCE_DOSSIER.json)).
+**Gate:** CHƯA PASS TOÀN BỘ. **G5.1 có bằng chứng PASS lịch sử**: cleanup, Safe 2-of-3 và Hub mới đã được xác minh. Người dùng xác nhận kiểm soát các ví và đã cấu hình môi trường, nhưng G5.2–G5.4 chưa có bộ receipt/ảnh/API/database cho đủ nhánh sản phẩm. Journey cũ vẫn bị thu hồi vì dùng ví dẫn xuất và bỏ qua UI/API/Circle/Reown. Không yêu cầu gửi private key trong chat; chủ ví xác nhận các bước ký cần thiết trong UI.
 
 ### G5.1 — Deployment fail-closed
 
-- [x] `deploy:arc` bắt buộc Arc chain ID (5042002), token address đã phê duyệt (`0x3600000000000000000000000000000000000000`), deployer secret, operator và security multisig riêng biệt; không tự deploy MockUSDC.
-- [x] Deploy dùng đúng USDC predeploy, xử lý tách biệt 6-decimal business amount và 18-decimal native gas, đồng thời kiểm buyer đủ cả commitment lẫn gas.
-- [x] Verify bytecode/source; ghi deployment block (`64590728`), receipts (`0x2f33098dcd841ad382047ae952d6926e764231f1e4107568f18e22f3d1527fa4`), runtime bytecode hash (`0x6fce997dab58d5cecf6da5c4fefd667cdabed90c5a1a0b56d65aeb3beb0cfcb7`) và role addresses vào manifest `arc-testnet.json`.
+- [x] `deploy:arc` đã được sửa fail-closed: bắt buộc Arc chain ID, USDC predeploy, deployer secret, operator, authorized signer và `SECURITY_MULTISIG_ADDRESS`; từ chối fallback/tài khoản dev/EOA/EIP-7702 cho security role.
+- [x] Deploy dùng đúng USDC predeploy; quy đổi đúng giữa giao diện ERC-20 6 decimals và native 18 decimals của cùng một số dư, đồng thời kiểm số dư đủ cho cả commitment lẫn gas.
+- [x] Cleanup deployment cũ `0x7d4b...9F9a`: hoàn tất delivery/confirm/claims, escrow và Hub USDC đều về `0`; bốn receipt tại [LEGACY_ARC_CLEANUP.json](./evidence/LEGACY_ARC_CLEANUP.json).
+- [x] Tạo Safe 2-of-3 thật `0xdDB2...72e6`, deploy candidate mới `0x2A7a...0574` tại block `64644317`, ghi manifest và xác minh role/bytecode/receipt lại tại fixed block `64660310`.
 - [x] App/backend/indexer từ chối khởi động nếu manifest/chain/bytecode không khớp (`validateManifestAndEnvironment`).
 
 ### G5.2 — Live journey bằng các principal độc lập
 
-- [x] Seller: tạo profile, chứng minh payout wallet, tạo và publish campaign #1 (`0xe2bde26019f517e...`).
-- [x] Buyer 1 dùng ví độc lập; Buyer 2 dùng ví độc lập riêng biệt (`0xf610...` và `0xA722...`).
-- [x] Commit, tier unlock, sold-out auto-finalization, rebate allocation.
-- [x] Nhánh A: delivery (`0x0045dbad...`) → confirm (`0xb7cfbd9b...`) → rebate claim (`0x246f9b22...`) → seller claim (`0x43b1a60e...`).
-- [x] Bảo toàn tuyệt đối vốn: 4.0 USDC commit, 2.0 USDC đã rút cho Đơn #1, còn đúng 2.0 USDC trong Hub escrow cho Đơn #2.
+- [ ] Seller: đăng nhập/step-up, tạo profile, chứng minh payout, dry-run adapter, tạo và publish campaign qua browser/API.
+- [ ] Buyer 1 dùng Circle User-Controlled; Buyer 2 dùng Reown external EVM; thử multi-wallet principal conflict.
+- [ ] Commit, tier unlock, sold-out/early-slot race, finalize và rebate qua đúng các principal độc lập.
+- [ ] Nhánh A: delivery → confirm → seller claim.
+- [ ] Nhánh B: delivery → dispute → operator resolution → buyer/seller claims.
+- [ ] Nhánh C: SLA breach → refund claim.
+- [ ] Nhánh D: Security Multisig cancel → chỉ refund phần chưa phân bổ.
+- [ ] Bảo toàn tuyệt đối vốn sau khi tất cả các nhánh kết thúc; không còn escrow ngoài liability hợp lệ.
 
 ### G5.3 — Failure and recovery journey
 
-- [x] RPC/provider fail-closed checks; Arc fee floor enforcement (<20 Gwei bị từ chối); Arc blocklist test address (`0x7099...79C8`) bị chặn; Arc zero-address transfer bị chặn.
-- [x] Backend/delivery/webhook worker down rồi hồi phục idempotent.
-- [x] Database restore + chain rebuild + reconciliation tại block cố định `HEALTHY`.
+- [ ] RPC/provider down trước/sau broadcast; tx revert/replacement/drop; indexer lag/restart/reorg simulation.
+- [ ] Backend/delivery/webhook worker down rồi hồi phục idempotent.
+- [ ] Database restore + chain rebuild + reconciliation tại block cố định `HEALTHY`.
 
 ### G5.4 — Acceptance dossier
 
-Mỗi case lưu: test ID, actor addresses, tx hashes, receipts, block/hash, expected/actual balance, indexer checkpoint, reconciliation report. Không lưu secret, email thật hoặc entitlement thật.
+Mỗi case lưu: test ID, commit SHA, environment manifest hash, actor addresses, operation IDs, tx hashes, receipts, block/hash, expected/actual balance, indexer checkpoint, reconciliation report và ảnh/video UI khi cần. Không lưu secret, email thật hoặc entitlement thật.
 
-**Bằng chứng thoát G5:** Toàn bộ các bước kiểm thử live trên Arc Testnet PASS 100%, hồ sơ bằng chứng đầy đủ tại [G5_ACCEPTANCE_DOSSIER.md](./evidence/G5_ACCEPTANCE_DOSSIER.md).
+**Bằng chứng thoát G5:** Mọi case bắt buộc PASS trên cùng release candidate, qua browser/API/database/indexer/Arc; hồ sơ cũ chỉ được giữ làm bằng chứng deployment và contract primitive.
 
 ## 9. Giai đoạn G6 — Review độc lập và quyết định nghiệm thu
 
@@ -266,13 +289,13 @@ Mỗi case lưu: test ID, actor addresses, tx hashes, receipts, block/hash, expe
 
 **Ước lượng:** 1–3 ngày.
 
-**Gate:** G6-PASS (Đạt: xem biên bản thẩm tra và ký duyệt tại [G6_FINAL_DELIVERY_SIGNOFF.md](./evidence/G6_FINAL_DELIVERY_SIGNOFF.md)).
+**Gate:** CHƯA PASS; bắt buộc reviewer độc lập sau khi G0–G5 có candidate bất biến.
 
-- [x] Reviewer độc lập nhận commit/tag và dossier bất biến.
-- [x] Chạy lại pipeline từ clean checkout và chọn mẫu tx/receipt/event/reconciliation (`npm run verify:pipeline`).
-- [x] Threat-model review ví, relayer, challenge, signer, multisig, webhook và entitlement.
-- [x] Đối chiếu lại toàn bộ 11 phần `PLAN.md` và các mã F01–F32/UI01–UI04/A01–A14.
-- [x] Ký “ĐẠT” chính thức bàn giao dự án hoàn thiện 100%.
+- [ ] Reviewer độc lập nhận commit/tag và dossier bất biến.
+- [ ] Chạy lại pipeline từ clean checkout và chọn mẫu tx/receipt/event/reconciliation.
+- [ ] Threat-model review ví, relayer, challenge, signer, multisig, webhook và entitlement.
+- [ ] Đối chiếu lại toàn bộ 11 phần `PLAN.md` và các mã F01–F32/UI01–UI04/A01–A14.
+- [ ] Chỉ ký “ĐẠT” khi mọi điều kiện bắt buộc có bằng chứng.
 
 ## 10. Bộ lệnh tối thiểu của candidate
 
@@ -309,4 +332,19 @@ Một task chỉ được đánh dấu `[x]` khi có đủ:
 5. Evidence lưu ở vị trí đã định và không chứa dữ liệu nhạy cảm.
 6. Gate owner hoặc reviewer ký xác nhận.
 
-**Trạng thái dự án tại thời điểm lập kế hoạch:** G0–G6 đều chưa PASS. Không được dùng số test local đang xanh để bỏ qua các gate này.
+**Trạng thái cập nhật 03/10/2026:** G0/G2/G3/G5.1 có bằng chứng code hoặc triển khai lịch sử theo từng phạm vi; G1/G4 chưa PASS toàn bộ, G5.2–G5.4/G6 còn mở. Backend test và 15 ca frontend đã qua trên working tree, không phải chứng thư nghiệm thu. Các sửa lỗi mới phải có xác nhận live trên cùng candidate; không dùng API/SDK giả lập hoặc contract primitive để thay bằng chứng sản phẩm và review độc lập.
+
+## 12. Checkout production trên Arc Mainnet
+
+Đây là phần mở rộng theo mục tiêu production và trả bằng token khác của chủ dự án. Tiếp tục các gate đang mở ở trên; không viết lại hoặc xóa bằng chứng lịch sử của kế hoạch. Mainnet 5042 và Testnet 5042002 cần manifest, deployment và cấu hình tách biệt. Nguồn: [Arc network](https://docs.arc.io/arc/references/connect-to-arc), [App Kit capabilities](https://docs.arc.io/app-kit/references/supported-blockchains).
+
+| Thứ tự | Phần thực thi | Người thực hiện | Điều kiện hoàn tất |
+|---|---|---|---|
+| 1 | OTP mới/cũ, reconnect, faucet, USDC bridge và purchase live trên candidate Testnet | Agent kiểm API/chain; chủ dự án nhập OTP và ký | Đúng Circle ID/ví; số dư/receipt thật; thiếu gas và retry không tạo giao dịch mua/burn trùng |
+| 2 | Hoàn thiện tổng/gas quote, email liên hệ đã xác minh, pending/replacement/drop, recovery trên backend và failover vận hành | Agent; chủ dự án kiểm xác thực email/ví | Không claim email bằng request; phục hồi qua restart/thiết bị; không tự gửi lại khi trạng thái không rõ |
+| 3 | Đóng G5/G6, audit custody/nonce/authority/dependency/CSP và vận hành | Agent chuẩn bị; chủ dự án ký các vai trò; reviewer độc lập nghiệm thu | Candidate bất biến, đủ receipt seller/buyer/operator/Safe, đối soát và restore |
+| 4 | Chuẩn bị manifest/deployment GroupDealHub riêng cho Arc Mainnet, hạn mức và rollout | Agent chuẩn bị; chủ dự án kiểm soát ví và quyết định phát hành | Không dùng địa chỉ deployment Testnet; review code/authority và quy trình emergency trước tiền thật |
+| 5 | Tích hợp App Kit Swap và quote service cho token/chain hỗ trợ | Agent | Quote gắn sender/recipient/chain/token/amount; có minReceived/slippage/deadline, phí rõ, API key chỉ server, không giữ private key buyer |
+| 6 | Nối Swap/CCTP vào checkout và rollout từng route | Agent; chủ dự án test và ký | USDC đến đúng buyer trên Arc, kiểm lại campaign rồi approve/commit; sold-out giữ tiền trong ví, không tạo đơn giả; có recovery và fallback nạp thủ công |
+
+Không hứa hỗ trợ mọi token/mạng. Sepolia hiện dùng không có tuyến Swap chính thức; không dùng Mainnet làm môi trường thử thay thế. Unified Balance chỉ là lựa chọn sau khi có nhu cầu USDC đã deposit; không tự lấy hoặc quy đổi mọi token ngoài ví. Onramp và Earn không tự được mở theo yêu cầu checkout này.

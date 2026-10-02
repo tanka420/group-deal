@@ -1,10 +1,10 @@
 {
   "network": "arcTestnet",
   "chainId": 5042002,
-  "deploymentBlock": 64590728,
+  "deploymentBlock": 64644317,
   "contracts": {
     "GroupDealHub": {
-      "address": "0x7d4b958b3e19DA4c5374F70F84297748E5a79F9a",
+      "address": "0x2A7aECd1CE90f1284EB060488c8dDEF4b1bE0574",
       "abi": [
         {
           "inputs": [
@@ -1827,8 +1827,8 @@
           "type": "function"
         }
       ],
-      "bytecodeHash": "0x6fce997dab58d5cecf6da5c4fefd667cdabed90c5a1a0b56d65aeb3beb0cfcb7",
-      "txHash": "0x2f33098dcd841ad382047ae952d6926e764231f1e4107568f18e22f3d1527fa4"
+      "bytecodeHash": "0xf60bf0d51cf447ca2f17454696d1c8eceab500f18e49aee8c1df2e66a04064e7",
+      "txHash": "0x0eae9276292bbd4cf415223d40b71b0910adbb3d30911291a4d7ebda348bf254"
     },
     "USDC": {
       "address": "0x3600000000000000000000000000000000000000",
@@ -1837,9 +1837,9 @@
     }
   },
   "roles": {
-    "operator": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
-    "securityAuthority": "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
-    "authorizedSigner": "0x73307Bdd39d875f98857FfCE0FED1Cdc62F50b6d"
+    "operator": "0xe48B30eA70F77E5FA6311471c2E9687f8A701Ead",
+    "securityAuthority": "0xdDB2458855170cd4A0eF5aff1f65A78782Ca72e6",
+    "authorizedSigner": "0xc9691f85f149e71C4e1C14c6E6204128546Eef17"
   },
-  "deployedAt": "2026-09-29T10:00:15.693Z"
+  "deployedAt": "2026-09-29T17:37:00.119Z"
 }

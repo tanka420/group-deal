@@ -57,7 +57,10 @@ runStep("Build Frontend", "npm", ["run", "frontend:build"]);
 // 8. Typecheck
 runStep("Typecheck", "npm", ["run", "typecheck"]);
 
-// 9. Git Diff Check (ignore CRLF whitespace)
+// 9. Browser acceptance tests (credential-free fail-closed paths)
+runStep("Browser Acceptance", "npm", ["run", "test:browser"]);
+
+// 10. Git Diff Check (ignore CRLF whitespace)
 runStep("Git Diff Hygiene Check", "git", ["diff", "--check"]);
 
 console.log("\n🎉 ALL REPRODUCIBILITY PIPELINE STEPS PASSED SUCCESSFULLY!\n");

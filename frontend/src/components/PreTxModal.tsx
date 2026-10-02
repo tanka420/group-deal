@@ -1,12 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLanguage } from "../context/LanguageContext";
 import { X, ShieldCheck, AlertCircle, Sparkles, Fuel } from "lucide-react";
+import { ethers } from "ethers";
 
 interface PreTxModalProps {
   isOpen: boolean;
   onClose: () => void;
   campaign: any;
-  onConfirm: (params: { quantity: number; requireEarlySlot: boolean }) => void;
+  onConfirm: (params: { quantity: number; requireEarlySlot: boolean; paymentSource: "ARC_USDC" | "OTHER_USDC" }) => void;
   isLoading: boolean;
 }
 
@@ -21,13 +22,16 @@ export const PreTxModal: React.FC<PreTxModalProps> = ({
   const [quantity, setQuantity] = useState(1);
   const [requireEarlySlot, setRequireEarlySlot] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [paymentSource, setPaymentSource] = useState<"ARC_USDC" | "OTHER_USDC">("ARC_USDC");
+  useEffect(() => {
+    if (isOpen) { setQuantity(1); setRequireEarlySlot(false); setAgreed(false); setPaymentSource("ARC_USDC"); }
+  }, [isOpen, campaign?.id, campaign?.termsHash]);
 
   if (!isOpen || !campaign) return null;
 
-  const currentTier = campaign.tiers[campaign.currentUnlockedTier];
-  const unitPriceUSDC = Number(currentTier.price) / 1e6;
-  const totalGrossUSDC = (unitPriceUSDC * quantity).toFixed(2);
-  const estimatedGasUSDC = "0.005"; // Arc Testnet native USDC gas fee
+  const currentTier = campaign.tiers[campaign.currentUnlockedTier] || campaign.tiers[0];
+  const unitPriceUSDC = ethers.formatUnits(BigInt(currentTier.price), 6);
+  const totalGrossUSDC = ethers.formatUnits(BigInt(currentTier.price) * BigInt(quantity), 6);
 
   const earlyRebateUSDC =
     campaign.earlyRebateEnabled && campaign.earlyRebateAmount
@@ -106,7 +110,7 @@ export const PreTxModal: React.FC<PreTxModalProps> = ({
               {t("unitPriceLocked")}:
             </span>
             <span className="font-mono" style={{ fontWeight: 600 }}>
-              ${unitPriceUSDC.toFixed(2)} USDC
+              {unitPriceUSDC} USDC
             </span>
           </div>
 
@@ -123,7 +127,7 @@ export const PreTxModal: React.FC<PreTxModalProps> = ({
               {t("estimatedGas")}:
             </span>
             <span className="font-mono" style={{ color: "var(--warning)" }}>
-              ~{estimatedGasUSDC} USDC
+              Kiểm tra RPC trước ký; ví hiển thị phí thực tế
             </span>
           </div>
 
@@ -145,6 +149,16 @@ export const PreTxModal: React.FC<PreTxModalProps> = ({
             </span>
           </div>
         </div>
+        <label className="form-label" htmlFor="checkout-payment-source">Nguồn thanh toán</label>
+        <select id="checkout-payment-source" className="form-input" value={paymentSource} disabled={isLoading}
+          onChange={(event) => setPaymentSource(event.target.value as "ARC_USDC" | "OTHER_USDC")}>
+          <option value="ARC_USDC">USDC sẵn có trên Arc Testnet</option>
+          <option value="OTHER_USDC">USDC testnet mạng khác → CCTP → Arc</option>
+          <option disabled>Token khác → Swap: chưa hỗ trợ trên các mạng nguồn testnet này</option>
+        </select>
+        <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.5rem 0 1rem" }}>
+          Nạp tiền và tạo đơn là các giao dịch riêng. Không dùng token mainnet trong bản testnet này.
+        </p>
 
         {/* Early supporter optional slot */}
         {campaign.earlyRebateEnabled && (
@@ -209,9 +223,9 @@ export const PreTxModal: React.FC<PreTxModalProps> = ({
           className="btn btn-primary"
           style={{ width: "100%", justifyContent: "center" }}
           disabled={!agreed || isLoading}
-          onClick={() => onConfirm({ quantity, requireEarlySlot })}
+          onClick={() => onConfirm({ quantity, requireEarlySlot, paymentSource })}
         >
-          {isLoading ? "Đang xử lý trên Arc..." : t("approveAndCommit")}
+          {isLoading ? "Đang xử lý trên Arc..." : paymentSource === "OTHER_USDC" ? "Tiếp tục: báo giá và nạp USDC" : t("approveAndCommit")}
         </button>
       </div>
     </div>
