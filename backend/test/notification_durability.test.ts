@@ -1,13 +1,13 @@
+import {enrollFixtureOperator} from './helpers/operatorFixture';
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import path from "node:path";
 import http from "node:http";
 import express from "express";
-import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 import { store, TransactionalStore, EmailOutboxRecord } from "../src/db/store";
 import { config } from "../src/config";
-import { NotificationService } from "../src/services/notificationService";
+import { NotificationService, OutboxError } from "../src/services/notificationService";
 import {SessionService} from '../src/services/sessionService';
 import { notificationRouter } from "../src/routes/notificationRoutes";
 import { operatorRouter } from "../src/routes/operatorRoutes";
@@ -139,18 +139,20 @@ async function run() {
   await runAcl(owner,other,fail.id,visible.notification!.id);
   console.log("PASS NOTIFICATION_DURABILITY: 10 scoped checks; local fixtures, no live mail or original DB mutation");
 }
-const proofFor=(id:string)=>SessionService.authenticate(SessionService.issue(store.db.users[id]));
+const fixtureTokens=new Map<string,string>();const tokenFor=(id:string)=>{let token=fixtureTokens.get(id);if(!token){token=SessionService.issue(store.db.users[id]);fixtureTokens.set(id,token);}return token;};
+const proofFor=(id:string)=>SessionService.authenticate(tokenFor(id));
 async function runAcl(owner:string,other:string,failId:string,visibleId:string){
   const operator=user();store.db.users[operator].roles=["operator"];
   (job(failId) as any).lastError="legacy-private-email-or-token";store.save();
-  assert.throws(()=>NotificationService.emailOutbox(owner,proofFor(owner)),/FORBIDDEN/);
-  const safe=JSON.stringify(NotificationService.emailOutbox(operator,proofFor(operator)));
+  const enrollment=await enrollFixtureOperator(operator,proofFor(operator),{chainId:config.arcChainId});
+  assert.throws(()=>NotificationService.emailOutbox(owner,proofFor(owner)),error=>error instanceof OutboxError&&error.code==='OPERATOR_ACCESS_REQUIRED'&&error.status===403);
+  const safe=JSON.stringify(NotificationService.emailOutbox(operator,enrollment.proof));
   for(const privateField of ["payloadEncrypted","buyer@example.test","leaseToken","legacy-private-email-or-token"])assert.ok(!safe.includes(privateField));
   assert.ok(safe.includes("LEGACY_ERROR_REDACTED"));
   const app=express();app.use(express.json());app.use("/api/notifications",notificationRouter);app.use("/api/operator",operatorRouter);
   const server=app.listen(0,"127.0.0.1");await new Promise<void>(resolve=>server.once("listening",resolve));
   const root="http://127.0.0.1:"+(server.address() as any).port;
-  const headers=(id:string)=>({Authorization:"Bearer "+jwt.sign({userId:id},config.jwtSecret,{expiresIn:"1h"}),"Content-Type":"application/json"});
+  const headers=(id:string)=>({Authorization:"Bearer "+tokenFor(id),"Content-Type":"application/json"});
   try{
     assert.equal((await fetch(root+"/api/notifications/preferences")).status,401);
     assert.equal((await fetch(root+"/api/operator/email-outbox",{headers:headers(owner)})).status,403);
