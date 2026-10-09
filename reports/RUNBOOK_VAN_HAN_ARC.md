@@ -2601,3 +2601,10 @@ T178: operator native UI fixtures dùng managed token và auth/me + enrollment c
 
 
 T179: positive operator browser fixture cần metadata enrollment gắn controller canonical; fixture rotation retire auth session cũ trước account mới. Native mail fixture enroll trước khi tạo pending graph và proxy actual auth/session routes; giữ scoped mail redrive/cancel/pending SQL. 85 dev +6 unchanged-build preview đạt một lượt; evidence reports/evidence/checks-operator-final-fixtures-2026-10-09T20-01-14-324Z-14391020-e640-4508-8909-ed6d1417035f/CHECKS.json. Không production/build/native/package đổi; chưa live/full CI acceptance.
+
+
+## T180 — chốt CI local từ checkout sạch (2026-10-10)
+
+WP27/WP29 → T180: RESUMED_LOCAL_WINDOWS_CHECKS_PASS, candidate 90a9c873e52890a7a5f64e766a2764142557a7f8. Bốn workspace được cài bằng lockfile trong checkout riêng. Compile/types, accounting model/projection, API/recovery/product/operator, SDK và các bản build đã đạt; giữ kết quả nhóm không đổi, chỉ tiếp tục nhóm chưa chạy hoặc sửa fixture lỗi. Browser mặc định: 821 ca đạt, 41 ca bỏ qua theo profile; checkout/fee/fallback và preview cấu hình riêng đã đạt. Không gọi đây là một lượt full CI liền mạch hoặc nghiệm thu live. Bằng chứng: reports/evidence/checks-clean-candidate-2026-10-09T20-19-46-192Z-322e58ff/CHECKS.json (SHA256 c3c464184b5b1380b7d50f3132817dd5b82964dddf4c6517f4088af024695ca6).
+
+Các thay đổi T180 chủ yếu cập nhật fixture theo enrollment/session/committed data hiện hành; công cụ restore tạo thư mục report khi checkout chưa có và browser dừng ngay lỗi đầu. Source ứng dụng/contract production, 350 runtime inputs, gói frontend thật 172 files, builds, dữ liệu gốc và 95 held jobs giữ nguyên. Lịch sử lỗi được giữ nguyên. Ưu tiên kế: cố định bản mã và CI GitHub trên Ubuntu; đăng nhập và enrollment operator bằng chữ ký controller thật, rồi hành trình mua–giao–claim/refund/dispute, vận hành và G5/G6. Lựa chọn product/provider đã hoãn giữ nguyên; WP01–WP29/goal ACTIVE.
