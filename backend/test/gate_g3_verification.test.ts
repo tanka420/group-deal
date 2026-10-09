@@ -2,7 +2,7 @@ import * as assert from "assert";
 import * as fs from "fs";
 import * as path from "path";
 import { ethers } from "ethers";
-import { store } from "../src/db/store";
+import { store,TransactionalStore } from "../src/db/store";
 import { IndexerService } from "../src/services/indexerService";
 import { ReconciliationService } from "../src/services/reconciliationService";
 import { BackupService } from "../src/services/backupService";
@@ -369,17 +369,21 @@ async function runGateG3VerificationTests() {
   assert.ok(envelope.encryptedDataHex, "Envelope must have encryptedDataHex");
   console.log("✔ Encrypted backup created with AES-256-GCM authentication tag and SHA-256 checksum");
 
-  // Corrupt in-memory state
+  const sourceState=structuredClone(store.db),sourceFinance=JSON.stringify(store.readFinancialProjectionState({wholeScope:true}).graph);
+  const restoredStore=new TransactionalStore(fs.mkdtempSync(path.join(store.storageDirectory,"gate-g3-restore-")));
+  // Corrupt only the source cache; restore must use an empty isolated target.
   store.db.campaigns = {};
   store.db.orders = {};
   assert.strictEqual(Object.keys(store.db.campaigns).length, 0);
 
   // Restore drill
-  const restoreResult = BackupService.restoreEncryptedBackup(backup.backupPath);
+  const restoreResult = BackupService.restoreEncryptedBackup(backup.backupPath,restoredStore);
   assert.strictEqual(restoreResult.restored, true, "Restore drill must return restored: true");
   assert.strictEqual(restoreResult.checksum, backup.checksum, "Restored checksum must match backup checksum");
-  assert.ok(store.db.campaigns["1"], "Campaign '1' must be restored from encrypted backup");
-  assert.ok(store.db.orders["1"], "Order '1' must be restored from encrypted backup");
+  assert.ok(restoredStore.db.campaigns["1"], "Campaign '1' must be restored into the separate candidate");
+  assert.ok(restoredStore.db.orders["1"], "Order '1' must be restored into the separate candidate");
+  assert.strictEqual(JSON.stringify(store.readFinancialProjectionState({wholeScope:true}).graph),sourceFinance,"Restore must not change the source SQL projection");
+  store.db.campaigns=sourceState.campaigns;store.db.orders=sourceState.orders;
   console.log("✔ Clean restore drill succeeded: database state restored with full checksum validation");
 
   // Tamper detection on corrupted backup file (flipping ciphertext byte causes AES-GCM auth tag rejection)
@@ -396,8 +400,7 @@ async function runGateG3VerificationTests() {
   );
   console.log("✔ Cryptographic tamper detection verified: Modified backup was rejected during restore");
 
-  // Clean up test backup directory
-  fs.rmSync(testBackupDir, { recursive: true, force: true });
+  restoredStore.close(); // Keep owned fixture artifacts for failure review.
 
   // ---------------------------------------------------------------------------
   // [G3.5] Webhook Durability, SSRF, Persistent Queue & DLQ Replay
@@ -447,7 +450,10 @@ async function runGateG3VerificationTests() {
   job.maxAttempts = 3;
   job.nextAttemptAt = 0; // Ready now
 
-  // Process queue (targetUrl is non-existent, will fail delivery)
+  // Fixture transport only: exercise persisted retry/DLQ without external egress.
+  const originalTransport=(WebhookService as any).sendWebhook;
+  const delivered:any[]=[];(WebhookService as any).sendWebhook=async(_url:string,body:string)=>{delivered.push(JSON.parse(body));return 503;};
+  try {
   await WebhookService.processQueue();
 
   assert.strictEqual(job.status, "DLQ", "Exhausted job must transition to DLQ");
@@ -458,10 +464,13 @@ async function runGateG3VerificationTests() {
   console.log("✔ Webhook retry exhaustion transitioned job to Dead Letter Queue (DLQ)");
 
   // Replay from DLQ
+  (WebhookService as any).sendWebhook=async(_url:string,body:string)=>{delivered.push(JSON.parse(body));return 202;};
   const replayResult = await WebhookService.replayDLQ(dlqId);
   assert.strictEqual(replayResult, true, "Replay DLQ must succeed");
   assert.strictEqual(dlqEntry.replayed, true, "DLQ entry marked as replayed");
-  console.log("✔ Webhook DLQ replay mechanism verified");
+  assert.ok(delivered.length===2&&delivered.every(body=>body.id===job.eventId),"DLQ redrive must retain the original event identity");
+  console.log("✔ Webhook DLQ replay mechanism verified with isolated transport");
+  }finally{(WebhookService as any).sendWebhook=originalTransport;}
 
   console.log("\n=================================================");
   console.log("🎉 ALL GATE G3 VERIFICATION & SECURITY TESTS PASSED!");
