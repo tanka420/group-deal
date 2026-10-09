@@ -1,3 +1,4 @@
+import {installBridgeServerFixture} from './fixtures/bridgeServer';
 import { expect, test, Page } from "@playwright/test";
 import {ethers} from "ethers";
 import {HUB_ABI} from "../src/contracts/hubAbi";
@@ -22,6 +23,7 @@ const campaign = {
 };
 
 async function fixture(page: Page, options: { funded?: boolean; indexerOffline?: boolean;walletReverted?:boolean;verifiedRevert?:boolean;partialProjection?:boolean;approveFirst?:boolean } = {}) {
+  await installBridgeServerFixture(page,"fixture-buyer",buyer);
   const state = { funded: options.funded ?? true, campaignOpen: true, authorizations: 0, indexedReads: 0,indexerOffline:options.indexerOffline??false,partialProjection:options.partialProjection??false,phase:"PREPARED",prepared:false,recoveries:0 };
   const deadline=Math.floor(Date.now()/1000)+900;
   const operation={id:"durable-buy-fixture",action:"BUY",resourceId:"fixture",chainId:5042002,hubAddress:"0x2A7aECd1CE90f1284EB060488c8dDEF4b1bE0574",principal:buyer,calldata:new ethers.Interface(HUB_ABI).encodeFunctionData("commitToBuy",[1,identity,1,false,1,deadline,"0x1234"]),phase:"PREPARED",createdAt:Date.now(),updatedAt:Date.now(),expectedEventArgs:{campaignId:1,campaignIdentity:identity,buyerPrincipal:buyer,quantity:1},purchaseQuote:{blockNumber:125,blockHash:"0x"+"12".repeat(32),lockedUnitPrice:"1000000",commitmentAmount:"1000000",maxGrossAmount:"1000000",authorizationNonce:0,termsHash}};
