@@ -1,4 +1,4 @@
-import {OperationCompletionError} from '../domain/operationCompletion';
+import {OperationCompletionError} from '../src/domain/operationCompletion';
 import {SessionService} from '../src/services/sessionService';
 import assert from "node:assert";
 import { ethers } from "ethers";
