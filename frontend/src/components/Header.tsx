@@ -3,8 +3,13 @@ import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
 import { useWeb3 } from "../context/Web3Context";
 import { useExternalWallet } from "../context/ExternalWalletContext";
-import { AuthModal } from "./AuthModal";
 import { SellerRegisterModal } from "./SellerRegisterModal";
+import { NotificationPreferences } from "./NotificationPreferences";
+import {NotificationInbox} from "./NotificationInbox";
+import {SessionManager} from "./SessionManager";
+import {WalletManager} from "./WalletManager";
+import {SellerFollowsPanel} from "./SellerFollowsPanel";
+import {useNotificationInbox,InboxItem} from "../services/notificationInbox";
 import {
   Compass,
   ShoppingBag,
@@ -20,35 +25,52 @@ import {
   Check,
   Sparkles,
   Bell,
+  Users,
 } from "lucide-react";
 
 import { FundingModal } from "./FundingModal";
+import { revealFocus } from "../utils/focus";
+import { authErrorMessage } from "../services/authPresentation";
+import { messageText, type UiMessage } from "../utils/uiMessage";
 
 interface HeaderProps {
   currentTab: string;
   onTabChange: (tab: string) => void;
   onOpenSellerRegistration: () => void;
+  onOpenAuth: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   currentTab,
   onTabChange,
   onOpenSellerRegistration,
+  onOpenAuth,
 }) => {
   const { t, language, setLanguage } = useLanguage();
-  const { user, token, logout, circleWalletSyncing, circleWalletError, retryCircleWallet, circleCredentials } = useAuth();
+  const { user, token, logout, logoutState="NONE",sessionNotice=null,refreshUser,circleWalletSyncing, circleWalletError, retryCircleWallet, circleCredentials,circleWalletChoices=[] } = useAuth();
   const { account, usdcBalance, balanceError, walletMode, externalSignerReady, reconnectExternalWallet } = useWeb3();
   const external = useExternalWallet();
-  const [walletActionError, setWalletActionError] = useState<string | null>(null);
+  const [walletActionError, setWalletActionError] = useState<UiMessage | null>(null);
 
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isFundingModalOpen, setIsFundingModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [copiedWallet, setCopiedWallet] = useState(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const inbox=useNotificationInbox(token,user?.id),unreadNotifications=inbox.unread;
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const notificationButtonRef = useRef<HTMLButtonElement>(null);
+  const accountButtonRef = useRef<HTMLButtonElement>(null);
+  const openAccount = () => { accountButtonRef.current?.focus(); setIsDropdownOpen(false); onOpenAuth(); };
+  const headerRef=useRef<HTMLElement>(null);
+  useEffect(()=>{
+    const element=headerRef.current;if(!element)return;
+    const update=()=>{
+      document.documentElement.style.setProperty("--app-header-height",`${element.getBoundingClientRect().height}px`);
+      const target=document.activeElement;if(target instanceof HTMLElement&&target.closest(".main-content"))revealFocus(target);
+    };
+    const observer=new ResizeObserver(update);update();observer.observe(element);
+    return()=>{observer.disconnect();document.documentElement.style.removeProperty("--app-header-height");};
+  },[]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -61,44 +83,10 @@ export const Header: React.FC<HeaderProps> = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const refreshNotifications = async () => {
-    if (!token) return;
-    try {
-      const response = await fetch("/api/notifications", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) return;
-      const data = await response.json();
-      setNotifications(data.notifications || []);
-      setUnreadNotifications(data.unread || 0);
-    } catch (error) {
-      console.warn("Could not load notifications", error);
-    }
-  };
-
-  useEffect(() => {
-    if (!user || !token) {
-      setNotifications([]);
-      setUnreadNotifications(0);
-      return;
-    }
-    void refreshNotifications();
-    const timer = window.setInterval(() => void refreshNotifications(), 30_000);
-    return () => window.clearInterval(timer);
-  }, [user, token]);
-
-  const openNotification = async (notification: any) => {
-    if (!token) return;
-    if (!notification.readAt) {
-      await fetch(`/api/notifications/${notification.id}/read`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      await refreshNotifications();
-    }
-    if (["#orders", "#seller", "#operator"].includes(notification.link)) {
-      onTabChange(notification.link.substring(1));
-      setIsDropdownOpen(false);
+  const openNotification = async (notification:InboxItem) => {
+    if(!await inbox.markRead(notification))return;
+    if(notification.link&&(["#orders","#seller","#operator"].includes(notification.link)||/^#campaign-[A-Za-z0-9_-]{1,180}$/.test(notification.link)||/^#support-ticket-tkt_[a-f0-9-]{36}$/.test(notification.link))){
+      onTabChange(notification.link.slice(1));setIsDropdownOpen(false);
     }
   };
 
@@ -120,13 +108,13 @@ export const Header: React.FC<HeaderProps> = ({
   const accountLabel =
     user?.sellerProfile?.displayName ||
     user?.email?.split("@")[0] ||
-    (account ? truncate(account, 6) : "Tài khoản ví");
+    (account ? truncate(account, 6) : language === "en" ? "Wallet account" : "Tài khoản ví");
 
   return (
-    <header className="header">
+    <header className="header" ref={headerRef}>
       <div className="header-inner">
         {/* Brand & Arc Testnet Badge */}
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+        <div className="header-brand" style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
           <a
             href="#explore"
             className="logo-group"
@@ -135,7 +123,7 @@ export const Header: React.FC<HeaderProps> = ({
               onTabChange("explore");
             }}
           >
-            <div className="logo-mark">G</div>
+            <div className="logo-mark"><Users size={23} aria-hidden="true"/></div>
             <span className="logo-text">
               GroupDeal
               <span style={{ fontSize: "0.85rem", color: "var(--cyan)", fontWeight: 500 }}>Arc</span>
@@ -167,28 +155,33 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="header-actions">
           {/* Funding & Testnet Faucet */}
           <button
-            className="btn btn-sm btn-secondary"
+            className="btn btn-sm btn-secondary header-funding"
             onClick={() => setIsFundingModalOpen(true)}
-            title="Nạp USDC, CCTP Bridge & Testnet Faucet"
+            title={language==="en"?"Fund USDC, CCTP Bridge & Testnet Faucet":"Nạp USDC, CCTP Bridge & Testnet Faucet"}
           >
             <Coins size={15} color="var(--warning)" />
-            <span>Nạp USDC</span>
+            <span>{language==="en"?"Fund USDC":"Nạp USDC"}</span>
           </button>
 
           {/* User Account / Dropdown */}
           {!user ? (
-            <button className="btn btn-sm btn-primary" onClick={() => setIsAuthModalOpen(true)}>
+            <button className="btn btn-sm btn-primary header-login" onClick={onOpenAuth}>
               <UserIcon size={15} />
-              {t("login")}
+              <span className="header-auth-label">{t("login")}</span>
             </button>
           ) : (
-            <div className="account-dropdown-wrapper" ref={dropdownRef}>
+            <div className="account-dropdown-wrapper" ref={dropdownRef} onKeyDown={event=>{
+              if(event.key==="Escape"){event.stopPropagation();setIsDropdownOpen(false);notificationButtonRef.current?.focus();}
+            }}>
               <button
+                ref={notificationButtonRef}
                 className="btn btn-sm btn-secondary"
-                aria-label={`Thông báo${unreadNotifications ? `, ${unreadNotifications} chưa đọc` : ""}`}
+                aria-expanded={isDropdownOpen}
+                aria-controls="account-notifications"
+                aria-label={language==="en"?`Notifications${unreadNotifications?`, ${unreadNotifications} unread`:""}`:`Thông báo${unreadNotifications ? `, ${unreadNotifications} chưa đọc` : ""}`}
                 onClick={() => {
                   setIsDropdownOpen((prev) => !prev);
-                  void refreshNotifications();
+                  void inbox.reload();
                 }}
                 style={{ position: "relative", paddingInline: "0.65rem" }}
               >
@@ -216,6 +209,9 @@ export const Header: React.FC<HeaderProps> = ({
               {/* Account Pill Trigger */}
               <button
                 className="account-pill-btn"
+                ref={accountButtonRef}
+                aria-expanded={isDropdownOpen}
+                aria-controls="account-notifications"
                 onClick={() => setIsDropdownOpen((prev) => !prev)}
               >
                 <div className="avatar-circle">
@@ -225,16 +221,16 @@ export const Header: React.FC<HeaderProps> = ({
                       ? account.substring(2, 3).toUpperCase()
                       : "U"}
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", textAlign: "left", lineHeight: 1.2 }}>
+                <div className="account-summary" style={{ display: "flex", flexDirection: "column", textAlign: "left", lineHeight: 1.2 }}>
                   <span style={{ fontWeight: 600, fontSize: "0.82rem" }}>
                     {accountLabel}
                   </span>
                   <span className="font-mono" style={{ fontSize: "0.72rem", color: "var(--cyan)" }}>
                     {account
-                      ? (usdcBalance === null ? balanceError || "Đang tải số dư..." : `${usdcBalance} USDC${balanceError ? " · chưa cập nhật" : ""}`)
+                      ? (usdcBalance === null ? (balanceError ? (language === "en" ? "Balance unavailable" : "Chưa đọc được số dư") : (language === "en" ? "Loading balance…" : "Đang tải số dư…")) : `${usdcBalance} USDC${balanceError ? (language === "en" ? " · update pending" : " · chưa cập nhật") : ""}`)
                       : circleWalletSyncing
-                        ? "Đang đồng bộ ví Circle..."
-                        : "Chưa có ví hoạt động"}
+                        ? (language === "en" ? "Syncing Circle wallet…" : "Đang đồng bộ ví Circle…")
+                        : (language === "en" ? "No active wallet" : "Chưa có ví hoạt động")}
                   </span>
                 </div>
                 <ChevronDown size={14} color="var(--text-muted)" />
@@ -242,37 +238,39 @@ export const Header: React.FC<HeaderProps> = ({
 
               {/* Floating Dropdown Menu */}
               {isDropdownOpen && (
-                <div className="account-dropdown-menu">
+                <div className="account-dropdown-menu" id="account-notifications" role="region" aria-label={language==="en"?"Notifications and account":"Thông báo và tài khoản"}>
                   {/* User Profile Header */}
                   <div className="dropdown-user-header">
                     <div className="dropdown-email">
-                      {user.email || (user.loginMethod === "CIRCLE_EMAIL" ? "Đăng nhập email qua Circle" : "Đăng nhập bằng chữ ký ví EVM")}
+                      {user.email || (user.loginMethod === "CIRCLE_EMAIL" ? (language === "en" ? "Circle email sign-in" : "Đăng nhập email qua Circle") : (language === "en" ? "EVM wallet sign-in" : "Đăng nhập bằng chữ ký ví EVM"))}
                     </div>
                     <div className="dropdown-roles">
-                      <span className="role-tag buyer">Buyer</span>
-                      {isSeller && <span className="role-tag seller">Seller</span>}
-                      {isOperator && <span className="role-tag operator">Admin</span>}
+                      <span className="role-tag buyer">{language === "en" ? "Buyer" : "Người mua"}</span>
+                      {isSeller && <span className="role-tag seller">{language === "en" ? "Seller" : "Người bán"}</span>}
+                      {isOperator && <span className="role-tag operator">{language === "en" ? "Operator" : "Vận hành"}</span>}
                     </div>
 
                     {circleWalletSyncing && !account && (
                       <div style={{ marginTop: "0.65rem", color: "var(--cyan)", fontSize: "0.75rem" }}>
-                        Đã đăng nhập. Ví Arc đang được Circle đồng bộ trong nền.
+                        {language === "en" ? "Signed in. Circle is syncing your Arc wallet in the background." : "Đã đăng nhập. Ví Arc đang được Circle đồng bộ trong nền."}
                       </div>
                     )}
-                    {(circleWalletError || walletActionError) && <p role="alert">{circleWalletError || walletActionError}</p>}
+                    {(circleWalletError || walletActionError) && <p role="alert">{circleWalletError ? (language === "en" ? "The Circle signing wallet is unavailable. Reauthenticate or retry synchronization." : "Chưa dùng được ví ký Circle. Xác thực lại hoặc thử đồng bộ ví.") : walletActionError && messageText(walletActionError, language)}</p>}
+                    {circleWalletChoices.length>0&&<button type="button" className="btn btn-primary" onClick={openAccount}>{language==="en"?"Choose your Circle wallet":"Chọn ví Circle của bạn"}</button>}
+                    <button className="btn btn-sm btn-secondary" onClick={openAccount}>{language === "en" ? "Account details" : "Thông tin tài khoản"}</button>
                     {user.loginMethod === "CIRCLE_EMAIL" && !circleWalletSyncing && (
                       <button className="btn btn-sm btn-secondary" onClick={() => {
-                        if (!circleCredentials) setIsAuthModalOpen(true);
+                        if (!circleCredentials) openAccount();
                         else void retryCircleWallet();
                       }}>
-                        {circleCredentials ? "Đồng bộ lại ví Circle" : "Xác thực email để ký / đồng bộ ví"}
+                        {circleCredentials ? (language === "en" ? "Resync Circle wallet" : "Đồng bộ lại ví Circle") : (language === "en" ? "Authenticate email for signing / wallet sync" : "Xác thực email để ký / đồng bộ ví")}
                       </button>
                     )}
                     {walletMode === "EXTERNAL_REOWN" && !externalSignerReady && (
                       <button className="btn btn-sm btn-secondary" onClick={() => {
                         setWalletActionError(null);
-                        void reconnectExternalWallet().catch((error) => setWalletActionError(error.message));
-                      }}>Kết nối lại ví để ký</button>
+                        void reconnectExternalWallet().catch((error) => setWalletActionError(authErrorMessage(error, "WALLET")));
+                      }}>{language === "en" ? "Reconnect wallet to sign" : "Kết nối lại ví để ký"}</button>
                     )}
 
                     {account && (
@@ -285,7 +283,8 @@ export const Header: React.FC<HeaderProps> = ({
                           <button
                             onClick={handleCopyWallet}
                             style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", display: "flex" }}
-                            title="Copy ví"
+                            title={language === "en" ? "Copy wallet address" : "Sao chép địa chỉ ví"}
+                            aria-label={language === "en" ? "Copy wallet address" : "Sao chép địa chỉ ví"}
                           >
                             {copiedWallet ? <Check size={13} color="var(--success)" /> : <Copy size={13} />}
                           </button>
@@ -294,43 +293,14 @@ export const Header: React.FC<HeaderProps> = ({
                     )}
                   </div>
 
-                  <div style={{ padding: "0.75rem", borderBottom: "1px solid var(--border-subtle)" }}>
-                    <div style={{ fontWeight: 700, fontSize: "0.8rem", marginBottom: "0.5rem" }}>
-                      Thông báo {unreadNotifications > 0 && `(${unreadNotifications} mới)`}
-                    </div>
-                    {notifications.length === 0 ? (
-                      <div style={{ color: "var(--text-muted)", fontSize: "0.76rem" }}>
-                        Chưa có thông báo.
-                      </div>
-                    ) : (
-                      notifications.slice(0, 5).map((notification) => (
-                        <button
-                          key={notification.id}
-                          type="button"
-                          onClick={() => void openNotification(notification)}
-                          style={{
-                            width: "100%",
-                            border: 0,
-                            borderRadius: "0.5rem",
-                            background: notification.readAt ? "transparent" : "rgba(34, 211, 238, 0.08)",
-                            color: "inherit",
-                            textAlign: "left",
-                            padding: "0.5rem",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <div style={{ fontSize: "0.76rem", fontWeight: notification.readAt ? 500 : 700 }}>
-                            {notification.title}
-                          </div>
-                          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
-                            {notification.message}
-                          </div>
-                        </button>
-                      ))
-                    )}
-                  </div>
+                  <NotificationInbox rows={inbox.rows} pending={inbox.pending} error={inbox.error} cursor={inbox.cursor} onReload={()=>void inbox.reload()} onMore={()=>void inbox.more()} onOpen={notification=>void openNotification(notification)}/>
 
                   {/* Menu Items */}
+                  {token&&<NotificationPreferences key={user.id} token={token} userId={user.id}/>}
+                  <button className="btn btn-secondary" onClick={()=>{setIsDropdownOpen(false);onTabChange('support');}}>{language==='en'?'Support tickets':'Ticket hỗ trợ'}</button>
+                  {token&&<SellerFollowsPanel key={JSON.stringify([user.id,token])} token={token} userId={user.id}/>}
+                  {token&&<SessionManager key={"sessions-"+user.id} token={token} userId={user.id}/>}
+                  {token&&<WalletManager key={"wallets-"+user.id} token={token} userId={user.id}/>}
                   <div className="dropdown-menu-list">
                     {/* Buyer Orders */}
                     <button
@@ -372,7 +342,7 @@ export const Header: React.FC<HeaderProps> = ({
                     )}
 
                     {/* Operator Portal: STRICTLY for Admin / Operator */}
-                    {isOperator && (
+                    {user && (
                       <button
                         className="dropdown-menu-item highlight-operator"
                         onClick={() => {
@@ -381,7 +351,7 @@ export const Header: React.FC<HeaderProps> = ({
                         }}
                       >
                         <ShieldAlert size={16} />
-                        <span>{t("operatorPortal")}</span>
+                        <span>{isOperator?t("operatorPortal"):(language==="en"?"Operator access":"Quyền operator")}</span>
                       </button>
                     )}
 
@@ -393,7 +363,7 @@ export const Header: React.FC<HeaderProps> = ({
                       onClick={() => setLanguage(language === "vi" ? "en" : "vi")}
                     >
                       <Globe size={16} />
-                      <span>Ngôn ngữ: <strong>{language === "vi" ? "Tiếng Việt" : "English"}</strong></span>
+                      <span>{language==="en"?"Language":"Ngôn ngữ"}: <strong>{language === "vi" ? "Tiếng Việt" : "English"}</strong></span>
                     </button>
 
 
@@ -421,7 +391,11 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      {(logoutState!=="NONE"||sessionNotice)&&<div className="session-banner" role={logoutState==="UNCONFIRMED"||sessionNotice==="UNAVAILABLE"?"alert":"status"}>
+        {logoutState==="PENDING"?(language==="en"?"Signed out here. Waiting for server revocation…":"Đã đăng xuất trên máy này. Đang chờ máy chủ xác nhận thu hồi…"):logoutState==="CONFIRMED"?(language==="en"?"Signed out. Server session revocation confirmed.":"Đã đăng xuất. Máy chủ đã xác nhận thu hồi phiên."):logoutState==="UNCONFIRMED"?(language==="en"?"Signed out here. Server revocation could not be confirmed. Sign in again and review your sessions.":"Đã đăng xuất trên máy này. Chưa xác nhận được thu hồi ở máy chủ. Đăng nhập lại để kiểm tra các phiên."):sessionNotice==="ENDED"?(language==="en"?"This sign-in session has ended. Sign in again to continue.":"Phiên đăng nhập đã kết thúc. Đăng nhập lại để tiếp tục."):(language==="en"?"Unable to verify your session. Check the connection and retry.":"Chưa kiểm tra được phiên đăng nhập. Kiểm tra kết nối và thử lại.")}
+        {sessionNotice==="UNAVAILABLE"&&<button className="btn btn-sm btn-secondary" onClick={()=>void refreshUser()}>{language==="en"?"Retry session check":"Kiểm tra lại phiên"}</button>}
+      </div>}
+
       <FundingModal isOpen={isFundingModalOpen} onClose={() => setIsFundingModalOpen(false)} />
     </header>
   );

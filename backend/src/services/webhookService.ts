@@ -1,376 +1,132 @@
-import * as crypto from "crypto";
-import * as dns from "dns";
-import { store, WebhookSubscription, WebhookJobRecord, WebhookDLQRecord } from "../db/store";
+import {encryptWebhookSecret,decryptWebhookSecret} from "./webhookSecret";
+import * as crypto from "node:crypto";
+import { store, WebhookSubscription, WebhookJobRecord, WebhookDLQRecord, DatabaseSchema } from "../db/store";
+import { StorageConflict } from "../db/rowPersistence";
 import { signWebhookPayload } from "../utils/crypto";
-import { config } from "../config";
+import { webhookPayload } from "./webhookPayload";
+import { resolveWebhookTarget, postWebhook } from "./webhookTransport";
+import {isRestoredWorkHeld,readRestoredWorkBarrier} from '../domain/restoredWork';
+import {SessionService,SessionProof,SessionError} from './sessionService';
+import {holdJobForRestoredSubscription} from './restoredWorkBarrier';
+import {isRestoredSubscriptionHeld,approvedRestoredSubscription,restoredWebhookJobCanSend} from './webhookRecoveryPolicy';
+
+export class RestoredSubscriptionError extends Error{constructor(public readonly code='RESTORED_SUBSCRIPTION_REVIEW_REQUIRED',public readonly status=409){super(code);}}
+
+const leaseDuration=15000;
+const supportedEvents=new Set(["order.committed","order.delivered","order.disputed","order.confirmed","order.refunded","order.breached","order.resolved","campaign.cancelled","campaign.finalized","campaign.tier_unlocked","*"]);
 
 export class WebhookService {
-  /**
-   * Validate webhook URL against SSRF vulnerabilities with DNS resolution,
-   * port policies, and private network rejection.
-   */
-  public static async validateWebhookUrl(targetUrl: string): Promise<void> {
-    let parsed: URL;
-    try {
-      parsed = new URL(targetUrl);
-    } catch {
-      throw new Error("Invalid webhook URL format");
-    }
-
-    if (config.isProduction && parsed.protocol !== "https:") {
-      throw new Error("SSRF Protection: Production webhooks strictly require HTTPS protocol");
-    }
-
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      throw new Error("Invalid protocol: only http and https are allowed for webhooks");
-    }
-
-    // Port check
-    const port = parsed.port ? parseInt(parsed.port, 10) : parsed.protocol === "https:" ? 443 : 80;
-    if (config.isProduction && port !== 443) {
-      throw new Error(`SSRF Protection: Production webhooks only permit port 443 (got ${port})`);
-    }
-
-    const host = parsed.hostname.toLowerCase();
-
-    // Block loopback and local domain names
-    if (
-      host === "localhost" ||
-      host === "127.0.0.1" ||
-      host === "0.0.0.0" ||
-      host === "::1" ||
-      host.endsWith(".localhost") ||
-      host.endsWith(".local") ||
-      host.endsWith(".internal")
-    ) {
-      throw new Error(`SSRF Protection: Webhook target host '${host}' is not permitted`);
-    }
-
-    // Helper to evaluate IPv4 address
-    const checkIPv4 = (ip: string) => {
-      const parts = ip.split(".").map((p) => parseInt(p, 10));
-      if (parts.length !== 4 || parts.some(isNaN)) return;
-      const [b0, b1] = parts;
-
-      if (
-        b0 === 0 || // 0.0.0.0/8
-        b0 === 10 || // 10.0.0.0/8 (Private)
-        b0 === 127 || // 127.0.0.0/8 (Loopback)
-        (b0 === 100 && b1 >= 64 && b1 <= 127) || // 100.64.0.0/10 (Carrier NAT)
-        (b0 === 169 && b1 === 254) || // 169.254.0.0/16 (Link Local / Cloud Metadata)
-        (b0 === 172 && b1 >= 16 && b1 <= 31) || // 172.16.0.0/12 (Private)
-        (b0 === 192 && b1 === 168) || // 192.168.0.0/16 (Private)
-        (b0 === 198 && (b1 === 18 || b1 === 19)) || // 198.18.0.0/15 (Benchmarking)
-        b0 >= 224 // Multicast and reserved (224.0.0.0/4, 240.0.0.0/4)
-      ) {
-        throw new Error(`SSRF Protection: Target IP '${ip}' is within a forbidden or private network`);
-      }
-    };
-
-    // Helper to evaluate IPv6 address
-    const checkIPv6 = (ip: string) => {
-      const clean = ip.toLowerCase().replace(/[\[\]]/g, "");
-      if (
-        clean === "::1" ||
-        clean === "::" ||
-        clean.startsWith("fe80:") || // Link-local
-        clean.startsWith("fc00:") || // Unique local
-        clean.startsWith("fd00:") // Unique local
-      ) {
-        throw new Error(`SSRF Protection: Target IPv6 '${ip}' is within a private network`);
-      }
-      // Check IPv4-mapped IPv6 (::ffff:x.x.x.x)
-      if (clean.startsWith("::ffff:")) {
-        const v4 = clean.replace("::ffff:", "");
-        checkIPv4(v4);
-      }
-    };
-
-    // Check raw IP if provided as hostname
-    if (/^(\d{1,3}\.){3}\d{1,3}$/.test(host)) {
-      checkIPv4(host);
-    } else if (host.includes(":")) {
-      checkIPv6(host);
-    }
-
-    // Resolve DNS records to prevent DNS Rebinding / Private IP mappings
-    try {
-      const records = await dns.promises.lookup(host, { all: true });
-      for (const rec of records) {
-        if (rec.family === 4) {
-          checkIPv4(rec.address);
-        } else if (rec.family === 6) {
-          checkIPv6(rec.address);
-        }
-      }
-    } catch (dnsErr: any) {
-      // If error was thrown from our own checks, rethrow it
-      if (dnsErr.message.includes("SSRF Protection")) {
-        throw dnsErr;
-      }
-      // If hostname cannot be resolved in offline/test environment, don't fail unless production
-      if (config.isProduction) {
-        throw new Error(`SSRF Protection: Failed to resolve hostname '${host}': ${dnsErr.message}`);
-      }
-    }
+  public static async validateWebhookUrl(targetUrl:string):Promise<void> {await resolveWebhookTarget(targetUrl);}
+  private static sendWebhook=postWebhook;
+  public static subscriptionDto(sub:WebhookSubscription,state:Pick<DatabaseSchema,'authRecovery'|'restoredWork'>=store.db,sellerId=sub.sellerId){
+    if(sub.sellerId!==sellerId)throw new RestoredSubscriptionError('WEBHOOK_SUBSCRIPTION_UNAVAILABLE',503);
+    const held=isRestoredSubscriptionHeld(state,sellerId,sub);
+    return{id:sub.id,sellerId:sub.sellerId,targetUrl:sub.targetUrl,events:sub.events.filter(e=>supportedEvents.has(e)),secret:held?null:sub.secretEncrypted?decryptWebhookSecret(sub.secretEncrypted,sub.id):sub.secret,restoredReviewRequired:held,canConfigure:!held,canEnqueue:!held,
+      logs:sub.logs.slice(0,50).map(log=>({id:log.id,event:supportedEvents.has(log.event)?log.event:'UNKNOWN',payload:webhookPayload(log.payload),status:['SUCCESS','FAILED','PENDING'].includes(log.status)?log.status:'UNKNOWN',statusCode:log.statusCode,timestamp:log.timestamp,attempts:log.attempts,error:log.error?'Webhook attempt failed':undefined}))};
   }
 
-  /**
-   * Register or update a seller webhook endpoint with SSRF check
-   */
-  public static async registerWebhook(
-    sellerId: string,
-    targetUrl: string,
-    events: string[]
-  ): Promise<WebhookSubscription> {
+  public static async registerWebhook(sellerId:string,targetUrl:string,events:string[],proof?:SessionProof):Promise<WebhookSubscription> {
+    if(!Array.isArray(events)||!events.length||events.some(event=>!supportedEvents.has(event)))throw new Error("Select supported webhook events");
+    const snapshot=store.readSellerWebhookState(sellerId,proof?.key);
+    if(proof){const account=SessionService.assertCommitted(proof,snapshot.auth);if(account.id!==sellerId||!account.roles.includes('seller'))throw new SessionError('WEBHOOK_SELLER_REQUIRED',403);}
+    if(isRestoredSubscriptionHeld({authRecovery:snapshot.auth.authRecovery as DatabaseSchema['authRecovery'],restoredWork:snapshot.restoredWork},sellerId,snapshot.webhook))throw new RestoredSubscriptionError();
     await this.validateWebhookUrl(targetUrl);
-
-    let sub = store.db.webhooks[sellerId];
-    if (!sub) {
-      sub = {
-        id: `wh_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        sellerId,
-        targetUrl,
-        secret: `whsec_${crypto.randomBytes(24).toString("hex")}`,
-        events: events || ["order.committed", "order.delivered", "order.disputed"],
-        logs: [],
-      };
-      store.db.webhooks[sellerId] = sub;
-    } else {
-      sub.targetUrl = targetUrl;
-      sub.events = events;
-    }
-
-    store.save();
-    return sub;
-  }
-
-  /**
-   * Enqueue event to persistent queue
-   */
-  public static enqueueEvent(
-    sellerId: string,
-    eventName: string,
-    payload: any
-  ): WebhookJobRecord | null {
-    const sub = store.db.webhooks[sellerId];
-    if (!sub || !sub.targetUrl) return null;
-
-    if (!sub.events.includes(eventName) && !sub.events.includes("*")) {
-      return null;
-    }
-
-    const jobId = `job_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const job: WebhookJobRecord = {
-      id: jobId,
-      sellerId,
-      targetUrl: sub.targetUrl,
-      secret: sub.secret,
-      eventName,
-      payload,
-      status: "QUEUED",
-      attempts: 0,
-      maxAttempts: 3,
-      nextAttemptAt: Date.now(),
-      createdAt: Date.now(),
-    };
-
-    if (!store.db.webhookQueue) store.db.webhookQueue = {};
-    store.db.webhookQueue[jobId] = job;
-    store.save();
-
-    return job;
-  }
-
-  /**
-   * Dispatch event directly or via queue
-   */
-  public static async dispatchEvent(
-    sellerId: string,
-    eventName: string,
-    payload: any
-  ): Promise<void> {
-    const job = this.enqueueEvent(sellerId, eventName, payload);
-    if (job) {
-      await this.processQueue();
-    }
-  }
-
-  /**
-   * Process persistent queue with retry schedule, redirect protection, and DLQ
-   */
-  public static async processQueue(): Promise<{ processed: number; succeeded: number; failed: number }> {
-    if (!store.db.webhookQueue) store.db.webhookQueue = {};
-    if (!store.db.webhookDLQ) store.db.webhookDLQ = {};
-
-    let processed = 0;
-    let succeeded = 0;
-    let failed = 0;
-    const now = Date.now();
-
-    for (const job of Object.values(store.db.webhookQueue)) {
-      if (job.status !== "QUEUED" || job.nextAttemptAt > now) {
-        continue;
-      }
-
-      processed++;
-      job.status = "PROCESSING";
-      job.attempts++;
-
-      let success = false;
-      let lastError = "";
-      let statusCode: number | undefined;
-
-      try {
-        await this.validateWebhookUrl(job.targetUrl);
-
-        const timestamp = Math.floor(Date.now() / 1000);
-        const jsonBody = JSON.stringify({
-          id: `evt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-          event: job.eventName,
-          timestamp,
-          data: job.payload,
-        });
-
-        const signature = signWebhookPayload(jsonBody, job.secret, timestamp);
-
-        let currentUrl = job.targetUrl;
-        let redirectCount = 0;
-        const maxRedirects = 3;
-
-        while (redirectCount <= maxRedirects) {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-          const res = await fetch(currentUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-GroupDeal-Signature": `sha256=${signature}`,
-              "X-GroupDeal-Timestamp": timestamp.toString(),
-              "X-GroupDeal-Event": job.eventName,
-              "User-Agent": "GroupDeal-Webhook-Dispatcher/1.0",
-            },
-            body: jsonBody,
-            redirect: "manual",
-            signal: controller.signal,
-          });
-
-          clearTimeout(timeoutId);
-          statusCode = res.status;
-
-          // Handle manual redirect with SSRF validation
-          if ([301, 302, 303, 307, 308].includes(res.status)) {
-            const location = res.headers.get("location");
-            if (!location) {
-              throw new Error(`Redirect status ${res.status} missing Location header`);
-            }
-            const nextUrl = new URL(location, currentUrl).toString();
-            // Validate redirect destination against SSRF!
-            await this.validateWebhookUrl(nextUrl);
-            currentUrl = nextUrl;
-            redirectCount++;
-            continue;
-          }
-
-          if (res.ok) {
-            success = true;
-            break;
-          } else {
-            lastError = `Target returned HTTP status ${res.status}`;
-            break;
-          }
-        }
-      } catch (err: any) {
-        lastError = err.message;
-      }
-
-      if (success) {
-        job.status = "COMPLETED";
-        job.completedAt = Date.now();
-        succeeded++;
-      } else {
-        job.lastError = lastError;
-        failed++;
-        if (job.attempts >= job.maxAttempts) {
-          // Move to Dead Letter Queue (DLQ)
-          job.status = "DLQ";
-          const dlqId = `dlq_${job.id}`;
-          const dlqRecord: WebhookDLQRecord = {
-            id: dlqId,
-            jobId: job.id,
-            sellerId: job.sellerId,
-            targetUrl: job.targetUrl,
-            eventName: job.eventName,
-            payload: job.payload,
-            error: lastError,
-            failedAt: Date.now(),
-            replayed: false,
-          };
-          store.db.webhookDLQ[dlqId] = dlqRecord;
-          store.addAuditLog("system", "operator", "WEBHOOK_MOVED_TO_DLQ", {
-            jobId: job.id,
-            dlqId,
-            sellerId: job.sellerId,
-            error: lastError,
-          });
-        } else {
-          // Schedule retry with exponential backoff
-          job.status = "QUEUED";
-          job.nextAttemptAt = Date.now() + job.attempts * 1000;
-        }
-      }
-
-      // Record in subscription logs
-      const sub = store.db.webhooks[job.sellerId];
-      if (sub) {
-        const logEntry: WebhookSubscription["logs"][0] = {
-          id: `log_${Date.now()}`,
-          event: job.eventName,
-          payload: job.payload,
-          status: success ? "SUCCESS" : job.status === "DLQ" ? "FAILED" : "PENDING",
-          statusCode,
-          timestamp: Date.now(),
-          attempts: job.attempts,
-          error: success ? undefined : lastError,
-        };
-        sub.logs.unshift(logEntry);
-        if (sub.logs.length > 50) sub.logs.pop();
-      }
-
-      store.save();
-    }
-
-    return { processed, succeeded, failed };
-  }
-
-  /**
-   * Replay a failed job from the Dead Letter Queue (DLQ)
-   */
-  public static async replayDLQ(dlqId: string): Promise<boolean> {
-    if (!store.db.webhookDLQ || !store.db.webhookDLQ[dlqId]) {
-      return false;
-    }
-
-    const dlq = store.db.webhookDLQ[dlqId];
-    if (dlq.replayed) {
-      return false;
-    }
-
-    dlq.replayed = true;
-    dlq.replayedAt = Date.now();
-
-    const newJob = this.enqueueEvent(dlq.sellerId, dlq.eventName, dlq.payload);
-    store.addAuditLog("system", "operator", "WEBHOOK_DLQ_REPLAYED", {
-      dlqId,
-      originalJobId: dlq.jobId,
-      newJobId: newJob?.id,
+    return store.transaction(()=>{
+      if(proof){const account=SessionService.assertCommitted(proof,store.readAuthState(sellerId,proof.key));if(account.id!==sellerId||!account.roles.includes('seller'))throw new SessionError('WEBHOOK_SELLER_REQUIRED',403);}
+      if(isRestoredSubscriptionHeld(store.db,sellerId,store.db.webhooks[sellerId]))throw new RestoredSubscriptionError();
+      let sub=store.db.webhooks[sellerId];
+      if(!sub){sub={id:"wh_"+crypto.randomUUID(),sellerId,targetUrl,secret:"whsec_"+crypto.randomBytes(24).toString("hex"),events:[...new Set(events)],logs:[]};store.db.webhooks[sellerId]=sub;}
+      else {sub.targetUrl=targetUrl;sub.events=[...new Set(events)];}
+      if(!sub.secretEncrypted)sub.secretEncrypted=encryptWebhookSecret(sub.secret,sub.id);sub.secret="";
+      return sub;
     });
-    store.save();
+  }
 
-    if (newJob) {
-      await this.processQueue();
+  public static enqueueEvent(sellerId:string,eventName:string,payload:any,event?:{eventId:string;eventCreatedAt:number;redrive?:boolean},target=store):WebhookJobRecord|null {
+    return target.transaction(()=>{
+      const sub=target.db.webhooks[sellerId];
+      const subscriptionHeld=isRestoredSubscriptionHeld(target.db,sellerId,sub);
+      if(!sub?.targetUrl||!sub.events.includes(eventName)&&!sub.events.includes("*"))return null;
+      const eventId=event?.eventId||"evt_"+crypto.randomUUID();
+      if(!/^evt_[A-Za-z0-9_-]{1,80}$/.test(eventId))throw new Error("Invalid webhook event identifier");
+      const prior=Object.values(target.db.webhookQueue).find(job=>job.sellerId===sellerId&&job.eventId===eventId&&(!event?.redrive||job.status!=="DLQ"));
+      if(prior)return prior;
+      const job:WebhookJobRecord={id:"job_"+crypto.randomUUID(),eventId,eventCreatedAt:event?.eventCreatedAt??Date.now(),sellerId,targetUrl:sub.targetUrl,secret:"",eventName,payload:webhookPayload(payload),status:"QUEUED",attempts:0,maxAttempts:3,nextAttemptAt:Date.now(),createdAt:Date.now()};
+      job.secretEncrypted=encryptWebhookSecret(sub.secretEncrypted?decryptWebhookSecret(sub.secretEncrypted,sub.id):sub.secret,job.id);
+      const approval=approvedRestoredSubscription(target.db,sellerId,sub);if(approval)job.subscriptionReviewId=approval.reviewId;
+      target.db.webhookQueue[job.id]=job;if(subscriptionHeld)holdJobForRestoredSubscription(target.db,job);return job;
+    });
+  }
+
+  public static async dispatchEvent(sellerId:string,eventName:string,payload:any):Promise<void>{if(this.enqueueEvent(sellerId,eventName,payload))await this.processQueue();}
+
+  private static deadLetter(job:WebhookJobRecord,error:string):void {
+    job.status="DLQ";delete job.leaseToken;delete job.leaseExpiresAt;job.lastError=error;
+    const id="dlq_"+job.id;
+    const record:WebhookDLQRecord={id,eventId:job.eventId,eventCreatedAt:job.eventCreatedAt,jobId:job.id,sellerId:job.sellerId,targetUrl:job.targetUrl,eventName:job.eventName,payload:webhookPayload(job.payload),error,failedAt:Date.now(),replayed:false};
+    store.db.webhookDLQ[id]=record;
+    store.addAuditLog("system","operator","WEBHOOK_MOVED_TO_DLQ",{jobId:job.id,dlqId:id,sellerId:job.sellerId,error},"webhook-dlq:"+job.id);
+  }
+
+  /** A persisted lease precedes the network call. A crash may repeat a delivery, with exactly the same event ID. */
+  public static async processQueue():Promise<{processed:number;succeeded:number;failed:number}> {
+    let processed=0,succeeded=0,failed=0;
+    try{store.save();}catch(error){if(!(error instanceof StorageConflict))throw error;}
+    readRestoredWorkBarrier(store.db);
+    const due=Object.entries(store.db.webhookQueue).filter(([id,job])=>job.id===id&&restoredWebhookJobCanSend(store.db,job)&&(job.status==="QUEUED"&&job.nextAttemptAt<=Date.now()||job.status==="PROCESSING"&&(job.leaseExpiresAt??0)<=Date.now())).slice(0,50);
+    for(const [id] of due) {
+      let claimed:WebhookJobRecord|undefined;
+      try {
+        claimed=store.transaction(()=>{
+          const job=store.db.webhookQueue[id],now=Date.now();
+          if(!job||!restoredWebhookJobCanSend(store.db,job)||job.status!=="QUEUED"&&job.status!=="PROCESSING"||job.status==="QUEUED"&&job.nextAttemptAt>now||job.status==="PROCESSING"&&(job.leaseExpiresAt??0)>now)return undefined;
+          job.eventId||="evt_"+job.id;job.eventCreatedAt??=job.createdAt;job.payload=webhookPayload(job.payload);
+          if(job.attempts>=job.maxAttempts){this.deadLetter(job,"Webhook retry budget exhausted after interrupted delivery");return undefined;}
+          job.status="PROCESSING";job.attempts++;job.leaseToken=crypto.randomUUID();job.leaseExpiresAt=now+leaseDuration;
+          return structuredClone(job);
+        });
+      }catch(error){if(error instanceof StorageConflict)continue;throw error;}
+      if(!claimed)continue;
+      processed++;
+      let statusCode:number|undefined,success=false,error="Webhook request or egress policy failed";
+      try {
+        const timestamp=Math.floor(Date.now()/1000);
+        const body=JSON.stringify({id:claimed.eventId,createdAt:claimed.eventCreatedAt,event:claimed.eventName,timestamp,data:claimed.payload});
+        statusCode=await this.sendWebhook(claimed.targetUrl,body,{"Content-Type":"application/json","X-GroupDeal-Signature":"sha256="+signWebhookPayload(body,claimed.secretEncrypted?decryptWebhookSecret(claimed.secretEncrypted,claimed.id):claimed.secret,timestamp),"X-GroupDeal-Timestamp":String(timestamp),"X-GroupDeal-Event":claimed.eventName,"X-GroupDeal-Event-Id":claimed.eventId!,"User-Agent":"GroupDeal-Webhook-Dispatcher/2.0"});
+        success=statusCode>=200&&statusCode<300;if(!success)error="Webhook endpoint did not acknowledge with HTTP 2xx";
+      }catch{/* Do not persist remote errors, URLs, secrets or response content. */}
+      let finished=false;
+      for(let retry=0;retry<3&&!finished;retry++) {
+        try {
+          finished=store.transaction(()=>{
+            const job=store.db.webhookQueue[id];
+            if(!job||!restoredWebhookJobCanSend(store.db,job)||job.status!=="PROCESSING"||job.leaseToken!==claimed!.leaseToken)return false;
+            delete job.leaseToken;delete job.leaseExpiresAt;
+            if(success){job.status="COMPLETED";job.completedAt=Date.now();delete job.lastError;}
+            else if(job.attempts>=job.maxAttempts)this.deadLetter(job,error);
+            else {job.status="QUEUED";job.lastError=error;job.nextAttemptAt=Date.now()+1000*2**(job.attempts-1);}
+            const sub=store.db.webhooks[job.sellerId];
+            if(sub){sub.logs.unshift({id:"log_"+crypto.randomUUID(),event:job.eventName,payload:webhookPayload(job.payload),status:success?"SUCCESS":(job as WebhookJobRecord).status==="DLQ"?"FAILED":"PENDING",statusCode,timestamp:Date.now(),attempts:job.attempts,error:success?undefined:error});sub.logs=sub.logs.slice(0,50);}
+            return true;
+          });
+          if(!finished)break; // Another lease owns this attempt; don't overwrite its result.
+        }catch(error){if(!(error instanceof StorageConflict))throw error;}
+      }
+      if(finished){if(success)succeeded++;else failed++;}
+      if(processed>=50)break;
     }
-    return true;
+    return {processed,succeeded,failed};
+  }
+
+  public static async replayDLQ(dlqId:string):Promise<boolean> {
+    const replayed=store.transaction(()=>{
+      const dlq=store.db.webhookDLQ[dlqId];if(!dlq||dlq.replayed||isRestoredWorkHeld(store.db,'webhookDLQ',dlqId)||isRestoredWorkHeld(store.db,'webhookQueue',dlq.jobId)||isRestoredSubscriptionHeld(store.db,dlq.sellerId,store.db.webhooks[dlq.sellerId])||isRestoredWorkHeld(store.db,'webhooks',dlq.sellerId)&&(!store.db.webhookQueue[dlq.jobId]||!restoredWebhookJobCanSend(store.db,store.db.webhookQueue[dlq.jobId])))return false;
+      const newJob=this.enqueueEvent(dlq.sellerId,dlq.eventName,dlq.payload,{eventId:dlq.eventId||"evt_"+dlq.jobId,eventCreatedAt:dlq.eventCreatedAt??dlq.failedAt,redrive:true});
+      if(!newJob)return false;
+      dlq.replayed=true;dlq.replayedAt=Date.now();
+      store.addAuditLog("system","operator","WEBHOOK_DLQ_REPLAYED",{dlqId,originalJobId:dlq.jobId,newJobId:newJob.id},"webhook-redrive:"+dlqId);
+      return true;
+    });
+    if(replayed)await this.processQueue();return replayed;
   }
 }

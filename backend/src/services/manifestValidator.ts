@@ -2,6 +2,7 @@ import { ethers } from "ethers";
 import * as fs from "fs";
 import * as path from "path";
 import { config } from "../config";
+import { ArcReadProvider } from "./arcReadProvider";
 
 export interface ManifestValidationResult {
   valid: boolean;
@@ -9,20 +10,22 @@ export interface ManifestValidationResult {
   chainId: number;
   hubAddress: string;
   bytecodeHash?: string;
+  protocolVersion?:number;
 }
 
 export async function validateManifestAndEnvironment(
   providerOverride?: ethers.Provider,
   manifestNameOverride?: string
 ): Promise<ManifestValidationResult> {
-  const provider = providerOverride || new ethers.JsonRpcProvider(config.arcRpcUrl);
+  const provider = providerOverride || new ArcReadProvider();
+  try {
   const net = await provider.getNetwork();
   const providerChainId = Number(net.chainId);
 
   const isArc = providerChainId === 5042002;
   const manifestFileName = manifestNameOverride || (isArc ? "arc-testnet.json" : "local.json");
 
-  const possiblePaths = [
+  const possiblePaths = manifestNameOverride && path.isAbsolute(manifestNameOverride) ? [manifestNameOverride] : [
     path.resolve(__dirname, `../../shared/manifests/${manifestFileName}`),
     path.resolve(__dirname, `../../../shared/manifests/${manifestFileName}`),
     path.resolve(process.cwd(), `shared/manifests/${manifestFileName}`),
@@ -41,6 +44,10 @@ export async function validateManifestAndEnvironment(
   }
 
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  const protocolVersion=manifest.protocolVersion??1;
+  if(![1,2].includes(protocolVersion))throw new Error("[ManifestValidator REJECTED] Unsupported protocol version");
+  if (!providerOverride && (providerChainId!==config.arcChainId || manifest.contracts?.GroupDealHub?.address?.toLowerCase()!==config.hubAddress.toLowerCase()
+    || manifest.contracts?.USDC?.address?.toLowerCase()!==config.usdcAddress.toLowerCase() || manifest.contracts?.GroupDealHub?.deploymentBlock!==config.deploymentBlock || protocolVersion!==config.protocolVersion)) throw new Error("[ManifestValidator REJECTED] Runtime configuration differs from the deployment manifest");
 
   // 1. Validate chain ID match
   if (providerChainId !== manifest.chainId) {
@@ -87,6 +94,7 @@ export async function validateManifestAndEnvironment(
 
     const onchainBytecodeHash = ethers.keccak256(code);
     const expectedBytecodeHash = manifest.contracts?.GroupDealHub?.bytecodeHash;
+    if(isArc&&!ethers.isHexString(expectedBytecodeHash,32))throw new Error("[ManifestValidator REJECTED] Arc requires a pinned runtime bytecode hash");
     if (expectedBytecodeHash && expectedBytecodeHash.length === 66) {
       if (onchainBytecodeHash.toLowerCase() !== expectedBytecodeHash.toLowerCase()) {
         throw new Error(
@@ -96,6 +104,10 @@ export async function validateManifestAndEnvironment(
         );
       }
     }
+    if(protocolVersion===2) {
+      const declaredVersion=await new ethers.Contract(hubAddress,["function protocolVersion() view returns(uint256)"],provider).protocolVersion();
+      if(declaredVersion!==2n)throw new Error("[ManifestValidator REJECTED] Protocol version differs from deployed code");
+    }
 
     return {
       valid: true,
@@ -103,6 +115,7 @@ export async function validateManifestAndEnvironment(
       chainId: providerChainId,
       hubAddress,
       bytecodeHash: onchainBytecodeHash,
+      protocolVersion,
     };
   }
 
@@ -111,5 +124,7 @@ export async function validateManifestAndEnvironment(
     environment: manifest.environment,
     chainId: providerChainId,
     hubAddress: hubAddress || "",
+    protocolVersion,
   };
+  } finally {if(!providerOverride)(provider as ethers.JsonRpcProvider).destroy();}
 }

@@ -14,18 +14,7 @@ async function runAbiSyncTest() {
   const contractIface = new ethers.Interface(artifact.abi);
   const serviceIface = new ethers.Interface(HUB_ABI);
 
-  const keyFunctions = [
-    "createCampaign",
-    "recordDelivery",
-    "finalizeCampaign",
-    "confirmReceipt",
-    "settleUndisputedOrder",
-    "resolveDispute",
-    "emergencyCancelCampaign",
-    "allocateRebatesBatch",
-    "nextCampaignId",
-    "getCampaignTiers",
-  ];
+  const keyFunctions = artifact.abi.filter((entry: any) => entry.type === "function").map((entry: any) => entry.name);
 
   for (const fn of keyFunctions) {
     const contractFn = contractIface.getFunction(fn);
@@ -40,6 +29,10 @@ async function runAbiSyncTest() {
       `Selector mismatch for ${fn}: service=${serviceFn.selector}, contract=${contractFn.selector}`
     );
     console.log(`✔ Function ${fn} selector matches perfectly: ${serviceFn.selector}`);
+  }
+
+  for (const event of artifact.abi.filter((entry: any) => entry.type === "event")) {
+    assert.strictEqual(serviceIface.getEvent(event.name)?.topicHash, contractIface.getEvent(event.name)?.topicHash, `Event ABI drift: ${event.name}`);
   }
 
   console.log("🎉 ALL KEY FUNCTION SELECTORS MATCH THE COMPILED CONTRACT ARTIFACT!\n");

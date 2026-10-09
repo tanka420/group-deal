@@ -1,11 +1,13 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
-import { store, DatabaseSchema } from "../db/store";
+import { store, DatabaseSchema, TransactionalStore } from "../db/store";
 import { config } from "../config";
+import { encryptionKey } from "../utils/crypto";
 
 export interface BackupEnvelope {
   version: number;
+  keyId?: string;
   timestamp: number;
   checksum: string;
   ivHex: string;
@@ -14,49 +16,56 @@ export interface BackupEnvelope {
 }
 
 export class BackupService {
-  private static getBackupDir(customDir?: string): string {
-    const dir = customDir || path.resolve(__dirname, "../../data/backups");
+  private static metadataAAD(envelope:Pick<BackupEnvelope,'version'|'keyId'|'timestamp'|'checksum'>):Buffer {
+    return Buffer.from('groupdeal:backup:v3:'+JSON.stringify([envelope.version,envelope.keyId,envelope.timestamp,envelope.checksum]));
+  }
+  private static getBackupDir(source:TransactionalStore,customDir?: string): string {
+    const dir = customDir || path.join(source.storageDirectory, "backups");
     if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+      fs.mkdirSync(dir, { recursive: true,mode:0o700 });
     }
     return dir;
   }
 
   private static deriveKey(): Buffer {
-    return crypto.scryptSync(config.masterEncryptionKey, "groupdeal-backup-salt-2026", 32);
+    return crypto.scryptSync(config.legacyEncryptionKey, "groupdeal-backup-salt-2026", 32);
   }
 
   /**
    * Create encrypted AES-256-GCM backup of entire database store
    */
-  public static createEncryptedBackup(customDir?: string): {
+  public static createEncryptedBackup(customDir?: string,source:TransactionalStore=store): {
     backupPath: string;
     checksum: string;
     timestamp: number;
   } {
-    const dir = this.getBackupDir(customDir);
+    const dir = this.getBackupDir(source,customDir);
     const timestamp = Date.now();
-    const backupPath = path.join(dir, `backup_${timestamp}.enc`);
+    const backupPath = path.join(dir, `backup_${timestamp}_${crypto.randomUUID()}.enc`);
 
     const plainData = JSON.stringify(
-      store.db,
+      source.snapshot(),
       (_k, v) => (typeof v === "bigint" ? v.toString() : v),
       2
     );
+    // Hex ciphertext doubles UTF-8 bytes; refuse an archive our bounded reader cannot restore.
+    if(Buffer.byteLength(plainData,'utf8')*2+16384>256*1024*1024)throw new Error('Backup exceeds the supported envelope size');
 
     // Compute cryptographic integrity checksum
     const checksum = crypto.createHash("sha256").update(plainData).digest("hex");
 
     // AES-256-GCM authenticated encryption
-    const key = this.deriveKey();
+    const key = encryptionKey(config.masterEncryptionKeyId);
     const iv = crypto.randomBytes(12);
     const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+    cipher.setAAD(this.metadataAAD({version:3,keyId:config.masterEncryptionKeyId,timestamp,checksum}));
 
     const encrypted = Buffer.concat([cipher.update(plainData, "utf8"), cipher.final()]);
     const authTag = cipher.getAuthTag();
 
     const envelope: BackupEnvelope = {
-      version: 1,
+      version: 3,
+      keyId: config.masterEncryptionKeyId,
       timestamp,
       checksum,
       ivHex: iv.toString("hex"),
@@ -64,9 +73,10 @@ export class BackupService {
       encryptedDataHex: encrypted.toString("hex"),
     };
 
-    fs.writeFileSync(backupPath, JSON.stringify(envelope, null, 2), "utf8");
+    const descriptor=fs.openSync(backupPath,'wx',0o600);
+    try{fs.writeFileSync(descriptor,JSON.stringify(envelope,null,2),{encoding:'utf8'});fs.fsyncSync(descriptor);}finally{fs.closeSync(descriptor);}
 
-    store.addAuditLog("system", "operator", "BACKUP_CREATED", {
+    source.addAuditLog("system", "operator", "BACKUP_CREATED", {
       backupPath,
       timestamp,
       checksum,
@@ -76,26 +86,27 @@ export class BackupService {
   }
 
   /**
-   * Decrypt and restore backup into database store
+   * Read and authenticate a backup without opening or mutating the active store.
    */
-  public static restoreEncryptedBackup(backupPath: string): {
-    restored: boolean;
-    timestamp: number;
-    checksum: string;
-  } {
+  public static readEncryptedBackup(backupPath:string):{data:DatabaseSchema;timestamp:number;checksum:string;envelopeVersion:number;metadataAuthenticated:boolean;keyId:string} {
     if (!fs.existsSync(backupPath)) {
       throw new Error(`Backup file not found at: ${backupPath}`);
     }
 
+    if(fs.statSync(backupPath).size>256*1024*1024)throw new Error("Backup exceeds the supported read size");
     const envelopeRaw = fs.readFileSync(backupPath, "utf8");
     const envelope: BackupEnvelope = JSON.parse(envelopeRaw);
 
-    const key = this.deriveKey();
+    if (![1,2,3].includes(envelope.version)) throw new Error("Unsupported backup envelope version");
+    if(!Number.isSafeInteger(envelope.timestamp)||envelope.timestamp<0||envelope.timestamp>8640000000000000||!/^[a-f0-9]{64}$/.test(envelope.checksum)||!/^[a-f0-9]{24}$/.test(envelope.ivHex)||!/^[a-f0-9]{32}$/.test(envelope.authTagHex)||!/^(?:[a-f0-9]{2})+$/.test(envelope.encryptedDataHex))throw new Error("Malformed backup envelope");
+    const key = envelope.version === 1 ? this.deriveKey() : encryptionKey(envelope.keyId!);
     const iv = Buffer.from(envelope.ivHex, "hex");
     const authTag = Buffer.from(envelope.authTagHex, "hex");
     const encrypted = Buffer.from(envelope.encryptedDataHex, "hex");
 
     const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+    if (envelope.version === 2) decipher.setAAD(Buffer.from(`groupdeal:backup:v2:${envelope.keyId}`));
+    if (envelope.version === 3) decipher.setAAD(this.metadataAAD(envelope));
     decipher.setAuthTag(authTag);
 
     const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
@@ -109,28 +120,36 @@ export class BackupService {
     }
 
     const parsed: DatabaseSchema = JSON.parse(decrypted);
+    if(!parsed||typeof parsed!=="object"||!Array.isArray(parsed.auditLogs)||!parsed.syncState||!parsed.migrationState)throw new Error("Backup database metadata is incomplete");
+    const validateKeys=(value:unknown):void=>{if(value&&typeof value==="object")for(const [key,item] of Object.entries(value)){if(["__proto__","prototype","constructor"].includes(key))throw new Error("Unsafe backup record key");validateKeys(item);}};
+    validateKeys(parsed);
+    return {data:parsed,timestamp:envelope.timestamp,checksum:envelope.checksum,envelopeVersion:envelope.version,metadataAuthenticated:envelope.version===3,keyId:envelope.version===1?'legacy':envelope.keyId!};
+  }
 
-    // Validate all database uniqueness constraints and restore atomically.
-    store.replace(parsed);
+  /** Restore drills produce a separate candidate. Promotion is an explicit operating procedure. */
+  public static restoreEncryptedBackup(backupPath:string,target:TransactionalStore=store):{restored:boolean;timestamp:number;checksum:string} {
+    if(!target.isIsolated)throw new Error("SHADOW_REQUIRED: restore into a separate database, verify it and prepare a reviewed cutover");
+    const decoded=this.readEncryptedBackup(backupPath);
+    target.initializeRecoverySnapshot(decoded.data);
 
-    store.addAuditLog("system", "operator", "BACKUP_RESTORED", {
+    target.addAuditLog("system", "operator", "BACKUP_RESTORED", {
       backupPath,
-      timestamp: envelope.timestamp,
-      checksum: envelope.checksum,
+      timestamp: decoded.timestamp,
+      checksum: decoded.checksum,
     });
 
     return {
       restored: true,
-      timestamp: envelope.timestamp,
-      checksum: envelope.checksum,
+      timestamp: decoded.timestamp,
+      checksum: decoded.checksum,
     };
   }
 
   /**
    * Prune backups older than specified retention days
    */
-  public static pruneBackups(maxRetentionDays = 30, customDir?: string): number {
-    const dir = this.getBackupDir(customDir);
+  public static pruneBackups(maxRetentionDays = 30, customDir?: string,source:TransactionalStore=store): number {
+    const dir = this.getBackupDir(source,customDir);
     const files = fs.readdirSync(dir);
     const cutoff = Date.now() - maxRetentionDays * 86400000;
     let pruned = 0;

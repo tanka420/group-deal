@@ -1,0 +1,68 @@
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import express from 'express';
+import {DatabaseSync} from 'node:sqlite';
+import {ethers} from 'ethers';
+import {store,TransactionalStore} from '../src/db/store';
+import {config} from '../src/config';
+import {AuthService} from '../src/services/authService';
+import {SessionService} from '../src/services/sessionService';
+import {CircleWalletService} from '../src/services/circleWalletService';
+import {CircleAuthError} from '../src/domain/circleAuthentication';
+import {circleRouter} from '../src/routes/circleRoutes';
+assert.ok(store.isIsolated);
+const initial=store.snapshot(),token='fixture-circle-status-user-token-only',sdk=CircleWalletService as unknown as {client:any},original=sdk.client,abi=new ethers.Interface(['function approve(address,uint256)']);
+let stage='SETUP',cases=0,challengeCalls=0,transactionCalls=0;
+type Fixture=Awaited<ReturnType<typeof setup>>;
+async function setup(){store.replace(structuredClone(initial));const principal=ethers.getAddress(config.operatorAddress),owner=AuthService.createCircleSession('status-owner@circle-status.example.test','circle-status-owner',{walletId:'status-wallet',address:principal,blockchain:'ARC-TESTNET'}),proof=SessionService.authenticate(owner.token),input={userId:owner.user.id,userToken:token,walletId:'status-wallet',contractAddress:config.usdcAddress,callData:abi.encodeFunctionData('approve',[config.hubAddress,1]),intent:{type:'USDC_APPROVE' as const,amount:'1'},operationId:'circle:status-approval',proof};
+ const challenge={id:'status-challenge',type:'CONTRACT_EXECUTION',status:'COMPLETE',correlationIds:['status-transaction']},transaction={id:'status-transaction',state:'COMPLETE',blockchain:'ARC-TESTNET',walletId:'status-wallet',userId:'circle-status-owner',refId:input.operationId,contractAddress:config.usdcAddress,operation:'CONTRACT_EXECUTION',transactionType:'OUTBOUND',txHash:ethers.id('fixture-circle-status-transaction')};
+ sdk.client={getUserStatus:async()=>({data:{id:'circle-status-owner',status:'ENABLED'}}),createUserTransactionContractExecutionChallenge:async()=>({data:{challengeId:challenge.id}}),getUserChallenge:async()=>{challengeCalls++;return{data:{challenge:structuredClone(challenge)}}},getTransaction:async()=>{transactionCalls++;return{data:{transaction:structuredClone(transaction)}}}};
+ await CircleWalletService.createContractChallenge(input);challengeCalls=0;transactionCalls=0;return{owner,proof,input,challenge,transaction,principal};}
+const challenge=(s:Fixture,id=s.challenge.id)=> (CircleWalletService.getChallenge as any)(s.owner.user.id,token,id,s.proof);
+const transaction=(s:Fixture,id=s.transaction.id,challengeId=s.challenge.id)=> (CircleWalletService.getTransaction as any)(s.owner.user.id,token,id,s.proof,challengeId);
+async function http(s:Fixture,fn:(base:string)=>Promise<void>){const app=express();app.use(express.json());app.use('/circle',circleRouter);const server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));try{await fn(`http://127.0.0.1:${(server.address() as any).port}/circle`)}finally{await new Promise<void>(r=>server.close(()=>r()))}}
+async function main(){const sql=new DatabaseSync(path.join(store.storageDirectory,'groupdeal.sqlite')),revision=()=>Number((sql.prepare('SELECT revision FROM storage_revision WHERE id=1').get() as any).revision),record=(collection:string,key:string)=>{const r=sql.prepare('SELECT record_json FROM domain_records WHERE collection=? AND record_key=?').get(collection,key) as any;return r?JSON.parse(r.record_json):undefined},negative=process.argv.find(a=>a.startsWith('--negative='))?.slice(11);
+ const checks:Array<[string,(s:Fixture)=>Promise<void>]>=[
+ ['UNKNOWN_CHALLENGE_DENIED_BEFORE_PROVIDER_READ',async s=>{await assert.rejects(challenge(s,'unknown-challenge'));assert.equal(challengeCalls,0)}],
+ ['PENDING_FORGED_RECEIPT_CANNOT_AUTHORIZE_STATUS',async s=>{store.db.circleOperations['circle:pending-forged']={...store.db.circleOperations[s.input.operationId],operationId:'circle:pending-forged',challengeId:'pending-status'};await assert.rejects(challenge(s,'pending-status'));assert.equal(challengeCalls,0)}],
+ ['FOREIGN_NATIVE_RECEIPT_CANNOT_AUTHORIZE_STATUS',async s=>{store.transaction(()=>{store.db.circleOperations[s.input.operationId].userId='foreign-status-owner'});await assert.rejects(challenge(s));assert.equal(challengeCalls,0)}],
+ ['REVOKED_DURING_CHALLENGE_READ_NO_LATE_RESPONSE',async s=>{sdk.client.getUserChallenge=async()=>{challengeCalls++;SessionService.logout(s.owner.token,{idempotencyKey:crypto.randomUUID()});return{data:{challenge:s.challenge}}};await assert.rejects(challenge(s));assert.equal(challengeCalls,1)}],
+ ['TRANSACTION_ENVELOPE_UNWRAPPED_TO_KNOWN_DTO',async s=>{assert.deepEqual(await transaction(s),{id:s.transaction.id,state:'COMPLETE',txHash:s.transaction.txHash})}],
+ ['UNCORRELATED_TRANSACTION_DENIED_BEFORE_PROVIDER_READ',async s=>{await assert.rejects(transaction(s,'unrelated-transaction'));assert.equal(transactionCalls,0)}],
+ ['PRIVATE_PROVIDER_CHALLENGE_FIELDS_REDACTED',async s=>{Object.assign(s.challenge,{errorMessage:'PRIVATE_STATUS_PROVIDER_MESSAGE',privateExtension:{token:'PRIVATE_STATUS_EXTENSION'}});assert.deepEqual(await challenge(s),{id:s.challenge.id,type:'CONTRACT_EXECUTION',status:'COMPLETE',correlationIds:[s.transaction.id]})}],
+ ['MALFORMED_CHALLENGE_ID_DENIED',async s=>{s.challenge.id='different-provider-challenge';await assert.rejects(challenge(s,'status-challenge'))}],
+ ['MISSING_NATIVE_RECEIPT_INDEX_DENIED',async s=>{sql.prepare('DELETE FROM unique_circle_operations WHERE operation_id=?').run(s.input.operationId);await assert.rejects(challenge(s));assert.equal(challengeCalls,0)}],
+ ['TAMPERED_COMPLETION_AUDIT_DENIED',async s=>{sql.exec("UPDATE domain_records SET record_json=json_set(record_json,'$[0].details.receiptDigest','bad') WHERE collection='auditLogs' AND record_key='state'");await assert.rejects(challenge(s));assert.equal(challengeCalls,0)}],
+ ['FOREIGN_TRANSACTION_WALLET_DENIED',async s=>{s.transaction.walletId='foreign-status-wallet';await assert.rejects(transaction(s))}],
+ ['STRICT_HTTP_STATUS_BODY_DENIES_EXTRA_FIELDS',async s=>{await http(s,async base=>{const r=await fetch(base+'/challenges/'+s.challenge.id,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+s.owner.token},body:JSON.stringify({userToken:token,debug:true})});assert.equal(r.status,400);assert.equal(challengeCalls,0)})}],
+ ['STATUS_READ_NO_PENDING_FLUSH_OR_REVISION_CHANGE',async s=>{store.db.notificationPreferences.pending={inApp:true,email:false};const v=revision();await challenge(s);await transaction(s);assert.equal(revision(),v);assert.equal(record('notificationPreferences','pending'),undefined);assert.deepEqual(store.db.notificationPreferences.pending,{inApp:true,email:false})}],
+ ['COMMITTED_STATUS_IGNORES_PENDING_RECEIPT_DELETION',async s=>{delete store.db.circleOperations[s.input.operationId];assert.equal((await challenge(s)).id,s.challenge.id);assert.equal(store.db.circleOperations[s.input.operationId],undefined)}],
+ ['PRIVATE_STORED_RECEIPT_NOT_JSON_DECODED',async s=>{sql.prepare("UPDATE domain_records SET record_json=json_set(record_json,'$.privateExtension',?) WHERE collection='circleOperations' AND record_key=?").run('PRIVATE_STATUS_RECEIPT_EXTENSION',s.input.operationId);const parse=JSON.parse;JSON.parse=function(text:string,...args:any[]){assert.ok(!text.includes('PRIVATE_STATUS_RECEIPT_EXTENSION'));return parse(text,...args)} as typeof JSON.parse;try{assert.equal((await challenge(s)).id,s.challenge.id)}finally{JSON.parse=parse}}],
+ ['LEGACY_RECEIPT_REQUIRES_RECONCILIATION',async s=>{sql.prepare("UPDATE domain_records SET record_json=json_remove(record_json,'$.version') WHERE collection='circleOperations' AND record_key=?").run(s.input.operationId);await assert.rejects(challenge(s),e=>e instanceof CircleAuthError&&e.code==='CIRCLE_TRANSACTION_LEGACY_RECONCILIATION_REQUIRED');assert.equal(challengeCalls,0)}],
+ ['DUPLICATE_NATIVE_CHALLENGE_DENIED',async s=>{store.transaction(()=>{store.db.circleOperations['circle:duplicate-status']={...store.db.circleOperations[s.input.operationId],operationId:'circle:duplicate-status',idempotencyKey:crypto.randomUUID()}});await assert.rejects(challenge(s));assert.equal(challengeCalls,0)}],
+ ['SESSION_REVOKED_IN_IDENTITY_AWAIT_DENIED',async s=>{sdk.client.getUserStatus=async()=>{SessionService.logout(s.owner.token,{idempotencyKey:crypto.randomUUID()});return{data:{id:'circle-status-owner',status:'ENABLED'}}};await assert.rejects(challenge(s));assert.equal(challengeCalls,0)}],
+ ['RECOVERY_CHANGED_DURING_STATUS_DENIED',async s=>{sdk.client.getUserChallenge=async()=>{store.transaction(()=>{store.db.authRecovery={current:{version:1,context:crypto.randomBytes(32).toString('base64url'),createdAt:Date.now()}}});return{data:{challenge:s.challenge}}};await assert.rejects(challenge(s))}],
+ ['WALLET_CHANGED_DURING_STATUS_DENIED',async s=>{sdk.client.getUserChallenge=async()=>{store.transaction(()=>{store.db.users[s.owner.user.id].activeWallet=ethers.Wallet.createRandom().address});return{data:{challenge:s.challenge}}};await assert.rejects(challenge(s))}],
+ ['REVOKED_DURING_TRANSACTION_NO_LATE_HASH',async s=>{sdk.client.getTransaction=async()=>{transactionCalls++;SessionService.logout(s.owner.token,{idempotencyKey:crypto.randomUUID()});return{data:{transaction:s.transaction}}};await assert.rejects(transaction(s));assert.equal(transactionCalls,1)}],
+ ['PRIVATE_PROVIDER_TRANSACTION_FIELDS_REDACTED',async s=>{Object.assign(s.transaction,{errorReason:'PRIVATE_STATUS_ERROR',errorDetails:'PRIVATE_STATUS_EXTENSION',privateExtension:{token:'PRIVATE_STATUS_TOKEN'}});assert.deepEqual(await transaction(s),{id:s.transaction.id,state:'COMPLETE',txHash:s.transaction.txHash})}],
+ ['FOREIGN_TRANSACTION_REFERENCE_DENIED',async s=>{s.transaction.refId='circle:foreign-operation';await assert.rejects(transaction(s))}],
+ ['FOREIGN_TRANSACTION_TARGET_DENIED',async s=>{s.transaction.contractAddress=ethers.Wallet.createRandom().address;await assert.rejects(transaction(s))}],
+ ['WRONG_PROVIDER_TRANSACTION_ID_DENIED',async s=>{s.transaction.id='foreign-transaction';await assert.rejects(transaction(s,'status-transaction'))}],
+ ['WRONG_CHAIN_TRANSACTION_DENIED',async s=>{s.transaction.blockchain='ETH-SEPOLIA';await assert.rejects(transaction(s))}],
+ ['MALFORMED_TRANSACTION_HASH_DENIED',async s=>{s.transaction.txHash='provider-private-hash';await assert.rejects(transaction(s))}],
+ ['UNKNOWN_TRANSACTION_STATE_DENIED',async s=>{s.transaction.state='invented-success';await assert.rejects(transaction(s))}],
+ ['FAILED_CHALLENGE_WITH_CORRELATION_CANNOT_AUTHORIZE_TX',async s=>{s.challenge.status='FAILED';await assert.rejects(transaction(s));assert.equal(transactionCalls,0)}],
+ ['AMBIGUOUS_CORRELATION_DENIED',async s=>{s.challenge.correlationIds.push('second-transaction');await assert.rejects(challenge(s))}],
+ ['WRONG_CHALLENGE_TYPE_DENIED',async s=>{s.challenge.type='SIGN_MESSAGE';await assert.rejects(challenge(s))}],
+ ['UNKNOWN_PROVIDER_ERRORS_ARE_FINITE',async s=>{sdk.client.getUserChallenge=async()=>{throw Error('PRIVATE_STATUS_SDK_DIAGNOSTIC')};await assert.rejects(challenge(s),e=>e instanceof CircleAuthError&&e.code==='CIRCLE_TRANSACTION_STATUS_UNAVAILABLE')}],
+ ['TRANSACTION_HTTP_REQUIRES_CHALLENGE_BINDING',async s=>{await http(s,async base=>{const r=await fetch(base+'/transactions/'+s.transaction.id,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+s.owner.token},body:JSON.stringify({userToken:token})});assert.equal(r.status,400);assert.equal(transactionCalls,0)})}],
+ ['HTTP_RESPONSE_FLAT_PRIVATE_AND_NOSTORE',async s=>{await http(s,async base=>{const r=await fetch(base+'/transactions/'+s.transaction.id,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+s.owner.token},body:JSON.stringify({userToken:token,challengeId:s.challenge.id})});assert.equal(r.status,200);assert.equal(r.headers.get('cache-control'),'no-store');assert.equal(r.headers.get('x-content-type-options'),'nosniff');assert.deepEqual(await r.json(),{transaction:{id:s.transaction.id,state:'COMPLETE',txHash:s.transaction.txHash}})})}],
+ ['PROTOTYPE_STATUS_ID_DENIED_BEFORE_PROVIDER',async s=>{await assert.rejects(challenge(s,'__proto__'));assert.equal(challengeCalls,0)}],
+ ['NO_TRUSTED_DIRECT_STATUS_WITHOUT_SESSION',async s=>{await assert.rejects((CircleWalletService.getChallenge as any)(s.owner.user.id,token,s.challenge.id));assert.equal(challengeCalls,0)}],
+ ['TEST_CONSTRUCTOR_REJECTS_ACTIVE_DIRECTORY_BEFORE_SQL_OPEN',async()=>{assert.throws(()=>new TransactionalStore(),/TEST_STORAGE_DIRECTORY_REQUIRED/)}],
+ ['SCOPED_READER_DOES_NOT_REBASE_STALE_WRITER',async s=>{const second=new TransactionalStore(store.storageDirectory);assert.ok(second.isIsolated);second.transaction(()=>{second.db.notificationPreferences.committed={inApp:false,email:true}});await challenge(s);assert.equal(store.db.notificationPreferences.committed,undefined);assert.throws(()=>store.save());second.close()}]
+ ];
+ try{for(const [name,fn] of checks){if(negative&&negative!==name)continue;stage=name;await fn(await setup());cases++}assert.ok(!negative||cases===1);console.log(`PASS ${cases} Circle status authority cases; isolated committed SQLite/provider/HTTP fixtures`)}finally{sql.close();sdk.client=original;store.close()}
+}
+main().catch(e=>{console.error(JSON.stringify({result:'FAIL',stage,assertion:e instanceof assert.AssertionError,name:e?.name,message:e?.message}));process.exitCode=1});

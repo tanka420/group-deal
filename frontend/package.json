@@ -8,12 +8,23 @@
     "build": "tsc && vite build",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:circle-decoder": "node test/circle_jwt_decode.cjs && node test/circle_browser_plugin.cjs",
+    "test:wallet-runtime": "node ../backend/node_modules/tsx/dist/cli.mjs test/reown_runtime.test.ts",
+    "test:bridge-recovery": "node ../backend/node_modules/tsx/dist/cli.mjs test/bridge_recovery.test.ts",
+    "test:purchase-budget": "node ../scripts/run_purchase_budget_checks.cjs",
+    "test:fallback-fee-review": "node ../scripts/run_fallback_fee_checks.cjs",
+    "test:circle-fee-review": "node ../scripts/run_circle_fee_review_checks.cjs",
+    "test:circle-operation-recovery": "node ../scripts/run_circle_operation_recovery_checks.cjs --frontend",
+    "test:bridge-fee-review": "node ../scripts/run_bridge_fee_checks.cjs",
+    "test:operator-enrollment": "node ../backend/node_modules/tsx/dist/cli.mjs test/operator_enrollment.test.ts"
   },
   "dependencies": {
     "@circle-fin/adapter-viem-v2": "^1.18.0",
     "@circle-fin/app-kit": "^1.15.3",
     "@circle-fin/w3s-pw-web-sdk": "^1.1.11",
+    "@fontsource-variable/jetbrains-mono": "5.3.0",
+    "@fontsource-variable/plus-jakarta-sans": "5.3.0",
     "@reown/appkit": "^1.8.24",
     "@reown/appkit-adapter-ethers": "^1.8.24",
     "canvas-confetti": "^1.9.3",
@@ -34,5 +45,9 @@
     "typescript": "^5.4.5",
     "vite": "^8.3.1",
     "vite-plugin-node-polyfills": "^0.28.0"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "1.13.6",
+    "undici": "6.28.1"
   }
 }

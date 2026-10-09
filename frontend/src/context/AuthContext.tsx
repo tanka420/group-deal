@@ -1,6 +1,9 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useLayoutEffect, useCallback, useRef, useState } from "react";
 import type { W3SSdk } from "@circle-fin/w3s-pw-web-sdk";
 import { ethers } from "ethers";
+import {readUser,readSession,AppSession} from "../services/appSession";
+import {circleDeviceId} from "../services/circleDevice";
+import {InitialCircleWallet,readInitialCircleWalletChoices,readInitialCircleWalletAck} from "../services/circleWalletChoice";
 
 interface EmailLoginResult {
   userToken: string;
@@ -39,16 +42,23 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   circleReady: boolean;
+  circleInitState: "IDLE"|"INITIALIZING"|"READY"|"UNAVAILABLE";
+  prepareCircle: () => Promise<void>;
   circleProgress: string | null;
   circleWalletSyncing: boolean;
   circleWalletError: string | null;
+  circleWalletChoices: InitialCircleWallet[];
+  circleWalletChoiceUnknown: boolean;
+  selectInitialCircleWallet: (walletId:string) => Promise<void>;
   retryCircleWallet: () => Promise<void>;
   circleCredentials: CircleCredentials | null;
   requestOtp: (email: string) => Promise<{ success: boolean; message: string }>;
   verifyOtp: (email: string, code?: string) => Promise<User>;
   executeCircleChallenge: (challengeId: string) => Promise<void>;
-  loginWithWallet: (signer: ethers.Signer) => Promise<User>;
-  linkExternalWallet: (signer: ethers.Signer) => Promise<User>;
+  executeCircleMessageChallenge: (challengeId:string) => Promise<string>;
+  getSessionEpoch: () => number;
+  loginWithWallet: (signer: ethers.Signer, expectedEpoch?:number) => Promise<User>;
+  linkExternalWallet: (signer: ethers.Signer, expectedEpoch?:number) => Promise<User>;
   setupSellerProfile: (data: {
     displayName: string;
     bio: string;
@@ -56,6 +66,9 @@ interface AuthContextType {
     signer?: ethers.Signer;
   }) => Promise<User>;
   logout: () => void;
+  logoutState: "NONE"|"PENDING"|"CONFIRMED"|"UNCONFIRMED";
+  sessionNotice: "UNAVAILABLE"|"ENDED"|null;
+  endConfirmedSession: () => void;
   refreshUser: () => Promise<void>;
 }
 
@@ -73,14 +86,20 @@ async function readJson(response: Response) {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem("groupdeal_token"));
+  const [token, setToken] = useState<string | null>(()=>localStorage.getItem("groupdeal_token"));
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [circleReady, setCircleReady] = useState(false);
   const [circleProgress, setCircleProgress] = useState<string | null>(null);
   const [circleWalletSyncing, setCircleWalletSyncing] = useState(false);
   const [circleWalletError, setCircleWalletError] = useState<string | null>(null);
+  const [circleWalletChoices,setCircleWalletChoices]=useState<InitialCircleWallet[]>([]);
+  const [circleWalletChoiceUnknown,setCircleWalletChoiceUnknown]=useState(false);
+  const circleChoiceFlightRef=useRef<number|null>(null);
   const [circleCredentials, setCircleCredentials] = useState<CircleCredentials | null>(null);
-  const [deviceId, setDeviceId] = useState<string | null>(null);
+  const circleDeviceRef=useRef<string|null>(null);
+  const [circleInitState,setCircleInitState]=useState<AuthContextType["circleInitState"]>("IDLE");
+  const circleLifecycle=useRef({active:true,epoch:0});
+  const circleInitRef=useRef<Promise<{sdk:W3SSdk;deviceId:string}>|null>(null);
   const [loginAttemptId, setLoginAttemptId] = useState<string | null>(null);
   const circleSdkRef = useRef<W3SSdk | null>(null);
   const circleSyncAttemptRef = useRef(0);
@@ -89,6 +108,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     resolve: (result: EmailLoginResult) => void;
     reject: (error: Error) => void;
   } | null>(null);
+  const tokenRef=useRef(token),userRef=useRef<User|null>(null),appSessionRef=useRef<AppSession|null>(null);
+  const refreshAttemptRef=useRef(0);
+  const [logoutState,setLogoutState]=useState<AuthContextType["logoutState"]>("NONE");
+  const [sessionNotice,setSessionNotice]=useState<AuthContextType["sessionNotice"]>(null);
+  useEffect(()=>{userRef.current=user;},[user]);
+  useEffect(()=>()=>{sessionGenerationRef.current++;circleSyncAttemptRef.current++;refreshAttemptRef.current++;loginPromiseRef.current?.reject(new Error("Phiên đăng nhập đã thay đổi"));loginPromiseRef.current=null;},[]);
+
+  const acceptUser=(value:unknown,expectedId?:string)=>{
+    const next=readUser(value);if(expectedId&&next.id!==expectedId)throw new Error("AUTH_RESPONSE_INVALID");
+    userRef.current=next;setUser(next);return next;
+  };
+  const discardIssuedSession=(sessionToken:unknown)=>{
+    if(typeof sessionToken!=="string"||!sessionToken||sessionToken.length>8192)return;
+    void fetch("/api/auth/logout",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${sessionToken}`},body:JSON.stringify({idempotencyKey:crypto.randomUUID()}),signal:AbortSignal.timeout(10_000)}).catch(()=>{});
+  };
 
   useEffect(() => {
     // The SDK closes its iframe without settling verifyOtp on cancellation.
@@ -107,20 +141,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => window.removeEventListener("message", onCircleMessage);
   }, []);
 
-  useEffect(() => {
-    const appId = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined;
-    if (!appId) {
-      setCircleReady(false);
-      return;
-    }
+  useLayoutEffect(() => {
+    circleLifecycle.current.active = true;
+    setCircleInitState("IDLE");
+    setCircleReady(false);
+    return () => {
+      circleLifecycle.current.active = false;
+      circleLifecycle.current.epoch++;
+      circleInitRef.current = null;
+      circleDeviceRef.current = null;
+      circleSdkRef.current = null;
+    };
+  }, []);
 
-    let cancelled = false;
-    void import("@circle-fin/w3s-pw-web-sdk")
-      .then(({ W3SSdk: CircleWebSdk }) => {
-        const onLoginComplete: NonNullable<ConstructorParameters<typeof CircleWebSdk>[1]> = (
-          error,
-          result
-        ) => {
+  const ensureCircle = useCallback((): Promise<{ sdk: W3SSdk; deviceId: string }> => {
+    const appId = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined;
+    if (!circleLifecycle.current.active) return Promise.reject(new Error("CIRCLE_INITIALIZATION_ENDED"));
+    if (circleSdkRef.current && circleDeviceRef.current) {
+      return Promise.resolve({ sdk: circleSdkRef.current, deviceId: circleDeviceRef.current });
+    }
+    if (circleInitRef.current) return circleInitRef.current;
+    if (!appId) {
+      setCircleInitState("UNAVAILABLE");
+      return Promise.reject(new Error("CIRCLE_UNAVAILABLE"));
+    }
+    const epoch = circleLifecycle.current.epoch;
+    const current = () => circleLifecycle.current.active && circleLifecycle.current.epoch === epoch;
+    setCircleInitState("INITIALIZING");
+    setCircleReady(false);
+    const own = (async () => {
+      try {
+        const { W3SSdk: CircleWebSdk } = await import("@circle-fin/w3s-pw-web-sdk");
+        if (!current()) throw new Error("CIRCLE_INITIALIZATION_ENDED");
+        const onLoginComplete: NonNullable<ConstructorParameters<typeof CircleWebSdk>[1]> = (error, result) => {
+          if (!current()) return;
           const pending = loginPromiseRef.current;
           loginPromiseRef.current = null;
           if (!pending) return;
@@ -130,69 +184,89 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           pending.resolve(result as EmailLoginResult);
         };
-
+        // Constructor may return a singleton; bind callbacks to this active provider.
         const sdk = new CircleWebSdk({ appSettings: { appId } }, onLoginComplete);
-        if (cancelled) return null;
-        // W3SSdk is a singleton. On a React remount its constructor returns the
-        // original instance, which can still hold the unmounted login callback.
-        // Register on the returned instance, not only on the constructor.
         sdk.updateConfigs({ appSettings: { appId } }, onLoginComplete);
+        const id = await circleDeviceId(sdk);
+        if (!current()) throw new Error("CIRCLE_INITIALIZATION_ENDED");
         circleSdkRef.current = sdk;
-        return sdk.getDeviceId();
-      })
-      .then((id) => {
-        if (!id || cancelled) return;
-        setDeviceId(id);
+        circleDeviceRef.current = id;
         setCircleReady(true);
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        console.warn("Circle Web SDK device initialization failed", error);
-        setCircleReady(false);
-      });
-
-    return () => {
-      cancelled = true;
-      circleSdkRef.current = null;
-    };
+        setCircleInitState("READY");
+        return { sdk, deviceId: id };
+      } catch {
+        if (current()) {
+          setCircleReady(false);
+          setCircleInitState("UNAVAILABLE");
+        }
+        throw new Error("CIRCLE_UNAVAILABLE");
+      } finally {
+        if (current()) circleInitRef.current = null;
+      }
+    })();
+    circleInitRef.current = own;
+    return own;
   }, []);
+  const prepareCircle = useCallback(async () => { await ensureCircle(); }, [ensureCircle]);
 
-  const logout = () => {
+  const clearLocal = () => {
+    const previousToken=tokenRef.current;
     sessionGenerationRef.current += 1;
     circleSyncAttemptRef.current += 1;
+    refreshAttemptRef.current += 1;
+    tokenRef.current=null;userRef.current=null;appSessionRef.current=null;
     setToken(null);
     setUser(null);
     setCircleCredentials(null);
     setCircleWalletSyncing(false);
     setCircleWalletError(null);
+    setCircleWalletChoices([]);setCircleWalletChoiceUnknown(false);circleChoiceFlightRef.current=null;
     loginPromiseRef.current?.reject(new Error("Đã đăng xuất"));
     loginPromiseRef.current = null;
     setLoginAttemptId(null);
-    localStorage.removeItem("groupdeal_token");
+    setIsLoading(false);setCircleProgress(null);
+    if(localStorage.getItem("groupdeal_token")===previousToken)localStorage.removeItem("groupdeal_token");
+  };
+
+  const endConfirmedSession=()=>{clearLocal();setLogoutState("CONFIRMED");setSessionNotice(null);};
+  const logout = () => {
+    const previousToken=tokenRef.current,previousId=userRef.current?.id,requestId=crypto.randomUUID();
+    clearLocal();setSessionNotice(null);setLogoutState(previousToken?"PENDING":"NONE");
+    const generation=sessionGenerationRef.current;
+    if(!previousToken)return;
+    void fetch("/api/auth/logout",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${previousToken}`},body:JSON.stringify({idempotencyKey:requestId}),signal:AbortSignal.timeout(10_000)}).then(async response=>{
+      const ack=await response.json();if(!response.ok||!previousId||ack.userId!==previousId||ack.requestId!==requestId||ack.scope!=="CURRENT"||ack.revoked!==true)throw new Error("AUTH_RESPONSE_INVALID");
+      if(generation===sessionGenerationRef.current&&!tokenRef.current)setLogoutState("CONFIRMED");
+    }).catch(()=>{if(generation===sessionGenerationRef.current&&!tokenRef.current)setLogoutState("UNCONFIRMED");});
   };
 
   const refreshUser = async () => {
-    const generation = sessionGenerationRef.current;
-    if (!token) {
+    const generation = sessionGenerationRef.current,sessionToken=tokenRef.current,attempt=++refreshAttemptRef.current;
+    const valid=()=>generation===sessionGenerationRef.current&&sessionToken===tokenRef.current&&localStorage.getItem("groupdeal_token")===sessionToken&&attempt===refreshAttemptRef.current;
+    if (!sessionToken) {
       setUser(null);
       setIsLoading(false);
       return;
     }
     try {
       const res = await circleFetch("/api/auth/me", {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${sessionToken}` },cache:"no-store",
       });
-      if (generation !== sessionGenerationRef.current) return;
+      if (!valid()) return;
       if (res.ok) {
         const data = await res.json();
-        setUser(data.user);
+        if(!valid())return;
+        const next=readUser(data.user);if(userRef.current&&next.id!==userRef.current.id)throw new Error("AUTH_RESPONSE_INVALID");
+        const session=data.session===undefined?null:readSession(data.session,next.id);
+        if(session&&(!session.current||session.state!=="ACTIVE"||!Number.isSafeInteger(data.serverTime)))throw new Error("AUTH_RESPONSE_INVALID");
+        appSessionRef.current=session;acceptUser(next);setSessionNotice(null);
       } else if (res.status === 401 || res.status === 403) {
-        logout();
-      }
-    } catch (error) {
-      console.warn("Failed to load user session", error);
+        clearLocal();setSessionNotice("ENDED");setLogoutState("NONE");
+      }else{setSessionNotice("UNAVAILABLE");}
+    } catch {
+      if(valid())setSessionNotice("UNAVAILABLE");
     } finally {
-      setIsLoading(false);
+      if(valid())setIsLoading(false);
     }
   };
 
@@ -200,12 +274,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     void refreshUser();
   }, [token]);
 
+  useEffect(()=>{
+    const changed=(event:StorageEvent)=>{
+      if(event.storageArea!==localStorage||event.key!=="groupdeal_token"||event.newValue===tokenRef.current)return;
+      // Storage events are emitted in other tabs only. Do not remove their new token.
+      sessionGenerationRef.current++;circleSyncAttemptRef.current++;refreshAttemptRef.current++;
+      loginPromiseRef.current?.reject(new Error("Phiên đăng nhập đã thay đổi"));loginPromiseRef.current=null;
+      tokenRef.current=event.newValue;userRef.current=null;appSessionRef.current=null;
+      setUser(null);setCircleCredentials(null);setCircleWalletSyncing(false);setCircleWalletError(null);setCircleWalletChoices([]);setCircleWalletChoiceUnknown(false);circleChoiceFlightRef.current=null;setCircleProgress(null);setLoginAttemptId(null);
+      setLogoutState("NONE");setSessionNotice(event.newValue?null:"ENDED");setIsLoading(!!event.newValue);setToken(event.newValue);
+    };
+    window.addEventListener("storage",changed);return()=>window.removeEventListener("storage",changed);
+  },[]);
+
+  useEffect(()=>{
+    if(!token)return;const sessionToken=token,generation=sessionGenerationRef.current;let lastActivity=0,activityPending=false;
+    const valid=()=>tokenRef.current===sessionToken&&localStorage.getItem("groupdeal_token")===sessionToken&&generation===sessionGenerationRef.current;
+    const poll=()=>{if(valid()&&appSessionRef.current&&document.visibilityState==="visible")void refreshUser();};
+    const activity=()=>{
+      if(!valid()||!appSessionRef.current||activityPending||Date.now()-lastActivity<60_000)return;
+      lastActivity=Date.now();activityPending=true;
+      void circleFetch("/api/auth/session/activity",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${sessionToken}`},body:"{}"}).then(async response=>{
+        if(!valid())return;if(response.status===401||response.status===403){clearLocal();setSessionNotice("ENDED");return;}
+        if(!response.ok)throw new Error();const data=await response.json();if(!valid())return;
+        const id=userRef.current?.id;if(!id)throw new Error();const next=readSession(data.session,id);if(!next.current||next.state!=="ACTIVE"||!Number.isSafeInteger(data.serverTime))throw new Error();appSessionRef.current=next;
+      }).catch(()=>{if(valid())setSessionNotice("UNAVAILABLE");}).finally(()=>{activityPending=false;});
+    };
+    const timer=window.setInterval(poll,60_000);window.addEventListener("focus",poll);window.addEventListener("online",poll);document.addEventListener("visibilitychange",poll);
+    document.addEventListener("pointerdown",activity);document.addEventListener("keydown",activity);
+    return()=>{clearInterval(timer);window.removeEventListener("focus",poll);window.removeEventListener("online",poll);document.removeEventListener("visibilitychange",poll);document.removeEventListener("pointerdown",activity);document.removeEventListener("keydown",activity);};
+  },[token]);
+
   const requestOtp = async (email: string) => {
-    const sdk = circleSdkRef.current;
-    const appId = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined;
-    if (!sdk || !circleReady || !deviceId || !appId) {
-      throw new Error("Circle Wallet chưa sẵn sàng. Kiểm tra VITE_CIRCLE_APP_ID và kết nối mạng.");
-    }
+    const generation=sessionGenerationRef.current;
+    const {sdk,deviceId}=await ensureCircle();
+    if(generation!==sessionGenerationRef.current)throw new Error("Phiên đăng nhập đã thay đổi");
+    const appId=import.meta.env.VITE_CIRCLE_APP_ID as string;
     const data = await readJson(
       await circleFetch("/api/circle/email/token", {
         method: "POST",
@@ -213,6 +317,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify({ email, deviceId }),
       })
     );
+    if(generation!==sessionGenerationRef.current)throw new Error("Phiên đăng nhập đã thay đổi");
     sdk.updateConfigs({
       appSettings: { appId },
       loginConfigs: {
@@ -252,6 +357,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const executeCircleMessageChallenge = async(challengeId:string):Promise<string>=>{
+    const sdk=circleSdkRef.current,credentials=circleCredentials,generation=sessionGenerationRef.current,currentToken=tokenRef.current;
+    if(!sdk||!credentials||!currentToken)throw new Error("WALLET_CIRCLE_REAUTH_REQUIRED");
+    sdk.setAuthentication({userToken:credentials.userToken,encryptionKey:credentials.encryptionKey});
+    return new Promise<string>((resolve,reject)=>{
+      const timeout=window.setTimeout(()=>reject(new Error("WALLET_SIGNATURE_UNCONFIRMED")),120_000);
+      try{sdk.execute(challengeId,(error,result)=>{
+        clearTimeout(timeout);
+        if(generation!==sessionGenerationRef.current||currentToken!==tokenRef.current){reject(new Error("AUTH_SESSION_CHANGED"));return;}
+        if(error||result?.status!=="COMPLETE"||result.type!=="SIGN_MESSAGE"||!("data" in result)||!result.data||!/^0x[0-9a-fA-F]{130}$/.test(result.data.signature)){reject(new Error("WALLET_SIGNATURE_UNCONFIRMED"));return;}
+        resolve(result.data.signature);
+      });}catch{clearTimeout(timeout);reject(new Error("WALLET_SIGNATURE_UNCONFIRMED"));}
+    });
+  };
+
   const createLocalSession = async (credentials: CircleCredentials) => {
     if (!loginAttemptId) throw new Error("Circle login attempt không còn hiệu lực");
     return (
@@ -264,65 +384,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ));
   };
 
-  const syncCircleWalletInBackground = async (
-    sessionToken: string,
-    credentials: CircleCredentials
-  ): Promise<void> => {
-    const syncAttempt = ++circleSyncAttemptRef.current;
-    setCircleWalletSyncing(true);
-    setCircleWalletError(null);
-    try {
-      // Execute initialization in the background, but never depend on its UI
-      // callback to discover an already-created wallet. Inventory is authoritative.
-      const initialization = await readJson(await circleFetch("/api/circle/wallet/initialize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionToken}` },
-        body: JSON.stringify({ userToken: credentials.userToken }),
-      }));
-      if (circleSyncAttemptRef.current !== syncAttempt) return;
-      if (initialization.challengeId) {
-        circleSdkRef.current?.execute(initialization.challengeId, (error) => {
-          if (error && circleSyncAttemptRef.current === syncAttempt) {
-            setCircleWalletError(error.message || "Xác nhận bảo mật Circle chưa hoàn tất");
-          }
-        });
+  const syncCircleWalletInBackground = async (sessionToken:string,credentials:CircleCredentials):Promise<void> => {
+    const syncAttempt=++circleSyncAttemptRef.current,generation=sessionGenerationRef.current,expectedId=userRef.current?.id;
+    const current=()=>circleLifecycle.current.active&&circleSyncAttemptRef.current===syncAttempt&&generation===sessionGenerationRef.current&&tokenRef.current===sessionToken&&localStorage.getItem("groupdeal_token")===sessionToken&&!!expectedId&&userRef.current?.id===expectedId;
+    if(!current())return;setCircleWalletSyncing(true);setCircleWalletError(null);
+    try{
+      let initialization:any;
+      try{initialization=await readJson(await circleFetch("/api/circle/wallet/initialize",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+sessionToken},body:JSON.stringify({userToken:credentials.userToken})}));}
+      catch(error){if(!current())return;if(!(error instanceof Error)||error.message!=="CIRCLE_WALLET_SELECTION_REQUIRED")throw error;initialization={};}
+      if(!current())return;
+      if(initialization.challengeId)circleSdkRef.current?.execute(initialization.challengeId,error=>{if(error&&current())setCircleWalletError("Chưa hoàn tất xác nhận Circle. Thử đồng bộ lại ví.");});
+      const deadline=Date.now()+120_000;
+      for(let attempt=0;attempt<60&&Date.now()<deadline;attempt++){
+        if(!current())return;
+        try{
+          const response=await readJson(await circleFetch("/api/circle/wallets",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+sessionToken},body:JSON.stringify({userToken:credentials.userToken})}));
+          if(!current())return;
+          if(response.selectionRequired===true){const wallets=readInitialCircleWalletChoices(response,expectedId!);setCircleWalletChoices(wallets);setCircleWalletChoiceUnknown(false);setCircleWalletError(null);return;}
+          if(response.wallets?.length&&response.user){acceptUser(response.user,expectedId);setCircleWalletChoices([]);setCircleWalletChoiceUnknown(false);setCircleWalletError(null);return;}
+        }catch(error){if(!current())return;if(error instanceof Error&&error.message==="AUTH_RESPONSE_INVALID")throw error;}
+        await new Promise(resolve=>window.setTimeout(resolve,1500));
       }
-      const deadline = Date.now() + 120_000;
-      for (let attempt = 0; attempt < 60; attempt += 1) {
-        if (circleSyncAttemptRef.current !== syncAttempt || Date.now() >= deadline) break;
-        try {
-          const walletsResponse = await readJson(
-            await circleFetch("/api/circle/wallets", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${sessionToken}`,
-              },
-              body: JSON.stringify({ userToken: credentials.userToken }),
-            })
-          );
-          if (walletsResponse.wallets?.length && walletsResponse.user) {
-            if (circleSyncAttemptRef.current !== syncAttempt) return;
-            setUser(walletsResponse.user);
-            setCircleWalletError(null);
-            return;
-          }
-        } catch (error) {
-          // Circle's wallet inventory can be briefly eventually consistent after
-          // a completed creation challenge. Keep the authenticated app session
-          // usable while retrying the wallet binding in the background.
-          if (attempt === 0 || attempt % 10 === 0) {
-            console.warn("Circle wallet background sync is not ready yet");
-          }
-        }
-        await new Promise((resolve) => window.setTimeout(resolve, 1500));
-      }
-      if (circleSyncAttemptRef.current === syncAttempt) setCircleWalletError("Chưa đồng bộ được ví Arc. Bấm thử lại; không cần đăng xuất hoặc tạo tài khoản mới.");
-    } catch (error) {
-      if (circleSyncAttemptRef.current === syncAttempt) setCircleWalletError(error instanceof Error ? error.message : "Không thể đồng bộ ví Circle");
-    } finally {
-      if (circleSyncAttemptRef.current === syncAttempt) setCircleWalletSyncing(false);
-    }
+      if(current())setCircleWalletError("Chưa đồng bộ được ví Arc. Bấm thử lại; không cần đăng xuất hoặc tạo tài khoản mới.");
+    }catch{if(current())setCircleWalletError("Chưa đọc được ví Circle. Thử đồng bộ lại hoặc xác thực email lại.");}
+    finally{if(current())setCircleWalletSyncing(false);}
+  };
+
+  const selectInitialCircleWallet = async (walletId:string):Promise<void> => {
+    if(circleChoiceFlightRef.current!==null||circleWalletSyncing||circleWalletChoiceUnknown)throw new Error("CIRCLE_WALLET_SELECTION_UNAVAILABLE");
+    const selected=circleWalletChoices.find(w=>w.walletId===walletId),credentials=circleCredentials,sessionToken=tokenRef.current,expectedId=userRef.current?.id,generation=sessionGenerationRef.current;
+    if(!selected||!credentials||!sessionToken||!expectedId)throw new Error("CIRCLE_WALLET_SELECTION_UNAVAILABLE");
+    const attempt=++circleSyncAttemptRef.current;circleChoiceFlightRef.current=attempt;
+    const current=()=>circleLifecycle.current.active&&attempt===circleSyncAttemptRef.current&&generation===sessionGenerationRef.current&&sessionToken===tokenRef.current&&localStorage.getItem("groupdeal_token")===sessionToken&&userRef.current?.id===expectedId;
+    if(!current()){circleChoiceFlightRef.current=null;return;}
+    setCircleWalletSyncing(true);setCircleWalletError(null);
+    try{const response=await readJson(await circleFetch("/api/circle/wallet/select",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+sessionToken},body:JSON.stringify({userToken:credentials.userToken,walletId:selected.walletId})}));if(!current())return;const next=readInitialCircleWalletAck(response,expectedId,selected);acceptUser(next,expectedId);setCircleWalletChoices([]);setCircleWalletChoiceUnknown(false);}
+    catch{if(current()){setCircleWalletChoiceUnknown(true);setCircleWalletError("Chưa xác nhận được ví đã chọn. Đọc lại trạng thái trước khi chọn tiếp.");}}
+    finally{if(circleChoiceFlightRef.current===attempt)circleChoiceFlightRef.current=null;if(current())setCircleWalletSyncing(false);}
   };
 
   const retryCircleWallet = async () => {
@@ -335,6 +433,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const verifyOtp = async (_email: string, _code?: string) => {
     const generation = ++sessionGenerationRef.current;
+    circleSyncAttemptRef.current++;circleChoiceFlightRef.current=null;setCircleWalletChoices([]);setCircleWalletChoiceUnknown(false);setCircleWalletSyncing(false);
+    setLogoutState("NONE");setSessionNotice(null);
     const sdk = circleSdkRef.current;
     if (!sdk) throw new Error("Circle Web SDK chưa sẵn sàng");
     try {
@@ -354,6 +454,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           loginPromiseRef.current = null;
         }
       });
+      if(generation!==sessionGenerationRef.current)throw new Error("Phiên đăng nhập đã bị hủy");
       setCircleCredentials(credentials);
       sdk.setAuthentication({
         userToken: credentials.userToken,
@@ -362,21 +463,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setCircleProgress("Đang tạo phiên đăng nhập GroupDeal...");
       const session = await createLocalSession(credentials);
-      if (generation !== sessionGenerationRef.current) throw new Error("Phiên đăng nhập đã bị hủy");
+      if (generation !== sessionGenerationRef.current){discardIssuedSession(session.token);throw new Error("Phiên đăng nhập đã bị hủy");}
 
+      const next=readUser(session.user);if(typeof session.token!=="string"||!session.token||session.token.length>8192)throw new Error("AUTH_RESPONSE_INVALID");
+      tokenRef.current=session.token;
       setToken(session.token);
       localStorage.setItem("groupdeal_token", session.token);
-      setUser(session.user);
+      acceptUser(next);
       void syncCircleWalletInBackground(session.token, credentials);
       return session.user as User;
     } finally {
-      setCircleProgress(null);
+      if(generation===sessionGenerationRef.current)setCircleProgress(null);
     }
   };
 
-  const loginWithWallet = async (signer: ethers.Signer) => {
+  const getSessionEpoch=useCallback(()=>{if(!circleLifecycle.current.active)throw new Error("AUTH_SESSION_ENDED");return sessionGenerationRef.current;},[]);
+
+  const loginWithWallet = async (signer: ethers.Signer, expectedEpoch?:number) => {
+    if(expectedEpoch!==undefined&&expectedEpoch!==getSessionEpoch())throw new Error("Phiên đăng nhập đã thay đổi");
     const generation = ++sessionGenerationRef.current;
+    setLogoutState("NONE");setSessionNotice(null);
     const walletAddress = await signer.getAddress();
+    if(generation!==sessionGenerationRef.current)throw new Error("Phiên đăng nhập đã bị hủy");
     const challenge = await readJson(
       await fetch("/api/auth/wallet/login/challenge", {
         method: "POST",
@@ -384,7 +492,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify({ walletAddress }),
       })
     );
+    if(generation!==sessionGenerationRef.current)throw new Error("Phiên đăng nhập đã bị hủy");
     const signature = await signer.signMessage(challenge.challengeMessage);
+    if(generation!==sessionGenerationRef.current)throw new Error("Phiên đăng nhập đã bị hủy");
     const session = await readJson(
       await fetch("/api/auth/wallet/login/verify", {
         method: "POST",
@@ -397,20 +507,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }),
       })
     );
-    if (generation !== sessionGenerationRef.current) throw new Error("Phiên đăng nhập đã bị hủy");
+    if (generation !== sessionGenerationRef.current){discardIssuedSession(session.token);throw new Error("Phiên đăng nhập đã bị hủy");}
+    const next=readUser(session.user);if(typeof session.token!=="string"||!session.token||session.token.length>8192)throw new Error("AUTH_RESPONSE_INVALID");
     circleSyncAttemptRef.current += 1;
     setCircleCredentials(null);
     setCircleWalletSyncing(false);
     setCircleWalletError(null);
-    setToken(session.token);
+    setCircleWalletChoices([]);setCircleWalletChoiceUnknown(false);circleChoiceFlightRef.current=null;
+    tokenRef.current=session.token;appSessionRef.current=null;setToken(session.token);
     localStorage.setItem("groupdeal_token", session.token);
-    setUser(session.user);
+    acceptUser(next);
     return session.user as User;
   };
 
-  const linkExternalWallet = async (signer: ethers.Signer) => {
+  const linkExternalWallet = async (signer: ethers.Signer, expectedEpoch?:number) => {
+    if(expectedEpoch!==undefined&&expectedEpoch!==getSessionEpoch())throw new Error("Phiên đăng nhập đã thay đổi");
     if (!token) throw new Error("Must be logged in to link wallet");
+    const generation=sessionGenerationRef.current,expectedId=userRef.current?.id;
+    const assertCurrent=()=>{if(generation!==sessionGenerationRef.current||token!==tokenRef.current||!expectedId||userRef.current?.id!==expectedId)throw new Error("Phiên đăng nhập đã thay đổi");};
+    assertCurrent();
     const address = await signer.getAddress();
+    assertCurrent();
     const chalData = await readJson(
       await fetch("/api/auth/wallet/challenge", {
         method: "POST",
@@ -418,7 +535,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify({ action: "LINK_WALLET", walletAddress: address }),
       })
     );
+    assertCurrent();
     const signature = await signer.signMessage(chalData.challengeMessage);
+    assertCurrent();
     const data = await readJson(
       await fetch("/api/auth/wallet/bind", {
         method: "POST",
@@ -426,43 +545,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify({ walletAddress: address, signature, message: chalData.challengeMessage }),
       })
     );
-    setUser(data.user);
-    return data.user as User;
+    if(generation!==sessionGenerationRef.current||token!==tokenRef.current||!expectedId)throw new Error("Phiên đăng nhập đã thay đổi");
+    return acceptUser(data.user,expectedId);
   };
 
-  const setupSellerProfile = async (profileData: {
-    displayName: string;
-    bio: string;
-    payoutWallet: string;
-    signer?: ethers.Signer;
-  }) => {
-    if (!token) throw new Error("Must be logged in to setup seller profile");
-    if (!profileData.signer) {
-      throw new Error("Vui lòng kết nối ví bên ngoài để xác nhận quyền sở hữu ví thanh toán.");
-    }
-    const chalData = await readJson(
-      await fetch("/api/auth/wallet/challenge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: "SELLER_PAYOUT", walletAddress: profileData.payoutWallet }),
-      })
-    );
-    const proofSignature = await profileData.signer.signMessage(chalData.challengeMessage);
-    const data = await readJson(
-      await fetch("/api/auth/seller/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          displayName: profileData.displayName,
-          bio: profileData.bio,
-          payoutWallet: profileData.payoutWallet,
-          proofSignature,
-          challengeMessage: chalData.challengeMessage,
-        }),
-      })
-    );
-    setUser(data.user);
-    return data.user as User;
+  const setupSellerProfile = async (_profileData: { displayName: string; bio: string; payoutWallet: string; signer?: ethers.Signer; }): Promise<User> => {
+    throw new Error("SELLER_PROFILE_INTENT_REQUIRED");
   };
 
   return (
@@ -471,19 +559,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         token,
         isLoading,
-        circleReady,
+        circleReady,circleInitState,prepareCircle,
         circleProgress,
         circleWalletSyncing,
         circleWalletError,
+        circleWalletChoices,circleWalletChoiceUnknown,selectInitialCircleWallet,
         retryCircleWallet,
         circleCredentials,
         requestOtp,
         verifyOtp,
         executeCircleChallenge,
-        loginWithWallet,
+        executeCircleMessageChallenge,
+        getSessionEpoch,loginWithWallet,
         linkExternalWallet,
         setupSellerProfile,
         logout,
+        logoutState,sessionNotice,endConfirmedSession,
         refreshUser,
       }}
     >

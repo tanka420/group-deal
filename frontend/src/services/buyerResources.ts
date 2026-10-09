@@ -1,0 +1,39 @@
+export type ResourceGrant={id:string;unitIndex:number;seatsPerUnit:number;fileName:string;mimeType:string;byteLength:number;sha256:string;activatedAt:number;redeemedAt:number|null;licenseExpiresAt:number|null;activationDeadline:number|null;requiresRedemption:boolean;canRedeem:boolean;downloadReady:boolean;accessStatus:'DOWNLOAD_READY'|'AWAITING_REDEMPTION'|'LICENSE_EXPIRED'|'ACTIVATION_WINDOW_EXPIRED'};
+const id=/^[A-Za-z0-9_-]{1,128}$/,hash=/^[a-f0-9]{64}$/,mimes=['application/pdf','application/zip','text/plain','image/png','image/jpeg'];
+const time=(v:unknown)=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=0&&v<=8640000000000000,nullableTime=(v:unknown)=>v===null||time(v);
+const identifier=(v:string)=>{if(!id.test(v)||['constructor','__proto__','prototype'].includes(v))throw Error('RESOURCE_INPUT_INVALID');return encodeURIComponent(v);};
+export class BuyerResourceError extends Error{constructor(public code='RESOURCE_UNAVAILABLE'){super(code);}}
+export function readResourceGrants(data:any,userId:string,orderId:string):ResourceGrant[]{
+ if(!data||data.orderId!==orderId||data.buyerAccountId!==userId||!time(data.serverTime)||!Array.isArray(data.grants)||data.grants.length>1000)throw new BuyerResourceError('RESOURCE_RESPONSE_INVALID');
+ const rows=data.grants.map((g:any):ResourceGrant=>{
+  if(!g||typeof g.id!=='string'||!id.test(g.id)||!Number.isSafeInteger(g.unitIndex)||g.unitIndex<0||!Number.isSafeInteger(g.seatsPerUnit)||g.seatsPerUnit<1||g.seatsPerUnit>10000||typeof g.fileName!=='string'||!g.fileName||g.fileName.length>180||/[\u0000-\u001f\u007f\\/]/.test(g.fileName)||!mimes.includes(g.mimeType)||!Number.isSafeInteger(g.byteLength)||g.byteLength<1||g.byteLength>16*1024*1024||!hash.test(g.sha256)||!time(g.activatedAt)||!nullableTime(g.redeemedAt)||!nullableTime(g.licenseExpiresAt)||!nullableTime(g.activationDeadline)||typeof g.requiresRedemption!=='boolean'||typeof g.canRedeem!=='boolean'||typeof g.downloadReady!=='boolean'||!['DOWNLOAD_READY','AWAITING_REDEMPTION','LICENSE_EXPIRED','ACTIVATION_WINDOW_EXPIRED'].includes(g.accessStatus)||g.canRedeem!==(g.accessStatus==='AWAITING_REDEMPTION')||g.downloadReady!==(g.accessStatus==='DOWNLOAD_READY')||g.downloadReady&&g.requiresRedemption||g.canRedeem&&!g.requiresRedemption||g.requiresRedemption&&g.redeemedAt!==null)throw new BuyerResourceError('RESOURCE_RESPONSE_INVALID');
+  return {id:g.id,unitIndex:g.unitIndex,seatsPerUnit:g.seatsPerUnit,fileName:g.fileName,mimeType:g.mimeType,byteLength:g.byteLength,sha256:g.sha256,activatedAt:g.activatedAt,redeemedAt:g.redeemedAt,licenseExpiresAt:g.licenseExpiresAt,activationDeadline:g.activationDeadline,requiresRedemption:g.requiresRedemption,canRedeem:g.canRedeem,downloadReady:g.downloadReady,accessStatus:g.accessStatus};
+ });if(new Set(rows.map((g:ResourceGrant)=>g.id)).size!==rows.length||new Set(rows.map((g:ResourceGrant)=>g.unitIndex)).size!==rows.length)throw new BuyerResourceError('RESOURCE_RESPONSE_INVALID');return rows;
+}
+async function responseBytes(r:Response,limit:number,signal:AbortSignal,onProgress?:(bytes:number)=>void){
+ if(!r.body)throw new BuyerResourceError('RESOURCE_RESPONSE_INVALID');const reader=r.body.getReader(),chunks:Uint8Array[]=[];let size=0;
+ try{while(true){if(signal.aborted)throw new BuyerResourceError('RESOURCE_CANCELLED');const result=await reader.read();if(result.done)break;size+=result.value.length;if(size>limit)throw new BuyerResourceError('RESOURCE_INTEGRITY_FAILED');chunks.push(result.value);onProgress?.(size);}const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}return bytes;}finally{try{await reader.cancel();}catch{}}
+}
+async function jsonRequest(path:string,token:string,signal:AbortSignal,body?:unknown){
+ const r=await fetch(path,{method:body===undefined?'GET':'POST',headers:{Authorization:'Bearer '+token,...(body===undefined?{}:{'Content-Type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)}),signal,redirect:'error',cache:'no-store',credentials:'omit'});
+ const raw=await responseBytes(r,1024*1024,signal);let data:any;try{data=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(raw));}catch{throw new BuyerResourceError('RESOURCE_RESPONSE_INVALID');}
+ if(!r.ok){const codes=['LICENSE_EXPIRED','ACTIVATION_WINDOW_EXPIRED','RESOURCE_REDEMPTION_REQUIRED','RESOURCE_ACCESS_DENIED','RESOURCE_KEY_INVALID','RESOURCE_METADATA_UNAVAILABLE','AUTH_SESSION_INACTIVE','AUTH_SESSION_UNAVAILABLE'];throw new BuyerResourceError(codes.includes(data?.error)?data.error:'RESOURCE_UNAVAILABLE');}return data;
+}
+export async function loadResourceGrants(token:string,userId:string,orderId:string,signal:AbortSignal){return readResourceGrants(await jsonRequest('/api/delivery/orders/'+identifier(orderId)+'/grants',token,signal),userId,orderId);}
+export async function activateResourceGrant(token:string,orderId:string,grant:ResourceGrant,signal:AbortSignal){
+ const data=await jsonRequest('/api/orders/'+identifier(orderId)+'/entitlement',token,signal);if(typeof data.entitlement!=='string'||data.entitlement.length>1024*1024)throw new BuyerResourceError('RESOURCE_RESPONSE_INVALID');
+ let e:any;try{e=JSON.parse(data.entitlement);}catch{throw new BuyerResourceError('RESOURCE_RESPONSE_INVALID');}
+ if(e?.version!==1||e.method!=='LICENSE_KEY'||!Array.isArray(e.grants)||e.grants.length>1000)throw new BuyerResourceError('RESOURCE_RESPONSE_INVALID');const matches=e.grants.filter((g:any)=>g?.id===grant.id),entry=matches[0];
+ if(matches.length!==1||entry.unitIndex!==grant.unitIndex||entry.seatsPerUnit!==grant.seatsPerUnit||typeof entry.licenseKey!=='string'||!/^[-A-Za-z0-9_]{12,128}$/.test(entry.licenseKey))throw new BuyerResourceError('RESOURCE_RESPONSE_INVALID');
+ const result=await jsonRequest('/api/delivery/grants/'+identifier(grant.id)+'/redeem',token,signal,{key:entry.licenseKey});if(result?.success!==true)throw new BuyerResourceError('RESOURCE_RESPONSE_INVALID');
+}
+export async function downloadResourceGrant(token:string,grant:ResourceGrant,signal:AbortSignal,onProgress:(bytes:number)=>void){
+ const link=await jsonRequest('/api/delivery/grants/'+identifier(grant.id)+'/download-link',token,signal),base='/api/delivery/grants/'+identifier(grant.id)+'/download';
+ if(link?.grantId!==grant.id||link.fileName!==grant.fileName||link.mimeType!==grant.mimeType||link.byteLength!==grant.byteLength||link.sha256!==grant.sha256||typeof link.url!=='string'||!link.url.startsWith(base+'?')||!Number.isSafeInteger(link.expiresAt))throw new BuyerResourceError('RESOURCE_RESPONSE_INVALID');
+ const url=new URL(link.url,location.origin),q=url.searchParams;if(url.origin!==location.origin||url.pathname!==base||url.hash||[...q.keys()].length!==3||['expiresAt','keyId','signature'].some(k=>q.getAll(k).length!==1)||q.get('expiresAt')!==String(link.expiresAt)||!/^[-A-Za-z0-9_]{1,64}$/.test(q.get('keyId')??'')||!hash.test(q.get('signature')??''))throw new BuyerResourceError('RESOURCE_RESPONSE_INVALID');
+ const r=await fetch(url,{headers:{Authorization:'Bearer '+token},signal,redirect:'error',cache:'no-store',credentials:'omit'});if(!r.ok)throw new BuyerResourceError(r.status===401?'AUTH_SESSION_INACTIVE':'RESOURCE_UNAVAILABLE');
+ if(r.headers.get('content-type')?.split(';')[0].trim().toLowerCase()!==grant.mimeType)throw new BuyerResourceError('RESOURCE_INTEGRITY_FAILED');
+ const bytes=await responseBytes(r,grant.byteLength,signal,onProgress);if(bytes.length!==grant.byteLength||signal.aborted)throw new BuyerResourceError('RESOURCE_INTEGRITY_FAILED');
+ const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');if(digest!==grant.sha256||signal.aborted)throw new BuyerResourceError('RESOURCE_INTEGRITY_FAILED');
+ return new Blob([bytes],{type:grant.mimeType});
+}

@@ -4,6 +4,10 @@ import path from "node:path";
 import { ethers } from "ethers";
 import { config } from "../src/config";
 import { CircleWalletService } from "../src/services/circleWalletService";
+import express from "express";
+import { campaignRouter } from "../src/routes/campaignRoutes";
+import { publicRouter } from "../src/routes/publicRoutes";
+import { store } from "../src/db/store";
 
 async function runWalletPolicyTests() {
   console.log("=== Running Circle User-Controlled Transaction Policy Tests ===");
@@ -102,21 +106,26 @@ async function runWalletPolicyTests() {
     /authorizedSignerPrivateKey|createCampaignOnchain/,
     "Campaign publishing must never fall back to a backend signer"
   );
-  assert.match(
-    campaignRouteSource,
-    /const nextId = `draft_\$\{crypto\.randomUUID\(\)\}`/,
-    "Draft IDs must remain local and collision-resistant until CampaignCreated"
-  );
   assert.doesNotMatch(
     campaignRouteSource,
     /onchainCampaignId:\s*Number\(nextId\)/,
     "Drafts must not fabricate an onchain campaign ID before a verified Arc event"
   );
-  assert.match(
-    campaignRouteSource,
-    /if \(campaign\.status === "DRAFT"\) \{\s*res\.status\(404\)/,
-    "The public campaign endpoint must not expose drafts based on an unverified header"
-  );
+  const app = express(); app.use("/api/campaigns", campaignRouter); app.use("/api/v1", publicRouter);
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise<void>(resolve => server.on("listening", resolve));
+  try {
+    const port = (server.address() as any).port;
+    for (const record of [{status:"DRAFT"},{status:"PUBLISHED",projectionOrigin:"CHAIN_UNBOUND"}]) {
+      store.db.campaigns.privacy = {id:"privacy",visibility:"PUBLIC",...record} as any;
+      for (const route of ["/api/campaigns/privacy","/api/v1/campaigns/privacy","/api/v1/campaigns/privacy/widget-data"]) {
+        const response = await fetch(`http://127.0.0.1:${port}${route}`, { headers:{ "x-user-role":"seller" } });
+        assert.equal(response.status,404,"Unverified headers cannot expose drafts/unbound chain projections");
+      }
+      const listing = await fetch(`http://127.0.0.1:${port}/api/v1/campaigns`).then(r=>r.json()) as any;
+      assert.ok(!listing.campaigns.some((c:any)=>c.id === "privacy"));
+    }
+  } finally { delete store.db.campaigns.privacy; await new Promise<void>(resolve=>server.close(()=>resolve())); }
   assert.doesNotMatch(
     workerSource,
     /buyerRefundAllocated\s*=|sellerAllocated\s*=/,

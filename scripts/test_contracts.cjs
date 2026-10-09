@@ -15,4 +15,4 @@ const res = spawnSync(npxCmd, ["hardhat", "test"], {
     LOCALAPPDATA: process.env.LOCALAPPDATA,
   },
 });
-process.exit(res.status || 0);
+process.exit(res.status ?? 1);

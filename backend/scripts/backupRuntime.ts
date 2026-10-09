@@ -1,0 +1,5 @@
+import {config} from '../src/config';
+import {validateRuntimeSecurity} from '../src/services/runtimeSecurity';
+import {backupRuntimeStore,RuntimeBackupError} from '../src/services/runtimeBackup';
+function main(){if(process.argv.length!==2)throw new RuntimeBackupError('RUNTIME_BACKUP_ARGUMENTS_INVALID');if(config.arcChainId!==5042002)throw new RuntimeBackupError('RUNTIME_BACKUP_ARC_REQUIRED');validateRuntimeSecurity();const result=backupRuntimeStore({inputScope:'EXISTING_RUNTIME'});console.log(JSON.stringify({path:result.path,sha256:result.sha256,byteLength:result.byteLength,status:result.status,selectedStoreScope:result.selectedStoreScope,failureCode:result.report.failureCode,promoted:false,acceptanceEligible:false}));if(result.status==='REJECTED')process.exitCode=1;}
+if(require.main===module)try{main();}catch(error){console.error(JSON.stringify({status:'REJECTED',code:error instanceof RuntimeBackupError?error.code:'RUNTIME_BACKUP_STARTUP_REJECTED',promoted:false}));process.exitCode=1;}

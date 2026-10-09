@@ -1,3 +1,16 @@
+import {circleFeeEstimate} from '../domain/circleTransactionPolicy';
+import {circleStatusId,circleStatusBody,circleTransactionStatusBody,circleStatusReceipt,circleProviderStatusChallenge,circleProviderStatusTransaction,circleOperationBinding} from '../domain/circleStatus';
+import {validateCirclePolicy,circlePolicyInput,circleTransactionInput,circleChallengeInput,type CircleTransactionIntent} from '../domain/circleTransactionPolicy';
+export type {CircleTransactionIntent} from '../domain/circleTransactionPolicy';
+import {SessionService,SessionError} from './sessionService';
+import type {CircleTransactionState,CircleTransactionSelection} from '../db/rowPersistence';
+import {circleChallengePayload,circleChallengeHash,circleChallengeReceipt,circleProviderChallengeId,circleChallengeRequestDigest,circleChallengeCompletionDigest,type CircleChallengeReceipt} from '../domain/circleChallenge';
+import {circleBoundAccount} from '../domain/circleWalletAuthority';
+import {AuthService} from './authService';
+import type {SessionProof} from './sessionService';
+import {circleWalletInput,circleWalletSelectInput,circleProviderWallets,sameCircleAuthority,type CircleWalletAuthority} from '../domain/circleWalletAuthority';
+import {StorageConflict} from '../db/rowPersistence';
+import {CircleAuthError,circleEmailInput,circleSessionInput,circleContext,circleAttempt,circleVerification,circleIdentityInput,type CircleVerification} from '../domain/circleAuthentication';
 import {
   type AccountType,
   type Blockchain,
@@ -10,47 +23,12 @@ import { ethers } from "ethers";
 import jwt from "jsonwebtoken";
 import { config } from "../config";
 import { store } from "../db/store";
+import { orderForChainId } from "./deploymentBindings";
 
 // SDK 10.8.1 declares these enums in .d.ts but omits several runtime exports.
 // Use API literals checked against SDK types, never declaration-only objects.
 const ARC_BLOCKCHAIN = "ARC-TESTNET" satisfies Blockchain & TestnetBlockchain;
 const MAX_APPROVAL_BASE_UNITS = BigInt(process.env.CIRCLE_MAX_APPROVAL_BASE_UNITS || "1000000000");
-
-const usdcInterface = new ethers.Interface([
-  "function approve(address spender, uint256 amount) external returns (bool)",
-]);
-
-const hubInterface = new ethers.Interface([
-  "function createCampaign((address sellerPayoutWallet, uint8 metric, uint256 maxPerAccount, uint256 inventoryLimit, uint256 durationSeconds, uint256 deliverySlaSeconds, bool earlyRebateEnabled, uint32 earlySlotsCount, uint256 earlyRebateAmount, uint16 earlyRebateBps, uint16 platformFeeBps, bytes32 termsHash) terms, (uint256 threshold, uint256 price)[] tiers) external returns (uint256 campaignId)",
-  "function commitToBuy(uint256 campaignId, bytes32 campaignIdentity, uint256 quantity, bool requireEarlySlot, uint256 maxAuthQuantity, uint256 authDeadline, bytes authSignature) external returns (uint256)",
-  "function recordDelivery(uint256 campaignId, uint256 orderId, bytes32 proofHash) external",
-  "function claimBuyerFunds(uint256 campaignId, uint256[] orderIds) external returns (uint256)",
-  "function claimSellerProceeds(uint256 campaignId, uint256[] orderIds) external returns (uint256)",
-  "function confirmReceipt(uint256 campaignId, uint256 orderId) external",
-  "function openDispute(uint256 campaignId, uint256 orderId, bytes32 reasonHash) external",
-  "function claimDeliveryBreach(uint256 campaignId, uint256 orderId) external",
-  "function settleUndisputedOrder(uint256 campaignId, uint256 orderId) external",
-  "function resolveDispute(uint256 campaignId, uint256 orderId, uint256 buyerShare, uint256 sellerShare) external",
-]);
-
-export type CircleTransactionIntent =
-  | { type: "USDC_APPROVE"; amount: string }
-  | { type: "CREATE_CAMPAIGN"; draftId: string }
-  | { type: "COMMIT_BUY"; campaignId: string; quantity: string }
-  | { type: "RECORD_DELIVERY"; orderId: string; proofHash: string }
-  | { type: "CLAIM_BUYER"; campaignId: string; orderIds: string[] }
-  | { type: "CLAIM_SELLER"; campaignId: string; orderIds: string[] }
-  | { type: "CONFIRM_RECEIPT"; campaignId: string; orderId: string }
-  | { type: "OPEN_DISPUTE"; campaignId: string; orderId: string }
-  | { type: "CLAIM_DELIVERY_BREACH"; campaignId: string; orderId: string }
-  | { type: "SETTLE_UNDISPUTED"; campaignId: string; orderId: string }
-  | {
-      type: "RESOLVE_DISPUTE";
-      campaignId: string;
-      orderId: string;
-      buyerShare: string;
-      sellerShare: string;
-    };
 
 interface CircleIdentity {
   circleUserId: string;
@@ -70,18 +48,6 @@ interface ArcWallet {
   walletId: string;
   address: string;
   blockchain: "ARC-TESTNET";
-}
-
-function normalizeIds(values: readonly unknown[]): string[] {
-  return values.map((value) => BigInt(value as ethers.BigNumberish).toString());
-}
-
-function assertSameIds(actual: readonly unknown[], expected: readonly string[]): void {
-  const left = normalizeIds(actual);
-  const right = expected.map((value) => BigInt(value).toString());
-  if (left.length !== right.length || left.some((value, index) => value !== right[index])) {
-    throw new Error("Transaction calldata does not match the declared order intent");
-  }
 }
 
 function stableUuid(input: string): string {
@@ -133,123 +99,53 @@ export class CircleWalletService {
     });
   }
 
-  public static async requestEmailOtp(email: string, deviceId: string) {
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail || !normalizedEmail.includes("@")) {
-      throw new Error("Địa chỉ email không hợp lệ");
-    }
-    if (!deviceId || deviceId.length < 8 || deviceId.length > 512) {
-      throw new Error("Circle device ID không hợp lệ");
-    }
-
-    const response = await this.requireClient().createDeviceTokenForEmailLogin({
-      email: normalizedEmail,
-      deviceId,
-      idempotencyKey: crypto.randomUUID(),
-      xRequestId: crypto.randomUUID(),
-    });
-    if (!response.data?.deviceToken || !response.data.otpToken) {
-      throw new Error("Circle did not return a complete email login challenge");
-    }
-
-    const loginAttemptId = crypto.randomUUID();
-    const now = Date.now();
-    store.db.circleLoginAttempts[loginAttemptId] = {
-      id: loginAttemptId,
-      email: normalizedEmail,
-      bindingVersion: 2,
-      deviceIdHash: crypto.createHash("sha256").update(deviceId).digest("hex"),
-      expiresAt: now + 10 * 60 * 1000,
-    };
-    for (const [id, attempt] of Object.entries(store.db.circleLoginAttempts)) {
-      if (attempt.expiresAt < now - 86400000) delete store.db.circleLoginAttempts[id];
-    }
-    store.save();
-    return { ...response.data, loginAttemptId };
+  private static authFailure(e:unknown):never{if(e instanceof CircleAuthError||e instanceof SessionError)throw e;if(e instanceof StorageConflict||e instanceof Error&&e.message.startsWith('CONFLICT:'))throw new CircleAuthError('CIRCLE_AUTH_CONFLICT',409);throw new CircleAuthError('CIRCLE_AUTH_UNAVAILABLE',503)}
+  private static readAuthentication(attemptId?:string){try{return store.readCircleAuthState({mode:attemptId?'CONSUME_ATTEMPT':'ISSUE_ATTEMPT',attemptId,rateKeys:[]})}catch(e){return this.authFailure(e)}}
+  public static async requestEmailOtp(email:string,deviceId:string){
+    const p=circleEmailInput.safeParse({email,deviceId});if(!p.success)throw new CircleAuthError('CIRCLE_AUTH_INVALID_INPUT');const initial=this.readAuthentication(),context=circleContext(initial.auth.authRecovery),createdAt=Date.now();
+    const response=await this.requireClient().createDeviceTokenForEmailLogin({email:p.data.email,deviceId:p.data.deviceId,idempotencyKey:crypto.randomUUID(),xRequestId:crypto.randomUUID()});
+    const data=response.data;if(!data||![data.deviceToken,data.otpToken,data.deviceEncryptionKey].every(v=>typeof v==='string'&&v.length>0&&v.length<=8192))throw new CircleAuthError('CIRCLE_AUTH_UNAVAILABLE',503);
+    const id=crypto.randomUUID(),record={id,email:p.data.email,bindingVersion:2 as const,deviceIdHash:crypto.createHash('sha256').update(p.data.deviceId).digest('hex'),createdAt,expiresAt:createdAt+600000,...(context?{authRecoveryContext:context}:{})};
+    try{return store.mutateCircleAuthentication({mode:'ISSUE_ATTEMPT',attemptId:id,rateKeys:[]},state=>{if(circleContext(state.auth.authRecovery)!==context)throw new CircleAuthError('CIRCLE_AUTH_ATTEMPT_INACTIVE',401);circleAttempt(record,state.auth.authRecovery);return{result:{deviceToken:data.deviceToken!,otpToken:data.otpToken!,deviceEncryptionKey:data.deviceEncryptionKey!,loginAttemptId:id},writes:[{collection:'circleLoginAttempts',key:id,value:record}]}})}catch(e){return this.authFailure(e)}
+  }
+  public static async verifyIdentity(userToken:string,loginAttemptId:string):Promise<CircleIdentity>;
+  public static async verifyIdentity<T>(userToken:string,loginAttemptId:string,complete:(identity:CircleIdentity,verification:CircleVerification)=>T):Promise<T>;
+  public static async verifyIdentity<T>(userToken:string,loginAttemptId:string,complete?:(identity:CircleIdentity,verification:CircleVerification)=>T):Promise<CircleIdentity|T>{
+    const p=circleSessionInput.safeParse({userToken,loginAttemptId});if(!p.success)throw new CircleAuthError('CIRCLE_AUTH_INVALID_INPUT');const state=this.readAuthentication(p.data.loginAttemptId),attempt=circleAttempt(state.attempt,state.auth.authRecovery),verification=circleVerification(attempt);
+    const response=await this.requireClient().getUserStatus({userToken:p.data.userToken,xRequestId:crypto.randomUUID()});if(response.data?.status!=='ENABLED')throw new CircleAuthError('CIRCLE_AUTH_IDENTITY_INACTIVE',401);
+    const input=circleIdentityInput({email:verifiedTokenEmail(userToken),circleUserId:response.data?.id});if(input.email&&input.email!==attempt.email)throw new CircleAuthError('CIRCLE_AUTH_EMAIL_MISMATCH',403,'Circle user token does not match the requested email login');const current=this.readAuthentication(p.data.loginAttemptId);circleAttempt(current.attempt,current.auth.authRecovery,verification);
+    const identity={circleUserId:input.circleUserId,email:input.email};if(complete){const result=complete(identity,verification);if(result&&typeof (result as any).then==='function')throw new CircleAuthError('CIRCLE_AUTH_UNAVAILABLE',503);return result}
+    try{return store.mutateCircleAuthentication({mode:'CONSUME_ATTEMPT',attemptId:p.data.loginAttemptId,rateKeys:[]},s=>{const now=Date.now();circleAttempt(s.attempt,s.auth.authRecovery,verification,now);return{result:identity,writes:[],consumeAttemptAt:now}})}catch(e){return this.authFailure(e)}
   }
 
-  public static async verifyIdentity(userToken: string, loginAttemptId: string): Promise<CircleIdentity> {
-    if (!userToken || userToken.length < 32) {
-      throw new Error("Circle user token is required");
-    }
-    const attempt = store.db.circleLoginAttempts[loginAttemptId];
-    if (!attempt || attempt.bindingVersion !== 2 || attempt.expiresAt < Date.now() || attempt.consumedAt) {
-      throw new Error("Circle login attempt is missing, expired, or already consumed");
-    }
-    const response = await this.requireClient().getUserStatus({
-      userToken,
-      xRequestId: crypto.randomUUID(),
-    });
-    const circleUserId = response.data?.id;
-    if (!circleUserId || response.data?.status === "DISABLED") {
-      throw new Error("Circle user is unavailable or disabled");
-    }
-    const verifiedEmail = verifiedTokenEmail(userToken);
-    if (verifiedEmail && verifiedEmail !== attempt.email) {
-      throw new Error("Circle user token does not match the requested email login");
-    }
-    // Identity comes exclusively from Circle's authenticated /user response.
-    // Tokens without a verified email claim can log in ONLY to their own Circle-ID
-    // account; never attach the requested email or merge a legacy email account.
-    // Recheck after the remote await to reject concurrent consumption/replay.
-    if (attempt.consumedAt || attempt.expiresAt < Date.now()) {
-      throw new Error("Circle login attempt is expired or already consumed");
-    }
-    attempt.consumedAt = Date.now();
-    store.save();
-    return { circleUserId, email: verifiedEmail };
+  private static async authenticatedWalletAuthority(userId:string,userToken:string,proof?:SessionProof){
+    const p=circleWalletInput.safeParse({userToken});if(!p.success)throw new CircleAuthError('CIRCLE_WALLET_INVALID_INPUT');const initial=AuthService.circleWalletAuthority(userId,proof);
+    const response=await this.requireClient().getUserStatus({userToken:p.data.userToken,xRequestId:crypto.randomUUID()}),current=AuthService.circleWalletAuthority(userId,proof);sameCircleAuthority(initial,current);
+    if(response.data?.status!=='ENABLED'||response.data?.id!==current.circleUserId)throw new CircleAuthError('CIRCLE_WALLET_NOT_BOUND',403,'Circle session is not bound to this GroupDeal account');return current;
+  }
+  public static async assertBoundIdentity(userId:string,userToken:string,proof?:SessionProof):Promise<{circleUserId:string}>{const current=await this.authenticatedWalletAuthority(userId,userToken,proof);return{circleUserId:current.circleUserId}}
+  public static async listArcWallets(userToken:string,authorize?:()=>CircleWalletAuthority):Promise<ArcWallet[]>{
+    const p=circleWalletInput.safeParse({userToken});if(!p.success)throw new CircleAuthError('CIRCLE_WALLET_INVALID_INPUT');const initial=authorize?.(),response=await this.requireClient().listWallets({userToken:p.data.userToken,blockchain:ARC_BLOCKCHAIN,pageSize:100,xRequestId:crypto.randomUUID()}),current=authorize?.();if(initial&&current)sameCircleAuthority(initial,current);return circleProviderWallets(response.data?.wallets,current?.circleUserId);
+  }
+  private static chooseInventoryWallet(wallets:ArcWallet[],authority:CircleWalletAuthority){
+    if(authority.wallet){const selected=wallets.find(w=>w.walletId===authority.wallet!.walletId&&w.address.toLowerCase()===authority.wallet!.address.toLowerCase());if(!selected)throw new CircleAuthError('CIRCLE_WALLET_UNAVAILABLE',503);return selected}
+    if(wallets.length!==1)throw new CircleAuthError('CIRCLE_WALLET_SELECTION_REQUIRED',409);return wallets[0];
+  }
+  public static async initializeArcWallet(userId:string,userToken:string,proof?:SessionProof){
+    const initial=await this.authenticatedWalletAuthority(userId,userToken,proof),authorize=()=>{const current=AuthService.circleWalletAuthority(userId,proof);sameCircleAuthority(initial,current);return current},wallets=await this.listArcWallets(userToken,authorize);
+    if(wallets.length>0)return{alreadyInitialized:true as const,wallet:this.chooseInventoryWallet(wallets,authorize())};if(initial.wallet)throw new CircleAuthError('CIRCLE_WALLET_UNAVAILABLE',503);authorize();
+    const idempotencyKey=stableUuid('arc-wallet-initialization:'+userId+':'+initial.circleUserId+':'+(initial.context??'normal'));
+    const response=await this.requireClient().createUserPinWithWallets({userToken,blockchains:[ARC_BLOCKCHAIN],accountType:'EOA' satisfies AccountType,idempotencyKey,xRequestId:crypto.randomUUID()});authorize();const challengeId=response.data?.challengeId;
+    try{circleIdentityInput({email:null,circleUserId:challengeId})}catch{throw new CircleAuthError('CIRCLE_WALLET_PROVIDER_RESULT_UNKNOWN',503)}return{alreadyInitialized:false as const,challengeId:challengeId!};
+  }
+  public static async syncArcWallets(userId:string,userToken:string,proof:SessionProof){
+    const initial=await this.authenticatedWalletAuthority(userId,userToken,proof),authorize=()=>{const current=AuthService.circleWalletAuthority(userId,proof);sameCircleAuthority(initial,current);return current},wallets=await this.listArcWallets(userToken,authorize);if(!wallets.length)return{wallets};const current=authorize();if(!current.wallet&&wallets.length>1)return{userId,selectionRequired:true as const,wallets};const wallet=this.chooseInventoryWallet(wallets,current),user=AuthService.bindCircleWallet(userId,current.circleUserId,wallet,proof,current);return{wallets,user};
   }
 
-  public static async assertBoundIdentity(userId: string, userToken: string): Promise<{ circleUserId: string }> {
-    if (!userToken || userToken.length < 32) throw new Error("Circle user token is required");
-    const response = await this.requireClient().getUserStatus({
-      userToken,
-      xRequestId: crypto.randomUUID(),
-    });
-    const circleUserId = response.data?.id;
-    if (!circleUserId || response.data?.status === "DISABLED") {
-      throw new Error("Circle user is unavailable or disabled");
-    }
-    const user = store.db.users[userId];
-    if (!user || user.circleUserId !== circleUserId) {
-      throw new Error("Circle session is not bound to this GroupDeal account");
-    }
-    return { circleUserId };
-  }
-
-  public static async listArcWallets(userToken: string): Promise<ArcWallet[]> {
-    const response = await this.requireClient().listWallets({
-      userToken,
-      blockchain: ARC_BLOCKCHAIN,
-      xRequestId: crypto.randomUUID(),
-    });
-    return (response.data?.wallets || [])
-      .filter((wallet) => wallet.blockchain === ARC_BLOCKCHAIN && wallet.state === "LIVE")
-      .map((wallet) => ({
-        walletId: wallet.id,
-        address: ethers.getAddress(wallet.address),
-        blockchain: "ARC-TESTNET" as const,
-      }));
-  }
-
-  public static async initializeArcWallet(userId: string, userToken: string) {
-    await this.assertBoundIdentity(userId, userToken);
-    const wallets = await this.listArcWallets(userToken);
-    if (wallets.length > 0) {
-      return { alreadyInitialized: true as const, wallet: wallets[0] };
-    }
-
-    const response = await this.requireClient().createUserPinWithWallets({
-      userToken,
-      blockchains: [ARC_BLOCKCHAIN],
-      accountType: "EOA" satisfies AccountType,
-      idempotencyKey: stableUuid(`arc-wallet-initialization:${userId}`),
-      xRequestId: crypto.randomUUID(),
-    });
-    if (!response.data?.challengeId) {
-      throw new Error("Circle did not return a wallet initialization challenge");
-    }
-    return { alreadyInitialized: false as const, challengeId: response.data.challengeId };
+  public static async selectInitialArcWallet(userId:string,raw:unknown,proof:SessionProof){
+    if(!proof)throw new CircleAuthError('CIRCLE_WALLET_NOT_BOUND',403);
+    const p=circleWalletSelectInput.safeParse(raw);if(!p.success)throw new CircleAuthError('CIRCLE_WALLET_INVALID_INPUT');const initial=await this.authenticatedWalletAuthority(userId,p.data.userToken,proof);if(initial.wallet&&initial.wallet.walletId!==p.data.walletId)throw new CircleAuthError('CIRCLE_WALLET_BINDING_REQUIRED',409);
+    const authorize=()=>{const current=AuthService.circleWalletAuthority(userId,proof);sameCircleAuthority(initial,current);return current},wallets=await this.listArcWallets(p.data.userToken,authorize),current=authorize(),wallet=wallets.find(w=>w.walletId===p.data.walletId);if(!wallet)throw new CircleAuthError('CIRCLE_WALLET_UNAVAILABLE',503);const user=AuthService.bindCircleWallet(userId,current.circleUserId,wallet,proof,current);return{userId,wallet,user};
   }
 
   private static assertWalletOwnership(userId: string, walletId: string): void {
@@ -262,293 +158,95 @@ export class CircleWalletService {
     }
   }
 
-  public static validateTransactionPolicy(
-    contractAddress: string,
-    callData: string,
-    intent: CircleTransactionIntent,
-    userId?: string
-  ): void {
-    const target = ethers.getAddress(contractAddress).toLowerCase();
-    const hub = ethers.getAddress(config.hubAddress).toLowerCase();
-    const usdc = ethers.getAddress(config.usdcAddress).toLowerCase();
+  private static transactionSelection(userId:string,callData:string,intent:CircleTransactionIntent,proof?:SessionProof,circleOperationId?:string):CircleTransactionSelection{
+    let chainOrderIds:string[]=[];if(intent.type==='CLAIM_BUYER'||intent.type==='CLAIM_SELLER')chainOrderIds=intent.orderIds;else if(['CONFIRM_RECEIPT','OPEN_DISPUTE','CLAIM_DELIVERY_BREACH','SETTLE_UNDISPUTED','RESOLVE_DISPUTE'].includes(intent.type))chainOrderIds=[(intent as {orderId:string}).orderId];return{actorId:userId,sessionKey:proof?.key,chainId:config.arcChainId,hubAddress:config.hubAddress,calldata:callData,...(intent.type==='CREATE_CAMPAIGN'?{draftId:intent.draftId}:{}),...(intent.type==='RECORD_DELIVERY'?{orderId:intent.orderId}:{}),chainOrderIds,...(circleOperationId?{circleOperationId}:{})};
+  }
+  private static readTransactionState(userId:string,callData:string,intent:CircleTransactionIntent,proof?:SessionProof,circleOperationId?:string){try{return store.readCircleTransactionState(this.transactionSelection(userId,callData,intent,proof,circleOperationId))}catch(e){return this.authFailure(e)}}
+  private static transactionAuthority(input:{userId:string;walletId:string;contractAddress:string;callData:string;intent:CircleTransactionIntent;proof?:SessionProof},selected?:CircleTransactionState){
+    if(config.arcChainId!==5042002)throw new CircleAuthError('CIRCLE_TRANSACTION_UNAVAILABLE',503);const p=circlePolicyInput.safeParse({contractAddress:input.contractAddress,callData:input.callData,intent:input.intent});if(!p.success)throw new CircleAuthError('CIRCLE_TRANSACTION_INVALID_INPUT');const state=selected??this.readTransactionState(input.userId,p.data.callData,p.data.intent,input.proof),context=circleContext(state.auth.authRecovery);
+    if(input.proof){if(input.proof.account.id!==input.userId)throw new CircleAuthError('CIRCLE_TRANSACTION_FORBIDDEN',403);SessionService.assertCommitted(input.proof,state.auth)}else if(context!==undefined)throw new CircleAuthError('CIRCLE_TRANSACTION_FRESH_SESSION_REQUIRED',401);
+    if(p.data.intent.type==='RESOLVE_DISPUTE')SessionService.assertOperatorCommitted(input.proof,state.auth);
+    const user=state.auth.user,authority=circleBoundAccount(user,input.userId,state.circleOwner,state.auth.authRecovery);if(!user?.circleWallet||user.circleWallet.walletId!==input.walletId||state.walletOwner!==user.id||user.activeWallet?.toLowerCase()!==user.circleWallet.address.toLowerCase())throw new CircleAuthError('CIRCLE_TRANSACTION_WALLET_NOT_SELECTED',403);
+    validateCirclePolicy(p.data.contractAddress,p.data.callData,p.data.intent,input.userId,state.graph);return{...authority,policy:crypto.createHash('sha256').update(JSON.stringify(state.graph)).digest('hex')};
+  }
+  private static sameTransactionAuthority(initial:ReturnType<typeof CircleWalletService.transactionAuthority>,current:ReturnType<typeof CircleWalletService.transactionAuthority>){sameCircleAuthority(initial,current);if(initial.policy!==current.policy)throw new CircleAuthError('CIRCLE_TRANSACTION_AUTHORITY_CHANGED',409)}
+  public static validateTransactionPolicy(contractAddress:string,callData:string,intent:CircleTransactionIntent,userId?:string,proof?:SessionProof){const state=userId?this.readTransactionState(userId,callData,intent,proof):undefined;if(intent.type==='RESOLVE_DISPUTE'){if(!state)throw new SessionError('OPERATOR_ACCESS_REQUIRED',403);SessionService.assertOperatorCommitted(proof,state.auth)}return validateCirclePolicy(contractAddress,callData,intent,userId,state?.graph)}
 
-    if (!ethers.isHexString(callData) || callData.length < 10) {
-      throw new Error("Contract calldata is invalid");
-    }
-
-    if (intent.type === "USDC_APPROVE") {
-      if (target !== usdc) throw new Error("USDC approval must target the Arc USDC predeploy");
-      const decoded = usdcInterface.decodeFunctionData("approve", callData);
-      const amount = BigInt(decoded.amount);
-      if (ethers.getAddress(decoded.spender).toLowerCase() !== hub) {
-        throw new Error("USDC approval spender must be GroupDealHub");
-      }
-      if (amount !== BigInt(intent.amount) || amount <= 0n || amount > MAX_APPROVAL_BASE_UNITS) {
-        throw new Error("USDC approval amount violates the declared intent or policy limit");
-      }
-      return;
-    }
-
-    if (target !== hub) throw new Error("GroupDeal action must target the configured Hub contract");
-    const parsed = hubInterface.parseTransaction({ data: callData });
-    if (!parsed) throw new Error("Unsupported GroupDeal calldata");
-
-    switch (intent.type) {
-      case "CREATE_CAMPAIGN": {
-        if (!userId) throw new Error("Authenticated user is required for campaign creation");
-        const campaign = store.db.campaigns[intent.draftId];
-        if (!campaign || campaign.sellerId !== userId || campaign.status !== "DRAFT") {
-          throw new Error("Campaign draft is unavailable or not owned by the Circle user");
-        }
-        const circleAddress = store.db.users[userId]?.circleWallet?.address;
-        if (!circleAddress || circleAddress.toLowerCase() !== campaign.sellerPayoutWallet.toLowerCase()) {
-          throw new Error("Seller must sign from the payout wallet bound to the campaign");
-        }
-        const expectedTerms = {
-          sellerPayoutWallet: ethers.getAddress(campaign.sellerPayoutWallet),
-          metric: campaign.metric === "BUYER_COUNT" ? 0 : 1,
-          maxPerAccount: BigInt(campaign.maxPerAccount),
-          inventoryLimit: BigInt(campaign.inventoryLimit),
-          durationSeconds: BigInt(campaign.durationSeconds),
-          deliverySlaSeconds: BigInt(campaign.deliverySlaSeconds),
-          earlyRebateEnabled: campaign.earlyRebateEnabled,
-          earlySlotsCount: campaign.earlySlotsCount,
-          earlyRebateAmount: BigInt(campaign.earlyRebateAmount),
-          earlyRebateBps: campaign.earlyRebateBps,
-          platformFeeBps: campaign.platformFeeBps,
-          termsHash: campaign.termsHash,
-        };
-        const expectedData = hubInterface.encodeFunctionData("createCampaign", [
-          expectedTerms,
-          campaign.tiers.map((tier) => ({ threshold: BigInt(tier.threshold), price: BigInt(tier.price) })),
-        ]);
-        if (parsed.name !== "createCampaign" || expectedData.toLowerCase() !== callData.toLowerCase()) {
-          throw new Error("Campaign calldata does not match the immutable server draft");
-        }
-        break;
-      }
-      case "COMMIT_BUY":
-        if (
-          parsed.name !== "commitToBuy" ||
-          BigInt(parsed.args.campaignId).toString() !== BigInt(intent.campaignId).toString() ||
-          BigInt(parsed.args.quantity).toString() !== BigInt(intent.quantity).toString()
-        ) {
-          throw new Error("Commit calldata does not match the declared purchase intent");
-        }
-        break;
-      case "RECORD_DELIVERY": {
-        if (!userId) throw new Error("Authenticated user is required for delivery");
-        const order = store.db.orders[intent.orderId];
-        const campaign = order && store.db.campaigns[order.campaignId];
-        if (!order || !campaign || campaign.sellerId !== userId) {
-          throw new Error("Delivery intent is not owned by this seller");
-        }
-        if (!campaign.onchainCampaignId) {
-          throw new Error("Delivery campaign does not have a verified Arc campaign ID");
-        }
-        const circleAddress = store.db.users[userId]?.circleWallet?.address;
-        if (!circleAddress || circleAddress.toLowerCase() !== campaign.sellerPayoutWallet.toLowerCase()) {
-          throw new Error("Delivery must be signed by the campaign payout wallet");
-        }
-        if (
-          parsed.name !== "recordDelivery" ||
-          BigInt(parsed.args.campaignId).toString() !== BigInt(campaign.onchainCampaignId).toString() ||
-          BigInt(parsed.args.orderId).toString() !== BigInt(order.onchainOrderId).toString() ||
-          String(parsed.args.proofHash).toLowerCase() !== intent.proofHash.toLowerCase()
-        ) {
-          throw new Error("Delivery calldata does not match the declared seller intent");
-        }
-        break;
-      }
-      case "CLAIM_BUYER":
-      case "CLAIM_SELLER": {
-        const expectedName = intent.type === "CLAIM_BUYER" ? "claimBuyerFunds" : "claimSellerProceeds";
-        if (
-          parsed.name !== expectedName ||
-          BigInt(parsed.args.campaignId).toString() !== BigInt(intent.campaignId).toString()
-        ) {
-          throw new Error("Claim calldata does not match the declared campaign intent");
-        }
-        assertSameIds(parsed.args.orderIds, intent.orderIds);
-        if (userId) {
-          for (const orderId of intent.orderIds) {
-            const order = store.db.orders[BigInt(orderId).toString()];
-            const campaign = order && store.db.campaigns[order.campaignId];
-            if (!order || !campaign) throw new Error("Claim references an unknown order");
-            if (intent.type === "CLAIM_BUYER" && order.buyerAccountId !== userId) {
-              throw new Error("Buyer claim references an order owned by another account");
-            }
-          if (intent.type === "CLAIM_SELLER" && campaign.sellerId !== userId) {
-            throw new Error("Seller claim references a campaign owned by another account");
-          }
-          if (
-            intent.type === "CLAIM_SELLER" &&
-            store.db.users[userId]?.circleWallet?.address.toLowerCase() !==
-              campaign.sellerPayoutWallet.toLowerCase()
-          ) {
-            throw new Error("Seller claim must be signed by the campaign payout wallet");
-          }
-          }
-        }
-        break;
-      }
-      case "CONFIRM_RECEIPT":
-      case "OPEN_DISPUTE":
-      case "CLAIM_DELIVERY_BREACH":
-      case "SETTLE_UNDISPUTED": {
-        const expectedName = {
-          CONFIRM_RECEIPT: "confirmReceipt",
-          OPEN_DISPUTE: "openDispute",
-          CLAIM_DELIVERY_BREACH: "claimDeliveryBreach",
-          SETTLE_UNDISPUTED: "settleUndisputedOrder",
-        }[intent.type];
-        if (
-          parsed.name !== expectedName ||
-          BigInt(parsed.args.campaignId).toString() !== BigInt(intent.campaignId).toString() ||
-          BigInt(parsed.args.orderId).toString() !== BigInt(intent.orderId).toString()
-        ) {
-          throw new Error("Order calldata does not match the declared intent");
-        }
-        if (userId) {
-          const order = store.db.orders[BigInt(intent.orderId).toString()];
-          if (!order) throw new Error("Order intent references an unknown order");
-          if (intent.type !== "SETTLE_UNDISPUTED" && order.buyerAccountId !== userId) {
-            throw new Error("Order action is not owned by this buyer account");
-          }
-        }
-        break;
-      }
-      case "RESOLVE_DISPUTE": {
-        if (!userId) throw new Error("Authenticated operator is required");
-        const user = store.db.users[userId];
-        if (!user?.roles.includes("operator")) throw new Error("Operator role is required");
-        if (user.circleWallet?.address.toLowerCase() !== config.operatorAddress.toLowerCase()) {
-          throw new Error("Dispute resolution must be signed by the configured operator wallet");
-        }
-        if (
-          parsed.name !== "resolveDispute" ||
-          BigInt(parsed.args.campaignId).toString() !== BigInt(intent.campaignId).toString() ||
-          BigInt(parsed.args.orderId).toString() !== BigInt(intent.orderId).toString() ||
-          BigInt(parsed.args.buyerShare).toString() !== BigInt(intent.buyerShare).toString() ||
-          BigInt(parsed.args.sellerShare).toString() !== BigInt(intent.sellerShare).toString()
-        ) {
-          throw new Error("Dispute resolution calldata does not match the operator intent");
-        }
-        break;
-      }
-      default:
-        throw new Error("Unsupported Circle transaction intent");
-    }
+  private static challengeFlights=new Map<string,Promise<{challengeId:string}>>();
+  public static async createContractChallenge(raw:{userId:string;userToken:string;walletId:string;contractAddress:string;callData:string;intent:CircleTransactionIntent;operationId:string;proof?:SessionProof}){
+    const p=circleChallengeInput.safeParse({userToken:raw.userToken,walletId:raw.walletId,contractAddress:raw.contractAddress,callData:raw.callData,intent:raw.intent,operationId:raw.operationId});if(!p.success)throw new CircleAuthError('CIRCLE_TRANSACTION_INVALID_INPUT');const input={...p.data,userId:raw.userId,proof:raw.proof},initial=this.transactionAuthority(input);await this.assertBoundIdentity(input.userId,input.userToken,input.proof);this.sameTransactionAuthority(initial,this.transactionAuthority(input));
+    const selection=this.transactionSelection(input.userId,input.callData,input.intent,input.proof,input.operationId),authorize=(state:CircleTransactionState)=>{const current=this.transactionAuthority(input,state);this.sameTransactionAuthority(initial,current);if(['CONFIRM_RECEIPT','OPEN_DISPUTE','CLAIM_DELIVERY_BREACH','SETTLE_UNDISPUTED','RESOLVE_DISPUTE'].includes(input.intent.type)){const operation=Object.values(state.graph.operations).find(o=>['CONFIRM','DISPUTE','BREACH','SETTLE','RESOLVE'].includes(o.action)&&['AWAITING_SIGNATURE','SUBMITTED','UNKNOWN'].includes(o.phase));if(!operation||input.operationId!==`circle:${operation.id}`)throw new CircleAuthError('CIRCLE_TRANSACTION_INTENT_CONFLICT',409,'Circle operationId must match the reserved order action')}return current};
+    let reserved:CircleChallengeReceipt;try{reserved=store.mutateCircleTransactionChallenge(selection,state=>{const authority=authorize(state);if(state.circleReceipt)return{result:circleChallengeReceipt(state.circleReceipt,input,authority,state.circleReceiptAudits)};const r:CircleChallengeReceipt={operationId:input.operationId,userId:input.userId,walletId:input.walletId,payloadHash:circleChallengePayload(input),idempotencyKey:stableUuid('groupdeal:'+input.operationId),createdAt:Date.now(),version:2,state:'REQUESTED',circleUserId:authority.circleUserId,walletAddress:authority.wallet!.address,chainId:5042002,contractAddress:ethers.getAddress(input.contractAddress),calldataHash:circleChallengeHash(input.callData.toLowerCase()),intentType:input.intent.type,authorityBase:authority.base,policyDigest:authority.policy,requestId:crypto.randomUUID(),...(authority.context?{authRecoveryContext:authority.context}:{})};return{result:r,record:r,audit:{action:'CIRCLE_TRANSACTION_CHALLENGE_REQUESTED',details:{operationId:r.operationId,requestId:r.requestId,payloadHash:r.payloadHash,receiptDigest:circleChallengeRequestDigest(r)}}}})}catch(e){return this.authFailure(e)}
+    if(reserved.state==='READY')return{challengeId:reserved.challengeId!};
+    const flightKey=JSON.stringify([reserved.operationId,reserved.requestId,reserved.payloadHash,reserved.authorityBase]),existingFlight=this.challengeFlights.get(flightKey);if(existingFlight){const result=await existingFlight;try{return store.mutateCircleTransactionChallenge(selection,state=>{const r=circleChallengeReceipt(state.circleReceipt,input,authorize(state),state.circleReceiptAudits);if(r.requestId!==reserved.requestId||r.state!=='READY'||r.challengeId!==result.challengeId)throw new CircleAuthError('CIRCLE_TRANSACTION_PROVIDER_RESULT_UNKNOWN',503);return{result:{challengeId:r.challengeId}}})}catch(e){return this.authFailure(e)}}
+    const flight=Promise.resolve().then(async()=>{const beforeSend=this.readTransactionState(input.userId,input.callData,input.intent,input.proof,input.operationId),currentReceipt=circleChallengeReceipt(beforeSend.circleReceipt,input,authorize(beforeSend),beforeSend.circleReceiptAudits);if(currentReceipt.requestId!==reserved.requestId||currentReceipt.idempotencyKey!==reserved.idempotencyKey)throw new CircleAuthError('CIRCLE_TRANSACTION_AUTHORITY_CHANGED',409);if(currentReceipt.state==='READY')return{challengeId:currentReceipt.challengeId!};let challengeId:string;try{const response=await this.requireClient().createUserTransactionContractExecutionChallenge({userToken:input.userToken,walletId:input.walletId,contractAddress:ethers.getAddress(input.contractAddress),callData:input.callData as `0x${string}`,fee:{type:'level',config:{feeLevel:'MEDIUM' satisfies FeeLevel}},idempotencyKey:reserved.idempotencyKey,refId:input.operationId,xRequestId:crypto.randomUUID()});challengeId=circleProviderChallengeId(response.data?.challengeId)}catch{throw new CircleAuthError('CIRCLE_TRANSACTION_PROVIDER_RESULT_UNKNOWN',503)}
+      try{return store.mutateCircleTransactionChallenge(selection,state=>{const current=circleChallengeReceipt(state.circleReceipt,input,authorize(state),state.circleReceiptAudits);if(current.requestId!==reserved.requestId||current.idempotencyKey!==reserved.idempotencyKey)throw new CircleAuthError('CIRCLE_TRANSACTION_AUTHORITY_CHANGED',409);if(current.state==='READY'){if(current.challengeId!==challengeId)throw new CircleAuthError('CIRCLE_TRANSACTION_PROVIDER_RESULT_UNKNOWN',503);return{result:{challengeId}}}const completed={...current,state:'READY' as const,challengeId,completedAt:Date.now()};return{result:{challengeId},patch:{state:'READY',challengeId,completedAt:completed.completedAt},audit:{action:'CIRCLE_TRANSACTION_CHALLENGE_CREATED',details:{operationId:current.operationId,requestId:current.requestId,payloadHash:current.payloadHash,target:current.contractAddress,intentType:current.intentType,challengeId,receiptDigest:circleChallengeCompletionDigest(completed)}}}})}catch(e){return this.authFailure(e)}
+    });this.challengeFlights.set(flightKey,flight);try{return await flight}finally{if(this.challengeFlights.get(flightKey)===flight)this.challengeFlights.delete(flightKey)}
   }
 
-  public static async createContractChallenge(input: {
-    userId: string;
-    userToken: string;
-    walletId: string;
-    contractAddress: string;
-    callData: string;
-    intent: CircleTransactionIntent;
-    operationId: string;
-  }) {
-    await this.assertBoundIdentity(input.userId, input.userToken);
-    this.assertWalletOwnership(input.userId, input.walletId);
-    this.validateTransactionPolicy(input.contractAddress, input.callData, input.intent, input.userId);
-    if (!/^[a-zA-Z0-9:_-]{8,128}$/.test(input.operationId)) {
-      throw new Error("A stable operationId is required");
-    }
-
-    const payloadHash = crypto
-      .createHash("sha256")
-      .update(
-        JSON.stringify({
-          userId: input.userId,
-          walletId: input.walletId,
-          contractAddress: ethers.getAddress(input.contractAddress),
-          callData: input.callData.toLowerCase(),
-          intent: input.intent,
-        })
-      )
-      .digest("hex");
-    const existing = store.db.circleOperations[input.operationId];
-    if (existing) {
-      if (existing.userId !== input.userId || existing.payloadHash !== payloadHash) {
-        throw new Error("operationId is already bound to a different Circle transaction intent");
-      }
-      if (existing.challengeId) return { challengeId: existing.challengeId };
-    }
-    const idempotencyKey = existing?.idempotencyKey || stableUuid(`groupdeal:${input.operationId}`);
-    store.db.circleOperations[input.operationId] = {
-      operationId: input.operationId,
-      userId: input.userId,
-      walletId: input.walletId,
-      payloadHash,
-      idempotencyKey,
-      createdAt: existing?.createdAt || Date.now(),
-    };
-    store.save();
-
-    const response = await this.requireClient().createUserTransactionContractExecutionChallenge({
-      userToken: input.userToken,
-      walletId: input.walletId,
-      contractAddress: ethers.getAddress(input.contractAddress),
-      callData: input.callData as `0x${string}`,
-      fee: { type: "level", config: { feeLevel: "MEDIUM" satisfies FeeLevel } },
-      idempotencyKey,
-      refId: input.operationId,
-      xRequestId: crypto.randomUUID(),
-    });
-    if (!response.data?.challengeId) {
-      throw new Error("Circle did not return a contract execution challenge");
-    }
-    store.db.circleOperations[input.operationId].challengeId = response.data.challengeId;
-    store.save();
-    store.addAuditLog(input.userId, "user", "CIRCLE_TRANSACTION_CHALLENGE_CREATED", {
-      operationId: input.operationId,
-      target: ethers.getAddress(input.contractAddress),
-      intentType: input.intent.type,
-      challengeId: response.data.challengeId,
-    });
-    return { challengeId: response.data.challengeId };
+  public static async estimateContractFee(input:{userId:string;userToken:string;walletId:string;contractAddress:string;callData:string;intent:CircleTransactionIntent;proof?:SessionProof}){
+    const p=circleTransactionInput.safeParse({userToken:input.userToken,walletId:input.walletId,contractAddress:input.contractAddress,callData:input.callData,intent:input.intent});if(!p.success)throw new CircleAuthError('CIRCLE_TRANSACTION_INVALID_INPUT');const initial=this.transactionAuthority(input);await this.assertBoundIdentity(input.userId,input.userToken,input.proof);this.sameTransactionAuthority(initial,this.transactionAuthority(input));
+    let fee:unknown;try{fee=(await this.requireClient().estimateContractExecutionFee({userToken:p.data.userToken,contractAddress:ethers.getAddress(p.data.contractAddress),callData:p.data.callData as `0x${string}`,source:{walletId:p.data.walletId},xRequestId:crypto.randomUUID()})).data}catch{throw new CircleAuthError('CIRCLE_TRANSACTION_FEE_UNAVAILABLE',503)}this.sameTransactionAuthority(initial,this.transactionAuthority(input));return circleFeeEstimate(fee);
   }
 
-  public static async estimateContractFee(input: {
-    userId: string;
-    userToken: string;
-    walletId: string;
-    contractAddress: string;
-    callData: string;
-    intent: CircleTransactionIntent;
-  }) {
-    await this.assertBoundIdentity(input.userId, input.userToken);
-    this.assertWalletOwnership(input.userId, input.walletId);
-    this.validateTransactionPolicy(input.contractAddress, input.callData, input.intent, input.userId);
-    const response = await this.requireClient().estimateContractExecutionFee({
-      userToken: input.userToken,
-      contractAddress: ethers.getAddress(input.contractAddress),
-      callData: input.callData as `0x${string}`,
-      source: { walletId: input.walletId },
-      xRequestId: crypto.randomUUID(),
-    });
-    return response.data;
+  private static statusAuthority(userId:string,proof:SessionProof|undefined,challengeId:string){
+    if(!proof||proof.account.id!==userId)throw new CircleAuthError('CIRCLE_TRANSACTION_FRESH_SESSION_REQUIRED',401);
+    if(config.arcChainId!==5042002)throw new CircleAuthError('CIRCLE_TRANSACTION_STATUS_UNAVAILABLE',503);
+    let state:ReturnType<typeof store.readCircleStatusState>;try{state=store.readCircleStatusState(userId,proof.key,challengeId)}catch(e){return this.authFailure(e)}
+    SessionService.assertCommitted(proof,state.auth);const user=state.auth.user,authority=circleBoundAccount(user,userId,state.circleOwner,state.auth.authRecovery);
+    if(!authority.wallet||state.walletOwner!==userId||user?.activeWallet?.toLowerCase()!==authority.wallet.address.toLowerCase())throw new CircleAuthError('CIRCLE_TRANSACTION_WALLET_NOT_SELECTED',403);
+    const receipt=circleStatusReceipt(state.circleReceipt,authority,state.circleReceiptAudits,challengeId);if(receipt.intentType==='RESOLVE_DISPUTE')SessionService.assertOperatorCommitted(proof,state.auth);return{authority,receipt};
+  }
+  private static sameStatusAuthority(initial:ReturnType<typeof CircleWalletService.statusAuthority>,current:ReturnType<typeof CircleWalletService.statusAuthority>){sameCircleAuthority(initial.authority,current.authority);if(circleChallengeCompletionDigest(initial.receipt)!==circleChallengeCompletionDigest(current.receipt))throw new CircleAuthError('CIRCLE_TRANSACTION_AUTHORITY_CHANGED',409)}
+  private static async statusChallenge(userId:string,userToken:string,challengeId:string,proof:SessionProof|undefined,initial:ReturnType<typeof CircleWalletService.statusAuthority>){
+    this.sameStatusAuthority(initial,this.statusAuthority(userId,proof,challengeId));let response:unknown;try{response=(await this.requireClient().getUserChallenge({userToken,challengeId,xRequestId:crypto.randomUUID()})).data?.challenge}catch{throw new CircleAuthError('CIRCLE_TRANSACTION_STATUS_UNAVAILABLE',503)}
+    this.sameStatusAuthority(initial,this.statusAuthority(userId,proof,challengeId));return circleProviderStatusChallenge(response,challengeId);
+  }
+  public static async getChallenge(userId:string,userToken:string,challengeId:string,proof?:SessionProof){
+    if(!circleStatusBody.safeParse({userToken}).success||!circleStatusId.safeParse(challengeId).success)throw new CircleAuthError('CIRCLE_TRANSACTION_INVALID_INPUT');
+    const initial=this.statusAuthority(userId,proof,challengeId);await this.assertBoundIdentity(userId,userToken,proof);this.sameStatusAuthority(initial,this.statusAuthority(userId,proof,challengeId));return this.statusChallenge(userId,userToken,challengeId,proof,initial);
+  }
+  public static async getTransaction(userId:string,userToken:string,transactionId:string,proof?:SessionProof,challengeId?:string){
+    const p=circleTransactionStatusBody.safeParse({userToken,challengeId});if(!p.success||!circleStatusId.safeParse(transactionId).success)throw new CircleAuthError('CIRCLE_TRANSACTION_INVALID_INPUT');
+    const initial=this.statusAuthority(userId,proof,p.data.challengeId);await this.assertBoundIdentity(userId,userToken,proof);this.sameStatusAuthority(initial,this.statusAuthority(userId,proof,p.data.challengeId));
+    const challenge=await this.statusChallenge(userId,userToken,p.data.challengeId,proof,initial);if(['FAILED','EXPIRED'].includes(challenge.status)||challenge.correlationIds?.length!==1||challenge.correlationIds[0]!==transactionId)throw new CircleAuthError('CIRCLE_TRANSACTION_NOT_CORRELATED',403);
+    this.sameStatusAuthority(initial,this.statusAuthority(userId,proof,p.data.challengeId));let response:unknown;try{response=(await this.requireClient().getTransaction({userToken,id:transactionId,xRequestId:crypto.randomUUID()})).data?.transaction}catch{throw new CircleAuthError('CIRCLE_TRANSACTION_STATUS_UNAVAILABLE',503)}
+    this.sameStatusAuthority(initial,this.statusAuthority(userId,proof,p.data.challengeId));return circleProviderStatusTransaction(response,transactionId,initial.receipt);
+  }
+  private static operationStatusAuthority(userId:string,operationId:string,proof:SessionProof|undefined){
+    if(!proof||proof.account.id!==userId)throw new CircleAuthError('CIRCLE_TRANSACTION_FRESH_SESSION_REQUIRED',401);
+    if(config.arcChainId!==5042002)throw new CircleAuthError('CIRCLE_TRANSACTION_STATUS_UNAVAILABLE',503);
+    let state:ReturnType<typeof store.readCircleOperationStatusState>;try{state=store.readCircleOperationStatusState(userId,proof.key,operationId)}catch(e){return this.authFailure(e)}
+    SessionService.assertCommitted(proof,state.auth);const authority=circleBoundAccount(state.auth.user,userId,state.circleOwner,state.auth.authRecovery);
+    if(!authority.wallet||state.walletOwner!==userId||state.auth.user?.activeWallet?.toLowerCase()!==authority.wallet.address.toLowerCase())throw new CircleAuthError('CIRCLE_TRANSACTION_WALLET_NOT_SELECTED',403);
+    if(!state.operation||!state.circleReceipt)throw new CircleAuthError('CIRCLE_TRANSACTION_NOT_FOUND',404);if(state.operation.action==='RESOLVE')SessionService.assertOperatorCommitted(proof,state.auth);
+    const receipt=circleStatusReceipt(state.circleReceipt,authority,state.circleReceiptAudits,state.circleReceipt.challengeId),binding=circleOperationBinding(state.operation,operationId,authority,receipt,config.hubAddress);return{authority,receipt,binding};
+  }
+  private static sameOperationStatusAuthority(initial:ReturnType<typeof CircleWalletService.operationStatusAuthority>,current:ReturnType<typeof CircleWalletService.operationStatusAuthority>){
+    sameCircleAuthority(initial.authority,current.authority);if(JSON.stringify(initial.binding)!==JSON.stringify(current.binding)||circleChallengeCompletionDigest(initial.receipt)!==circleChallengeCompletionDigest(current.receipt))throw new CircleAuthError('CIRCLE_TRANSACTION_AUTHORITY_CHANGED',409);
+  }
+  public static async getOperationStatus(userId:string,userToken:string,operationId:string,proof?:SessionProof){
+    if(!circleStatusBody.safeParse({userToken}).success||!circleStatusId.safeParse(operationId).success)throw new CircleAuthError('CIRCLE_TRANSACTION_INVALID_INPUT');
+    const initial=this.operationStatusAuthority(userId,operationId,proof),assertCurrent=()=>this.sameOperationStatusAuthority(initial,this.operationStatusAuthority(userId,operationId,proof));
+    await this.assertBoundIdentity(userId,userToken,proof);assertCurrent();let raw:unknown;try{raw=(await this.requireClient().getUserChallenge({userToken,challengeId:initial.receipt.challengeId!,xRequestId:crypto.randomUUID()})).data?.challenge}catch{throw new CircleAuthError('CIRCLE_TRANSACTION_STATUS_UNAVAILABLE',503)}assertCurrent();
+    const challenge=circleProviderStatusChallenge(raw,initial.receipt.challengeId!),binding=initial.binding;
+    if(['FAILED','EXPIRED'].includes(challenge.status)||!challenge.correlationIds?.length)return{...binding,challenge};
+    const id=challenge.correlationIds[0];let value:unknown;try{value=(await this.requireClient().getTransaction({userToken,id,xRequestId:crypto.randomUUID()})).data?.transaction}catch{throw new CircleAuthError('CIRCLE_TRANSACTION_STATUS_UNAVAILABLE',503)}assertCurrent();
+    return{...binding,challenge,transaction:circleProviderStatusTransaction(value,id,initial.receipt)};
   }
 
-  public static async getTransaction(userId: string, userToken: string, transactionId: string) {
-    await this.assertBoundIdentity(userId, userToken);
-    const response = await this.requireClient().getTransaction({
-      userToken,
-      id: transactionId,
-      xRequestId: crypto.randomUUID(),
-    });
-    return response.data;
+  public static async assertWalletBindingIdentity(userToken:string,authorize:()=>{userId:string;circleUserId:string;walletId:string;walletAddress:string;message:string}){
+    if(!circleWalletInput.safeParse({userToken}).success)throw new Error('WALLET_BINDING_CIRCLE_UNAVAILABLE');
+    const initial=authorize(),response=await this.requireClient().getUserStatus({userToken,xRequestId:crypto.randomUUID()}),current=authorize();
+    if(initial.userId!==current.userId||initial.circleUserId!==current.circleUserId||initial.walletId!==current.walletId||initial.walletAddress!==current.walletAddress||initial.message!==current.message||response.data?.id!==current.circleUserId||response.data?.status!=='ENABLED')throw new Error('WALLET_BINDING_CIRCLE_UNAVAILABLE');return current;
   }
 
-  public static async getChallenge(userId: string, userToken: string, challengeId: string) {
-    await this.assertBoundIdentity(userId, userToken);
-    const response = await this.requireClient().getUserChallenge({
-      userToken,
-      challengeId,
-      xRequestId: crypto.randomUUID(),
-    });
-    return response.data?.challenge;
+  /** Wallet/profile auth signing requires a current issued intent and the bound EOA. */
+  public static async createWalletBindingSignatureChallenge(userId:string,userToken:string,walletId:string,message:string,authorize:()=>{userId:string;circleUserId:string;walletId:string;walletAddress:string;message:string}){
+      if(typeof authorize!=='function')throw new Error('WALLET_BINDING_CIRCLE_UNAVAILABLE');
+      const initial=await this.assertWalletBindingIdentity(userToken,authorize);if(initial.userId!==userId||initial.walletId!==walletId||initial.message!==message)throw new Error('WALLET_BINDING_CIRCLE_UNAVAILABLE');
+      const walletResponse=await this.requireClient().getWallet({userToken,id:walletId}),wallet=walletResponse.data?.wallet,current=authorize();
+      if(initial.userId!==current.userId||initial.circleUserId!==current.circleUserId||initial.walletId!==current.walletId||initial.walletAddress!==current.walletAddress||initial.message!==current.message||!wallet||wallet.id!==walletId||wallet.accountType!=='EOA'||wallet.blockchain!==ARC_BLOCKCHAIN||wallet.state!=='LIVE'||wallet.address.toLowerCase()!==current.walletAddress.toLowerCase())throw new Error('WALLET_BINDING_CIRCLE_UNAVAILABLE');
+      const response=await this.requireClient().signMessage({userToken,walletId,message,encodedByHex:false,memo:'GroupDeal account wallet authorization',xRequestId:crypto.randomUUID()});authorize();if(!response.data?.challengeId)throw new Error('WALLET_BINDING_PROVIDER_RESULT_UNKNOWN');return response.data.challengeId;
   }
 }

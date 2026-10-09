@@ -5,19 +5,20 @@ import { bridgeQuoteSummary, parseUsdc, paymentError } from "../src/services/pay
 import { assertCommitReceipt } from "../src/services/checkout";
 import { readArcRpc, ARC_RPC_ENDPOINTS } from "../src/services/arcRpc";
 import { HUB_ABI } from "../src/contracts/hubAbi";
+import { messageText } from "../src/utils/uiMessage";
 
 test("USDC arithmetic and fee budgets are exact and fail closed", () => {
   expect(parseUsdc("1.234567")).toBe(1234567n);
   for (const amount of ["0", "-1", "NaN", "1e6", "1.0000001"]) expect(() => parseUsdc(amount)).toThrow();
   const quote = { fees: [{ token: "USDC", amount: "0.01" }], gasFees: [
-    { token: "ETH", blockchain: "Ethereum_Sepolia", fees: { fee: "1000" } },
-    { token: "USDC", blockchain: "Arc_Testnet", fees: { fee: "2000" } },
+    { token: "ETH", blockchain: "Ethereum_Sepolia", fees: { fee: "0.000000000000001" } },
+    { token: "USDC", blockchain: "Arc_Testnet", fees: { fee: "0.000000000000002" } },
   ] } as BridgeEstimateResult;
   expect(bridgeQuoteSummary(quote, "Ethereum_Sepolia", "1")).toEqual({ received: 990000n, feesUsdc: 10000n, sourceGas: 1200n, arcGas: 2400n });
   expect(() => bridgeQuoteSummary({ ...quote, gasFees: [] }, "Ethereum_Sepolia", "1")).toThrow();
   expect(() => bridgeQuoteSummary({ ...quote, fees: [{ type: "provider", token: "USDC", amount: null }] }, "Ethereum_Sepolia", "1")).toThrow();
-  expect(paymentError({ cause: { code: 4001 } })).toContain("Ví đã từ chối");
-  expect(paymentError("Request Signature: User denied request signature.")).toContain("Ví đã từ chối");
+  expect(messageText(paymentError({ cause: { code: 4001 } }), "vi")).toContain("Ví đã từ chối");
+  expect(messageText(paymentError("Request Signature: User denied request signature."), "vi")).toContain("Ví đã từ chối");
 });
 
 test("a purchase requires a matching successful CommitmentMade, not just a tx hash", () => {
@@ -60,6 +61,6 @@ test("Arc reads coalesce, skip 429/wrong-chain endpoints and never broadcast", a
     expect(urls.length).toBe(count);
     revert = true;
     await expect(readArcRpc("eth_call", [{ to: params[0], data: "0x00" }, "latest"])).rejects.toThrow("reverted");
-    expect(urls.length).toBe(count + 1, "Contract revert must not be retried on another endpoint");
+    expect(urls.length, "Contract revert must not be retried on another endpoint").toBe(count + 1);
   } finally { globalThis.fetch = originalFetch; }
 });

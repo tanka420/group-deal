@@ -1,0 +1,60 @@
+import {test,expect,Page} from '@playwright/test';
+
+const principal='0x70997970C51812dc3A010C7d01b50e0d17dc79C8',hub='0x2A7aECd1CE90f1284EB060488c8dDEF4b1bE0574',hash='0x'+'ab'.repeat(32);
+type Kind='claim'|'order'|'delivery';
+async function fixture(page:Page,kind:Kind,language='en'){
+ const runtimeErrors:string[]=[];page.on('pageerror',error=>runtimeErrors.push(error.message));
+ const action=kind==='claim'?'BUYER_CLAIM':kind==='order'?'CONFIRM':'DELIVER';
+ const operation={id:'reviewed',action,resourceId:kind==='claim'?'campaign':'order',chainId:5042002,hubAddress:hub,principal,calldata:'0x1234',phase:'PREPARED',createdAt:1,updatedAt:1,expectedEventArgs:{orderIds:['order'],proofHash:hash},financialQuote:{kind:'READ_ONLY_SIMULATION',blockNumber:125,blockHash:hash,amountBaseUnits:'89000000'},orderQuote:{kind:'READ_ONLY_SIMULATION',blockNumber:125,blockHash:hash,remainingGross:'89000000',disputeDeadline:1}};
+ const state={phase:'PREPARED',hash:undefined as string|undefined,wrongRecovery:false,readyPatch:{} as object,delayReady:null as Promise<void>|null,delayPrepare:null as Promise<void>|null,readyCalls:0,recoveries:0,prepareCalls:0,providerFailure:false};
+ const current=()=>({...operation,phase:state.phase,txHash:state.hash});
+ await page.addInitScript(({principal,language,kind})=>{localStorage.setItem('groupdeal_lang',language);Object.assign(window,{fixtureKind:kind,fixtureIdentity:'first',fixtureWallet:principal,fixtureSigned:0,fixtureCompleted:0});},{principal,language,kind});
+ await page.route('**/src/main.tsx*',r=>r.fulfill({contentType:'application/javascript',body:'import \"/e2e/managed_dialog_harness.tsx\";'}));
+ await page.route('**/src/context/AuthContext.tsx*',async r=>{const original=await (await r.fetch()).text(),react=original.match(/from [\"']([^\"']*\/react\.js[^\"']*)[\"']/)?.[1];if(!react)throw Error('React module not found');return r.fulfill({contentType:'application/javascript',body:`import React from '${react}';const {useSyncExternalStore}=React;export function useAuth(){const id=useSyncExternalStore(cb=>{addEventListener('fixture-change',cb);return()=>removeEventListener('fixture-change',cb)},()=>window.fixtureIdentity);return {user:{id},token:'fixture-'+id}}`});});
+ await page.route('**/src/context/Web3Context.tsx*',async r=>{const original=await (await r.fetch()).text(),react=original.match(/from [\"']([^\"']*\/react\.js[^\"']*)[\"']/)?.[1];if(!react)throw Error('React module not found');return r.fulfill({contentType:'application/javascript',body:`import React from '${react}';const {useSyncExternalStore}=React;export function useWeb3(){const account=useSyncExternalStore(cb=>{addEventListener('fixture-change',cb);return()=>removeEventListener('fixture-change',cb)},()=>window.fixtureWallet);return {account,broadcastPreparedOperation:async(op,ack)=>{window.fixtureSigned++;if(window.fixtureProvider){const frame=document.createElement('iframe');frame.id='sdkIframe';frame.style.cssText='position:fixed;inset:20px;width:250px;height:150px;z-index:9999';frame.srcdoc='<button id="cancel">Cancel wallet request</button>';document.body.append(frame);await new Promise(resolve=>{window.fixtureProviderResolve=()=>{frame.remove();resolve()}});}await ack('${hash}');return {txHash:'${hash}'}}}}`});});
+ await page.route(/\/api\/transactions(?:\?.*)?$/,r=>r.fulfill({json:{operations:kind==='delivery'?[current()]:[]}}));
+ await page.route('**/api/transactions/claims/prepare',async r=>{state.prepareCalls++;await state.delayPrepare;await r.fulfill({json:{operation:current()}})});
+ await page.route('**/api/transactions/orders/prepare',async r=>{state.prepareCalls++;await state.delayPrepare;await r.fulfill({json:{operation:current()}})});
+ await page.route('**/api/transactions/reviewed',r=>r.fulfill({json:{operation:current()}}));
+ await page.route('**/api/transactions/reviewed/ready',async r=>{state.readyCalls++;await state.delayReady;state.phase='AWAITING_SIGNATURE';await r.fulfill({json:{operation:{...current(),...state.readyPatch}}})});
+ await page.route('**/api/transactions/reviewed/submit',r=>{state.phase='SUBMITTED';state.hash=hash;return r.fulfill({json:{operation:current()}})});
+ await page.route('**/api/transactions/reviewed/observe',r=>r.fulfill({json:{operation:current()}}));
+ await page.route('**/api/transactions/reviewed/recover',r=>{state.recoveries++;state.phase='PROJECTED';return r.fulfill({json:{operation:{...current(),...(state.wrongRecovery?{id:'another',txHash:'0x'+'cd'.repeat(32)}:{})}}})});
+ await page.goto('/');await expect(page.getByRole('button',{name:'English',exact:true}),JSON.stringify(runtimeErrors)).toBeVisible();expect(runtimeErrors).toEqual([]);return state;
+}
+async function open(page:Page,kind:Kind){await page.getByRole('button',{name:kind==='claim'?/Rút \$89|Withdraw \$89/:kind==='order'?'Open action':'Open delivery'}).click();await expect(page.getByRole('dialog')).toBeVisible()}
+async function sign(page:Page){await page.getByRole('dialog').getByRole('button',{name:/Ký |Sign /}).click()}
+test.beforeEach(()=>test.skip(process.env.GROUPDEAL_BROWSER_MODE==='preview','Dev module fixtures; built UI is checked through actual page fixtures separately.'));
+
+test('order rejects PROJECTED for a different intent and hash and retains both checkpoints',async({page})=>{
+ const state=await fixture(page,'order');state.wrongRecovery=true;await open(page,'order');await sign(page);await expect.poll(()=>state.recoveries).toBe(1);expect(await page.evaluate(()=>(window as any).fixtureCompleted),'Wrong intent/hash must not complete this action').toBe(0);await expect(page.getByRole('dialog')).toBeVisible();await expect(page.getByRole('dialog').getByRole('alert')).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('groupdeal_operation:first:reviewed'))).not.toBeNull();expect(await page.evaluate(()=>localStorage.getItem('groupdeal_order_action:first:order'))).not.toBeNull();
+});
+for(const kind of ['claim','order','delivery'] as Kind[]){
+ test(`${kind} hides private API diagnostics behind bilingual recovery messages`,async({page})=>{
+  await fixture(page,kind);await page.route('**/api/transactions/reviewed/ready',r=>r.fulfill({status:503,json:{error:'private-managed-diagnostic-must-not-render'}}));await open(page,kind);await sign(page);await expect(page.getByRole('dialog').getByRole('alert')).toContainText(kind==='claim'?'The receipt is unverified.':kind==='order'?'The receipt is unverified.':'The action is incomplete.');expect(await page.locator('body').textContent()).not.toContain('private-managed-diagnostic-must-not-render');expect(await page.evaluate(()=>JSON.stringify(localStorage))).not.toContain('private-managed-diagnostic-must-not-render');expect(await page.evaluate(()=>(window as any).fixtureSigned)).toBe(0);
+ });
+ test(`${kind} validates every immutable ready field before requesting a wallet signature`,async({page})=>{
+  for(const patch of [{id:'another'},{action:'PUBLISH'},{resourceId:'another'},{chainId:1},{hubAddress:'0x'+'12'.repeat(20)},{principal:'0x'+'12'.repeat(20)},{calldata:'0xbeef'},{phase:'PREPARED'},{txHash:hash}]){
+   const state=await fixture(page,kind);state.readyPatch=patch;await open(page,kind);await sign(page);await expect(page.getByRole('dialog').getByRole('alert')).toBeVisible();expect(await page.evaluate(()=>(window as any).fixtureSigned)).toBe(0);expect(state.recoveries).toBe(0);await page.unrouteAll({behavior:'wait'});
+  }
+ });
+ test(`${kind} discards a late ready response after account change without broadcasting`,async({page})=>{
+  const state=await fixture(page,kind);let release!:()=>void;state.delayReady=new Promise(resolve=>release=resolve);await open(page,kind);await sign(page);await expect.poll(()=>state.readyCalls).toBe(1);await page.evaluate(()=>{(window as any).fixtureIdentity='second';dispatchEvent(new Event('fixture-change'))});release();await expect.poll(()=>state.phase).toBe('AWAITING_SIGNATURE');await expect(page.getByRole('dialog')).not.toBeVisible();expect(await page.evaluate(()=>(window as any).fixtureSigned)).toBe(0);expect(await page.evaluate(()=>(window as any).fixtureCompleted)).toBe(0);
+ });
+ test(`${kind} hands focus to an external provider and returns to its own dialog`,async({page})=>{
+  await fixture(page,kind);await page.evaluate(()=>(window as any).fixtureProvider=true);await open(page,kind);await sign(page);const control=page.frameLocator('#sdkIframe').getByRole('button',{name:'Cancel wallet request'});await expect(control).toBeVisible();await control.click();await expect(control).toBeFocused();expect(await page.evaluate(()=>document.getElementById('sdkIframe')?.matches(':modal'))).toBe(false);await page.evaluate(()=>(window as any).fixtureProviderResolve());await expect.poll(()=>page.evaluate(()=>(window as any).fixtureCompleted)).toBe(1);
+ });
+ test(`${kind} retains the original user's broadcast hash after an account change during the wallet handoff`,async({page})=>{
+  const state=await fixture(page,kind);await page.evaluate(()=>(window as any).fixtureProvider=true);await open(page,kind);await sign(page);await expect(page.locator('#sdkIframe')).toBeVisible();await page.evaluate(()=>{(window as any).fixtureIdentity='second';dispatchEvent(new Event('fixture-change'))});await page.evaluate(()=>(window as any).fixtureProviderResolve());await expect.poll(()=>state.phase).toBe('SUBMITTED');expect(state.recoveries).toBe(0);expect(await page.evaluate(()=>(window as any).fixtureCompleted)).toBe(0);expect(await page.evaluate(()=>localStorage.getItem('groupdeal_operation:first:reviewed'))).toContain(hash);expect(await page.evaluate(()=>localStorage.getItem('groupdeal_operation:second:reviewed'))).toBeNull();
+ });
+ for(const language of ['vi','en'])test(`${kind} ${language} review wraps at seven widths, traps Tab, closes on Escape and restores focus`,async({page},info)=>{
+  await fixture(page,kind,language);await open(page,kind);const dialog=page.getByRole('dialog');await expect(dialog.getByRole('heading').first()).toHaveText(kind==='claim'?language==='en'?'Review withdrawal on Arc':'Kiểm tra khoản rút trên Arc':kind==='order'?language==='en'?'Review action on Arc':'Kiểm tra thao tác trên Arc':language==='en'?'Deliver resources for order #order':'Giao tài nguyên cho đơn #order');
+  for(const width of [320,375,430,768,1024,1280,1440]){await page.setViewportSize({width,height:700});expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);expect(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)}
+  await page.setViewportSize({width:375,height:700});await page.screenshot({path:info.outputPath(`${kind}-${language}-375.png`)});const buttons=dialog.getByRole('button');await buttons.last().focus();await page.keyboard.press('Tab');await expect(buttons.first()).toBeFocused();await page.keyboard.press('Shift+Tab');await expect(buttons.last()).toBeFocused();await page.keyboard.press('Escape');await expect(dialog).not.toBeVisible();await expect(page.getByRole('button',{name:kind==='claim'?/Rút \$89|Withdraw \$89/:kind==='order'?'Open action':'Open delivery'})).toBeFocused();
+ });
+}
+for(const kind of ['claim','order'] as Kind[])test(`${kind} late preparation cannot reopen the dialog for a new account`,async({page})=>{
+ const state=await fixture(page,kind);let release!:()=>void;state.delayPrepare=new Promise(resolve=>release=resolve);await page.getByRole('button',{name:kind==='claim'?/Withdraw \$89/:'Open action'}).click();await expect.poll(()=>state.prepareCalls).toBe(1);await page.evaluate(()=>{(window as any).fixtureIdentity='second';dispatchEvent(new Event('fixture-change'))});release();await expect.poll(()=>page.evaluate(()=>document.querySelectorAll('dialog').length)).toBe(0);expect(await page.evaluate(()=>(window as any).fixtureCompleted)).toBe(0);expect(await page.evaluate(()=>(window as any).fixtureSigned)).toBe(0);
+});
+
+

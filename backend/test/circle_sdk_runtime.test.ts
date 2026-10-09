@@ -6,7 +6,7 @@ import { AuthService } from "../src/services/authService";
 import { CircleWalletService } from "../src/services/circleWalletService";
 
 async function run() {
-  assert.ok(store.filePath.includes("groupdeal-test-"), "Never use the application database");
+  assert.ok(store.isIsolated, "Never use the application database");
   // Import the real installed SDK through the service. Mock ONLY remote methods,
   // not SDK exports: declaration-only enums must not accidentally pass this test.
   const service = CircleWalletService as unknown as { client: unknown };
@@ -19,6 +19,8 @@ async function run() {
     address: ethers.getAddress("0x1111111111111111111111111111111111111111"),
     blockchain: "ARC-TESTNET" as const,
     state: "LIVE",
+    accountType: "EOA",
+    userId: circleId,
   };
   let authenticatedId = circleId;
   let wallets: typeof wallet[] = [];

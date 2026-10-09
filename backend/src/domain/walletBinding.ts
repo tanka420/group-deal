@@ -1,0 +1,20 @@
+export interface WalletBindingIntent {
+ version:1;
+ id:string;
+ userId:string;
+ sourceWallet:string;
+ targetWallet:string;
+ baseActiveWallet:string|null;
+ chainId:number;
+ origin:string;
+ nonce:string;
+ createdAt:number;
+ expiresAt:number;
+ attempts:number;
+ state:"PENDING"|"COMMITTED"|"CANCELLED";
+ cancelledAt?:number;
+ committedAt?:number;
+ bindingWasNew?:boolean;
+ authRecoveryContext?:string;
+ circleSigning?:Partial<Record<"SOURCE"|"TARGET",{state:"REQUESTED"|"READY";challengeId?:string;walletId:string}>>;
+}

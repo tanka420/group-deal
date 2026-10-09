@@ -1,43 +1,20 @@
 import assert from "node:assert/strict";
 import { ethers } from "ethers";
 import { AuthService } from "../src/services/authService";
+import { SessionError } from "../src/services/sessionService";
 import { store, sanitizeUser } from "../src/db/store";
 import { DisputeService } from "../src/services/disputeService";
 
 async function runAuthSecurityTests() {
   console.log("=== Running Backend Auth & Security Tests ===");
 
-  const testEmail = `test_${Date.now()}@example.com`;
-
-  // 1. Request OTP does NOT leak code in return object
-  const reqRes = AuthService.requestOtp(testEmail);
-  assert.equal(reqRes.success, true);
-  assert.equal((reqRes as any).code, undefined, "Security Failure: OTP code leaked in response!");
-  console.log("✔ OTP request does not leak code in return value");
-
-  // 2. Request OTP rate-limiting: immediate second request should fail
-  assert.throws(
-    () => AuthService.requestOtp(testEmail),
-    /Vui lòng đợi/,
-    "Security Failure: Rate limit did not trigger on rapid OTP request"
-  );
-  console.log("✔ OTP rate-limiting triggers on rapid requests");
-
-  // Retrieve salt and compute correct code for testing verifyOtp
-  const entry = store.db.emailOtps[testEmail];
-  assert.ok(entry.salt, "OTP must have a salt");
-  assert.ok(entry.hashedCode, "OTP must be stored as hash");
-
-  // 3. Brute force protection: 6 bad attempts will invalidate the OTP
-  for (let i = 0; i < 5; i++) {
-    assert.throws(() => AuthService.verifyOtp(testEmail, "000000"), /Mã OTP không chính xác/);
-  }
-  assert.throws(
-    () => AuthService.verifyOtp(testEmail, "000000"),
-    /Quá số lần thử OTP cho phép/
-  );
-  assert.equal(store.db.emailOtps[testEmail], undefined, "OTP must be deleted after 5 failed attempts");
-  console.log("✔ Brute-force protection: OTP invalidated after 5 failed attempts");
+  // Legacy OTP is retired; both service entrypoints deny without touching storage.
+  const otpBefore=structuredClone(store.db);
+  const retired=(e:unknown)=>e instanceof SessionError&&e.code==="LEGACY_EMAIL_OTP_RETIRED"&&e.status===410;
+  assert.throws(()=>AuthService.requestOtp("retired@security.example.test"),retired);
+  assert.throws(()=>AuthService.verifyOtp("retired@security.example.test","000000"),retired);
+  assert.deepEqual(structuredClone(store.db),otpBefore);
+  console.log("✔ Retired local OTP cannot mutate storage or issue a session");
 
   // 4. Test sanitizeUser: encryptedPrivateKey and payoutProofSignature are removed
   const dummyUser = {
@@ -98,7 +75,7 @@ async function runAuthSecurityTests() {
         walletChallenge.challengeMessage,
         walletChallenge.nonce
       ),
-    /invalid, expired, or already used/,
+    /WALLET_AUTH_CHALLENGE_INVALID/,
     "Wallet login challenge must not be replayable"
   );
   console.log("✔ Wallet-first login verifies ownership and prevents signature replay");
@@ -136,6 +113,7 @@ async function runAuthSecurityTests() {
     sellerClaimed: false,
   };
 
+  store.db.users.op = { id: "op", email: "op@fixture.invalid", roles: ["operator"], createdAt: Date.now(), activeWallet: null };
   await assert.rejects(
     async () => DisputeService.resolveDispute("op", "test_order_99", "-10000000", "110000000", "bad", "0x0000000000000000000000000000000000000000000000000000000000000001"),
     /số không âm/

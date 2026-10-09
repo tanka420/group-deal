@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict'),path=require('node:path');
+const original=require('../node_modules/jsonwebtoken').decode,adapted=require('../src/vendor/circleJwtDecode.cjs').decode;
+const encode=v=>Buffer.isBuffer(v)?v.toString('base64url'):Buffer.from(typeof v==='string'?v:JSON.stringify(v)).toString('base64url');
+const result=(fn,value)=>{try{return {kind:'VALUE',value:fn(value)};}catch(e){return {kind:'ERROR',name:e.name};}};
+const cases=[null,undefined,{},42,[],true,'','a','a.b','a.b.c.d','.payload.sig','bad!header.payload.sig'];
+for(const h of [{alg:'HS256',typ:'JWT'},{alg:'none'},[],true,1,'truthy',null,false,{typ:'jwt'}, {typ:'JWT',kid:'nonce-fixture'}])for(const p of [{nonce:'local-fixture',exp:123}, {nonce:'Tiếng Việt · 中文 · 🙂',aud:['fixture']},[1,2],null,false,42,'"string"','plain text','{broken',Buffer.from([255,254]),Buffer.from([239,187,191,123,125])])for(const sig of ['', 'fixture_signature'])cases.push(encode(h)+'.'+encode(p)+'.'+sig);
+for(const h of ['A','AAA','AAAAA',encode({typ:'JWT'})+'A',encode({typ:'JWT'})+'='])for(const p of ['A','AAA','AAAAA',encode({nonce:'fixture'})])cases.push(h+'.'+p+'.');
+for(const v of cases)assert.deepEqual(result(adapted,v),result(original,v),'Circle decode compatibility differs');
+assert.deepEqual(Object.keys(require('../src/vendor/circleJwtDecode.cjs')),['decode']);
+assert.equal(require('../src/vendor/circleJwtDecode.cjs').verify,undefined);
+console.log(JSON.stringify({result:'PASS',cases:cases.length,layer:'LOCAL_DIFFERENTIAL_DECODE_ONLY',scope:'Default decode used by installed Circle 1.1.11; not signature verification or login acceptance',acceptanceEligible:false}));

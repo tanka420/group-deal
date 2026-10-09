@@ -1,436 +1,92 @@
-import React, { useState, useEffect } from "react";
-import { useLanguage } from "../context/LanguageContext";
-import {
-  TrendingUp,
-  Clock,
-  Users,
-  ShieldCheck,
-  CheckCircle2,
-  ArrowRight,
-  Sparkles,
-  Zap,
-} from "lucide-react";
+import {useEffect,useLayoutEffect,useRef,useState} from 'react';
+import {Search,SlidersHorizontal,Sparkles,ImageIcon,CheckCircle2,Clock,ArrowRight,RefreshCw,X,Store} from 'lucide-react';
+import {useLanguage} from '../context/LanguageContext';
+import {useWeb3} from '../context/Web3Context';
+import {catalogFilters,catalogUSDC,CatalogUnavailable,defaultCatalogFilters,getCatalog,readCatalogPreference,saveCatalogPreference,type CatalogDeal,type CatalogFilters,type CatalogPage} from '../services/catalog';
+import {publicWidgetText} from '../../../shared/publicWidget.mjs';
+import {focusPageElement} from '../utils/focus';
+import '../styles/catalog.css';
 
-interface ExplorePageProps {
-  onSelectCampaign: (campaignId: string) => void;
+type View={phase:'LOADING'|'READY'|'ERROR';page:CatalogPage|null;more:boolean;moreError:boolean;limited:boolean};
+const initial:View={phase:'LOADING',page:null,more:false,moreError:false,limited:false};
+export function ExplorePage({onSelectCampaign}:{onSelectCampaign:(id:string)=>void}){
+ const {language,t}=useLanguage(),{hubAddress}=useWeb3(),text=(vi:string,en:string)=>language==='en'?en:vi;
+ const [filters,setFilters]=useState<CatalogFilters>(readCatalogPreference),[draft,setDraft]=useState<CatalogFilters>(filters),[view,setView]=useState<View>(initial),[revision,setRevision]=useState(0);
+ const [compact,setCompact]=useState(()=>window.matchMedia('(max-width:768px)').matches),[drawerOpen,setDrawerOpen]=useState(false),[failedImages,setFailedImages]=useState<string[]>([]);
+ const generation=useRef(0),request=useRef<AbortController|null>(null),busy=useRef(false),seenCursors=useRef(new Set<string>()),dialog=useRef<HTMLDialogElement>(null),filterHeading=useRef<HTMLHeadingElement>(null),alert=useRef<HTMLParagraphElement>(null);
+ useEffect(()=>{const media=window.matchMedia('(max-width:768px)'),change=()=>{setCompact(media.matches);setDrawerOpen(false);};media.addEventListener('change',change);return()=>media.removeEventListener('change',change);},[]);
+ useLayoutEffect(()=>{
+  const node=dialog.current;if(!drawerOpen||!compact||!node)return;
+  const previous=document.activeElement instanceof HTMLElement?document.activeElement:null,overflow=document.body.style.overflow;
+  document.body.style.overflow='hidden';node.showModal();filterHeading.current?.focus();
+  const keydown=(event:KeyboardEvent)=>{if(event.key!=='Tab')return;const nodes=Array.from(node.querySelectorAll<HTMLElement>('button:not(:disabled),select:not(:disabled),input:not(:disabled),a[href],[tabindex]:not([tabindex="-1"])')).filter(element=>element.getClientRects().length>0),first=nodes[0],last=nodes[nodes.length-1];if(!first||!last)return;if(event.shiftKey&&(document.activeElement===first||!nodes.includes(document.activeElement as HTMLElement))){event.preventDefault();last.focus();}else if(!event.shiftKey&&(document.activeElement===last||!nodes.includes(document.activeElement as HTMLElement))){event.preventDefault();first.focus();}};
+  node.addEventListener('keydown',keydown);return()=>{node.removeEventListener('keydown',keydown);if(node.open)node.close();document.body.style.overflow=overflow;if(previous?.isConnected)focusPageElement(previous);};
+ },[drawerOpen,compact]);
+ useEffect(()=>{
+  const current=++generation.current,controller=new AbortController();request.current?.abort();request.current=controller;busy.current=true;seenCursors.current.clear();setView(initial);setFailedImages([]);saveCatalogPreference(filters);
+  void getCatalog(filters,null,controller.signal,hubAddress||undefined).then(page=>{if(current===generation.current&&!controller.signal.aborted)setView({phase:'READY',page,more:false,moreError:false,limited:false});}).catch(error=>{if(current===generation.current&&!controller.signal.aborted)setView({...initial,phase:'ERROR',limited:error instanceof CatalogUnavailable&&error.status===429});}).finally(()=>{if(current===generation.current)busy.current=false;});
+  return()=>{generation.current++;controller.abort();request.current?.abort();busy.current=false;};
+ },[filters,revision,hubAddress]);
+ useEffect(()=>{if(view.phase==='ERROR')focusPageElement(alert.current);},[view.phase]);
+ const apply=()=>{setFilters(catalogFilters(draft));setDrawerOpen(false);};
+ const cancelFilters=()=>{setDraft(v=>({...filters,q:v.q}));setDrawerOpen(false);};
+ const clear=()=>{setDraft({...defaultCatalogFilters});setFilters({...defaultCatalogFilters});setDrawerOpen(false);};
+ const more=async()=>{
+  if(busy.current||view.phase!=='READY'||!view.page?.nextCursor)return;
+  const cursor=view.page.nextCursor,current=generation.current,controller=new AbortController();busy.current=true;request.current=controller;setView(v=>({...v,more:true,moreError:false}));
+  try{
+   const page=await getCatalog(filters,cursor,controller.signal,hubAddress||undefined);if(current!==generation.current||controller.signal.aborted)return;
+   const ids=new Set(view.page.deals.map(d=>d.card.id));if(page.summary.campaignCount<ids.size+page.deals.length||page.deals.some(d=>ids.has(d.card.id))||page.nextCursor&&seenCursors.current.has(page.nextCursor))throw Error('CATALOG_CURSOR_REPEATED');
+   seenCursors.current.add(cursor);setView(v=>({...v,page:{...page,deals:[...v.page!.deals,...page.deals]},more:false,moreError:false}));
+  }catch{if(current===generation.current&&!controller.signal.aborted)setView(v=>({...v,more:false,moreError:true}));}
+  finally{if(current===generation.current)busy.current=false;}
+ };
+ const controls=<div className="catalog-filter-fields">
+  <div><label htmlFor="catalog-category">{text('Danh mục','Category')}</label><select id="catalog-category" value={draft.category} onChange={e=>setDraft(v=>({...v,category:e.target.value}))}><option value="">{text('Tất cả danh mục','All categories')}</option>{view.page?.categories.map(c=><option key={c.value} value={c.value}>{c.label} ({c.campaignCount})</option>)}{draft.category&&!view.page?.categories.some(c=>c.value===draft.category)&&<option value={draft.category}>{draft.category}</option>}</select></div>
+  <div><label htmlFor="catalog-status">{text('Trạng thái','Status')}</label><select id="catalog-status" value={draft.status} onChange={e=>setDraft(v=>({...v,status:e.target.value as CatalogFilters['status']}))}><option value="">{text('Tất cả trạng thái','All statuses')}</option><option value="PUBLISHED">{text('Đã xuất bản','Published')}</option><option value="ACTIVE">{text('Đang hoạt động','Active')}</option><option value="FINALIZED">{text('Đã chốt giá','Finalized')}</option><option value="CANCELLED">{text('Đã hủy','Cancelled')}</option></select></div>
+  <div><label htmlFor="catalog-metric">{text('Cách mở bậc giá','Tier metric')}</label><select id="catalog-metric" value={draft.metric} onChange={e=>setDraft(v=>({...v,metric:e.target.value as CatalogFilters['metric']}))}><option value="">{text('Tất cả cách tính','All metrics')}</option><option value="BUYER_COUNT">{text('Số tài khoản tham gia','Participating accounts')}</option><option value="UNITS_COUNT">{text('Số đơn vị cam kết','Committed units')}</option></select></div>
+  <div><label htmlFor="catalog-sort">{text('Sắp xếp','Sort')}</label><select id="catalog-sort" value={draft.sort} onChange={e=>setDraft(v=>({...v,sort:e.target.value as CatalogFilters['sort']}))}><option value="newest">{text('Xuất bản mới nhất','Newest publication')}</option><option value="oldest">{text('Xuất bản cũ nhất','Oldest publication')}</option></select></div>
+ </div>;
+ const summary=view.page?.summary;
+ return <section className="catalog-page" aria-labelledby="catalog-title">
+  <header className="catalog-hero"><p className="catalog-network"><Sparkles size={16} aria-hidden="true"/>Arc Testnet · USDC escrow</p><h1 id="catalog-title">{text('Mua Chung Sản Phẩm Số','Group Buying for Digital Products')}<br/><span>{text('Giá Càng Giảm Khi Nhóm Càng Lớn','Unlock Lower Prices as the Group Grows')}</span></h1><p className="catalog-description">{t('heroSub')}</p>
+   <dl className="catalog-metrics"><div className="glass-card"><dt>{text('Chiến dịch phù hợp','Matching campaigns')}</dt><dd>{summary?.campaignCount.toLocaleString(language==='vi'?'vi-VN':'en-US')??'—'}</dd></div><div className="glass-card"><dt>{text('Đang nhận mua mới','Accepting new purchases')}</dt><dd>{summary?.openCampaignCount.toLocaleString(language==='vi'?'vi-VN':'en-US')??'—'}</dd></div><div className="glass-card"><dt>{text('USDC đã cam kết (tích lũy)','USDC committed (cumulative)')}</dt><dd className="amount-value">{summary?catalogUSDC(summary.totalGrossCommitted,language):'—'}</dd></div></dl>
+   <p className="catalog-metric-note muted">{text('Số liệu của mọi kết quả phù hợp, gồm các trang chưa tải. Giá trị đã cam kết không phải doanh thu hay số dư escrow hiện tại. Giá và khả năng mua được kiểm tra lại khi tham gia.','Figures cover all matching results, including unloaded pages. Committed value is neither revenue nor the current escrow balance. Price and purchase eligibility are checked again when joining.')}</p>
+  </header>
+  <form className="glass-card catalog-search" role="search" onSubmit={e=>{e.preventDefault();apply();}} aria-label={text('Tìm và lọc chiến dịch','Search and filter campaigns')}>
+   <label htmlFor="catalog-search">{text('Tìm chiến dịch, sản phẩm hoặc nhà cung cấp','Search campaigns, products or vendors')}</label><div className="catalog-search-row"><input id="catalog-search" type="search" maxLength={120} value={draft.q} onChange={e=>setDraft(v=>({...v,q:e.target.value}))} autoComplete="off"/><button type="submit" className="btn btn-primary"><Search size={18} aria-hidden="true"/>{text('Tìm kiếm','Search')}</button>{compact&&<button type="button" className="btn btn-secondary" onClick={()=>setDrawerOpen(true)}><SlidersHorizontal size={18} aria-hidden="true"/>{text('Bộ lọc','Filters')}</button>}<button type="button" className="btn btn-ghost" onClick={clear}>{text('Xóa bộ lọc','Clear filters')}</button></div>
+   {!compact&&controls}
+  </form>
+  {compact&&<dialog ref={dialog} className="catalog-filter-drawer" aria-labelledby="catalog-filter-title" onCancel={e=>{e.preventDefault();cancelFilters();}} onClose={()=>setDrawerOpen(false)}><form onSubmit={e=>{e.preventDefault();apply();}}><div className="modal-header"><h2 id="catalog-filter-title" tabIndex={-1} ref={filterHeading}>{text('Bộ lọc và sắp xếp','Filters and sorting')}</h2><button type="button" className="modal-close" onClick={cancelFilters} aria-label={text('Đóng bộ lọc','Close filters')}><X size={18} aria-hidden="true"/></button></div>{controls}<div className="catalog-filter-actions"><button type="button" className="btn btn-secondary" onClick={clear}>{text('Xóa bộ lọc','Clear filters')}</button><button type="submit" className="btn btn-primary">{text('Áp dụng bộ lọc','Apply filters')}</button></div></form></dialog>}
+  <div className="catalog-results-heading"><h2 tabIndex={-1}>{text('Khám phá chiến dịch','Explore campaigns')}</h2><button className="btn btn-secondary" disabled={view.phase==='LOADING'||view.more} onClick={()=>setRevision(v=>v+1)}><RefreshCw size={16} aria-hidden="true"/>{text('Tải lại kết quả','Refresh results')}</button></div>
+  {view.phase==='LOADING'&&<p className="catalog-state" role="status">{text('Đang tải chiến dịch công khai…','Loading public campaigns…')}</p>}
+  {view.phase==='ERROR'&&<div className="glass-card catalog-state"><p ref={alert} role="alert" tabIndex={-1}>{view.limited?text('Đã gửi nhiều yêu cầu. Chờ một lúc rồi tải lại kết quả.','Too many requests. Wait a moment, then refresh the results.'):text('Chưa tải được danh sách chiến dịch. Hãy thử lại; lỗi kết nối không có nghĩa là hết chiến dịch.','The campaign catalogue could not be loaded. Try again; a connection error does not mean there are no campaigns.')}</p><button className="btn btn-primary" onClick={()=>setRevision(v=>v+1)}>{text('Thử lại','Retry')}</button></div>}
+  {view.phase==='READY'&&view.page&&<>
+   <p role="status" className="muted">{text(`Đã tải ${view.page.deals.length} / ${view.page.summary.campaignCount} chiến dịch phù hợp.`,`Loaded ${view.page.deals.length} / ${view.page.summary.campaignCount} matching campaigns.`)}</p>
+   {!view.page.deals.length&&<div className="glass-card catalog-state"><h3>{text('Chưa có chiến dịch phù hợp','No matching campaigns')}</h3><p>{text('Thử từ khóa hoặc bộ lọc khác.','Try another search or filter.')}</p><button className="btn btn-secondary" onClick={clear}>{text('Xóa bộ lọc','Clear filters')}</button></div>}
+   <div className="grid-cards catalog-grid">{view.page.deals.map(deal=><CatalogCard key={deal.card.id} deal={deal} language={language} failedImage={failedImages.includes(deal.card.id)} onImageError={()=>setFailedImages(v=>v.includes(deal.card.id)?v:[...v,deal.card.id])} onSelect={()=>onSelectCampaign(deal.card.id)}/>)}</div>
+   {view.moreError&&<p role="alert" className="notice notice-error">{text('Chưa tải được trang tiếp theo. Các kết quả đã tải vẫn được giữ; thử lại hoặc tải lại toàn bộ kết quả.','The next page could not be loaded. Previously loaded results are kept; retry or refresh all results.')}</p>}
+   {view.page.nextCursor&&<div className="catalog-more"><button className="btn btn-primary" disabled={view.more} onClick={()=>void more()}>{view.more?text('Đang tải thêm…','Loading more…'):view.moreError?text('Thử tải thêm lần nữa','Retry loading more'):text('Xem thêm chiến dịch','Load more campaigns')}</button></div>}
+  </>}
+ </section>;
 }
-
-export const ExplorePage: React.FC<ExplorePageProps> = ({ onSelectCampaign }) => {
-  const { t } = useLanguage();
-  const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState("ALL");
-
-  useEffect(() => {
-    fetch("/api/campaigns")
-      .then((r) => r.json())
-      .then((data) => {
-        setCampaigns(data.campaigns || []);
-      })
-      .catch((e) => console.warn("Failed to fetch campaigns", e))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const categories = [
-    { id: "ALL", label: t("filterAll") },
-    { id: "Giáo dục & Khóa học", label: "Khóa học AI & Tech" },
-    { id: "Công cụ lập trình", label: "Bản quyền & SaaS Seats" },
-    { id: "Thiết kế & Giao diện", label: "Design System & Assets" },
-  ];
-
-  // A campaign synchronized only from contract events may not have the
-  // off-chain catalogue metadata (including pricing tiers) required by this
-  // page. Keep those records in the backend for reconciliation, but do not let
-  // an incomplete record crash the public catalogue.
-  const renderableCampaigns = campaigns.filter(
-    (campaign) =>
-      Array.isArray(campaign?.tiers) &&
-      campaign.tiers.length > 0 &&
-      campaign.tiers.every(
-        (tier: any) =>
-          Number.isFinite(Number(tier?.threshold)) &&
-          Number(tier.threshold) > 0 &&
-          Number.isFinite(Number(tier?.price)) &&
-          Number(tier.price) > 0
-      )
-  );
-
-  const filteredCampaigns =
-    selectedCategory === "ALL"
-      ? renderableCampaigns
-      : renderableCampaigns.filter((c) => c.category === selectedCategory);
-
-  // Time remaining helper
-  const formatTimeLeft = (endTime: number) => {
-    const diff = endTime - Math.floor(Date.now() / 1000);
-    if (diff <= 0) return "Đã kết thúc";
-    const days = Math.floor(diff / 86400);
-    const hours = Math.floor((diff % 86400) / 3600);
-    return `${days} ngày ${hours}h`;
-  };
-
-  // Dynamic metrics calculation from real campaign data
-  const totalVolumeUSDC = campaigns.reduce((acc, c) => {
-    return acc + Number(c.totalGrossCommitted || 0) / 1e6;
-  }, 0);
-
-  const activeCampaignsCount = renderableCampaigns.filter(
-    (c) => c.status === "ACTIVE" || c.status === "PUBLISHED"
-  ).length;
-
-  const discounts = campaigns
-    .map((c) => {
-      if (c.tiers && c.tiers.length >= 2) {
-        const initialPrice = Number(c.tiers[0].price);
-        const lowestPrice = Number(c.tiers[c.tiers.length - 1].price);
-        if (initialPrice > 0) {
-          return ((initialPrice - lowestPrice) / initialPrice) * 100;
-        }
-      }
-      return 0;
-    })
-    .filter((d) => d > 0);
-
-  const avgDiscount =
-    discounts.length > 0
-      ? (discounts.reduce((a, b) => a + b, 0) / discounts.length).toFixed(1)
-      : "0";
-
-  return (
-    <div>
-      {/* Hero Section */}
-      <section style={{ textAlign: "center", padding: "3rem 1rem 3.5rem" }}>
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            padding: "0.35rem 0.85rem",
-            borderRadius: "var(--radius-full)",
-            background: "rgba(99, 102, 241, 0.12)",
-            border: "1px solid rgba(99, 102, 241, 0.3)",
-            color: "var(--primary-light)",
-            fontSize: "0.85rem",
-            fontWeight: 600,
-            marginBottom: "1.25rem",
-          }}
-        >
-          <Sparkles size={16} />
-          Mạng Arc Testnet • USDC Smart Contract Escrow
-        </div>
-
-        <h1
-          style={{
-            fontSize: "clamp(2.2rem, 5vw, 3.5rem)",
-            lineHeight: 1.15,
-            maxWidth: "850px",
-            margin: "0 auto 1.25rem",
-          }}
-        >
-          Mua Chung Sản Phẩm Số
-          <br />
-          <span
-            style={{
-              background: "linear-gradient(135deg, var(--cyan) 0%, var(--primary-light) 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            Giá Càng Giảm Khi Nhóm Càng Lớn
-          </span>
-        </h1>
-
-        <p
-          style={{
-            color: "var(--text-secondary)",
-            fontSize: "1.1rem",
-            maxWidth: "680px",
-            margin: "0 auto 2.5rem",
-          }}
-        >
-          {t("heroSub")}
-        </p>
-
-        {/* Live Metrics Bar */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-            gap: "1.25rem",
-            maxWidth: "800px",
-            margin: "0 auto",
-          }}
-        >
-          <div className="glass-card" style={{ padding: "1.25rem" }}>
-            <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "0.3rem" }}>
-              {t("totalVolume")}
-            </div>
-            <div className="font-mono" style={{ fontSize: "1.6rem", fontWeight: 800, color: "var(--cyan)" }}>
-              ${totalVolumeUSDC.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} USDC
-            </div>
-          </div>
-
-          <div className="glass-card" style={{ padding: "1.25rem" }}>
-            <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "0.3rem" }}>
-              {t("activeCampaigns")}
-            </div>
-            <div className="font-mono" style={{ fontSize: "1.6rem", fontWeight: 800, color: "var(--primary-light)" }}>
-              {activeCampaignsCount} Chiến dịch
-            </div>
-          </div>
-
-          <div className="glass-card" style={{ padding: "1.25rem" }}>
-            <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "0.3rem" }}>
-              {t("avgDiscount")}
-            </div>
-            <div className="font-mono" style={{ fontSize: "1.6rem", fontWeight: 800, color: "var(--success)" }}>
-              -{avgDiscount}% Off
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Category Filter Tabs */}
-      <div
-        style={{
-          display: "flex",
-          gap: "0.5rem",
-          overflowX: "auto",
-          paddingBottom: "1rem",
-          marginBottom: "2rem",
-          borderBottom: "1px solid var(--border-subtle)",
-        }}
-      >
-        {categories.map((cat) => (
-          <button
-            key={cat.id}
-            className={`btn btn-sm ${selectedCategory === cat.id ? "btn-primary" : "btn-secondary"}`}
-            onClick={() => setSelectedCategory(cat.id)}
-          >
-            {cat.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Campaigns Grid */}
-      {loading ? (
-        <div style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)" }}>
-          Đang tải chiến dịch từ Arc Testnet...
-        </div>
-      ) : filteredCampaigns.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)" }}>
-          Không có chiến dịch nào trong danh mục này.
-        </div>
-      ) : (
-        <div className="grid-cards">
-          {filteredCampaigns.map((c) => {
-            const currentTierIndex = Math.min(
-              Math.max(Number(c.currentUnlockedTier) || 0, 0),
-              c.tiers.length - 1
-            );
-            const currentTier = c.tiers[currentTierIndex];
-            const nextTier = c.tiers[currentTierIndex + 1] || null;
-            const currentPrice = Number(currentTier.price) / 1e6;
-            const nextPrice = nextTier ? Number(nextTier.price) / 1e6 : null;
-            const initialPrice = Number(c.tiers[0].price) / 1e6;
-            const maxDiscount = Math.round(
-              ((initialPrice - Number(c.tiers[c.tiers.length - 1].price) / 1e6) / initialPrice) * 100
-            );
-
-            const currentMetric = Number(
-              c.metric === "BUYER_COUNT" ? c.totalBuyerCount : c.totalUnitsCommitted
-            ) || 0;
-            const targetMetric = nextTier ? nextTier.threshold : currentTier.threshold;
-            const progressPercent = Math.min(
-              100,
-              Math.round((currentMetric / Number(targetMetric)) * 100)
-            );
-
-            return (
-              <div
-                key={c.id}
-                className="glass-card"
-                style={{ cursor: "pointer", display: "flex", flexDirection: "column" }}
-                onClick={() => onSelectCampaign(c.id)}
-              >
-                {/* Thumbnail image with overlay badge */}
-                <div
-                  style={{
-                    position: "relative",
-                    borderRadius: "var(--radius-md)",
-                    overflow: "hidden",
-                    height: "190px",
-                    marginBottom: "1rem",
-                  }}
-                >
-                  <img
-                    src={c.thumbnailUrl}
-                    alt={c.title}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  />
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "0.75rem",
-                      left: "0.75rem",
-                      display: "flex",
-                      gap: "0.4rem",
-                    }}
-                  >
-                    <span className="badge badge-sla">SLA {c.deliverySlaSeconds / 3600}h</span>
-                    {c.earlyRebateEnabled && (
-                      <span className="badge badge-early">Early Supporter</span>
-                    )}
-                  </div>
-                  <div
-                    style={{
-                      position: "absolute",
-                      bottom: "0.75rem",
-                      right: "0.75rem",
-                      background: "rgba(0, 0, 0, 0.75)",
-                      backdropFilter: "blur(6px)",
-                      padding: "0.2rem 0.6rem",
-                      borderRadius: "var(--radius-full)",
-                      fontSize: "0.75rem",
-                      fontWeight: 700,
-                      color: "var(--success)",
-                    }}
-                  >
-                    Tiết kiệm tới -{maxDiscount}%
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-                  <div
-                    style={{
-                      fontSize: "0.8rem",
-                      color: "var(--cyan)",
-                      fontWeight: 600,
-                      marginBottom: "0.35rem",
-                    }}
-                  >
-                    {c.category}
-                  </div>
-
-                  <h3
-                    style={{
-                      fontSize: "1.15rem",
-                      lineHeight: 1.35,
-                      marginBottom: "0.6rem",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      display: "-webkit-box",
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: "vertical",
-                    }}
-                  >
-                    {c.title}
-                  </h3>
-
-                  <p
-                    style={{
-                      fontSize: "0.85rem",
-                      color: "var(--text-secondary)",
-                      lineHeight: 1.5,
-                      marginBottom: "1.25rem",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      display: "-webkit-box",
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: "vertical",
-                    }}
-                  >
-                    {c.description}
-                  </p>
-
-                  {/* Progress bar */}
-                  <div style={{ marginBottom: "1rem" }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        fontSize: "0.78rem",
-                        color: "var(--text-secondary)",
-                        marginBottom: "0.35rem",
-                      }}
-                    >
-                      <span>
-                        Tier {currentTierIndex + 1}/{c.tiers.length}: {currentMetric}{" "}
-                        {c.metric === "BUYER_COUNT" ? "người" : "đơn vị"}
-                      </span>
-                      {nextTier ? (
-                        <span>Mục tiêu tiếp theo: {nextTier.threshold}</span>
-                      ) : (
-                        <span style={{ color: "var(--success)" }}>Đã mở khóa tier tối đa!</span>
-                      )}
-                    </div>
-                    <div className="progress-bar-container">
-                      <div className="progress-bar-fill" style={{ width: `${progressPercent}%` }} />
-                    </div>
-                  </div>
-
-                  {/* Price & Action footer */}
-                  <div
-                    style={{
-                      marginTop: "auto",
-                      paddingTop: "1rem",
-                      borderTop: "1px solid var(--border-subtle)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                        {t("currentPrice")}
-                      </div>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: "0.35rem" }}>
-                        <span
-                          className="font-mono"
-                          style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--text-primary)" }}
-                        >
-                          ${currentPrice}
-                        </span>
-                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>USDC</span>
-                      </div>
-                    </div>
-
-                    <div style={{ textAlign: "right" }}>
-                      {nextPrice ? (
-                        <div>
-                          <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                            Tier kế tiếp
-                          </div>
-                          <div
-                            className="font-mono"
-                            style={{ fontSize: "1rem", fontWeight: 700, color: "var(--cyan)" }}
-                          >
-                            ${nextPrice} USDC
-                          </div>
-                        </div>
-                      ) : (
-                        <div
-                          style={{
-                            fontSize: "0.8rem",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.3rem",
-                            color: "var(--text-muted)",
-                          }}
-                        >
-                          <Clock size={13} />
-                          {formatTimeLeft(c.endTime)}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-};
+function CatalogCard({deal,language,failedImage,onImageError,onSelect}:{deal:CatalogDeal;language:'vi'|'en';failedImage:boolean;onImageError:()=>void;onSelect:()=>void}){
+ const c=deal.card,labels=publicWidgetText(c,language),text=(vi:string,en:string)=>language==='en'?en:vi;
+ const currentPrice=catalogUSDC(c.currentPriceBaseUnits,language),nextPrice=c.nextPriceBaseUnits?catalogUSDC(c.nextPriceBaseUnits,language):null;
+ const end=new Date(c.endTime*1000),deadline=new Intl.DateTimeFormat(language==='vi'?'vi-VN':'en-US',{dateStyle:'medium',timeStyle:'short'}).format(end);
+ const progress=c.nextThreshold?Math.min(100,Number(BigInt(c.currentMetric)*100n/BigInt(c.nextThreshold))):100;
+ const href='#campaign-'+encodeURIComponent(c.id),title='catalog-deal-'+c.id;
+ return <article className="glass-card catalog-deal" aria-labelledby={title}>
+  <div className="catalog-deal-media">{deal.thumbnailUrl&&!failedImage?<img src={deal.thumbnailUrl} alt="" loading="lazy" decoding="async" onError={onImageError}/>:<div className="catalog-image-placeholder"><ImageIcon size={42} aria-hidden="true"/><span>{text('Chưa có ảnh sản phẩm','Product image unavailable')}</span></div>}<div className="catalog-deal-badges"><span className="badge">{labels.status}</span>{deal.rightsApproved&&<span className="badge badge-verified-rights"><CheckCircle2 size={13} aria-hidden="true"/>{text('Quyền phân phối đã duyệt','Distribution rights approved')}</span>}</div></div>
+  <div className="catalog-deal-content"><p className="eyebrow">{deal.category}</p><h3 id={title}><a href={href} onClick={e=>{if(!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&!e.altKey){e.preventDefault();onSelect();}}}>{c.title}</a></h3><p className="catalog-deal-description">{deal.description}</p>
+   <p className="catalog-seller"><Store size={15} aria-hidden="true"/>{deal.seller.profilePath?<a href={deal.seller.profilePath}>{deal.seller.displayName}</a>:deal.seller.displayName}</p>
+   {deal.product&&<p className="catalog-license">{deal.product.vendor} · {deal.product.edition}<br/>{text(deal.product.usageScope==='COMMERCIAL'?'Sử dụng thương mại':'Sử dụng cá nhân',deal.product.usageScope==='COMMERCIAL'?'Commercial use':'Personal use')} · {deal.product.seatsPerUnit} {text('chỗ / đơn vị','seats / unit')} · {deal.product.durationDays===null?text('Không giới hạn thời hạn theo license','No duration limit in the license'):text(`${deal.product.durationDays} ngày`,`${deal.product.durationDays} days`)}</p>}
+   <p className="catalog-sla"><Clock size={14} aria-hidden="true"/>{text(`SLA giao hàng: ${deal.deliverySlaSeconds/3600} giờ sau khi chốt giá`,`Delivery SLA: ${deal.deliverySlaSeconds/3600} hours after finalization`)}</p>
+   {deal.earlyRebateEnabled&&<p className="catalog-early">{text('Có điều khoản rebate cho người mua sớm','Early buyer rebate terms available')}</p>}
+   <div className="catalog-tier"><p>{labels.metric}</p>{nextPrice?<><div className="progress-bar-container" role="progressbar" aria-label={text('Tiến độ đến bậc giá tiếp theo','Progress to the next price tier')} aria-valuemin={0} aria-valuemax={c.nextThreshold!} aria-valuenow={c.currentMetric}><div className="progress-bar-fill" style={{width:progress+'%'}}/></div><p>{text(`Nếu đạt ${c.nextThreshold}: ${nextPrice} USDC / đơn vị`,`If ${c.nextThreshold} is reached: ${nextPrice} USDC / unit`)}</p></>:!c.purchaseHeld&&<p>{text('Đã mở bậc giá tốt nhất','Best price tier unlocked')}</p>}</div>
+   <div className="catalog-price"><span>{labels.priceLabel}</span><strong className="amount-value">{currentPrice} <small>USDC</small></strong><p>{text('Giá trước rebate của người mua','Price before buyer rebate')}</p></div>
+   {c.purchaseHeld&&<p className="catalog-held">{labels.held}</p>}<p className="catalog-deadline">{text('Hạn cam kết: ','Commitment deadline: ')}<time dateTime={end.toISOString()}>{deadline}</time></p>
+   <a className="btn btn-primary catalog-deal-action" href={href} onClick={e=>{if(!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&!e.altKey){e.preventDefault();onSelect();}}}>{labels.cta}<ArrowRight size={16} aria-hidden="true"/></a>
+  </div>
+ </article>;
+}

@@ -1,22 +1,35 @@
+import { WebhookService } from "./services/webhookService";
 import express from "express";
 import cors from "cors";
 import { config } from "./config";
-import { store, CampaignRecord } from "./db/store";
+import { store, CampaignRecord,admitDefaultRecoveryStore } from "./db/store";
 import { authRouter } from "./routes/authRoutes";
 import { campaignRouter } from "./routes/campaignRoutes";
 import { orderRouter } from "./routes/orderRoutes";
 import { sellerRouter } from "./routes/sellerRoutes";
 import { operatorRouter } from "./routes/operatorRoutes";
+import { productRouter,productJsonErrorHandler } from "./routes/productRoutes";
+import { deliveryRouter,resourceJsonErrorHandler } from "./routes/deliveryRoutes";
+import { operationRouter } from "./routes/operationRoutes";
+import {bridgeRouter} from "./routes/bridgeRoutes";
 import { publicRouter } from "./routes/publicRoutes";
 import { faucetRouter } from "./routes/faucetRoutes";
 import { walletRouter } from "./routes/walletRoutes";
 import { circleRouter } from "./routes/circleRoutes";
 import { notificationRouter } from "./routes/notificationRoutes";
+import {followRouter} from './routes/followRoutes';
+import {supportRouter} from './routes/supportRoutes';
 import { IndexerService } from "./services/indexerService";
 import { DeliveryService } from "./services/deliveryService";
 import { validateManifestAndEnvironment } from "./services/manifestValidator";
 import { ethers } from "ethers";
 import { NotificationService } from "./services/notificationService";
+import { assertProjectionScope } from "./services/projectionScope";
+import { validateRuntimeSecurity } from "./services/runtimeSecurity";
+import {publicHealth} from './services/publicHealth';
+import {selectRecoveryApplication} from './services/recoveryApplication';
+import {startVerifiedRuntime} from './services/verifiedStartup';
+import {ReconciliationService} from './services/reconciliationService';
 
 const app = express();
 
@@ -28,27 +41,15 @@ app.use(
     },
   })
 );
+app.use('/api/support',supportRouter);
+app.use('/api/bridge',bridgeRouter);
 app.use(express.json());
+app.use(productJsonErrorHandler);
+app.use(resourceJsonErrorHandler);
 
 // Health check
-const healthHandler = (req: express.Request, res: express.Response) => {
-  res.json({
-    status: "OK",
-    service: "GroupDeal API",
-    network: "Arc Testnet (5042002)",
-    hubAddress: config.hubAddress,
-    usdcAddress: config.usdcAddress,
-    dependencies: {
-      circleWalletsConfigured: Boolean(config.circleApiKey),
-      transactionalEmailConfigured: Boolean(
-        config.smtpConfigured || (config.emailProviderUrl && config.emailProviderToken)
-      ),
-    },
-    timestamp: Date.now(),
-  });
-};
-app.get("/health", healthHandler);
-app.get("/api/health", healthHandler);
+app.get("/health", publicHealth);
+app.get("/api/health", publicHealth);
 
 // Mount Routes
 app.use("/api/auth", authRouter);
@@ -56,11 +57,15 @@ app.use("/api/campaigns", campaignRouter);
 app.use("/api/orders", orderRouter);
 app.use("/api/seller", sellerRouter);
 app.use("/api/operator", operatorRouter);
+app.use("/api/products", productRouter);
+app.use("/api/delivery", deliveryRouter);
+app.use("/api/transactions", operationRouter);
 app.use("/api/v1", publicRouter);
 app.use("/api/faucet", faucetRouter);
 app.use("/api/wallet", walletRouter);
 app.use("/api/circle", circleRouter);
 app.use("/api/notifications", notificationRouter);
+app.use('/api/follows',followRouter);
 
 // Initialize demo users and campaigns if empty
 function initializeInitialState() {
@@ -246,41 +251,35 @@ function initializeInitialState() {
   store.save();
 }
 
-if (!config.isProduction) {
-  initializeInitialState();
-}
-
-// Financial deadlines are never projected from the wall clock alone. Buyers call
-// claimDeliveryBreach and any actor may call settleUndisputedOrder on Arc; the
-// indexer updates SQLite only after the corresponding finalized contract event.
-
-setInterval(() => {
-  void NotificationService.processEmailOutbox().catch((error) => {
-    console.warn("[EMAIL OUTBOX] Processing failed:", error instanceof Error ? error.message : error);
-  });
-}, 15_000);
-
-const PORT = config.port;
-app.listen(PORT, async () => {
-  console.log(`\n=================================================`);
-  console.log(`🚀 GroupDeal Backend API running on port ${PORT}`);
-  console.log(`⛓️  Arc Testnet Hub: ${config.hubAddress}`);
-  console.log(`💵  USDC Token: ${config.usdcAddress}`);
-  console.log(`🌐  Arc RPC: ${config.arcRpcUrl} (Chain ID: ${config.arcChainId})`);
-  console.log(`=================================================\n`);
-
+type LocalStartupFixture={verifyManifest?:()=>Promise<unknown>;selectRecovery?:()=>ReturnType<typeof selectRecoveryApplication>;readProvider?:any;startWorkers?:()=>()=>void};
+export async function startServer(fixture?:LocalStartupFixture) {
+  if(fixture&&(process.env.NODE_ENV!=='test'||config.arcChainId!==31337))throw new Error('STARTUP_FIXTURE_SCOPE_REQUIRED');
+  validateRuntimeSecurity();
   try {
-    const valResult = await validateManifestAndEnvironment();
-    console.log(`[Startup] Environment manifest verified (${valResult.environment}, Chain ID: ${valResult.chainId})`);
-  } catch (err: any) {
-    if (config.isProduction || config.arcChainId === 5042002) {
-      console.error(`[CRITICAL] Manifest validation failed:`, err.message);
-      process.exit(1);
-    } else {
-      console.warn(`[Startup Warning] Manifest check skipped for local dev:`, err.message);
-    }
+    const result=await (fixture?.verifyManifest||validateManifestAndEnvironment)();
+    console.log("[Startup] Deployment manifest verified on chain",(result as any).chainId);
+  } catch {
+    if (config.isProduction || config.arcChainId===5042002) throw new Error("Deployment manifest validation failed; server has not opened its port or started workers");
+    console.warn("[Startup] Local deployment manifest is unavailable");
   }
-
-  // Start onchain indexer
-  await IndexerService.start();
+  const recovery=(fixture?.selectRecovery||selectRecoveryApplication)();
+  if(recovery)try{admitDefaultRecoveryStore(recovery.database);}catch(error){recovery.close();throw error;}
+  if(fixture?.readProvider)IndexerService.setProvider(fixture.readProvider);
+  if (!recovery&&!config.isProduction && config.arcChainId===31337 && process.env.GROUPDEAL_ENABLE_LOCAL_FIXTURES==="1") initializeInitialState();
+  return startVerifiedRuntime({verify:async()=>{assertProjectionScope(store.db);},startIndexer:()=>IndexerService.start(),stopIndexer:()=>IndexerService.stop(),verifyFinancialReadiness:async()=>{
+    if(!recovery)return;
+    const provider=IndexerService.getProvider();if(!provider)throw new Error('RECOVERY_APPLICATION_READ_PROVIDER_REQUIRED');
+    const block=await provider.getBlockNumber();await IndexerService.syncThroughBlock(block);
+    const report=await ReconciliationService.runReconciliation({fixedBlockNumber:block,customProvider:provider,projectionStore:store});
+    if(report.status!=='HEALTHY'||!report.perOrderVerified||!report.coverageVerified||!report.onchainBalanceVerified||!report.conservationLawPassed||report.blockNumber!==block||report.projectionBlock!==block||(await provider.getBlock(block))?.hash?.toLowerCase()!==report.blockHash.toLowerCase())throw new Error('RECOVERY_APPLICATION_FRESH_RECONCILIATION_REQUIRED');
+  },listen:()=>new Promise((resolve,reject)=>{const server=app.listen(config.port);server.once('error',reject);server.once('listening',()=>{server.removeListener('error',reject);console.log('GroupDeal API listening on port',config.port,'chain',config.arcChainId);resolve(server);});}),startWorkers:()=>{
+    if(fixture?.startWorkers)return fixture.startWorkers();
+    const stopReconciliation=ReconciliationService.startObservingCurrent();
+    // All intervals start only after the API port has been reserved successfully.
+    const timers=[setInterval(() => { void import('./services/supportRetention').then(({supportRetentionSweep})=>supportRetentionSweep()).catch(()=>console.warn('[SUPPORT RETENTION] Processing failed')); },3600000),setInterval(() => { void NotificationService.processEmailOutbox().catch(() => console.warn('EMAIL_OUTBOX_PROCESSING_FAILED')); },15000),setInterval(() => { void WebhookService.processQueue().catch(() => console.warn('WEBHOOK_OUTBOX_PROCESSING_FAILED')); },5000)];return()=>{stopReconciliation();timers.forEach(clearInterval);};
+  },releaseStorage:()=>recovery?.close()});
+}
+if(require.main===module)void startServer().then(runtime=>{let stopping=false;const stop=()=>{if(stopping)return;stopping=true;void runtime.stop().catch(()=>{process.exitCode=1;});};process.once('SIGINT',stop);process.once('SIGTERM',stop);}).catch(error => {
+  console.error("[STARTUP BLOCKED]",error instanceof Error ? error.message : "Startup validation failed");
+  process.exitCode=1;
 });

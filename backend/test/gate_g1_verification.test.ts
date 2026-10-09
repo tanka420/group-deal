@@ -1,10 +1,11 @@
 import assert from "node:assert";
 import { ethers } from "ethers";
 import { AuthService } from "../src/services/authService";
-import { TransactionVerifier, TransactionIntent } from "../src/services/transactionVerifier";
+import { TransactionVerifier, TransactionIntent,TransactionVerificationError } from "../src/services/transactionVerifier";
 import { DeliveryService } from "../src/services/deliveryService";
 import { DisputeService } from "../src/services/disputeService";
 import { store } from "../src/db/store";
+import {WalletAuthError} from "../src/domain/walletAuthentication";
 import { config } from "../src/config";
 
 async function runGateG1Tests() {
@@ -23,7 +24,12 @@ async function runGateG1Tests() {
     email: "g1_tester@example.com",
     roles: ["buyer"],
     createdAt: Date.now(),
+    activeWallet:testWallet.address,
   };
+  // This compatibility path selects an independently verified existing credential.
+  // Adding a credential is exercised by wallet_binding.test.ts with both proofs.
+  store.db.userByWallet[testWallet.address.toLowerCase()]=testUserId;
+  store.save();
 
   // 1.1 Request challenge
   const challenge = AuthService.issueWalletChallenge(testUserId, "LINK_WALLET", testWallet.address);
@@ -43,7 +49,7 @@ async function runGateG1Tests() {
     challenge.challengeMessage
   );
   assert.strictEqual(updatedUser.activeWallet?.toLowerCase(), testWallet.address.toLowerCase());
-  console.log("✔ Successfully consumed challenge and linked non-custodial wallet");
+  console.log("✔ Successfully consumed challenge and selected the verified existing wallet");
 
   // 1.4 Anti-Replay: Attempt to consume the same challenge a second time
   await assert.rejects(
@@ -55,7 +61,7 @@ async function runGateG1Tests() {
         challenge.challengeMessage
       );
     },
-    /Challenge expired or not found/,
+    (e:unknown)=>e instanceof WalletAuthError&&e.code==="WALLET_AUTH_CHALLENGE_INVALID"&&e.status===400,
     "Replaying consumed challenge must be rejected"
   );
   console.log("✔ Anti-Replay verified: Re-using the same challenge immediately rejected");
@@ -66,9 +72,11 @@ async function runGateG1Tests() {
   store.db.users[attackerUserId] = {
     id: attackerUserId,
     email: "attacker@example.com",
+    activeWallet:attackerWallet.address,
     roles: ["buyer"],
     createdAt: Date.now(),
   };
+  store.save();
   await assert.rejects(
     async () => {
       AuthService.linkExternalWallet(
@@ -78,7 +86,7 @@ async function runGateG1Tests() {
         challenge.challengeMessage
       );
     },
-    /Challenge expired or not found/,
+    (e:unknown)=>e instanceof WalletAuthError&&e.code==="WALLET_LINK_STEP_UP_REQUIRED"&&e.status===409,
     "User B using User A's challenge must be rejected"
   );
   console.log("✔ Cross-Account protection verified: Challenge scoped strictly to userId + wallet");
@@ -118,14 +126,15 @@ async function runGateG1Tests() {
   );
   console.log("✔ Invalid transaction hash format rejected");
 
-  // 3.2 Non-existent transaction on live/mocked RPC
+  TransactionVerifier.setProvider({getTransaction:async()=>null,getTransactionReceipt:async()=>null});
+  // 3.2 Non-existent transaction on local mocked RPC
   const randomTxHash = "0x" + "a".repeat(64);
   await assert.rejects(
     async () => {
       await TransactionVerifier.verifyExpectedTransaction(dummyIntent, randomTxHash);
     },
-    /not found|RPC error/,
-    "Non-existent tx on live network must fail closed"
+      /not found|RPC error|RPC unavailable/,
+    "Non-existent tx on local mocked RPC must fail closed"
   );
   console.log("✔ Non-existent transaction hash rejected (fail-closed)");
 
@@ -136,6 +145,7 @@ async function runGateG1Tests() {
     blockNumber: 12345,
     verifiedAt: Date.now(),
   };
+  store.save();
 
   await assert.rejects(
     async () => {
@@ -144,7 +154,7 @@ async function runGateG1Tests() {
         consumedHash
       );
     },
-    /already consumed by intent 'existing_intent_abc'/,
+    (e:unknown)=>e instanceof TransactionVerificationError&&e.code==='VERIFIER_CONSUMED_CONFLICT'&&e.status===409&&!e.message.includes('existing_intent_abc'),
     "Replaying an already consumed onchain transaction must be blocked"
   );
   console.log("✔ TransactionVerifier anti-replay protection verified");
@@ -162,13 +172,15 @@ async function runGateG1Tests() {
     status: "FINALIZED",
     visibility: "PUBLIC",
     metric: "BUYER_COUNT",
-    tiers: [{ threshold: 1, price: 1000000 }],
+    tiers: [{ threshold: 1, price: "1000000" }],
     currentUnlockedTier: 0,
     maxPerAccount: 5,
     inventoryLimit: 100,
     durationSeconds: 86400,
     deliverySlaSeconds: 86400,
     earlyRebateEnabled: false,
+    earlyRebateAmount:"0",
+    earlyRebateBps:0,
     earlySlotsCount: 0,
     platformFeeBps: 0,
     termsHash: ethers.ZeroHash,

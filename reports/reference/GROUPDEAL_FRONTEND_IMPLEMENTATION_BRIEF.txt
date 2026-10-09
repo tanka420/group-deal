@@ -1,0 +1,703 @@
+GROUPDEAL — FRONTEND IMPLEMENTATION BRIEF
+
+Repository là source of truth.
+
+Trước khi code:
+1. Đọc toàn bộ frontend hiện tại.
+2. Xác định framework, router, styling system, component library, state management,
+   API/data layer và design tokens đang có.
+3. Không tự thay stack nếu không có lý do bắt buộc.
+4. Không code ngay nếu frontend architecture hiện tại có conflict rõ với brief này.
+
+MỤC TIÊU SẢN PHẨM
+
+GroupDeal là nền tảng group-buy cho sản phẩm số hợp pháp.
+
+Seller đưa ra pricing tiers:
+càng nhiều buyer tham gia thì final price càng thấp.
+
+Buyer:
+- commit tối đa một mức giá;
+- theo dõi tier hiện tại;
+- nếu deal đạt tier tốt hơn thì final price giảm;
+- phần chênh lệch được rebate/refund;
+- mỗi buyer nhận entitlement/license riêng hợp pháp.
+
+Arc/blockchain là settlement infrastructure.
+UX cho buyer không được mang cảm giác crypto-first.
+
+Không được thiết kế như:
+- crypto dashboard;
+- DeFi;
+- shared-account marketplace;
+- generic ecommerce marketplace.
+
+Phong cách:
+Modern SaaS Marketplace + Fintech clarity.
+
+==================================================
+1. USER ROLES
+==================================================
+
+Có 3 frontend surfaces độc lập:
+
+A. BUYER
+B. VENDOR
+C. ADMIN / OPERATIONS
+
+Không gộp Vendor vào Admin.
+
+==================================================
+2. BUYER SCREENS
+==================================================
+
+Primary navigation:
+
+Home
+My Deals
+Orders
+Notifications
+Account
+
+Screens:
+
+1. Landing / Home
+2. Deal Detail
+3. Join Deal / Confirm Commitment
+4. Wallet / Transaction Confirmation
+5. Join Success
+6. My Deals
+7. My Deal Detail
+8. Orders
+9. Order Detail
+10. Refund / Rebate Detail
+11. Dispute / Support
+12. Notifications
+13. Profile / Account
+14. Connected Wallets / Security
+15. Terms / Deal Rules
+
+Deal Detail là màn quan trọng nhất.
+
+Deal Detail phải truyền đạt ngay:
+
+- product;
+- verified seller;
+- current group price;
+- regular/reference price;
+- current number of buyers;
+- pricing tiers;
+- current tier;
+- next tier;
+- còn bao nhiêu buyer để unlock tier tiếp theo;
+- buyer sẽ tiết kiệm thêm bao nhiêu nếu đạt tier tiếp theo;
+- deal ending time;
+- max commitment;
+- CTA Join Group Deal.
+
+Ví dụ:
+
+Current price: $105
+37 buyers joined
+Current tier: 20–49
+Next tier: 50–99 → $89
+13 more buyers needed
+You save another $16 if unlocked
+
+Không bắt user hiểu settlement mechanics.
+
+==================================================
+3. GROUP PRICING COMPONENT
+==================================================
+
+Group pricing phải có reusable visual component.
+
+Preferred UX:
+
+Price Ladder / Progress Rail
+
+Ví dụ:
+
+$120          $105          $89          $75
+ ●─────────────●════════════○────────────○
+1             20            50           100+
+
+               YOU ARE HERE
+                    37
+
+        13 more to unlock $89
+
+Không trình bày pricing tiers chỉ bằng table khô cứng.
+
+Component phải reusable trên:
+- Deal Detail;
+- My Deal Detail;
+- Vendor Deal Detail;
+- Admin Deal Detail.
+
+==================================================
+4. JOIN DEAL FLOW
+==================================================
+
+Join flow tối đa 3 bước:
+
+STEP 1 — CONFIRM
+
+Show:
+Current group price
+Maximum commitment
+Potential lower price
+Expected rebate if next tier reached
+
+Example:
+
+Current group price     $105
+Maximum commitment      $120
+
+You will never pay above $120.
+
+If group reaches 50:
+Final price              $89
+Potential rebate         $31
+
+STEP 2 — TRANSACTION
+
+Chỉ ở bước này mới show blockchain-specific information:
+
+Payment
+Network
+Gas estimate
+Wallet confirmation
+
+Không đưa RPC/nonce/contract internals vào buyer UX.
+
+STEP 3 — SUCCESS
+
+Example:
+
+You're in.
+
+38 buyers joined.
+
+12 more buyers needed to unlock $89.
+
+Actions:
+Share Deal
+View My Deal
+
+==================================================
+5. VENDOR SURFACE
+==================================================
+
+Primary navigation:
+
+Dashboard
+Products
+Deals
+Orders
+Settlements
+Disputes
+Business
+
+Screens:
+
+1. Vendor Dashboard
+2. Products
+3. Product Detail
+4. Create Deal
+5. Deal Pricing Tiers
+6. Deal Preview
+7. Active Deals
+8. Vendor Deal Detail
+9. Completed Deals
+10. Orders / Fulfillment
+11. Entitlements
+12. Settlements
+13. Payout History
+14. Disputes
+15. Business Profile
+16. Rights Verification
+
+Create Deal phải là wizard:
+
+1 Product
+2 Rights
+3 Pricing
+4 Fulfillment
+5 Review
+
+Không dùng một form dài.
+
+Desktop:
+form bên trái + realtime preview bên phải.
+
+Mobile:
+preview xuống dưới form.
+
+==================================================
+6. ADMIN / OPERATIONS
+==================================================
+
+Admin navigation:
+
+Dashboard
+
+Operations
+- Deals
+- Commitments
+- Orders
+- Settlements
+- Refunds
+
+Marketplace
+- Vendors
+- Products
+- Rights Verification
+
+Support
+- Disputes
+
+System
+- Chain Operations
+- Users
+- Audit Logs
+- Settings
+
+Admin ưu tiên clarity + operational density.
+Không cần marketing visuals.
+
+Admin Deal Detail dùng:
+
+Summary header
++
+tabs
+
+Tabs:
+
+Overview
+Participants
+Transactions
+Settlement
+Refunds
+Disputes
+Audit
+
+Không tạo một page riêng cho từng phần nếu tabs phù hợp hơn.
+
+==================================================
+7. RIGHTS VERIFICATION
+==================================================
+
+V1 bắt buộc hỗ trợ UI cho seller authorization.
+
+Allowed seller roles:
+
+Creator / Rightsholder
+Vendor
+Authorized Reseller
+Authorized Distributor
+Explicit Sublicensing Rights
+
+Admin Rights Verification cần:
+
+Vendor
+Product
+Claimed Role
+Evidence
+Status
+Reviewer
+
+Actions:
+
+Approve
+Request More Information
+Reject
+Suspend
+
+Không cho UX ngụ ý shared account / family-plan splitting / unauthorized resale.
+
+==================================================
+8. VISUAL STYLE
+==================================================
+
+Direction:
+
+Modern SaaS Marketplace + Fintech Clarity
+
+Không:
+- neon crypto;
+- heavy gradients;
+- Web3 aesthetic;
+- excessive glassmorphism;
+- overly playful marketplace UI.
+
+Preferred:
+
+Background:
+very light neutral
+
+Cards:
+white
+
+Borders:
+subtle neutral
+
+Radius:
+12–16px
+
+Shadow:
+very light
+
+Use:
+1 primary brand color
+
+Green:
+success / saving only
+
+Amber:
+pending / warning only
+
+Red:
+error / destructive only
+
+Typography:
+Inter
+
+Optional heading:
+Plus Jakarta Sans if existing stack already supports it.
+
+Do not introduce extra font dependency unnecessarily.
+
+==================================================
+9. RESPONSIVE RULES
+==================================================
+
+Mobile-first.
+
+Breakpoints conceptually:
+
+<640
+mobile
+
+640–1023
+tablet
+
+1024–1279
+desktop
+
+>=1280
+large desktop
+
+Rules:
+
+- tap target >= 44px;
+- mobile body text >= 16px;
+- no hover-only actions;
+- desktop tables must become card/list patterns on mobile;
+- mobile filters use drawer/bottom sheet;
+- important mobile modals may become full-screen sheets;
+- Deal Detail mobile has sticky bottom CTA;
+- Deal Detail desktop has sticky purchase panel;
+- loading states use skeleton where appropriate;
+- every important screen needs loading / empty / error / disabled states;
+- color cannot be the only status indicator;
+- maintain accessible contrast.
+
+Desktop content should not stretch infinitely.
+Use a reasonable max content width around 1280–1360px.
+
+==================================================
+10. MOBILE DEAL DETAIL
+==================================================
+
+Suggested information order:
+
+Product image
+Seller verification
+Product title
+Rating / review count
+Current price
+Regular price
+Buyer count + time remaining
+Group pricing card
+Next-tier benefit
+Product information
+Plans
+How GroupDeal works
+Terms
+Reviews
+
+Sticky bottom:
+
+Current price
++
+Join Deal CTA
+
+==================================================
+11. ADMIN RESPONSIVE
+==================================================
+
+Desktop:
+sidebar + content.
+
+Tablet:
+collapsed sidebar.
+
+Mobile:
+sidebar becomes drawer.
+
+Wide admin tables:
+convert to meaningful cards/list on mobile.
+Do not simply add horizontal scroll to every table.
+
+==================================================
+12. COMPONENT STRATEGY
+==================================================
+
+Create reusable primitives/components where justified.
+
+Likely shared components:
+
+AppShell
+TopNav
+Sidebar
+MobileNav
+PageHeader
+StatusBadge
+MetricCard
+DealCard
+PriceDisplay
+PriceTierRail
+ProgressBar
+Countdown
+SellerBadge
+VerifiedBadge
+StickyPurchasePanel
+MobileStickyCTA
+DataTable
+FilterBar
+EmptyState
+ErrorState
+Skeleton
+Tabs
+Timeline
+TransactionStatus
+SettlementSummary
+RefundSummary
+ConfirmationDialog
+
+Do not create abstraction/framework if component is used once.
+
+==================================================
+13. FOUR MASTER SCREENS FIRST
+==================================================
+
+PHASE 1:
+
+Implement and polish only these four master screens first:
+
+1. Buyer Deal Detail
+2. Buyer Join Deal
+3. Vendor Create Deal
+4. Admin Deal Detail
+
+These screens establish:
+
+- typography;
+- spacing;
+- cards;
+- buttons;
+- forms;
+- navigation;
+- pricing tier visual;
+- tables;
+- responsive behavior;
+- status patterns;
+- mobile patterns.
+
+Do NOT implement all remaining screens before these four are visually and
+structurally coherent.
+
+==================================================
+14. REFERENCE PRODUCTS
+==================================================
+
+UX references:
+
+AppSumo:
+- digital-product merchandising;
+- price hierarchy;
+- deal cards;
+- deal detail;
+- reviews;
+- urgency.
+
+GroupGets:
+- group-buy logic;
+- quantity goal;
+- current participation;
+- pricing/progress mechanics.
+
+Groupon Merchant:
+- merchant operational dashboard;
+- sales/payout/reviews organization.
+
+StackSocial:
+- digital-product deal hierarchy;
+- plan selection;
+- important details.
+
+Do not clone their visual design.
+
+Use references only for information architecture and proven UX patterns.
+
+==================================================
+15. DATA / BLOCKCHAIN UX RULE
+==================================================
+
+Buyer should normally see:
+
+Price
+Commitment
+Current tier
+Potential tier
+Refund/Rebate
+Order status
+
+Buyer should NOT normally see:
+
+RPC URL
+nonce
+raw transaction
+chain internals
+contract calldata
+
+These may appear only under advanced/technical transaction details if needed.
+
+Admin Chain Operations may expose technical blockchain information.
+
+==================================================
+16. FRONTEND STATES
+==================================================
+
+Design at minimum:
+
+Deal:
+draft
+upcoming
+active
+ending soon
+closed
+finalizing
+settled
+cancelled
+disputed
+
+Transaction:
+waiting wallet
+submitted
+pending
+finalized
+failed
+
+Refund:
+not applicable
+pending
+processing
+refunded
+failed
+
+Rights:
+pending
+approved
+needs information
+rejected
+suspended
+
+Do not implement only happy paths.
+
+==================================================
+17. IMPLEMENTATION QUALITY
+==================================================
+
+Requirements:
+
+- logical information hierarchy;
+- visually consistent;
+- responsive;
+- accessible;
+- reusable components;
+- clear loading/error/empty states;
+- no layout shift where avoidable;
+- no console errors;
+- no broken routes;
+- no placeholder lorem ipsum in finished UI;
+- no fake production claims.
+
+If backend endpoints are unavailable:
+use typed fixture/mock data isolated from UI components.
+
+Do not hardcode mock data throughout components.
+
+==================================================
+18. PHASE 1 ACCEPTANCE
+==================================================
+
+Before considering Phase 1 complete:
+
+Buyer Deal Detail:
+- desktop PASS
+- tablet PASS
+- mobile PASS
+- pricing tiers clearly understandable
+- sticky CTA works
+
+Join Deal:
+- current/max/potential price understandable without documentation
+- mobile usable with one hand
+- wallet-specific detail only appears at appropriate step
+
+Vendor Create Deal:
+- wizard works;
+- pricing tier editing is clear;
+- desktop live preview;
+- mobile remains usable
+
+Admin Deal Detail:
+- summary-first;
+- tabs logical;
+- operational data readable;
+- mobile/tablet adaptation usable
+
+Also verify representative widths:
+
+375px
+430px
+768px
+1024px
+1280px
+1440px
+
+==================================================
+19. FIRST TASK
+==================================================
+
+First:
+inspect repository and produce a concise FRONTEND IMPLEMENTATION PLAN.
+
+Include:
+
+A. detected current frontend stack
+B. current routes/components
+C. what can be reused
+D. proposed route map
+E. proposed component hierarchy
+F. proposed Phase-1 file changes
+G. any conflicts with existing architecture
+H. implementation order
+
+Do NOT redesign backend.
+Do NOT change blockchain/business semantics.
+
+If no substantive conflict exists, proceed with Phase 1 implementation after the
+plan according to existing project authority.

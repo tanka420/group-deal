@@ -1,3 +1,4 @@
+import dns from "node:dns";
 import assert from "node:assert";
 import { WebhookService } from "../src/services/webhookService";
 import { ReconciliationService } from "../src/services/reconciliationService";
@@ -32,12 +33,15 @@ async function runServicesAuditTests() {
   }
   console.log("✔ Successfully blocked all 10 SSRF/internal network targets");
 
-  // Legitimate URL
+  // Local DNS fixture: no external egress is attempted.
+  const originalLookup=dns.promises.lookup;
+  (dns.promises as any).lookup=async()=>[{address:"8.8.8.8",family:4}];
   await assert.doesNotReject(
     async () => await WebhookService.validateWebhookUrl("https://api.seller-domain.com/webhooks/groupdeal"),
     "Legitimate HTTPS target was incorrectly rejected"
   );
-  console.log("✔ Allowed valid public HTTPS target");
+  (dns.promises as any).lookup=originalLookup;
+  console.log("✔ Allowed DNS-fixture public HTTPS target");
 
   // 2. Reconciliation Service Financial Conservation (F13)
   console.log("\n[Test 2] Reconciliation Service Invariant Conservation:");
@@ -64,7 +68,8 @@ async function runServicesAuditTests() {
     sellerClaimed: false,
   };
 
-  const reportHealthy = await ReconciliationService.runReconciliation();
+  const offlineProvider = { getNetwork: async () => { throw new Error("Fixture RPC offline"); } };
+  const reportHealthy = await ReconciliationService.runReconciliation({ customProvider: offlineProvider });
   assert.strictEqual(reportHealthy.conservationLawPassed, true, "Internal conservation should pass for healthy order");
   // When RPC is unreachable, status must be UNVERIFIED, NEVER silently reported as HEALTHY (Fix A07)
   assert.strictEqual(reportHealthy.status, "UNVERIFIED", "Status must be UNVERIFIED when onchain RPC is disconnected");
@@ -97,7 +102,7 @@ async function runServicesAuditTests() {
     sellerClaimed: false,
   };
 
-  const reportLeaking = await ReconciliationService.runReconciliation();
+  const reportLeaking = await ReconciliationService.runReconciliation({ customProvider: offlineProvider });
   assert.strictEqual(reportLeaking.conservationLawPassed, false, "Should detect math discrepancy");
   assert.strictEqual(reportLeaking.status, "DISCREPANCY_DETECTED");
   assert.strictEqual(reportLeaking.discrepancies.length > 0, true);

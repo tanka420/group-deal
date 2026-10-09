@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
+import {installEmptyCatalog} from './fixtures/catalog';
 
 test.beforeEach(async ({ page }) => {
+  await installEmptyCatalog(page,'0x2A7aECd1CE90f1284EB060488c8dDEF4b1bE0574');
   await page.route("**/*circle-fin_w3s-pw-web-sdk.js*", (route) => route.fulfill({
     contentType: "application/javascript",
     body: `export class W3SSdk {
@@ -52,13 +54,13 @@ test("renders Arc identity and fails closed when Circle is not configured", asyn
   await expect(page.getByText("Chain ID: 5042002")).toBeVisible();
 
   await page.getByRole("button", { name: /đăng nhập/i }).click();
-  const walletLogin = page.getByRole("button", { name: "Reown AppKit chưa được cấu hình" });
+  const walletLogin = page.getByRole("button", { name: "Đăng nhập bằng ví hiện chưa sẵn sàng", exact: true });
   await expect(walletLogin).toBeDisabled();
-  await expect(page.getByText(/không có giao dịch và không tốn USDC/i)).toBeVisible();
-  await page.getByLabel("Địa chỉ Email").fill("buyer@example.com");
-  const submit = page.getByRole("button", { name: "Circle Wallet chưa được cấu hình" });
+  await expect(page.getByText(/Thao tác này không tạo giao dịch chuyển tiền/i)).toBeVisible();
+  await page.getByLabel("Địa chỉ email", { exact: true }).fill("buyer@example.com");
+  const submit = page.getByRole("button", { name: "Đăng nhập email hiện chưa sẵn sàng", exact: true });
   await expect(submit).toBeDisabled();
-  await expect(page.getByText(/không giữ private key/i)).toBeVisible();
+  await expect(page.getByText(/Không nhập seed phrase hay private key vào GroupDeal/i)).toBeVisible();
   expect(consoleErrors).toEqual([]);
 });
 
@@ -72,11 +74,11 @@ test("offers an in-app Arc App Kit bridge and reports missing Reown configuratio
   await page.getByRole("button", { name: /nạp usdc/i }).click();
   await page.getByRole("button", { name: "CCTP Bridge" }).click();
 
-  await expect(page.getByText(/Circle Arc App Kit và CCTP/i)).toBeVisible();
+  await expect(page.getByText(/Kết nối ví ngoài chưa được cấu hình/)).toBeVisible();
   await expect(page.getByText("Arc Testnet (5042002)").last()).toBeVisible();
   await page.getByLabel("Số USDC cần bridge").fill("1.25");
-  await page.getByRole("button", { name: "Lấy báo giá bridge USDC vào Arc" }).click();
-  await expect(page.getByRole("alert")).toContainText("Hãy đăng nhập");
+  await expect(page.getByRole("button", { name: "Lấy báo giá bridge USDC vào Arc" })).toBeDisabled();
+  await expect(page.getByText("Hãy đăng nhập trước",{exact:true})).toBeVisible();
   expect(consoleErrors).toEqual([]);
 });
 
@@ -102,7 +104,7 @@ test("restores the authenticated wallet after reload and requests faucet in-app"
   await page.getByRole("button", { name: /nạp usdc/i }).click();
   await expect(page.getByText(new RegExp(address, "i"))).toBeVisible();
   await page.getByRole("button", { name: "Nhận USDC testnet trực tiếp" }).click();
-  await expect(page.getByRole("status")).toContainText("Circle đã nhận yêu cầu");
+  await expect(page.getByRole('dialog').getByRole("status")).toContainText("Faucet đã nhận yêu cầu");
   expect(requests).toBe(1);
   expect(page.context().pages()).toHaveLength(1);
   await page.getByRole("button", { name: "Đóng nạp USDC" }).click();
@@ -163,7 +165,7 @@ test("email account can reopen OTP after reload without logging out", async ({ p
   await expect(page.getByLabel("Địa chỉ Email")).toBeVisible();
 });
 
-test("CCTP pins recipient, disables batching and retries the original operation", async ({ page }) => {
+test("SDK result without a captured financial write cannot confirm a mint", async ({ page }) => {
   const sender = "0x73307bdd39d875f98857ffce0fed1cdc62f50b6d";
   const recipient = "0x580cdb6a6354313f73ff16b160b15dcc914d21ae";
   await page.addInitScript(() => localStorage.setItem("groupdeal_token", "fixture-session"));
@@ -175,6 +177,7 @@ test("CCTP pins recipient, disables batching and retries the original operation"
     contentType: "application/javascript",
     body: `export const ExternalWalletProvider = ({children}) => children;
       const provider = { request: async ({method}) => {
+        if(method==="eth_accounts") return ["${sender}"];
         if(method==="eth_chainId") return "0xaa36a7";
         if(method==="eth_getBalance") return "0xde0b6b3a7640000";
         if(method==="eth_call") return "0x"+BigInt(100000000).toString(16).padStart(64,"0");
@@ -185,19 +188,19 @@ test("CCTP pins recipient, disables batching and retries the original operation"
         getSigner:async()=>({getAddress:async()=>"${sender}"}) });`,
   }));
   await page.route("**/*circle-fin_adapter-viem-v2.js*", (route) => route.fulfill({ contentType: "application/javascript",
-    body: "export const createViemAdapterFromProvider = () => ({}); export default { createViemAdapterFromProvider };",
+    body: "export const createViemAdapterFromProvider = () => ({actionRegistry:{registerHandler(){},executeAction(){throw Error('Mock SDK must not execute registry actions');}}}); export default { createViemAdapterFromProvider };",
   }));
   await page.route("**/*circle-fin_app-kit.js*", (route) => route.fulfill({ contentType: "application/javascript",
     body: `export class AppKit {
-      on(){} off(){}
+      on(){} off(){} getSupportedChains(){return [{"chain":"Ethereum_Sepolia","type":"evm","name":"Ethereum_Sepolia","isTestnet":true,"chainId":11155111,"usdcAddress":"0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238","cctp":{"domain":0,"contracts":{"v2":{"type":"split","tokenMessenger":"0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA","messageTransmitter":"0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275"}}},"kitContracts":{"bridge":"0xC5567a5E3370d4DBfB0540025078e283e36A363d"}},{"chain":"Arc_Testnet","type":"evm","name":"Arc_Testnet","isTestnet":true,"chainId":5042002,"usdcAddress":"0x3600000000000000000000000000000000000000","cctp":{"domain":26,"contracts":{"v2":{"type":"split","tokenMessenger":"0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA","messageTransmitter":"0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275"}}},"kitContracts":{"bridge":"0xC5567a5E3370d4DBfB0540025078e283e36A363d"}}];}
       async estimateBridge(params) { window.bridgeEstimate = {recipient:params.to.recipientAddress,amount:params.amount,batch:params.config.batchTransactions}; return {
         token:"USDC",amount:params.amount,source:{address:"${sender}",chain:"Ethereum_Sepolia"},destination:{address:"${sender}",recipientAddress:params.to.recipientAddress,chain:"Arc_Testnet"},
-        fees:[{type:"provider",token:"USDC",amount:"0"}],gasFees:[{name:"burn",token:"ETH",blockchain:"Ethereum_Sepolia",fees:{gas:100000n,gasPrice:1000000000n,fee:"100000000000000"}}] }; }
+        fees:[{type:"provider",token:"USDC",amount:"0"}],gasFees:[{name:"burn",token:"ETH",blockchain:"Ethereum_Sepolia",fees:{gas:100000n,gasPrice:1000000000n,fee:"0.0001"}}] }; }
       async bridge(params) { window.bridgeWrites = (window.bridgeWrites||0)+1; return {
-        token:"USDC",amount:params.amount,state:"error",provider:"CCTPv2",
+        token:"USDC",amount:params.amount,state:"success",provider:"CCTPv2",
         source:{address:"${sender}",chain:{chain:"Ethereum_Sepolia",chainId:11155111}},
         destination:{address:"${sender}",recipientAddress:params.to.recipientAddress,chain:{chain:"Arc_Testnet",chainId:5042002}},
-        steps:[{name:"burn",state:"success",txHash:"0x"+"1".repeat(64)}, {name:"mint",state:"error",errorMessage:"fixture mint needs retry"}] }; }
+        steps:[{name:"burn",state:"success",txHash:"0x"+"1".repeat(64)}, {name:"mint",state:"success"}] }; }
       async retryBridge(result) { window.bridgeRetried = {recipient:result.destination.recipientAddress,amount:result.amount}; return {...result,state:"success",steps:result.steps.map(step=>({...step,state:"success"}))}; }
     } export default {AppKit};`,
   }));
@@ -209,21 +212,15 @@ test("CCTP pins recipient, disables batching and retries the original operation"
   await expect(page.getByText(/Số nhận dự kiến tối thiểu/)).toBeVisible();
   expect(await page.evaluate(() => (window as any).bridgeWrites || 0)).toBe(0);
   await page.getByRole("button", { name: "Xác nhận bridge USDC vào Arc" }).click();
-  await expect(page.getByRole("alert")).toContainText("fixture mint needs retry");
-  await expect(page.getByLabel("Số USDC cần bridge")).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Lấy báo giá bridge USDC vào Arc" })).toBeDisabled();
-  const estimate = await page.evaluate(() => (window as unknown as {bridgeEstimate:{recipient:string;amount:string;batch:boolean}}).bridgeEstimate);
-  expect(estimate).toMatchObject({amount:"1.25",batch:false});
-  expect(estimate.recipient.toLowerCase()).toBe(recipient);
-  await page.getByRole("button", { name: "Thử lại từ bước bị lỗi" }).click();
-  await expect(page.getByRole("status")).toContainText("đã mint USDC");
-  const state = await page.evaluate(() => ({
-    writes:(window as unknown as {bridgeWrites:number}).bridgeWrites,
-    retry:(window as unknown as {bridgeRetried:{recipient:string;amount:string}}).bridgeRetried,
-  }));
-  expect(state.writes).toBe(1);
-  expect(state.retry.amount).toBe("1.25");
-  expect(state.retry.recipient.toLowerCase()).toBe(recipient);
+  await expect(page.getByRole('dialog').locator('p[role="status"]')).toContainText("Lượt đã dừng trước burn");
+  await expect(page.getByText(/Receipt Arc xác nhận đã mint/)).toHaveCount(0);
+  await expect(page.getByRole("button",{name:"Tiếp tục attestation / mint"})).toHaveCount(0);
+  const evidence=await page.evaluate(recipient=>({writes:(window as any).bridgeWrites,record:JSON.parse(localStorage.getItem('groupdeal_bridge:v2:'+recipient)!)}),recipient);
+  expect(evidence.writes).toBe(1); // SDK method call, no wallet transaction.
+  expect(evidence.record.writes).toEqual([]);
+  const estimate=await page.evaluate(()=>(window as any).bridgeEstimate);
+  expect(estimate).toMatchObject({amount:"1.25",batch:false});expect(estimate.recipient.toLowerCase()).toBe(recipient);
+
 });
 
 test("bridge blocks a source wallet with USDC but no native ETH before estimating or writing", async ({ page }) => {
@@ -234,10 +231,10 @@ test("bridge blocks a source wallet with USDC but no native ETH before estimatin
   } }) }));
   await page.route("**/src/context/ExternalWalletContext.tsx*", route => route.fulfill({ contentType: "application/javascript", body: `
     export const ExternalWalletProvider=({children})=>children;
-    const provider={request:async({method})=>method==="eth_chainId"?"0xaa36a7":method==="eth_getBalance"?"0x0":method==="eth_call"?"0x"+BigInt(100000000).toString(16).padStart(64,"0"):null};
+    const provider={request:async({method})=>method==="eth_accounts"?["${address}"]:method==="eth_chainId"?"0xaa36a7":method==="eth_getBalance"?"0x0":method==="eth_call"?"0x"+BigInt(100000000).toString(16).padStart(64,"0"):null};
     export const useExternalWallet=()=>({configured:true,connected:true,address:"${address}",provider,getProvider:()=>provider,getSigner:async()=>({getAddress:async()=>"${address}"})});` }));
   await page.route("**/*circle-fin_adapter-viem-v2.js*", route => route.fulfill({ contentType: "application/javascript",
-    body: "export const createViemAdapterFromProvider=()=>({}); export default {createViemAdapterFromProvider};" }));
+    body: "export const createViemAdapterFromProvider=()=>({actionRegistry:{registerHandler(){},executeAction(){throw Error('Mock SDK must not execute registry actions');}}}); export default {createViemAdapterFromProvider};" }));
   await page.route("**/*circle-fin_app-kit.js*", route => route.fulfill({ contentType: "application/javascript", body: `
     export class AppKit {on(){} off(){} async estimateBridge(){window.unexpectedEstimate=true;throw new Error("Unexpected estimate")} async bridge(){window.unexpectedWrite=true;} } export default {AppKit};` }));
   await page.goto("/");

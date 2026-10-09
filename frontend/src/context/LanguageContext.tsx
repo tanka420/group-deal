@@ -10,18 +10,18 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType>({} as LanguageContextType);
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [language, setLanguage] = useState<Language>("vi");
+  const [language, setLanguage] = useState<Language>(()=>{
+    try{const saved=localStorage.getItem("groupdeal_lang");if(saved==="vi"||saved==="en")return saved;}catch{}
+    return "vi";
+  });
 
   useEffect(() => {
-    const saved = localStorage.getItem("groupdeal_lang") as Language;
-    if (saved && (saved === "vi" || saved === "en")) {
-      setLanguage(saved);
-    }
-  }, []);
+    document.documentElement.lang=language;
+  }, [language]);
 
   const handleSetLang = (lang: Language) => {
     setLanguage(lang);
-    localStorage.setItem("groupdeal_lang", lang);
+    try{localStorage.setItem("groupdeal_lang", lang);}catch{}
   };
 
   const t = (key: keyof typeof translations.vi): string => {

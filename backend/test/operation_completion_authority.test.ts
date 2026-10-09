@@ -1,0 +1,103 @@
+import {OperationCompletionService,OperationCompletionError} from '../src/services/operationCompletionService';
+import {ResourceDeliveryService} from '../src/services/resourceDeliveryService';
+import {CampaignEditorService} from '../src/services/campaignEditorService';
+import {campaignCalldata} from '../src/services/campaignBindingService';
+import {decryptEntitlement} from '../src/utils/crypto';
+import {reviewedProductVerified} from './fixtures/product';
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import {DatabaseSync} from 'node:sqlite';
+import express from 'express';
+import {ethers} from 'ethers';
+import {store} from '../src/db/store';
+import {config} from '../src/config';
+import {HUB_ABI} from '../src/contracts/hubAbi';
+import {OperationService} from '../src/services/operationService';
+import {TransactionVerifier} from '../src/services/transactionVerifier';
+import {IndexerService} from '../src/services/indexerService';
+import {SessionService} from '../src/services/sessionService';
+import {operationRouter} from '../src/routes/operationRoutes';
+import {eventProvider} from './fixtures/events';
+
+const initial=structuredClone(store.db),iface=new ethers.Interface(HUB_ABI),reproduce=process.argv.includes('--reproduce');
+assert.ok(store.isIsolated&&store.storageDirectory.includes('local-check-temp'));
+const sql=new DatabaseSync(path.join(store.storageDirectory,'groupdeal.sqlite'),{readOnly:true});
+const row=(collection:string,id:string)=>{const r=sql.prepare('SELECT record_json FROM domain_records WHERE collection=? AND record_key=?').get(collection,id) as {record_json:string}|undefined;return r?JSON.parse(r.record_json):undefined};
+let stage='SETUP',operation:any,token:string,log:any,hash:string;
+async function setup(verified=true){
+ store.replace(structuredClone(initial));Object.assign(config,{arcChainId:5042002,hubAddress:ethers.getAddress('0x'+'3'.repeat(40)),deploymentBlock:1});
+ const buyer=ethers.getAddress('0x'+'1'.repeat(40)),seller=ethers.getAddress('0x'+'2'.repeat(40));
+ for(const [id,wallet,roles] of [['buyer',buyer,['buyer']],['seller',seller,['seller']],['other',null,['buyer']]] as const)store.db.users[id]={id,email:id+'@fixture.invalid',activeWallet:wallet,roles:[...roles],createdAt:0};
+ store.db.campaigns.campaign={id:'campaign',sellerId:'seller',sellerPayoutWallet:seller,onchainCampaignId:1,chainId:config.arcChainId,hubAddress:config.hubAddress,status:'FINALIZED',termsHash:ethers.id('completion-terms'),protocolVersion:1,finalClearingPrice:'100'} as any;
+ store.db.orders.order={id:'order',campaignId:'campaign',onchainOrderId:1,chainId:config.arcChainId,hubAddress:config.hubAddress,buyerAccountId:'buyer',buyerPrincipal:buyer,quantity:1,lockedUnitPrice:'100',committedGross:'100',rebateAllocated:'0',buyerRefundAllocated:'100',sellerAllocated:'0',buyerClaimedAmount:'0',sellerClaimedAmount:'0',deliveryStatus:'RESOLVED',isEarlySupporter:false,earlyRebateValue:'0',txHash:ethers.id('completion-commit'),financialProjectionBlock:1} as any;
+ store.db.syncState={lastIndexedBlock:9,lastSyncTimestamp:0};store.save();
+ operation=OperationService.prepare({userId:'buyer',action:'BUYER_CLAIM',resourceId:'campaign',principal:buyer,idempotencyKey:'completion:claim',intentId:'completion:claim',calldata:iface.encodeFunctionData('claimBuyerFunds',[1,[1]]),expectedFunction:'claimBuyerFunds',expectedEvent:'FundsClaimed',expectedEventArgs:{campaignId:1,recipient:buyer,claimType:0,amount:'100'}});
+ hash=ethers.id('completion-transaction');OperationService.submit('buyer',operation.id,hash);
+ const now=Math.floor(Date.now()/1000)-10;log={...iface.encodeEventLog(iface.getEvent('FundsClaimed')!,[1,buyer,100,0]),address:config.hubAddress,transactionHash:hash,blockNumber:10,blockHash:ethers.id('block-10'),transactionIndex:0,index:0};
+ const provider=eventProvider([log],{[hash]:{from:buyer,data:operation.calldata,nonce:1}},()=>now);TransactionVerifier.setProvider(provider);IndexerService.setProvider(provider);
+ token=SessionService.issue(store.db.users.buyer);
+ if(verified){await OperationService.verify('buyer',operation.id,SessionService.authenticate(token));await IndexerService.processLogs([log]);}
+}
+const revision=()=>Number((sql.prepare('SELECT revision FROM storage_revision WHERE id=1').get() as any).revision);
+const raw=(collection:string,id:string)=>(sql.prepare('SELECT record_json FROM domain_records WHERE collection=? AND record_key=?').get(collection,id) as any)?.record_json;
+const completionDenied=(f:()=>unknown)=>assert.throws(f,e=>e instanceof OperationCompletionError&&[403,404,409,503].includes(e.status));
+async function deliverySetup(){
+ await setup(false);const seller=store.db.users.seller.activeWallet!,product=await reviewedProductVerified('seller',seller),bytes=Buffer.from('An entire privately owned resource for completion rollback checks.\n');
+ const resource=ResourceDeliveryService.upload('seller',product.version.id,'completion.txt','text/plain',bytes);
+ ResourceDeliveryService.importKeys('seller',resource.id,[crypto.randomBytes(24).toString('hex'),crypto.randomBytes(24).toString('hex')]);
+ const probe=ResourceDeliveryService.probe('seller',resource.id,'LICENSE_KEY');
+ Object.assign(store.db.campaigns.campaign,{productSnapshot:product.snapshot,deliveryMethod:'LICENSE_KEY',deliveryProbeId:probe.id,deliverySlaSeconds:86400,finalizedAt:Math.floor(Date.now()/1000),protocolVersion:config.protocolVersion});
+ Object.assign(store.db.orders.order,{quantity:2,committedGross:'200',buyerRefundAllocated:'0',deliveryStatus:'PENDING',protocolVersion:config.protocolVersion});store.save();
+ const prepared=ResourceDeliveryService.prepare('seller','order','completion:delivery');operation=store.db.operations[prepared.id];hash=ethers.id('completion-delivery-transaction');OperationService.submit('seller',operation.id,hash);
+ const now=Math.floor(Date.now()/1000)-10;log={...iface.encodeEventLog(iface.getEvent('DeliveryRecorded')!,[1,1,operation.expectedEventArgs.proofHash,now,now+172800]),address:config.hubAddress,transactionHash:hash,blockNumber:10,blockHash:ethers.id('block-10'),transactionIndex:0,index:0};
+ const provider=eventProvider([log],{[hash]:{from:seller,data:operation.calldata,nonce:1}},()=>now);TransactionVerifier.setProvider(provider);IndexerService.setProvider(provider);
+ token=SessionService.issue(store.db.users.seller);await OperationService.verify('seller',operation.id,SessionService.authenticate(token));await IndexerService.processLogs([log]);return {bytes,product};
+}
+async function publicationSetup(){
+ await setup(false);delete store.db.orders.order;delete store.db.campaigns.campaign;delete store.db.operations[operation.id];store.save();
+ const payout=store.db.users.seller.activeWallet!,product=await reviewedProductVerified('seller',payout),resource=ResourceDeliveryService.upload('seller',product.version.id,'published.txt','text/plain',Buffer.from('A complete product resource used by the publication context.'));
+ const probe=ResourceDeliveryService.probe('seller',resource.id,'FILE_LINK');
+ const draft=CampaignEditorService.saveDraft('seller',{title:'Completion publication fixture',description:'Full owned product and native canonical binding',thumbnailUrl:product.version.thumbnailUrl,productVersionId:product.version.id,metric:'BUYER_COUNT',tiers:[{threshold:1,priceUSDC:'1'},{threshold:2,priceUSDC:'0.9'}],maxPerAccount:2,inventoryLimit:10,durationDays:7,deliverySlaHours:24,deliveryMethod:'FILE_LINK'});
+ Object.assign(draft,{visibility:'PUBLIC',deliveryProbeId:probe.id,dryRunDeliveryVerified:true,productSnapshot:product.snapshot});draft.termsHash=CampaignEditorService.termsHash(draft);
+ const now=Math.floor(Date.now()/1000),followerId='follow_'+crypto.createHash('sha256').update(JSON.stringify(['other','seller'])).digest('hex');
+ store.db.sellerFollows[followerId]={version:1,id:followerId,userId:'other',sellerId:'seller',revision:1,following:true,notifyNewDeals:true,notifyDealUpdates:false,createdAt:(now-20)*1000,changedAt:(now-20)*1000,newDealsSince:(now-20)*1000,dealUpdatesSince:(now-20)*1000};store.save();
+ operation=OperationService.prepare({userId:'seller',action:'PUBLISH',resourceId:draft.id,principal:payout,idempotencyKey:'completion:publication',intentId:'completion:publication',calldata:campaignCalldata(draft),expectedFunction:'createCampaign',expectedEvent:'CampaignCreated',expectedEventArgs:{sellerPayoutWallet:payout,termsHash:draft.termsHash}});
+ hash=ethers.id('completion-publish-transaction');OperationService.submit('seller',operation.id,hash);
+ log={...iface.encodeEventLog(iface.getEvent('CampaignCreated')!,[2,payout,draft.termsHash,0,now,now+draft.durationSeconds,10]),address:config.hubAddress,transactionHash:hash,blockNumber:10,blockHash:ethers.id('block-10'),transactionIndex:0,index:0};
+ const provider=eventProvider([log],{[hash]:{from:payout,data:operation.calldata,nonce:1}},()=>now);TransactionVerifier.setProvider(provider);IndexerService.setProvider(provider);
+ token=SessionService.issue(store.db.users.seller);await OperationService.verify('seller',operation.id,SessionService.authenticate(token));await IndexerService.processLogs([log]);
+ const collision=Object.values(store.db.campaigns).find(c=>c.id!==draft.id&&c.onchainCampaignId===2)!;(collision as any).retainedPrivateExtension={provenance:'original-indexer-owner-context',nested:{revision:3}};store.save();
+ return {draftId:draft.id,collisionId:collision.id,archive:raw('campaigns',collision.id)};
+}
+function atomicFailure(actor:string){
+ const connection=new DatabaseSync(path.join(store.storageDirectory,'groupdeal.sqlite'));
+ connection.exec("CREATE TRIGGER reject_completion_commit BEFORE UPDATE ON domain_records WHEN NEW.collection='operations' AND json_extract(NEW.record_json,'$.phase')='PROJECTED' BEGIN SELECT RAISE(ABORT,'isolated completion rollback'); END");
+ try{completionDenied(()=>OperationService.projected(actor,operation.id,SessionService.authenticate(token)));}finally{connection.exec('DROP TRIGGER reject_completion_commit');connection.close();}
+}
+async function main(){const app=express();app.use(express.json());app.use('/api/transactions',operationRouter);const server=app.listen(0,'127.0.0.1');await new Promise<void>(resolve=>server.once('listening',resolve));const base='http://127.0.0.1:'+(server.address() as any).port,post=()=>fetch(base+'/api/transactions/'+operation.id+'/recover',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:'{}'}),observations:{id:string;status:number;defect:boolean}[]=[];
+ try{
+  stage='CONTROL_CANONICAL_CLAIM_COMPLETION';await setup();const control=await post();assert.equal(control.status,200);assert.equal(row('operations',operation.id).phase,'PROJECTED');assert.equal(row('orders','order').buyerClaimedAmount,'100');
+  stage='N378_CACHED_PROJECTED_EARLY_RETURN';await setup(false);operation.phase='PROJECTED';const stale=await post(),staleBody=await stale.json() as any,staleDefect=stale.status===200&&staleBody.operation?.phase==='PROJECTED'&&row('operations',operation.id).phase==='SUBMITTED';observations.push({id:'N378',status:stale.status,defect:staleDefect});assert.equal(staleDefect,reproduce);
+  stage='N379_COMPLETION_UNRELATED_FLUSH';await setup();store.db.users.other.roles=['operator'];let flushedStatus=200;try{OperationService.projected('buyer',operation.id)}catch(e){flushedStatus=Number((e as any).status)||500}const flushDefect=flushedStatus===200&&row('users','other').roles.includes('operator');observations.push({id:'N379',status:flushedStatus,defect:flushDefect});assert.equal(flushDefect,reproduce);if(!reproduce)assert.equal(flushedStatus,200);
+  stage='N380_CACHED_OPERATION_OWNER_FORGERY';await setup();operation.userId='other';let forgedStatus=200;try{OperationService.projected('other',operation.id)}catch(e){forgedStatus=Number((e as any).status)||500}const forgedDefect=forgedStatus===200&&row('operations',operation.id).userId==='other';observations.push({id:'N380',status:forgedStatus,defect:forgedDefect});assert.equal(forgedDefect,reproduce);
+  stage='N381_LOGOUT_AFTER_VERIFICATION';await setup();const original=IndexerService.projectVerifiedReceipt;let revoked=false;IndexerService.projectVerifiedReceipt=async(receipt)=>{if(!revoked){revoked=true;SessionService.logout(token,{idempotencyKey:crypto.randomUUID()})}return original.call(IndexerService,receipt)};
+  try{const revokedResponse=await post(),logoutDefect=revokedResponse.status===200&&row('operations',operation.id).phase==='PROJECTED';observations.push({id:'N381',status:revokedResponse.status,defect:logoutDefect});assert.equal(logoutDefect,reproduce);if(!reproduce)assert.equal(revokedResponse.status,401);}finally{IndexerService.projectVerifiedReceipt=original}
+  if(!reproduce){
+   stage='COMPLETION_NO_WRITE_REPLAY';await setup();OperationService.projected('buyer',operation.id,SessionService.authenticate(token));const projectedBytes=raw('operations',operation.id),projectedRevision=revision(),claimBytes=raw('orders','order');const replay=await post();assert.equal(replay.status,200);assert.equal(raw('operations',operation.id),projectedBytes);assert.equal(raw('orders','order'),claimBytes);assert.equal(revision(),projectedRevision);
+   stage='COMMITTED_PRIVATE_EXTENSIONS';await setup();(operation as any).retainedPrivateExtension={nested:{marker:'owned-private-operation-extension'}};store.save();store.db.users.other.roles=['operator'];OperationService.projected('buyer',operation.id,SessionService.authenticate(token));assert.deepEqual(row('operations',operation.id).retainedPrivateExtension,{nested:{marker:'owned-private-operation-extension'}});assert.deepEqual(row('users','other').roles,['buyer']);assert.deepEqual(store.db.users.other.roles,['operator']);assert.ok(!JSON.stringify(OperationService.publicOwned('buyer',operation.id,SessionService.authenticate(token))).includes('retainedPrivateExtension'));
+   stage='COMMITTED_JOURNAL_REQUIRED';await setup();const eventKey=Object.keys(store.db.eventJournal)[0],savedJournal=structuredClone(store.db.eventJournal[eventKey]);delete store.db.eventJournal[eventKey];store.save();store.db.eventJournal[eventKey]=savedJournal;const missingJournalRevision=revision();completionDenied(()=>OperationService.projected('buyer',operation.id));assert.equal(row('operations',operation.id).phase,'RECEIPT_VERIFIED');assert.equal(revision(),missingJournalRevision);
+   stage='COMMITTED_CONSUMPTION_REQUIRED';await setup();const savedConsumption=structuredClone(store.db.consumedTxHashes[hash]);delete store.db.consumedTxHashes[hash];store.save();store.db.consumedTxHashes[hash]=savedConsumption;completionDenied(()=>OperationService.projected('buyer',operation.id));assert.equal(row('operations',operation.id).phase,'RECEIPT_VERIFIED');
+   stage='COMMITTED_ORDER_HISTORY_REQUIRED';await setup();const savedOrder=structuredClone(store.db.orders.order);store.db.orders.order.transactionHistory=[];store.save();store.db.orders.order=savedOrder;completionDenied(()=>OperationService.projected('buyer',operation.id));assert.equal(row('operations',operation.id).phase,'RECEIPT_VERIFIED');
+   stage='FOREIGN_OWNER_FINITE_STATUS';await setup();operation.userId='other';assert.throws(()=>OperationService.projected('other',operation.id),e=>e instanceof OperationCompletionError&&e.status===404);assert.equal(row('operations',operation.id).userId,'buyer');
+   stage='DELIVERY_ATOMIC_SQL_ROLLBACK';const delivered=await deliverySetup();await assert.rejects(OperationCompletionService.fulfill('seller','order',decryptEntitlement(operation.stagedEntitlementEncrypted),ethers.id('untracked-delivery-broadcast'),SessionService.authenticate(token)),e=>e instanceof OperationCompletionError&&e.code==='OPERATION_COMPLETION_CONTEXT_CHANGED');const deliverySqlBefore={op:raw('operations',operation.id),order:raw('orders','order'),grants:structuredClone(store.db.resourceGrants),keys:structuredClone(store.db.licenseInventory)},deliveryRevision=revision();atomicFailure('seller');assert.equal(raw('operations',operation.id),deliverySqlBefore.op);assert.equal(raw('orders','order'),deliverySqlBefore.order);assert.deepEqual(store.db.resourceGrants,deliverySqlBefore.grants);assert.deepEqual(store.db.licenseInventory,deliverySqlBefore.keys);assert.equal(revision(),deliveryRevision);for(const g of Object.values(store.db.resourceGrants))assert.equal(row('resourceGrants',g.id).state,'STAGED');for(const k of Object.values(store.db.licenseInventory))assert.equal(row('licenseInventory',k.id).status,'RESERVED');
+   stage='DELIVERY_COUPLED_LICENSE_AND_BYTES';const deliveryProof=SessionService.authenticate(token);OperationService.projected('seller',operation.id,deliveryProof);assert.equal(row('operations',operation.id).phase,'PROJECTED');assert.equal(row('orders','order').deliveryTxHash,hash);const stageContents=JSON.parse(decryptEntitlement(row('orders','order').deliveredEntitlementEncrypted));assert.equal(stageContents.grants.length,2);for(const g of Object.values(store.db.resourceGrants)){assert.equal(row('resourceGrants',g.id).state,'ACTIVE');assert.equal(row('licenseInventory',g.licenseKeyId!).status,'ASSIGNED');}const grant=Object.values(store.db.resourceGrants)[0],license=stageContents.grants.find((g:any)=>g.id===grant.id);ResourceDeliveryService.redeem('buyer',grant.id,license.licenseKey);assert.deepEqual(ResourceDeliveryService.download('buyer',grant.id).bytes,delivered.bytes);const redeemedRevision=revision();OperationService.projected('seller',operation.id,deliveryProof);assert.equal(revision(),redeemedRevision);
+   stage='DIRTY_GRANT_TARGET_DENIED';await deliverySetup();const dirty=Object.values(store.db.resourceGrants)[0];dirty.unitIndex=99;const dirtyGrantRevision=revision();completionDenied(()=>OperationService.projected('seller',operation.id,SessionService.authenticate(token)));assert.equal(row('operations',operation.id).phase,'RECEIPT_VERIFIED');assert.equal(row('resourceGrants',dirty.id).unitIndex,0);assert.equal(row('orders','order').deliveredEntitlementEncrypted,undefined);assert.equal(revision(),dirtyGrantRevision);
+   stage='PUBLISH_MERGE_AND_NOTICE_ATOMIC_ROLLBACK';const published=await publicationSetup(),publishRevision=revision(),draftBytes=raw('campaigns',published.draftId),publishOpBytes=raw('operations',operation.id),noticeIds=Object.keys(store.db.notifications);atomicFailure('seller');assert.equal(raw('campaigns',published.draftId),draftBytes);assert.equal(raw('campaigns',published.collisionId),published.archive);assert.equal(raw('operations',operation.id),publishOpBytes);assert.deepEqual(Object.keys(store.db.notifications),noticeIds);assert.equal(revision(),publishRevision);
+   stage='PUBLISH_STABLE_ID_ARCHIVE_AND_NOTICE';OperationService.projected('seller',operation.id,SessionService.authenticate(token));const bound=row('campaigns',published.draftId);assert.equal(bound.onchainCampaignId,2);assert.equal(bound.projectionOrigin,'VERIFIED_PUBLISH');assert.equal(raw('campaigns',published.collisionId),undefined);assert.equal(decryptEntitlement(bound.mergedProjectionEncrypted),published.archive);const followNotices=Object.values(store.db.notifications).filter(n=>n.type==='SELLER_FOLLOW_CampaignCreated');assert.equal(followNotices.length,1);assert.equal(followNotices[0].userId,'other');assert.equal(followNotices[0].source?.kind,'SELLER_FOLLOW_EVENT');assert.equal(row('notifications',followNotices[0].id).source.campaignId,published.draftId);assert.equal(Object.values(store.db.emailOutbox).filter(n=>n.userId==='other').length,0);const publishedRevision=revision();OperationService.projected('seller',operation.id,SessionService.authenticate(token));assert.equal(revision(),publishedRevision);assert.equal(Object.values(store.db.notifications).filter(n=>n.type==='SELLER_FOLLOW_CampaignCreated').length,1);
+   console.log('PASS_COMPLETION_COUPLED_AUTHORITY: no-write replay, private extension retention, native consumption/journal/order history, finite foreign-owner rejection, delivery rollback/license activation/redemption/bytes, dirty grant denial, stable publication/archive/notice rollback and no-email dedupe');
+  }
+  console.log(JSON.stringify({result:reproduce?'ORIGINAL_COMPLETION_REPRODUCTION':'PASS_COMPLETION_ORIGINAL_GUARDS',observations}));
+ }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));sql.close();store.close()}
+}
+main().catch(e=>{console.error({stage,code:e instanceof Error&&typeof (e as any).code==='string'&&/^[-A-Z_0-9]{1,80}$/.test((e as any).code)?(e as any).code:e instanceof Error?e.name:'ERROR',status:Number((e as any).status)||undefined,assertionFailed:true});process.exitCode=1});

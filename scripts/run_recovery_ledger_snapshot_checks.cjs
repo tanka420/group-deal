@@ -1,0 +1,5 @@
+const path=require('node:path'),{spawnSync}=require('node:child_process'),{localCheckEnvironment}=require('./local_check_runtime.cjs'),root=path.resolve(__dirname,'..');
+const selected=process.argv.find(a=>a.startsWith('--file='))?.slice(7),allowed=['recovery_ledger_snapshot','runtime_backup','backup_shadow','shadow_recovery','transactional_store','recovery_dependency_freshness','recovery_inspection'];
+if(selected&&!allowed.includes(selected))throw Error('Unknown recovery check selection');
+const files=selected?[selected]:['recovery_ledger_snapshot'];
+for(const file of files){console.log('Affected recovery ledger snapshot check: '+file);const result=spawnSync(process.execPath,[path.join(root,'backend/node_modules/tsx/dist/cli.mjs'),path.join(root,'backend/test/'+file+'.test.ts'),...process.argv.slice(2).filter(arg=>arg==='--reproduce'||arg==='--check=inspectionApiInputs'||/^--from=[1-9][0-9]*$/.test(arg))],{cwd:root,env:localCheckEnvironment(root),stdio:'inherit',windowsHide:true,timeout:240000});if(result.status!==0||result.signal||result.error){process.exitCode=1;break}}

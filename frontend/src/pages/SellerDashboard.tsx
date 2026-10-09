@@ -1,8 +1,20 @@
-import React, { useState, useEffect } from "react";
-import { ethers } from "ethers";
+import {ManagedOrderAction,ManagedOrderActionHandle} from "../components/ManagedOrderAction";
+import {ManagedClaim} from "../components/ManagedClaim";
+import React, { useState, useEffect, useRef } from "react";
 import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
 import { useWeb3 } from "../context/Web3Context";
+import { displayUSDC } from "../services/orderAccounting";
+import {orderMoney,deliveryStatusText,recordedDeadline} from '../services/buyerOrderPresentation';
+import {sellerOrderAmounts,canCheckSettlement,sellerCampaignStatus,validateSellerData} from '../services/sellerOrderPresentation';
+import {ProductStudio} from "../components/ProductStudio";
+import { SellerCreateDeal } from "../components/SellerCreateDeal";
+import {CampaignReplacementControl} from "../components/CampaignReplacementControl";
+import {CampaignAmendmentControl} from "../components/CampaignAmendments";
+import { SellerProfileEditor } from "../components/SellerProfileEditor";
+import { ManagedFulfillment } from "../components/ManagedFulfillment";
+import { TransactionHistory } from "../components/TransactionHistory";
+import {WebhookRecoveryReview} from '../components/WebhookRecoveryReview';
 import {
   Store,
   PlusCircle,
@@ -20,275 +32,76 @@ import {
 } from "lucide-react";
 
 export const SellerDashboard: React.FC = () => {
-  const { t } = useLanguage();
-  const { user, setupSellerProfile } = useAuth();
+  const { t, language } = useLanguage();
+  const text=(vi:string,en:string)=>language==="en"?en:vi;
+  const { user,token,getSessionEpoch } = useAuth();
   const {
     account,
-    createCampaignOnchain,
-    recordDeliveryOnchain,
-    settleUndisputedOrderOnchain,
-    claimSellerProceedsOnchain,
   } = useWeb3();
 
-  const [activeTab, setActiveTab] = useState<"CAMPAIGNS" | "FULFILLMENT" | "WEBHOOKS" | "CREATE">(
+  const orderAction=useRef<ManagedOrderActionHandle>(null);
+  const [activeTab, setActiveTab] = useState<"CAMPAIGNS" | "FULFILLMENT" | "WEBHOOKS" | "CREATE" | "PROFILE" | "PRODUCTS">(
     "CAMPAIGNS"
   );
+  const [initialDraftId,setInitialDraftId]=useState<string|undefined>();
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [webhookData, setWebhookData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // Setup Profile modal
-  const [showProfileSetup, setShowProfileSetup] = useState(false);
-  const [displayName, setDisplayName] = useState("");
-  const [bio, setBio] = useState("");
-  const [payoutWallet, setPayoutWallet] = useState(account || "");
+  const [loadError,setLoadError]=useState<string|null>(null);
+  const dataController=useRef<AbortController|null>(null);
+  const scopeRef=useRef({userId:user?.id,token});scopeRef.current={userId:user?.id,token};
+  const [dataOwner,setDataOwner]=useState({userId:user?.id,token}),dataVisible=dataOwner.userId===user?.id&&dataOwner.token===token;
 
   // Fulfill Modal State
   const [fulfillOrderObj, setFulfillOrderObj] = useState<any | null>(null);
-  const [secretContent, setSecretContent] = useState("");
-  const [isFulfilling, setIsFulfilling] = useState(false);
-
-  // Create Campaign Wizard State
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("Công cụ lập trình");
-  const [description, setDescription] = useState("");
-  const [thumbnailUrl, setThumbnailUrl] = useState("");
-  const [metric, setMetric] = useState<"BUYER_COUNT" | "UNITS_COUNT">("BUYER_COUNT");
-  const [tiers, setTiers] = useState([
-    { threshold: 1, priceUSDC: 100 },
-    { threshold: 10, priceUSDC: 75 },
-    { threshold: 25, priceUSDC: 50 },
-  ]);
-  const [maxPerAccount, setMaxPerAccount] = useState(3);
-  const [inventoryLimit, setInventoryLimit] = useState(50);
-  const [durationDays, setDurationDays] = useState(7);
-  const [deliverySlaHours, setDeliverySlaHours] = useState(24);
-  const [earlyRebateEnabled, setEarlyRebateEnabled] = useState(false);
-  const [earlySlotsCount, setEarlySlotsCount] = useState(5);
-  const [earlyRebateAmountUSDC, setEarlyRebateAmountUSDC] = useState(10);
-  const [deliveryMethod, setDeliveryMethod] = useState("LICENSE_KEY");
-  const [samplePayload, setSamplePayload] = useState("PRO-KEY-2026-ABC-XYZ-999");
-  const [isDryRunVerified, setIsDryRunVerified] = useState(false);
-  const [isCreatingDraft, setIsCreatingDraft] = useState(false);
 
   // Webhook form state
   const [webhookUrl, setWebhookUrl] = useState("");
   const [isSavingWebhook, setIsSavingWebhook] = useState(false);
+  const [webhookNotice,setWebhookNotice]=useState<'SAVED'|'REVIEW'|'FAILED'|'VERIFIED'|null>(null);
+  const webhookSaveController=useRef<AbortController|null>(null);
+  const webhookHeld=webhookData?.restoredReviewRequired===true||webhookData?.canConfigure===false||webhookNotice==='REVIEW';
+  useEffect(()=>{webhookSaveController.current?.abort();webhookSaveController.current=null;setIsSavingWebhook(false);setWebhookNotice(null);return()=>{webhookSaveController.current?.abort();};},[user?.id,token]);
 
   const fetchSellerData = () => {
-    const token = localStorage.getItem("groupdeal_token");
-    if (!token) return;
+    dataController.current?.abort();
+    const controller=new AbortController();dataController.current=controller;setLoading(true);setLoadError(null);setCampaigns([]);setOrders([]);setWebhookData(null);setWebhookUrl('');
+    const owner={userId:user?.id,token};setDataOwner(owner);
+    if (!token||!user?.id) {setLoading(false);setLoadError('SELLER_SIGN_IN_REQUIRED');return;}
+    const epoch=getSessionEpoch(),timer=setTimeout(()=>controller.abort(),15000),current=()=>dataController.current===controller&&scopeRef.current.userId===owner.userId&&scopeRef.current.token===owner.token&&getSessionEpoch()===epoch;
+    const read=async(url:string)=>{const r=await fetch(url,{signal:controller.signal,redirect:'error',cache:'no-store',headers:{Authorization:'Bearer '+token}});if(!r.ok)throw Error('SELLER_DATA_UNAVAILABLE');return r.json();};
 
     Promise.all([
-      fetch("/api/seller/campaigns", { headers: { Authorization: `Bearer ${token}` } }).then((r) =>
-        r.json()
-      ),
-      fetch("/api/seller/orders", { headers: { Authorization: `Bearer ${token}` } }).then((r) =>
-        r.json()
-      ),
-      fetch("/api/seller/webhooks", { headers: { Authorization: `Bearer ${token}` } }).then((r) =>
-        r.json()
-      ),
+      read('/api/seller/campaigns'),read('/api/seller/orders'),read('/api/seller/webhooks'),
     ])
       .then(([cData, oData, wData]) => {
-        setCampaigns(cData.campaigns || []);
-        setOrders(oData.orders || []);
-        setWebhookData(wData.webhook || null);
-        if (wData.webhook?.targetUrl) setWebhookUrl(wData.webhook.targetUrl);
+        if(controller.signal.aborted||!current())return;
+        const data=validateSellerData(cData,oData,wData,owner.userId!);setCampaigns(data.campaigns);setOrders(data.orders);setWebhookData(data.webhook);setWebhookUrl(data.webhook?.targetUrl??'');setWebhookNotice(null);
       })
-      .catch((e) => console.warn("Failed to fetch seller data", e))
-      .finally(() => setLoading(false));
+      .catch(() => {if(current())setLoadError('SELLER_DATA_UNAVAILABLE');})
+      .finally(() => {clearTimeout(timer);if(current())setLoading(false);});
   };
 
   useEffect(() => {
     fetchSellerData();
-  }, [user]);
-
-  // Handle dry-run delivery test (F21 fail-closed fix)
-  const handleTestDeliveryFlow = async () => {
-    try {
-      const token = localStorage.getItem("groupdeal_token");
-      const res = await fetch("/api/campaigns/test-delivery", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ deliveryMethod, samplePayload }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setIsDryRunVerified(false);
-        alert("❌ Kiểm tra giao thử nghiệm thất bại: " + (data.error || "Lỗi không xác định"));
-        return;
-      }
-      setIsDryRunVerified(true);
-      alert("✅ Kiểm tra thử luồng mã hóa & giải mã thành công! Bạn có thể xuất bản chiến dịch.");
-    } catch (e: any) {
-      setIsDryRunVerified(false);
-      alert("❌ Lỗi kiểm tra thử: " + e.message);
-    }
-  };
-
-  // Create Campaign Draft & Publish
-  const handleCreateCampaign = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isDryRunVerified) {
-      alert("Vui lòng thực hiện 'Kiểm tra thử luồng giao (Dry-run test)' trước khi tạo!");
-      return;
-    }
-    setIsCreatingDraft(true);
-    try {
-      const token = localStorage.getItem("groupdeal_token");
-      // 1. Create draft
-      const res = await fetch("/api/campaigns/draft", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          title,
-          description,
-          category,
-          thumbnailUrl: thumbnailUrl || "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800",
-          metric,
-          tiers,
-          maxPerAccount,
-          inventoryLimit,
-          durationDays,
-          deliverySlaHours,
-          earlyRebateEnabled,
-          earlySlotsCount,
-          earlyRebateAmountUSDC,
-          visibility: "PUBLIC",
-          deliveryMethod,
-          deliveryContentTemplate: samplePayload,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-
-      // 2. Mark dry run verified & publish
-      const testRes = await fetch(`/api/campaigns/${data.campaign.id}/test-delivery`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ samplePayload }),
-      });
-      const testData = await testRes.json();
-      if (!testRes.ok) {
-        throw new Error(testData.error || "Giao thử nghiệm thất bại trước khi publish");
-      }
-
-      const chainResult = await createCampaignOnchain(data.campaign);
-      const publishRes = await fetch(`/api/campaigns/${data.campaign.id}/publish`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ txHash: chainResult.txHash }),
-      });
-      const publishData = await publishRes.json();
-      if (!publishRes.ok) {
-        throw new Error(publishData.error || "Xuất bản chiến dịch thất bại");
-      }
-
-      alert("🎉 Chiến dịch đã được tạo và xuất bản thành công trên Arc Testnet!");
-      setActiveTab("CAMPAIGNS");
-      fetchSellerData();
-    } catch (err: any) {
-      alert("Lỗi tạo chiến dịch: " + err.message);
-    } finally {
-      setIsCreatingDraft(false);
-    }
-  };
-
-  // Fulfill order
-  const handleFulfillOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!fulfillOrderObj || !secretContent) return;
-    setIsFulfilling(true);
-    try {
-      const token = localStorage.getItem("groupdeal_token");
-      const campaign = campaigns.find((item) => item.id === fulfillOrderObj.campaignId);
-      if (!campaign?.onchainCampaignId) {
-        throw new Error("Không tìm thấy campaign Arc tương ứng với đơn hàng");
-      }
-      if (!account || account.toLowerCase() !== campaign.sellerPayoutWallet.toLowerCase()) {
-        throw new Error("Hãy kết nối đúng ví nhận tiền đã đăng ký của người bán");
-      }
-      const proofHash = ethers.keccak256(ethers.toUtf8Bytes(secretContent));
-      const chainResult = await recordDeliveryOnchain(
-        Number(campaign.onchainCampaignId),
-        Number(fulfillOrderObj.onchainOrderId),
-        String(fulfillOrderObj.id),
-        proofHash
-      );
-      const res = await fetch(`/api/seller/orders/${fulfillOrderObj.id}/deliver`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ secretContent, txHash: chainResult.txHash }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-
-      alert("✅ Đã giao mã bản quyền mã hóa AES-256 thành công!");
-      setFulfillOrderObj(null);
-      setSecretContent("");
-      fetchSellerData();
-    } catch (err: any) {
-      alert("Lỗi giao sản phẩm: " + err.message);
-    } finally {
-      setIsFulfilling(false);
-    }
-  };
-
-  const handleSettleUndisputed = async (order: any) => {
-    try {
-      const campaign = campaigns.find((item) => item.id === order.campaignId);
-      if (!campaign?.onchainCampaignId) throw new Error("Thiếu campaign Arc");
-      await settleUndisputedOrderOnchain(
-        Number(campaign.onchainCampaignId),
-        Number(order.onchainOrderId)
-      );
-      fetchSellerData();
-    } catch (error: any) {
-      alert("Lỗi quyết toán đơn hết hạn tranh chấp: " + error.message);
-    }
-  };
-
-  // Claim Seller proceeds
-  const handleClaimSellerProceeds = async (order: any) => {
-    try {
-      const campaign = campaigns.find((item) => item.id === order.campaignId);
-      if (!campaign?.onchainCampaignId) throw new Error("Thiếu campaign Arc");
-      await claimSellerProceedsOnchain(
-        Number(campaign.onchainCampaignId),
-        [Number(order.onchainOrderId)]
-      );
-      alert("Đã rút doanh thu về ví thành công!");
-      fetchSellerData();
-    } catch (e: any) {
-      alert("Lỗi rút tiền: " + e.message);
-    }
-  };
+    return()=>{dataController.current?.abort();dataController.current=null;};
+  }, [user?.id,token]);
+  useEffect(()=>{setFulfillOrderObj(null);setWebhookData(null);setWebhookUrl('');setActiveTab('CAMPAIGNS');setInitialDraftId(undefined);},[user?.id,token]);
 
   // Save webhook
   const handleSaveWebhook = async (e: React.FormEvent) => {
     e.preventDefault();
+    if(webhookHeld){setWebhookNotice('REVIEW');return;}
+    if(!token||webhookSaveController.current||webhookNotice==='FAILED')return;
+    const controller=new AbortController();webhookSaveController.current=controller;const timer=setTimeout(()=>controller.abort(),15000),owner={userId:user?.id,token},epoch=getSessionEpoch(),current=()=>webhookSaveController.current===controller&&scopeRef.current.userId===owner.userId&&scopeRef.current.token===owner.token&&getSessionEpoch()===epoch;
+    setWebhookNotice(null);
     setIsSavingWebhook(true);
     try {
-      const token = localStorage.getItem("groupdeal_token");
       const res = await fetch("/api/seller/webhooks", {
         method: "POST",
+        redirect:'error',cache:'no-store',
+        signal:controller.signal,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -296,145 +109,149 @@ export const SellerDashboard: React.FC = () => {
         body: JSON.stringify({ targetUrl: webhookUrl }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if(controller.signal.aborted||!current())return;
+      if (!res.ok){if(res.status===409&&data.error==='RESTORED_SUBSCRIPTION_REVIEW_REQUIRED'){setWebhookNotice('REVIEW');setWebhookData((prior:any)=>prior?{...prior,secret:null,restoredReviewRequired:true,canConfigure:false,canEnqueue:false}:prior);return;}throw new Error('WEBHOOK_SETUP_REJECTED');}
+      if(data.success!==true||!data.webhook)throw new Error('WEBHOOK_RESPONSE_INVALID');validateSellerData({campaigns:[]},{orders:[]},data,owner.userId!);
       setWebhookData(data.webhook);
-      alert("Đã lưu webhook thành công!");
-    } catch (err: any) {
-      alert("Lỗi lưu webhook: " + err.message);
+      setWebhookNotice('SAVED');
+    } catch {
+      if(current())setWebhookNotice('FAILED');
     } finally {
-      setIsSavingWebhook(false);
+      clearTimeout(timer);if(webhookSaveController.current===controller){const stillCurrent=current();webhookSaveController.current=null;if(stillCurrent)setIsSavingWebhook(false);}
     }
   };
 
   // Calculate seller claimable
-  let totalSellerClaimable = 0;
-  orders.forEach((o) => {
-    if ((o.deliveryStatus === "CONFIRMED" || o.deliveryStatus === "RESOLVED") && !o.sellerClaimed) {
-      totalSellerClaimable += Number(o.sellerAllocated || 0) / 1e6;
-    }
-  });
+  let totalSellerClaimable = 0n;
+  if(dataVisible)orders.forEach((o) => {totalSellerClaimable += sellerOrderAmounts(o).remaining??0n;});
 
+  if(activeTab==="CREATE")return <div><div className="action-row" style={{marginBottom:"1.25rem"}}><button className="btn btn-secondary" onClick={()=>setActiveTab("CAMPAIGNS")}>{text("← Quay lại quản lý deal","← Back to deal management")}</button></div><SellerCreateDeal key={(user?.id??'')+':'+(initialDraftId??'new')} initialDraftId={initialDraftId} onCreated={()=>{setActiveTab("CAMPAIGNS");fetchSellerData();}}/></div>;
+  const dataReady=dataVisible&&!loading&&!loadError&&!!user?.id&&!!token,allSellerAmountsVerified=orders.every(order=>sellerOrderAmounts(order).remaining!==null);
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
+    <div className="app-page seller-dashboard">
+      {loadError&&<div role="alert" className="notice notice-error">{loadError==='SELLER_SIGN_IN_REQUIRED'?text('Đăng nhập để tải dữ liệu seller.','Sign in to load seller data.'):text('Không tải được dữ liệu. Thử lại khi kết nối ổn định.','Unable to load seller data. Retry when your connection is stable.')}<button className="btn btn-secondary" onClick={fetchSellerData}>{text('Thử lại','Retry')}</button></div>}
+      <div className="workspace-heading">
         <div>
           <h1 style={{ fontSize: "1.85rem", marginBottom: "0.25rem" }}>{t("sellerDashboardTitle")}</h1>
           <p style={{ color: "var(--text-secondary)", fontSize: "0.92rem" }}>
-            Khởi tạo chiến dịch mua chung theo bậc giá, quản lý fulfillment và đối soát doanh thu.
+            {text("Quản lý sản phẩm, deal, giao quyền truy cập và khoản được claim.","Manage products, deals, access delivery and claimable allocations.")}
           </p>
         </div>
 
-        <button className="btn btn-primary" onClick={() => setActiveTab("CREATE")}>
+        <button className="btn btn-primary" onClick={() => {setInitialDraftId(undefined);setActiveTab("CREATE");}}>
           <PlusCircle size={17} />
           {t("createCampaignBtn")}
         </button>
       </div>
 
+      {(loading||!dataVisible)&&<p role="status">{text("Đang tải dữ liệu seller…","Loading seller data…")}</p>}
       {/* Overview Cards */}
-      <div
+      {dataReady&&<div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
           gap: "1.25rem",
           marginBottom: "2rem",
         }}
       >
         <div className="glass-card">
           <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "0.3rem" }}>
-            Chiến dịch đang mở
+            {text("Đã xuất bản / đang hoạt động", "Published / active campaigns")}
           </div>
-          <div className="font-mono" style={{ fontSize: "1.8rem", fontWeight: 800 }}>
-            {campaigns.length}
+          <div className="ui-stat-value" style={{ fontSize: "1.8rem", fontWeight: 800 }}>
+            {campaigns.filter(c=>["PUBLISHED","ACTIVE"].includes(c.status)).length}
           </div>
         </div>
 
         <div className="glass-card">
           <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "0.3rem" }}>
-            Đơn chờ giao hàng (Fulfillment)
+            {text("Đơn chờ giao quyền truy cập", "Orders awaiting access delivery")}
           </div>
-          <div className="font-mono" style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--warning)" }}>
+          <div className="ui-stat-value" style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--warning)" }}>
             {orders.filter((o) => o.deliveryStatus === "PENDING").length}
           </div>
         </div>
 
         <div className="glass-card">
           <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "0.3rem" }}>
-            Doanh thu có thể rút (Proceeds)
+            {text("Phân bổ còn được claim","Remaining claimable allocations")}
           </div>
-          <div className="font-mono" style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--success)" }}>
-            ${totalSellerClaimable.toFixed(2)} USDC
+          <div className="ui-stat-value" style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--success)" }}>
+            {allSellerAmountsVerified?`${displayUSDC(totalSellerClaimable)} USDC`:text('Chưa xác minh','Unverified')}
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Tabs */}
-      <div
-        style={{
-          display: "flex",
-          gap: "0.5rem",
-          borderBottom: "1px solid var(--border-subtle)",
-          paddingBottom: "1rem",
-          marginBottom: "2rem",
-        }}
-      >
+      <nav className="workspace-tabs" aria-label={language==="en"?"Workspace sections":"Các mục workspace"}>
         <button
           className={`btn btn-sm ${activeTab === "CAMPAIGNS" ? "btn-primary" : "btn-secondary"}`}
           onClick={() => setActiveTab("CAMPAIGNS")}
         >
-          Chiến dịch của tôi ({campaigns.length})
+          {text("Chiến dịch của tôi","My campaigns")} ({dataReady?campaigns.length:"—"})
         </button>
         <button
           className={`btn btn-sm ${activeTab === "FULFILLMENT" ? "btn-primary" : "btn-secondary"}`}
           onClick={() => setActiveTab("FULFILLMENT")}
         >
-          Đơn hàng & Giao quyền truy cập ({orders.length})
+          {text("Đơn hàng & Giao quyền truy cập","Orders & access delivery")} ({dataReady?orders.length:"—"})
         </button>
         <button
           className={`btn btn-sm ${activeTab === "WEBHOOKS" ? "btn-primary" : "btn-secondary"}`}
           onClick={() => setActiveTab("WEBHOOKS")}
         >
-          Tích hợp Webhook HMAC
+          {text("Tích hợp Webhook HMAC","HMAC webhook integration")}
         </button>
-      </div>
+        <button className={`btn btn-sm ${activeTab === "PROFILE" ? "btn-primary" : "btn-secondary"}`} onClick={() => setActiveTab("PROFILE")}>
+          {text("Hồ sơ & Ví nhận tiền", "Profile & Payout")}
+        </button>
+        <button className={`btn btn-sm ${activeTab==="PRODUCTS"?"btn-primary":"btn-secondary"}`} onClick={()=>setActiveTab("PRODUCTS")}>{text("Sản phẩm & license","Products & licenses")}</button>
+      </nav>
+
+      {activeTab === "PRODUCTS" && <ProductStudio/>}
+      {activeTab === "PROFILE" && <div className="glass-card"><SellerProfileEditor key={user?.id}/></div>}
 
       {/* Tab Content: CAMPAIGNS */}
-      {activeTab === "CAMPAIGNS" && (
+      {dataReady && activeTab === "CAMPAIGNS" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           {campaigns.length === 0 ? (
             <div className="glass-card" style={{ textAlign: "center", padding: "3rem" }}>
               <p style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>
-                Bạn chưa có chiến dịch nào. Hãy bắt đầu bằng cách tạo chiến dịch mua chung đầu tiên!
+                {text("Bạn chưa có chiến dịch nào. Hãy bắt đầu bằng cách tạo chiến dịch mua chung đầu tiên!","No campaigns yet. Start by creating your first group-buy campaign.")}
               </p>
-              <button className="btn btn-primary" onClick={() => setActiveTab("CREATE")}>
-                Tạo chiến dịch mới
+              <button className="btn btn-primary" onClick={() => {setInitialDraftId(undefined);setActiveTab("CREATE");}}>
+                {text("Tạo chiến dịch mới","Create new campaign")}
               </button>
             </div>
           ) : (
             campaigns.map((c) => (
               <div
                 key={c.id}
-                className="glass-card"
+                className="glass-card ui-record-card ui-row"
                 style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 1.5rem" }}
               >
                 <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.3rem" }}>
+                  <div className="ui-row" style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.3rem" }}>
                     <span className="badge badge-verified-seller">#{c.id}</span>
-                    <strong style={{ fontSize: "1.1rem" }}>{c.title}</strong>
-                    <span className="badge" style={{ background: "rgba(255,255,255,0.06)" }}>
-                      {c.status}
+                    <strong style={{ fontSize: "1.1rem" }}>{c.title??text('Chưa có tiêu đề ghi nhận','No recorded title')}</strong>
+                    <span className="badge" style={{ background: "var(--bg-tertiary)" }}>
+                      {sellerCampaignStatus(c.status,language)}
                     </span>
                   </div>
                   <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-                    Đã bán: <strong>{c.totalUnitsCommitted}</strong> đơn vị | Tier hiện tại:{" "}
-                    <strong>Tier {c.currentUnlockedTier + 1}/{c.tiers.length}</strong> | SLA:{" "}
-                    <strong>{c.deliverySlaSeconds / 3600}h</strong>
+                    {c.replacementFor?.campaignId&&<p>{text('Thay thế campaign: ','Replaces campaign: ')}<a href={'#campaign-'+encodeURIComponent(c.replacementFor.campaignId)}>{c.replacementFor.campaignId}</a></p>}
+                    {text('Đơn vị đã cam kết: ','Units committed: ')}<strong>{Number.isSafeInteger(c.totalUnitsCommitted)&&c.totalUnitsCommitted>=0?c.totalUnitsCommitted:text('Chưa xác minh','Unverified')}</strong> | {text('Tier ghi nhận: ','Recorded tier: ')}
+                    <strong>{Number.isSafeInteger(c.currentUnlockedTier)&&c.currentUnlockedTier>=0&&Array.isArray(c.tiers)&&c.currentUnlockedTier<c.tiers.length?`Tier ${c.currentUnlockedTier+1}/${c.tiers.length}`:text('Chưa xác minh','Unverified')}</strong> | SLA: 
+                    <strong>{Number.isSafeInteger(c.deliverySlaSeconds)&&c.deliverySlaSeconds>0?c.deliverySlaSeconds%3600===0?`${c.deliverySlaSeconds/3600}h`:`${c.deliverySlaSeconds} ${text('giây','seconds')}`:text('Chưa xác minh','Unverified')}</strong>
                   </div>
+                  {c.status!=="DRAFT"&&c.projectionOrigin==="VERIFIED_PUBLISH"&&<CampaignAmendmentControl campaignId={c.id}/> }
                 </div>
 
-                <div style={{ display: "flex", gap: "0.5rem" }}>
+                <div className="ui-row" style={{ display: "flex", gap: "0.5rem" }}>
                   <a href={`#campaign-${c.id}`} className="btn btn-sm btn-secondary">
-                    Xem trang bán
+                    {text('Xem trang deal','View deal')}
                   </a>
+                  {c.status!=="DRAFT"&&c.projectionOrigin==="VERIFIED_PUBLISH"&&<CampaignReplacementControl sourceId={c.id} onReady={id=>{setInitialDraftId(id);setActiveTab("CREATE");}}/>}
                 </div>
               </div>
             ))
@@ -443,74 +260,70 @@ export const SellerDashboard: React.FC = () => {
       )}
 
       {/* Tab Content: FULFILLMENT */}
-      {activeTab === "FULFILLMENT" && (
+      {dataReady && activeTab === "FULFILLMENT" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           {orders.length === 0 ? (
             <div className="glass-card" style={{ textAlign: "center", padding: "3rem" }}>
-              Chưa có đơn hàng nào phát sinh.
+              {text('Chưa có đơn hàng nào phát sinh.','No orders recorded yet.')}
             </div>
           ) : (
             orders.map((o) => {
-              const gross = Number(o.committedGross) / 1e6;
-              const sellerAllocated = Number(o.sellerAllocated || 0) / 1e6;
+              const gross=orderMoney(o.committedGross)??text('Chưa xác minh','Unverified'),amounts=sellerOrderAmounts(o),sellerAllocated=orderMoney(o.sellerAllocated)??text('Chưa xác minh','Unverified'),sellerClaimable=amounts.remaining;
+              const payout=o.sellerPayoutWallet??campaigns.find(c=>c.id===o.campaignId)?.sellerPayoutWallet??'';
 
               return (
-                <div key={o.id} className="glass-card" style={{ padding: "1.25rem 1.5rem" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.75rem" }}>
+                <div key={o.id} className="glass-card ui-record-card" style={{ padding: "1.25rem 1.5rem" }}>
+                  <div className="ui-row" style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.75rem" }}>
                     <div>
                       <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                        Đơn #{o.id} • {o.campaignTitle}
+                        {text('Đơn #','Order #')}{o.id} • {typeof o.campaignTitle==='string'?o.campaignTitle:text('Chưa có tiêu đề ghi nhận','No recorded title')}
                       </span>
                       <div style={{ fontWeight: 600, fontSize: "1rem" }}>
-                        Ví buyer: <span className="font-mono" style={{ color: "var(--cyan)" }}>{o.buyerPrincipal}</span>
+                        {text("Ví buyer", "Buyer wallet")}: <span className="font-mono" style={{ color: "var(--cyan)" }}>{o.buyerPrincipal??text('Chưa xác minh','Unverified')}</span>
                       </div>
                       <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-                        Số lượng: {o.quantity} | Giá trị: ${gross} USDC
+                        {text("Số lượng", "Quantity")}: {Number.isSafeInteger(o.quantity)&&o.quantity>0?o.quantity:text('Chưa xác minh','Unverified')} | {text("Cam kết", "Commitment")}: {gross} USDC
                       </div>
                     </div>
 
                     <div style={{ textAlign: "right" }}>
-                      <span className="badge" style={{ background: "rgba(255,255,255,0.08)" }}>
-                        {o.deliveryStatus}
+                      <span className="badge" style={{ background: "var(--bg-tertiary)" }}>
+                        {deliveryStatusText(o.deliveryStatus,language)}
                       </span>
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--border-subtle)", paddingTop: "0.75rem" }}>
+                  <div className="ui-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--border-subtle)", paddingTop: "0.75rem" }}>
                     <div style={{ fontSize: "0.85rem" }}>
-                      Proceeds: <strong style={{ color: "var(--success)" }}>${sellerAllocated} USDC</strong>
+                      {text('Phân bổ cho seller: ','Seller allocation: ')}<strong style={{ color: "var(--success)" }}>{sellerAllocated} USDC</strong>
+                      <div>{text('Đã claim: ','Claimed: ')}{amounts.claimed===null?text('Chưa xác minh','Unverified'):displayUSDC(amounts.claimed)+' USDC'} · {text('Còn lại: ','Remaining: ')}{sellerClaimable===null?text('Chưa xác minh','Unverified'):displayUSDC(sellerClaimable)+' USDC'}</div>
                     </div>
 
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <div className="ui-row" style={{ display: "flex", gap: "0.5rem" }}>
+                      <a className="btn btn-sm btn-secondary" href={'#support-order-'+encodeURIComponent(o.id)}>{text('Hỗ trợ theo đơn','Order support')}</a>
                       {o.deliveryStatus === "PENDING" && (
                         <button className="btn btn-sm btn-primary" onClick={() => setFulfillOrderObj(o)}>
-                          <KeyRound size={14} /> Giao mã bản quyền
+                          <KeyRound size={14} /> {text('Giao tài nguyên','Deliver resource')}
                         </button>
                       )}
 
-                      {o.deliveryStatus === "DELIVERED" &&
-                        o.disputeDeadline &&
-                        Math.floor(Date.now() / 1000) > Number(o.disputeDeadline) && (
+                      {canCheckSettlement(o,Math.floor(Date.now()/1000)) && (
                           <button
                             className="btn btn-sm btn-primary"
-                            onClick={() => handleSettleUndisputed(o)}
+                            disabled={!payout}
+                            onClick={() => void orderAction.current?.begin(o.id,payout,{action:"SETTLE"})}
                           >
-                            <CheckCircle2 size={14} /> Quyết toán sau 48h
+                            <CheckCircle2 size={14} /> {text('Kiểm tra quyết toán trên Arc','Check settlement on Arc')}
                           </button>
                         )}
 
                       {(o.deliveryStatus === "CONFIRMED" || o.deliveryStatus === "RESOLVED") &&
-                        !o.sellerClaimed &&
-                        sellerAllocated > 0 && (
-                          <button
-                            className="btn btn-sm btn-success"
-                            onClick={() => handleClaimSellerProceeds(o)}
-                          >
-                            <Coins size={14} /> Rút ${sellerAllocated} USDC
-                          </button>
+                        sellerClaimable !== null && sellerClaimable > 0n && (
+                          <ManagedClaim key={(user?.id??'')+':'+getSessionEpoch()+':'+o.id} action="SELLER_CLAIM" campaignId={o.campaignId} orderId={o.id} principal={payout} amount={sellerClaimable} onClaimed={fetchSellerData}/>
                         )}
                     </div>
                   </div>
+                {o.deliveryStatus==='DELIVERED'&&<p className="notice">{recordedDeadline(o.disputeDeadline)!==null?text('Hạn tranh chấp ghi nhận: ','Recorded dispute deadline: ')+new Date(o.disputeDeadline*1000).toLocaleString(language==='en'?'en-GB':'vi-VN'):text('Chưa có thời hạn tranh chấp đã ghi nhận.','No recorded dispute deadline is available.')} {text('Chuẩn bị quyết toán sẽ kiểm tra lại trạng thái và cửa sổ trên chain.','Settlement preparation rechecks the current chain state and window.')}</p>}
                 </div>
               );
             })
@@ -519,53 +332,64 @@ export const SellerDashboard: React.FC = () => {
       )}
 
       {/* Tab Content: WEBHOOKS */}
-      {activeTab === "WEBHOOKS" && (
+      {dataReady && activeTab === "WEBHOOKS" && (
         <div className="glass-card" style={{ maxWidth: "700px" }}>
-          <h3 style={{ fontSize: "1.2rem", marginBottom: "0.5rem" }}>Cấu hình Webhook & Chữ ký HMAC-SHA256</h3>
+          <h3 style={{ fontSize: "1.2rem", marginBottom: "0.5rem" }}>{text("Cấu hình Webhook & Chữ ký HMAC-SHA256", "Webhook setup & HMAC-SHA256 signatures")}</h3>
           <p style={{ color: "var(--text-secondary)", fontSize: "0.88rem", marginBottom: "1.5rem" }}>
-            Hệ thống sẽ gửi thông báo POST kèm chữ ký HMAC (header <code>X-GroupDeal-Signature</code>) và timestamp (chống replay) tới máy chủ của bạn mỗi khi có người mua, mở tier mới, hoặc đơn hàng được giao.
+            {text("Thông báo POST có chữ ký HMAC và timestamp. Máy chủ nhận cần kiểm chữ ký trên raw body, timestamp trong 300 giây và lưu event ID vào inbox để xử lý trùng khi retry. Xem hướng dẫn trong Tài liệu & API.", "POST notices carry an HMAC signature and timestamp. Verify the raw body signature and a timestamp within 300 seconds, then persist the event ID in an inbox to handle duplicate retries. See Docs & API for the integration guide.")}
           </p>
 
+          {webhookHeld&&<p role="status">{text("Subscription được phục hồi đang chờ rà soát. Cấu hình, secret và lịch sử được giữ nguyên; sự kiện mới chưa được gửi qua endpoint này. Cần xác minh chủ thể và endpoint trước khi tiếp tục.","The restored subscription is awaiting review. Its setup, secret and history are preserved; new events are not sent to this endpoint. Verify its owner and endpoint before resuming.")}</p>}
+          {webhookHeld&&user?.id&&token&&webhookData?.id&&<WebhookRecoveryReview userId={user.id} token={token} subscriptionId={webhookData.id} onVerified={async signal=>{
+            const owner={userId:user!.id,token},epoch=getSessionEpoch(),response=await fetch('/api/seller/webhooks',{signal,redirect:'error',cache:'no-store',headers:{Authorization:'Bearer '+token}});if(!response.ok)throw Error();const data=await response.json();if(signal.aborted||scopeRef.current.userId!==owner.userId||scopeRef.current.token!==owner.token||getSessionEpoch()!==epoch)return;
+            validateSellerData({campaigns:[]},{orders:[]},data,owner.userId);
+            if(!data.webhook||data.webhook.id!==webhookData.id||data.webhook.restoredReviewRequired!==false||data.webhook.canConfigure!==true||data.webhook.canEnqueue!==true)throw Error();
+            setWebhookData(data.webhook);setWebhookUrl(data.webhook.targetUrl);setWebhookNotice('VERIFIED');
+          }}/>}
+          {webhookNotice==='VERIFIED'&&<p role="status">{text('Endpoint đã được xác minh cho sự kiện mới. Job lịch sử vẫn chờ rà soát riêng.','Endpoint verified for new events. Historical jobs still await separate review.')}</p>}
+          {webhookNotice==='SAVED'&&<p role="status">{text("Đã lưu cấu hình webhook.","Webhook setup saved.")}</p>}
+          {webhookNotice==='FAILED'&&<p role="alert">{text("Chưa xác nhận được cấu hình webhook. Tải lại trạng thái hiện hành trước khi gửi lại.","Webhook setup acknowledgement is unavailable. Reload its current state before resubmitting.")}<button type="button" className="btn btn-secondary" onClick={fetchSellerData}>{text('Tải lại cấu hình','Reload setup')}</button></p>}
           <form onSubmit={handleSaveWebhook}>
             <div className="form-group">
-              <label className="form-label">Endpoint URL của bạn</label>
+              <label className="form-label" htmlFor="seller-webhook-url">{text("Endpoint URL của bạn","Your endpoint URL")}</label>
               <input
-                type="url"
+                type="url" id="seller-webhook-url"
                 className="form-input font-mono"
                 placeholder="https://api.yourdomain.com/webhooks/groupdeal"
                 value={webhookUrl}
+                disabled={webhookHeld||isSavingWebhook}
                 onChange={(e) => setWebhookUrl(e.target.value)}
                 required
               />
             </div>
 
-            {webhookData && (
+            {webhookData && !webhookHeld && (
               <div className="form-group">
-                <label className="form-label">Webhook Secret (Dùng để xác thực chữ ký)</label>
+                <label className="form-label" htmlFor="seller-webhook-secret">{text("Webhook secret (xác thực chữ ký)","Webhook secret (signature verification)")}</label>
                 <input
-                  type="text"
+                  type="password" id="seller-webhook-secret" autoComplete="off"
                   className="form-input font-mono"
-                  value={webhookData.secret}
+                  value={webhookData.secret||''}
                   readOnly
-                  style={{ background: "rgba(0,0,0,0.3)" }}
+                  style={{ background: "var(--bg-tertiary)" }}
                 />
               </div>
             )}
 
-            <button type="submit" className="btn btn-primary" disabled={isSavingWebhook}>
-              {isSavingWebhook ? "Đang lưu..." : "Lưu cấu hình Webhook"}
+            <button type="submit" className="btn btn-primary" disabled={isSavingWebhook||webhookHeld||webhookNotice==='FAILED'}>
+              {isSavingWebhook ? text("Đang lưu...", "Saving…") : text("Lưu cấu hình Webhook", "Save webhook setup")}
             </button>
           </form>
 
           {webhookData?.logs && webhookData.logs.length > 0 && (
             <div style={{ marginTop: "2rem" }}>
-              <h4 style={{ fontSize: "1rem", marginBottom: "0.75rem" }}>Nhật ký gửi Webhook gần nhất</h4>
+              <h4 style={{ fontSize: "1rem", marginBottom: "0.75rem" }}>{text('Nhật ký gửi Webhook gần nhất','Recent webhook delivery log')}</h4>
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                 {webhookData.logs.slice(0, 5).map((l: any) => (
-                  <div
+                  <div className="ui-row"
                     key={l.id}
                     style={{
-                      background: "rgba(0,0,0,0.2)",
+                      background: "var(--bg-tertiary)",
                       padding: "0.6rem 0.85rem",
                       borderRadius: "var(--radius-sm)",
                       fontSize: "0.8rem",
@@ -585,228 +409,9 @@ export const SellerDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Tab Content: CREATE CAMPAIGN WIZARD */}
-      {activeTab === "CREATE" && (
-        <div className="glass-card" style={{ maxWidth: "800px" }}>
-          <h3 style={{ fontSize: "1.3rem", marginBottom: "0.5rem" }}>Tạo Chiến Dịch Mua Chung Mới</h3>
-          <p style={{ color: "var(--text-secondary)", fontSize: "0.88rem", marginBottom: "1.5rem" }}>
-            Lưu ý: Sau khi có cam kết đầu tiên, tất cả các điều khoản về tier, giá, hạn chót và SLA sẽ bị KHÓA BẤT BIẾN trên Smart Contract Arc Testnet.
-          </p>
-
-          <form onSubmit={handleCreateCampaign}>
-            <div className="form-group">
-              <label className="form-label">Tên chiến dịch sản phẩm số</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="VD: JetBrains All Products Pack 1 năm chính hãng"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-              />
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-              <div className="form-group">
-                <label className="form-label">Danh mục</label>
-                <select
-                  className="form-select"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                >
-                  <option value="Công cụ lập trình">Công cụ lập trình / SaaS</option>
-                  <option value="Giáo dục & Khóa học">Giáo dục & Khóa học</option>
-                  <option value="Thiết kế & Giao diện">Thiết kế & UI/UX Assets</option>
-                  <option value="API & Cloud">API & Cloud Tokens</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Chỉ số tính tier</label>
-                <select
-                  className="form-select"
-                  value={metric}
-                  onChange={(e) => setMetric(e.target.value as any)}
-                >
-                  <option value="BUYER_COUNT">Số tài khoản buyer đủ điều kiện</option>
-                  <option value="UNITS_COUNT">Số đơn vị đã thanh toán</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Mô tả sản phẩm và quyền lợi</label>
-              <textarea
-                className="form-textarea"
-                placeholder="Nêu rõ quyền truy cập (license key cá nhân, seat team, link tải, gói hỗ trợ)..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                required
-              />
-            </div>
-
-            {/* Tier Configuration */}
-            <div style={{ marginBottom: "1.5rem" }}>
-              <label className="form-label" style={{ marginBottom: "0.5rem", display: "block" }}>
-                Cấu hình 2–5 Tiers (Ngưỡng tăng dần, Giá giảm dần)
-              </label>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                {tiers.map((t, idx) => (
-                  <div key={idx} style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-                    <span style={{ fontSize: "0.85rem", width: "60px" }}>Tier {idx + 1}:</span>
-                    <input
-                      type="number"
-                      className="form-input"
-                      placeholder="Ngưỡng đạt"
-                      value={t.threshold}
-                      onChange={(e) => {
-                        const newTiers = [...tiers];
-                        newTiers[idx].threshold = Number(e.target.value);
-                        setTiers(newTiers);
-                      }}
-                      style={{ flex: 1 }}
-                      required
-                    />
-                    <span style={{ fontSize: "0.85rem" }}>{metric === "BUYER_COUNT" ? "người" : "đơn vị"} =</span>
-                    <input
-                      type="number"
-                      className="form-input"
-                      placeholder="Giá USDC"
-                      value={t.priceUSDC}
-                      onChange={(e) => {
-                        const newTiers = [...tiers];
-                        newTiers[idx].priceUSDC = Number(e.target.value);
-                        setTiers(newTiers);
-                      }}
-                      style={{ flex: 1 }}
-                      required
-                    />
-                    <span style={{ fontSize: "0.85rem" }}>USDC</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Terms and SLA */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-              <div className="form-group">
-                <label className="form-label">SLA giao hàng sau khi đóng</label>
-                <select
-                  className="form-select"
-                  value={deliverySlaHours}
-                  onChange={(e) => setDeliverySlaHours(Number(e.target.value))}
-                >
-                  <option value={24}>24 giờ sau khi chốt</option>
-                  <option value={48}>48 giờ sau khi chốt</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Thời hạn chiến dịch</label>
-                <select
-                  className="form-select"
-                  value={durationDays}
-                  onChange={(e) => setDurationDays(Number(e.target.value))}
-                >
-                  <option value={3}>3 ngày</option>
-                  <option value={7}>7 ngày (Mặc định)</option>
-                  <option value={14}>14 ngày</option>
-                  <option value={30}>30 ngày</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Dry run delivery test simulator */}
-            <div
-              style={{
-                background: "rgba(99, 102, 241, 0.08)",
-                border: "1px solid rgba(99, 102, 241, 0.3)",
-                borderRadius: "var(--radius-md)",
-                padding: "1.25rem",
-                marginBottom: "1.5rem",
-              }}
-            >
-              <h4 style={{ fontSize: "0.95rem", color: "var(--primary-light)", marginBottom: "0.4rem" }}>
-                Bắt buộc: Bài kiểm tra giao hàng (Dry-run Test)
-              </h4>
-              <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", marginBottom: "0.75rem" }}>
-                Nhập thử mẫu license key hoặc link phân bổ để hệ thống kiểm tra khả năng mã hóa AES-256 trước khi cho phép xuất bản lên Arc Testnet.
-              </p>
-              <div style={{ display: "flex", gap: "0.5rem" }}>
-                <input
-                  type="text"
-                  className="form-input font-mono"
-                  value={samplePayload}
-                  onChange={(e) => setSamplePayload(e.target.value)}
-                  style={{ flex: 1 }}
-                />
-                <button
-                  type="button"
-                  className={`btn ${isDryRunVerified ? "btn-success" : "btn-secondary"}`}
-                  onClick={handleTestDeliveryFlow}
-                >
-                  {isDryRunVerified ? "✓ Đã kiểm tra" : "Chạy thử test"}
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="btn btn-primary btn-lg"
-              style={{ width: "100%", justifyContent: "center" }}
-              disabled={isCreatingDraft || !isDryRunVerified}
-            >
-              {isCreatingDraft ? "Đang xuất bản lên Arc Testnet..." : "Xuất bản chiến dịch"}
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* Fulfill Order Modal */}
-      {fulfillOrderObj && (
-        <div className="modal-overlay" onClick={() => setFulfillOrderObj(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Giao mã quyền truy cập cho đơn #{fulfillOrderObj.id}</h3>
-            </div>
-            <form onSubmit={handleFulfillOrder}>
-              <p style={{ color: "var(--text-secondary)", fontSize: "0.88rem", marginBottom: "1rem" }}>
-                Nội dung sẽ được mã hóa chuẩn quân sự AES-256-GCM. Không ai, kể cả validator blockchain hay hacker, có thể đọc được ngoài người mua sở hữu đơn hàng này.
-              </p>
-
-              <div className="form-group">
-                <label className="form-label">Mã license key / Link kích hoạt riêng biệt</label>
-                <textarea
-                  className="form-textarea font-mono"
-                  placeholder="VD: PRO-KEY-2026-XXXX-YYYY-ZZZZ"
-                  value={secretContent}
-                  onChange={(e) => setSecretContent(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div style={{ display: "flex", gap: "0.75rem" }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  style={{ flex: 1 }}
-                  onClick={() => setFulfillOrderObj(null)}
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  style={{ flex: 2 }}
-                  disabled={isFulfilling}
-                >
-                  {isFulfilling ? "Đang mã hóa & ghi nhận..." : "Mã hóa & Xác nhận giao"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <ManagedOrderAction key={(user?.id??'')+':'+(token?getSessionEpoch():'signed-out')} ref={orderAction} onRecovered={fetchSellerData}/>
+      <TransactionHistory key={user?.id} onRecovered={fetchSellerData}/>
+      {dataVisible&&fulfillOrderObj && <ManagedFulfillment key={(user?.id??'')+':'+getSessionEpoch()} order={fulfillOrderObj} onClose={()=>setFulfillOrderObj(null)} onDelivered={()=>{setFulfillOrderObj(null);fetchSellerData();}}/>}
     </div>
   );
 };

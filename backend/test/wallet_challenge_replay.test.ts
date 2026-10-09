@@ -14,7 +14,10 @@ async function runWalletChallengeReplayTests() {
     email: "replay_test@example.com",
     roles: ["buyer"],
     createdAt: Date.now(),
+    activeWallet:wallet.address,
   };
+  store.db.userByWallet[wallet.address.toLowerCase()]=userId;
+  store.save();
 
   // 1. Issue challenge
   const challenge = AuthService.issueWalletChallenge(userId, "LINK_WALLET", wallet.address);
@@ -46,7 +49,7 @@ async function runWalletChallengeReplayTests() {
         challenge.challengeMessage
       );
     },
-    /Challenge expired or not found/,
+    /WALLET_AUTH_CHALLENGE_INVALID/,
     "Replay of already consumed challenge must be rejected!"
   );
   console.log("✔ Replay attack prevented: re-using the same signature/message was strictly blocked!");

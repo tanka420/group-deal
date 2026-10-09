@@ -1,6 +1,7 @@
 import { ethers, network } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
+import {assertLegacyDeploymentAllowed} from './candidatePreparation';
 
 const ARC_PREDEPLOY_USDC = "0x3600000000000000000000000000000000000000";
 const ARC_BLOCKLIST_TEST_ADDRESS = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
@@ -49,6 +50,7 @@ function requireDistinctRoles(roles: Record<string, string>) {
 }
 
 async function main() {
+  assertLegacyDeploymentAllowed(network.name);
   const signers = await ethers.getSigners();
   if (signers.length === 0) {
     throw new Error(

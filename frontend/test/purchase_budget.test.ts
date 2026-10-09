@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict';
+import {purchaseBudget,assertPurchaseBudget,assertCallBudget,purchaseBudgetIsFresh,PurchaseBudgetError} from '../src/services/checkout';
+const account='0x73307bdd39d875f98857ffce0fed1cdc62f50b6d',hub='0x1111111111111111111111111111111111111111';
+let balance:unknown='0x8ac7230489e80000',price:unknown='0x4a817c800',gas:unknown='0x186a0',calls=0;
+const originalFetch=globalThis.fetch;
+globalThis.fetch=(async (_url,init)=>{const batch=JSON.parse(String(init?.body));assert.ok(Array.isArray(batch));calls++;return new Response(JSON.stringify(batch.map((r:any)=>{assert.ok(['eth_chainId','eth_getBalance','eth_gasPrice','eth_estimateGas'].includes(r.method),'No write RPC');return {jsonrpc:'2.0',id:r.id,result:r.method==='eth_chainId'?'0x4cef52':r.method==='eth_getBalance'?balance:r.method==='eth_gasPrice'?price:gas};})));}) as typeof fetch;
+let stage='';
+let passed=0;
+const fault=(code:string)=>(e:unknown)=>e instanceof PurchaseBudgetError&&e.code===code;
+const hex=(n:bigint)=>'0x'+n.toString(16);
+const goods=1_000_000n,required=1_056_000_000_000_000_000n;
+const reset=()=>{balance=hex(10n**19n);price='0x4a817c800';gas='0x186a0';};
+async function check(name:string,fn:()=>void|Promise<void>){reset();stage=name;await fn();passed++;console.log('PASS purchase budget: '+name);}
+async function main(){
+ const mode=process.argv.find(v=>v.startsWith('--negative='))?.slice(11);
+ if(!mode||mode==='negative-balance'){stage='NEGATIVE_NATIVE_BALANCE_MUST_NOT_BECOME_PURCHASE_QUOTE';balance='-1';await assert.rejects(purchaseBudget(account,goods));passed++;}
+ if(!mode||mode==='gross-overflow'){stage='GROSS_NATIVE_CONVERSION_MUST_NOT_EXCEED_UINT256';balance='0x8ac7230489e80000';await assert.rejects(purchaseBudget(account,(1n<<256n)-1n));passed++;}
+ if(mode)return;
+ await check('one native balance covers goods and both reserved gas steps',async()=>{const b=await purchaseBudget(account,goods);assert.equal(b.balance,10n**19n);assert.equal(b.approveGasReserve,28_000_000_000_000_000n);assert.equal(b.commitGasReserve,b.approveGasReserve);assert.equal(b.required,required);assert.equal(b.shortfall,0n);assert.equal(b.expiresAt-b.requestedAt,60_000);assertPurchaseBudget(b);});
+ await check('exact aggregate balance passes while one native unit below fails',async()=>{balance=hex(required);assertPurchaseBudget(await purchaseBudget(account,goods));balance=hex(required-1n);const b=await purchaseBudget(account,goods);assert.equal(b.shortfall,1n);assert.throws(()=>assertPurchaseBudget(b),fault('PURCHASE_BUDGET_INSUFFICIENT'));});
+ await check('goods and only one reserved step cannot fund a two-step purchase',async()=>{balance=hex(1_028_000_000_000_000_000n);const b=await purchaseBudget(account,goods);assert.equal(b.shortfall,28_000_000_000_000_000n);assert.throws(()=>assertPurchaseBudget(b),fault('PURCHASE_BUDGET_INSUFFICIENT'));});
+ await check('zero native balance is a known shortfall rather than a missing quote',async()=>{balance='0x0';const b=await purchaseBudget(account,goods);assert.equal(b.shortfall,required);assert.throws(()=>assertPurchaseBudget(b),fault('PURCHASE_BUDGET_INSUFFICIENT'));});
+ await check('malformed gas price types, precision and quantity syntax are denied',async()=>{for(const v of [null,[],20000000000,'20000000000','1e9','-1','0x0','0x00','0x'+('f'.repeat(65))]){price=v;await assert.rejects(purchaseBudget(account,goods),fault('PURCHASE_BUDGET_UNAVAILABLE'));}});
+ await check('malformed native balances are never interpreted as usable funds',async()=>{for(const v of [null,[],false,1,'1','1e18','0x01','0X1','0x'+('f'.repeat(65))]){balance=v;await assert.rejects(purchaseBudget(account,goods),fault('PURCHASE_BUDGET_UNAVAILABLE'));}});
+ await check('invalid purchase amounts and principals fail before RPC I/O',async()=>{const n=calls;for(const v of [0n,-1n,1 as any])await assert.rejects(purchaseBudget(account,v),fault('PURCHASE_BUDGET_INVALID'));for(const a of ['bad','0x'+'0'.repeat(40)])await assert.rejects(purchaseBudget(a,goods),fault('PURCHASE_BUDGET_INVALID'));assert.equal(calls,n);});
+ await check('gas-price arithmetic overflow cannot create an unbounded quote',async()=>{price='0x'+('f'.repeat(64));await assert.rejects(purchaseBudget(account,goods),fault('PURCHASE_BUDGET_INVALID'));});
+ await check('forged aggregate, reserves and shortfall are rejected',async()=>{const b=await purchaseBudget(account,goods);for(const patch of [{required:1n},{gasReserve:0n},{approveGasReserve:0n},{commitGasReserve:0n},{shortfall:1n},{balance:-1n}])assert.throws(()=>assertPurchaseBudget({...b,...patch}),fault('PURCHASE_BUDGET_INVALID'));});
+ await check('expired or future-dated quotes cannot pass the signing gate',async()=>{const b=await purchaseBudget(account,goods),real=Date.now;try{Date.now=()=>b.expiresAt;assert.equal(purchaseBudgetIsFresh(b),false);assert.throws(()=>assertPurchaseBudget(b),fault('PURCHASE_BUDGET_STALE'));Date.now=()=>b.requestedAt-1;assert.throws(()=>assertPurchaseBudget(b),fault('PURCHASE_BUDGET_STALE'));}finally{Date.now=real;}});
+ await check('call estimate adds goods and gas against the same balance',async()=>{balance=hex(1_004_000_000_000_000_000n-1n);await assert.rejects(assertCallBudget(account,hub,'0x1234',goods),fault('PURCHASE_BUDGET_INSUFFICIENT'));balance=hex(1_004_000_000_000_000_000n);await assertCallBudget(account,hub,'0x1234',goods);});
+ await check('call gas and price must be positive canonical RPC quantities',async()=>{for(const v of ['0x0','0x00','-1',[],null,100]){gas=v;await assert.rejects(assertCallBudget(account,hub,'0x1234',goods),fault('PURCHASE_BUDGET_UNAVAILABLE'));}gas='0x186a0';price='0x0';await assert.rejects(assertCallBudget(account,hub,'0x1234',goods),fault('PURCHASE_BUDGET_UNAVAILABLE'));});
+ await check('a gas-only call still reserves its fee from native USDC',async()=>{balance=hex(4_000_000_000_000_000n);await assertCallBudget(account,hub,'0x1234',0n);balance=hex(4_000_000_000_000_000n-1n);await assert.rejects(assertCallBudget(account,hub,'0x1234',0n),fault('PURCHASE_BUDGET_INSUFFICIENT'));});
+ await check('invalid calldata or destination is denied before any call estimate',async()=>{const n=calls;for(const d of ['0x','0x1','private'])await assert.rejects(assertCallBudget(account,hub,d,goods),fault('PURCHASE_BUDGET_INVALID'));await assert.rejects(assertCallBudget(account,'0x'+'0'.repeat(40),'0x1234',goods),fault('PURCHASE_BUDGET_INVALID'));assert.equal(calls,n);});
+ await check('a read that completes after its deadline yields no accepted budget',async()=>{const real=Date.now,fetch=globalThis.fetch;let elapsed=0;try{Date.now=()=>real()+elapsed;globalThis.fetch=(async(...args)=>{const result=await fetch(...args);elapsed=60_000;return result;}) as typeof fetch;await assert.rejects(purchaseBudget(account,goods),fault('PURCHASE_BUDGET_STALE'));elapsed=0;await assert.rejects(assertCallBudget(account,hub,'0x1234',goods),fault('PURCHASE_BUDGET_STALE'));}finally{Date.now=real;globalThis.fetch=fetch;}});
+ console.log(`PASS ${passed} purchase budget cases; read-only RPC fixtures, no signing or broadcast.`);
+}
+main().catch(e=>{console.error(JSON.stringify({result:'FAIL',stage,assertion:e?.code==='ERR_ASSERTION',message:e?.message}));process.exitCode=1;}).finally(()=>{globalThis.fetch=originalFetch;});

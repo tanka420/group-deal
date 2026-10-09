@@ -1,5 +1,7 @@
 # BÁO CÁO TIẾN ĐỘ LIVE ARC VÀ KẾ HOẠCH ĐÓNG DỰ ÁN
 
+> Cập nhật 09/10/2026: đây là báo cáo lịch sử ngày30/09. Các mục thiếu .env/credential tại §3–§4 không còn phản ánh cấu hình hiện tại: native provider preflight đã PASS cho manifest/secrets, SMTP authentication và Circle App ID/API; Reown mới xác minh định dạng. Xem CURRENT_LIVE_READINESS_CHECKS_LATEST.json và Tiến độ T155 trong kế hoạch. Chưa xác nhận OTP, chữ ký principal, email đã nhận hoặc nghiệm thu sản phẩm; application admission vẫn cần legacy provenance/verified archive ACL/reviewed recovery. Nội dung lịch sử bên dưới được giữ nguyên.
+
 **Ngày:** 30/09/2026
 **Kết luận hiện tại:** **G5.1 PASS; DỰ ÁN CHƯA ĐỦ ĐIỀU KIỆN NGHIỆM THU CUỐI**
 

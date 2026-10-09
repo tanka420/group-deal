@@ -1,0 +1,19 @@
+import {enrollFixtureOperator} from '../helpers/operatorFixture';
+/** Isolated public projections only. No chain, provider, principal or delivery acceptance. */
+export async function seedCatalog({store,config,CampaignEditorService,ProductService,runtime='SOURCE'}:any){
+ const now=Math.floor(Date.now()/1000),wallet='0x1111111111111111111111111111111111111111';
+ store.db.users.seller={id:'seller',email:'catalog-seller@fixture.invalid',createdAt:0,activeWallet:wallet,roles:['seller','buyer'],sellerProfile:{displayName:'Digital Studio',bio:'Local catalogue fixture',payoutWallet:wallet,verifiedSellerBadge:false,verifiedRightsBadge:false}};
+ store.db.users.reviewer={id:'reviewer',email:'catalog-reviewer@fixture.invalid',createdAt:0,activeWallet:null,roles:['operator']};
+ store.save();
+ const enrollment=await enrollFixtureOperator('reviewer',undefined,{chainId:config.arcChainId,runtime});
+ const product=ProductService.createVersion('seller',{title:'Digital design toolkit',description:'Local resource fixture',category:'Software',vendor:'Acme Studio',thumbnailUrl:'https://fixture.invalid/thumbnail.png',media:[],requirements:['PDF reader'],supportPolicy:'30 days support',license:{edition:'Studio Pro',seatsPerUnit:2,usageScope:'COMMERCIAL',durationDays:365,activationWindowDays:30,regions:['Worldwide'],transferable:false,supportDays:30,usageTerms:'Individual usage; redistribution prohibited'}});
+ const rights=ProductService.submitRights('seller',product.version.id,{declaration:'OWNER',declarationText:'Local fixture',evidenceRefs:['https://fixture.invalid/private-evidence']});
+ ProductService.reviewRights('reviewer',rights.id,{decision:'APPROVED',reason:'Local fixture review',validUntil:now+60*86400},await enrollment.authorization());
+ const draft=CampaignEditorService.saveDraft('seller',{title:'Template toolkit',description:'Digital design files',thumbnailUrl:product.version.thumbnailUrl,productVersionId:product.version.id,metric:'BUYER_COUNT',tiers:[{threshold:1,priceUSDC:'105'},{threshold:50,priceUSDC:'89'}],maxPerAccount:3,inventoryLimit:100,durationDays:7,deliverySlaHours:24,deliveryMethod:'FILE_LINK'});
+ const original=structuredClone(draft);delete store.db.campaigns[draft.id];
+ Object.assign(original,{status:'ACTIVE',visibility:'PUBLIC',projectionOrigin:'VERIFIED_PUBLISH',chainId:config.arcChainId,hubAddress:config.hubAddress,endTime:now+10000,productSnapshot:ProductService.snapshot('seller',product.version.id,now+8*86400),totalBuyerCount:37,totalUnitsCommitted:37,totalGrossCommitted:'1000000',category:'Software',deliveryContentTemplate:'fixture-private-template'});
+ const publicIds:string[]=[];
+ for(let i=0;i<15;i++){const id='catalog_'+String(i).padStart(2,'0'),c={...structuredClone(original),id,onchainCampaignId:i+1,startTime:now-100+i,title:i===0?'Huge finalized toolkit':i===1?'Held template toolkit':'Template toolkit '+String(i).padStart(2,'0'),category:i===14?'Courses':'Software',metric:i===14?'UNITS_COUNT':'BUYER_COUNT'};if(i===0)Object.assign(c,{status:'FINALIZED',finalizedAt:now-1,finalClearingPrice:'900719925474099312345678',totalGrossCommitted:'900719925474099312345678'});if(i===1)Object.assign(c,{termsPolicyReviewRequired:true});store.db.campaigns[id]=c;publicIds.push(id);}
+ for(const [suffix,patch]of Object.entries({private:{visibility:'PRIVATE'},unlisted:{visibility:'UNLISTED'},draft:{status:'DRAFT'},unbound:{projectionOrigin:'CHAIN_UNBOUND'},chain:{chainId:config.arcChainId+1},hub:{hubAddress:'0x2222222222222222222222222222222222222222'}})){const id='hidden_'+suffix;store.db.campaigns[id]={...structuredClone(original),id,onchainCampaignId:100+Object.keys(store.db.campaigns).length,category:'Hidden '+suffix,totalGrossCommitted:'999999999999999999999999',...patch};}
+ store.save();return {productId:product.product.id,rightsId:rights.id,publicIds,original:structuredClone(store.db.campaigns)};
+}

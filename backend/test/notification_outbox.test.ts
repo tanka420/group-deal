@@ -9,6 +9,7 @@ async function runNotificationTests() {
   store.db.users[userId] = {
     id: userId,
     email: `${userId}@example.test`,
+    emailVerified: true,
     createdAt: Date.now(),
     roles: ["buyer"],
     activeWallet: null,

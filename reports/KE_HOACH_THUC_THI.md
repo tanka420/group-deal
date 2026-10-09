@@ -1,7 +1,10 @@
 # KẾ HOẠCH THỰC THI TOÀN DIỆN DỰ ÁN GROUPDEAL
+
+> **Tài liệu lịch sử:** lịch thực thi và trạng thái công việc trong tài liệu này đã được thay thế bởi [Kế hoạch thống nhất hoàn thiện GroupDeal v2.0](./KE_HOACH_HOAN_TAT_DU_AN.md). Giữ nội dung bên dưới để truy vết, không dùng checklist làm trạng thái nghiệm thu hiện tại.
+
 **Căn cứ:** [BAO_CAO_KIEM_TRA_DU_AN.md](file:///e:/apps/group-deal/reports/BAO_CAO_KIEM_TRA_DU_AN.md) & [PLAN.md](file:///e:/apps/group-deal/PLAN.md)  
 **Ngày khởi tạo:** 29/09/2026  
-**Trạng thái chung:** Đang thực thi (In Progress)
+**Trạng thái chung:** Lưu lịch sử; xem kế hoạch v2.0 để thực thi.
 
 ---
 

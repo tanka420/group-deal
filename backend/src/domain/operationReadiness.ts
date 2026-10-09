@@ -1,0 +1,27 @@
+import {createHash} from 'node:crypto';
+import {z} from 'zod';
+import {ethers} from 'ethers';
+import type {DatabaseSchema} from '../db/store';
+import type {TransactionOperation} from './operation';
+import {verifiedOperation,OperationVerificationError} from './operationVerification';
+export class OperationReadinessError extends Error{constructor(public code:string,public status=409){super(code)}}
+export type OperationReadinessGraph=Pick<DatabaseSchema,'users'|'campaigns'|'orders'|'operations'|'products'|'productVersions'|'licenseVersions'|'rights'|'resources'|'deliveryProbes'|'resourceGrants'|'licenseInventory'>&{productPolicies?:Record<string,ReturnType<import('../db/rowPersistence').RowPersistence['readProductPolicyState']>>};
+export type OperationReadinessSelection={actorId:string;operationId:string;sessionKey?:string};
+export type OperationReadinessPatch={updatedAt:number;financialQuote?:NonNullable<TransactionOperation['financialQuote']>;purchaseQuote?:NonNullable<TransactionOperation['purchaseQuote']>;orderQuote?:NonNullable<TransactionOperation['orderQuote']>;deliveryQuote?:NonNullable<TransactionOperation['deliveryQuote']>};
+export const readinessOrderFields=['id','campaignId','onchainOrderId','chainId','hubAddress','buyerAccountId','buyerPrincipal','campaignIdentity','committedGross','quantity','deliveryStatus','deliveryTimestamp','deliveryProofHash'] as const;
+export const readinessGrantFields=['id','orderId','buyerAccountId','buyerPrincipal','productVersionId','licenseVersionId','resourceId','unitIndex','seatsPerUnit','licenseKeyId','state','activatedAt','redeemedAt'] as const;
+export const readinessResourceFields=['id','sellerId','productVersionId','fileName','mimeType','sha256','byteLength','encryptedPayload','createdAt'] as const;
+export const readinessProbeFields=['id','sellerId','productVersionId','method','resourceId','resourceSha256','checkedAt','evidenceHash'] as const;
+export const readinessLicenseKeyFields=['id','sellerId','productVersionId','resourceId','keyFingerprint','keyEncrypted','status','orderId','operationId','createdAt'] as const;
+export function readyCore(value:TransactionOperation,actor:string){try{const {operation}=verifiedOperation(Object.fromEntries(['id','userId','action','resourceId','chainId','hubAddress','principal','idempotencyKey','payloadHash','calldata','intentId','expectedFunction','expectedEvent','expectedEventArgs','phase','txHash','blockNumber','blockHash','createdAt','updatedAt','errorCode'].filter(k=>(value as any)[k]!==undefined).map(k=>[k,(value as any)[k]])),actor);if(operation.phase!=='PREPARED'||operation.txHash)throw new OperationReadinessError('OPERATION_SIGNATURE_RESERVED');return operation}catch(e){if(e instanceof OperationVerificationError)throw new OperationReadinessError(e.code==='OPERATION_VERIFICATION_FORBIDDEN'?'OPERATION_READINESS_FORBIDDEN':e.code==='OPERATION_VERIFICATION_UNAVAILABLE'?'OPERATION_READINESS_UNAVAILABLE':e.code,e.status);throw e}}
+export function readinessFingerprint(graph:OperationReadinessGraph){const productPolicies=Object.fromEntries(Object.entries(graph.productPolicies??{}).map(([id,{revision,...policy}])=>[id,policy]));return createHash('sha256').update(JSON.stringify({...graph,productPolicies})).digest('hex')}
+const uint=z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),hash=z.string().regex(/^0x[0-9a-fA-F]{64}$/),amount=z.string().regex(/^\d{1,78}$/),block={blockNumber:uint,blockHash:hash};
+const quotes={financialQuote:z.object({kind:z.literal('READ_ONLY_SIMULATION'),...block,amountBaseUnits:amount}).strict(),purchaseQuote:z.object({...block,lockedUnitPrice:amount,commitmentAmount:amount,unitsAlreadyBought:amount,remainingInventory:amount.nullable(),maxGrossAmount:amount,authorizationNonce:uint,termsHash:hash}).strict(),orderQuote:z.object({kind:z.literal('READ_ONLY_SIMULATION'),...block,remainingGross:amount,buyerShare:amount.optional(),sellerShare:amount.optional(),disputeDeadline:uint}).strict(),deliveryQuote:z.object({...block,checkedAt:uint}).strict()};
+export function readinessPatch(op:TransactionOperation,value:OperationReadinessPatch){
+ if(!Number.isSafeInteger(value.updatedAt)||value.updatedAt<0||value.updatedAt>Date.now()+30000||Object.keys(value).some(k=>!['updatedAt',...Object.keys(quotes)].includes(k)))throw new OperationReadinessError('OPERATION_READINESS_PLAN_INVALID',503);
+ const quoteKey=op.action==='BUY'?'purchaseQuote':['BUYER_CLAIM','SELLER_CLAIM'].includes(op.action)?'financialQuote':['CONFIRM','DISPUTE','BREACH','SETTLE','RESOLVE'].includes(op.action)?'orderQuote':op.action==='DELIVER'?'deliveryQuote':undefined;
+ for(const [key,schema] of Object.entries(quotes))if((value as any)[key]!==undefined&&(key!==quoteKey||!schema.safeParse((value as any)[key]).success))throw new OperationReadinessError('OPERATION_READINESS_PLAN_INVALID',503);
+ if(quoteKey&&!(value as any)[quoteKey])throw new OperationReadinessError('OPERATION_READINESS_PLAN_INVALID',503);
+ if(value.purchaseQuote){const old=op.purchaseQuote;if(!old||['maxGrossAmount','authorizationNonce','termsHash'].some(k=>(old as any)[k]!== (value.purchaseQuote as any)[k])||!ethers.isHexString(op.calldata))throw new OperationReadinessError('OPERATION_AUTHORIZATION_CHANGED')}
+ return value;
+}

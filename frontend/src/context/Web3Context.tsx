@@ -3,30 +3,17 @@ import { ethers } from "ethers";
 import { useAuth } from "./AuthContext";
 import { useExternalWallet } from "./ExternalWalletContext";
 import { getArcReadProvider, readArcBalance } from "../services/arcRpc";
-import { PurchaseParams, purchaseBudget, assertPurchaseBudget, assertCallBudget, verifyArcCommitment } from "../services/checkout";
+import { PurchaseParams, purchaseBudget, assertPurchaseBudget, assertCallBudget, verifyArcCommitment, assertReviewedCallBudget, assertCurrentCallBudget, type CallBudget } from "../services/checkout";
+import { HUB_ABI } from "../contracts/hubAbi";
+import {CircleFeeReviewModal} from "../components/CircleFeeReviewModal";
+import {assertCircleFeeBudget,assertCurrentCircleFeeBalance,CircleFeeReviewError,type CircleIntent,type CircleFeeBudget,type CircleFeeRequest} from "../services/circleFeeReview";
+import {readCircleOperationStatus,circleRecoveryMessage,CircleRecoveryError,type RecoveryOperation,type CircleRecoveryStatus} from '../services/circleOperationRecovery';
+import {UiError,uiMessage} from '../utils/uiMessage';
+import {ExternalFeeReviewModal,type ExternalFeeRequest} from '../components/ExternalFeeReviewModal';
 
 type WalletMode = "EXTERNAL_REOWN" | "CIRCLE_EMBEDDED" | "DISCONNECTED";
 
-type CircleIntent =
-  | { type: "USDC_APPROVE"; amount: string }
-  | { type: "CREATE_CAMPAIGN"; draftId: string }
-  | { type: "COMMIT_BUY"; campaignId: string; quantity: string }
-  | { type: "RECORD_DELIVERY"; orderId: string; proofHash: string }
-  | { type: "CLAIM_BUYER"; campaignId: string; orderIds: string[] }
-  | { type: "CLAIM_SELLER"; campaignId: string; orderIds: string[] }
-  | { type: "CONFIRM_RECEIPT"; campaignId: string; orderId: string }
-  | { type: "OPEN_DISPUTE"; campaignId: string; orderId: string }
-  | { type: "CLAIM_DELIVERY_BREACH"; campaignId: string; orderId: string }
-  | { type: "SETTLE_UNDISPUTED"; campaignId: string; orderId: string }
-  | {
-      type: "RESOLVE_DISPUTE";
-      campaignId: string;
-      orderId: string;
-      buyerShare: string;
-      sellerShare: string;
-    };
-
-interface CampaignDraftForChain {
+export interface CampaignDraftForChain {
   id: string;
   sellerPayoutWallet: string;
   metric: "BUYER_COUNT" | "UNITS_COUNT";
@@ -60,7 +47,9 @@ interface Web3ContextType {
   connectExternalWallet: () => Promise<string>;
   getExternalSigner: () => Promise<ethers.Signer>;
   switchToCircleWallet: () => void;
-  createCampaignOnchain: (campaign: CampaignDraftForChain) => Promise<{ txHash: string }>;
+  createCampaignOnchain: (campaign: CampaignDraftForChain, onBroadcast?: (hash:string)=>void|Promise<void>) => Promise<{ txHash: string }>;
+  broadcastPreparedOperation: (operation: {id:string;action:string;resourceId:string;chainId:number;hubAddress:string;principal:string;calldata:string;purchaseQuote?:{lockedUnitPrice:string}},onBroadcast:(hash:string)=>void|Promise<void>) => Promise<{txHash:string}>;
+  recoverCircleOperation: (operation:RecoveryOperation)=>Promise<CircleRecoveryStatus>;
   recordDeliveryOnchain: (
     campaignId: number,
     orderId: number,
@@ -106,7 +95,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     token,
     circleCredentials,
     executeCircleChallenge,
-    loginWithWallet,
+    loginWithWallet,getSessionEpoch,
     linkExternalWallet,
   } = useAuth();
   const external = useExternalWallet();
@@ -120,9 +109,35 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   const [hubAddress, setHubAddress] = useState("");
   const [usdcAddress, setUsdcAddress] = useState("");
   const balanceEpochRef = useRef(0);
+  const [circleFeeRequest,setCircleFeeRequest]=useState<CircleFeeRequest|null>(null);
+  const circleFeePending=useRef<{request:CircleFeeRequest;resolve:(budget:CircleFeeBudget)=>void;reject:(error:Error)=>void}|null>(null);
+  const circleTransactionFlight=useRef(false);
+  const [externalFeeRequest,setExternalFeeRequest]=useState<ExternalFeeRequest|null>(null);
+  const externalFeePending=useRef<{request:ExternalFeeRequest;resolve:(budget:CallBudget)=>void;reject:(error:Error)=>void}|null>(null);
+  const externalTransactionFlight=useRef(false);
+  const externalIdentityRef=useRef(external);externalIdentityRef.current=external;
+  const externalStopped=()=>new UiError(uiMessage('Đã dừng trước khi mở ví. Giữ yêu cầu để kiểm tra lại.','Stopped before opening the wallet. Keep the request for review.'));
+  const stopExternalFeeReview=()=>{const pending=externalFeePending.current;externalFeePending.current=null;setExternalFeeRequest(null);pending?.reject(externalStopped());};
+  useEffect(()=>{const timer=window.setInterval(()=>{try{externalFeePending.current?.request.assertCurrent();}catch{stopExternalFeeReview();}},250);return()=>{window.clearInterval(timer);const pending=externalFeePending.current;externalFeePending.current=null;pending?.reject(externalStopped());};},[]);
+  useEffect(()=>{if(externalFeePending.current)try{externalFeePending.current.request.assertCurrent();}catch{stopExternalFeeReview();}},[user?.id,user?.activeWallet,token,walletMode,external.address,external.connected]);
+  const approveExternalFee=(budget:CallBudget)=>{const pending=externalFeePending.current;if(!pending)return;try{pending.request.assertCurrent();assertReviewedCallBudget(budget,pending.request);}catch{stopExternalFeeReview();return;}externalFeePending.current=null;setExternalFeeRequest(null);pending.resolve(budget);};
+  const circleIdentityRef=useRef({walletId:user?.circleWallet?.walletId,userToken:circleCredentials?.userToken,walletMode});
+  circleIdentityRef.current={walletId:user?.circleWallet?.walletId,userToken:circleCredentials?.userToken,walletMode};
+  const stopCircleFeeReview=()=>{const pending=circleFeePending.current;circleFeePending.current=null;setCircleFeeRequest(null);pending?.reject(new CircleFeeReviewError('CIRCLE_FEE_CANCELLED'));};
+  useEffect(()=>{const timer=window.setInterval(()=>{try{circleFeePending.current?.request.assertCurrent();}catch{stopCircleFeeReview();}},250);return()=>{window.clearInterval(timer);const pending=circleFeePending.current;circleFeePending.current=null;pending?.reject(new CircleFeeReviewError('CIRCLE_FEE_CANCELLED'));};},[]);
+  useEffect(()=>{if(circleFeePending.current)try{circleFeePending.current.request.assertCurrent();}catch{stopCircleFeeReview();}},[user?.id,user?.activeWallet,user?.circleWallet?.walletId,token,circleCredentials?.userToken,walletMode]);
+  const reviewCircleFee=(request:CircleFeeRequest)=>new Promise<CircleFeeBudget>((resolve,reject)=>{if(circleFeePending.current){reject(new CircleFeeReviewError('CIRCLE_FEE_BUSY'));return;}circleFeePending.current={request,resolve,reject};setCircleFeeRequest(request);});
+  const approveCircleFee=(budget:CircleFeeBudget)=>{const pending=circleFeePending.current;if(!pending)return;try{pending.request.assertCurrent();assertCircleFeeBudget(budget,pending.request);}catch{stopCircleFeeReview();return;}circleFeePending.current=null;setCircleFeeRequest(null);pending.resolve(budget);};
   const walletOwnerRef = useRef<string | null>(null);
   const selectedAccountRef = useRef(account);
   selectedAccountRef.current = account;
+  const authScopeRef=useRef({userId:user?.id,token,activeWallet:user?.activeWallet});
+  authScopeRef.current={userId:user?.id,token,activeWallet:user?.activeWallet};
+  const captureWalletScope=()=>{
+    const expected={...authScopeRef.current},epoch=getSessionEpoch?.();
+    const assertCurrent=()=>{const now=authScopeRef.current;if((epoch!==undefined&&getSessionEpoch()!==epoch)||now.userId!==expected.userId||now.token!==expected.token||now.activeWallet?.toLowerCase()!==expected.activeWallet?.toLowerCase())throw new Error("Phiên đăng nhập hoặc ví hoạt động đã thay đổi");};
+    return {epoch,assertCurrent};
+  };
 
   useEffect(() => {
     void fetch("/api/health")
@@ -152,7 +167,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       setUsdcBalance(null);
       setBalanceError(null);
     }
-    if ((ownerChanged || walletMode === "DISCONNECTED") && user.activeWallet) {
+    if ((ownerChanged || walletMode === "DISCONNECTED" || user.activeWallet?.toLowerCase()!==selectedAccountRef.current?.toLowerCase()) && user.activeWallet) {
       setAccount(ethers.getAddress(user.activeWallet));
       const circleSelected = user.circleWallet?.address.toLowerCase() === user.activeWallet.toLowerCase();
       setWalletMode(circleSelected ? "CIRCLE_EMBEDDED" : "EXTERNAL_REOWN");
@@ -170,8 +185,11 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   const getReadProvider = getArcReadProvider;
 
   const ensureArcExternalSigner = async (requireIdentity = true): Promise<ethers.Signer> => {
+    const scope=captureWalletScope();
     if (!external.provider) await external.connect();
+    scope.assertCurrent();
     const initialSigner = await external.getSigner();
+    scope.assertCurrent();
     const browserProvider = initialSigner.provider as ethers.BrowserProvider | null;
     if (!browserProvider || typeof browserProvider.send !== "function") {
       throw new Error("Chưa kết nối ví EVM qua Reown AppKit");
@@ -180,6 +198,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       await browserProvider.send("wallet_switchEthereumChain", [{ chainId: ARC_CHAIN_HEX }]);
     } catch (error: any) {
       if (error?.code !== 4902) throw error;
+      scope.assertCurrent();
       await browserProvider.send("wallet_addEthereumChain", [
         {
           chainId: ARC_CHAIN_HEX,
@@ -190,12 +209,15 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       ]);
     }
+    scope.assertCurrent();
     const signer = await external.getSigner();
+    scope.assertCurrent();
     if (requireIdentity && (!user?.activeWallet ||
       (await signer.getAddress()).toLowerCase() !== user.activeWallet.toLowerCase())) {
       throw new Error("Ví đang kết nối khác ví tài khoản. Chọn đúng ví hoặc đăng nhập lại bằng ví mới.");
     }
     const network = await signer.provider?.getNetwork();
+    scope.assertCurrent();
     if (!network || Number(network.chainId) !== ARC_CHAIN_ID) {
       throw new Error("Ví ngoài chưa chuyển sang Arc Testnet (chain ID 5042002)");
     }
@@ -208,11 +230,15 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     external.address?.toLowerCase() === account.toLowerCase());
 
   const loginWithExternalWallet = async (): Promise<string> => {
+    const scope=captureWalletScope();
     setIsConnecting(true);
     try {
       await external.connect();
+      scope.assertCurrent();
       const signer = await ensureArcExternalSigner(false);
-      const authenticatedUser = await loginWithWallet(signer);
+      scope.assertCurrent();
+      const authenticatedUser = await loginWithWallet(signer,scope.epoch);
+      if(scope.epoch!==undefined&&getSessionEpoch()!==scope.epoch+1)throw new Error("Phiên đăng nhập đã thay đổi");
       const address = ethers.getAddress(authenticatedUser.activeWallet || (await signer.getAddress()));
       setAccount(address);
       setChainId(ARC_CHAIN_ID);
@@ -258,11 +284,15 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const connectExternalWallet = async (): Promise<string> => {
     if (!user) throw new Error("Vui lòng đăng nhập email trước khi gắn ví ngoài");
+    const scope=captureWalletScope();
     setIsConnecting(true);
     try {
       await external.connect();
+      scope.assertCurrent();
       const signer = await ensureArcExternalSigner(false);
-      const updated = await linkExternalWallet(signer);
+      scope.assertCurrent();
+      const updated = await linkExternalWallet(signer,scope.epoch);
+      if(scope.epoch!==undefined&&getSessionEpoch()!==scope.epoch)throw new Error("Phiên đăng nhập đã thay đổi");
       const address = ethers.getAddress(updated.activeWallet || (await signer.getAddress()));
       setAccount(address);
       setChainId(ARC_CHAIN_ID);
@@ -275,12 +305,14 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const switchToCircleWallet = () => {
     if (!user?.circleWallet?.address) throw new Error("Tài khoản chưa có ví Circle trên Arc Testnet");
+    if(user.activeWallet?.toLowerCase()!==user.circleWallet.address.toLowerCase())throw new Error("WALLET_SELECTION_PROOF_REQUIRED");
     setAccount(user.circleWallet.address);
     setWalletMode("CIRCLE_EMBEDDED");
     setChainId(ARC_CHAIN_ID);
   };
 
-  const waitForCircleTransaction = async (challengeId: string): Promise<string> => {
+  const waitForCircleTransaction = async (challengeId: string,onBroadcast:((hash:string)=>void|Promise<void>)|undefined,assertCurrent:()=>void): Promise<string> => {
+    assertCurrent();
     if (!token || !circleCredentials) throw new Error("Phiên Circle không còn hoạt động");
     let transactionId: string | undefined;
     for (let attempt = 0; attempt < 30; attempt += 1) {
@@ -291,6 +323,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
           body: JSON.stringify({ userToken: circleCredentials.userToken }),
         })
       );
+      assertCurrent();
       if (data.challenge?.status === "FAILED" || data.challenge?.status === "EXPIRED") {
         throw new Error(data.challenge.errorMessage || `Circle challenge ${data.challenge.status}`);
       }
@@ -300,15 +333,18 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     if (!transactionId) throw new Error("Circle challenge completed without a transaction ID");
 
+    let reportedHash:string|undefined;
     for (let attempt = 0; attempt < 120; attempt += 1) {
       const data = await readJson(
         await fetch(`/api/circle/transactions/${encodeURIComponent(transactionId)}`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ userToken: circleCredentials.userToken }),
+          body: JSON.stringify({ userToken: circleCredentials.userToken, challengeId }),
         })
       );
+      assertCurrent();
       const transaction = data.transaction;
+      if(transaction?.txHash&&transaction.txHash!==reportedHash){reportedHash=transaction.txHash;await onBroadcast?.(transaction.txHash);assertCurrent();}
       if (["FAILED", "DENIED", "CANCELLED"].includes(transaction?.state)) {
         throw new Error(transaction.errorReason || `Circle transaction ${transaction.state}`);
       }
@@ -321,14 +357,24 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   const sendCircleTransaction = async (
     contractAddress: string,
     callData: string,
-    intent: CircleIntent
+    intent: CircleIntent,
+    stableOperationId?:string,
+    onBroadcast?:(hash:string)=>void|Promise<void>,
+    grossUsdc=0n
   ): Promise<{ txHash: string }> => {
     if (!token || !circleCredentials || !user?.circleWallet) {
       throw new Error("Vui lòng xác thực lại Circle trước khi ký giao dịch");
     }
+    if(circleTransactionFlight.current)throw new CircleFeeReviewError('CIRCLE_FEE_BUSY');
+    circleTransactionFlight.current=true;
+    try {
+    const scope=captureWalletScope();scope.assertCurrent();
+    const expectedCircle={...circleIdentityRef.current};
+    const assertCurrent=()=>{scope.assertCurrent();const current=circleIdentityRef.current;if(current.walletId!==expectedCircle.walletId||current.userToken!==expectedCircle.userToken||current.walletMode!=='CIRCLE_EMBEDDED'||walletOwnerRef.current!==user.id||selectedAccountRef.current?.toLowerCase()!==account?.toLowerCase())throw new CircleFeeReviewError('CIRCLE_FEE_CANCELLED');};
+    assertCurrent();
     const expectedOwner = user.id;
     const expectedAccount = account;
-    const operationId = `circle:${intent.type.toLowerCase()}:${crypto.randomUUID()}`;
+    const operationId = stableOperationId||`circle:${intent.type.toLowerCase()}:${crypto.randomUUID()}`;
     const challenge = await readJson(
       await fetch("/api/circle/transactions/challenge", {
         method: "POST",
@@ -343,33 +389,69 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         }),
       })
     );
+    scope.assertCurrent();
     if (walletOwnerRef.current !== expectedOwner || selectedAccountRef.current !== expectedAccount) throw new Error("Tài khoản đã thay đổi; không ký challenge của phiên cũ");
-    await executeCircleChallenge(challenge.challengeId);
-    return { txHash: await waitForCircleTransaction(challenge.challengeId) };
+    const existing=await readJson(await fetch(`/api/circle/challenges/${encodeURIComponent(challenge.challengeId)}`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify({userToken:circleCredentials.userToken})}));
+    scope.assertCurrent();
+    assertCurrent();
+    if(!existing.challenge?.correlationIds?.[0]){
+      if(existing.challenge?.id!==challenge.challengeId||!['PENDING','IN_PROGRESS'].includes(existing.challenge?.status)||!account)throw new CircleFeeReviewError('CIRCLE_FEE_UNAVAILABLE');
+      const request:CircleFeeRequest={id:operationId,account,walletId:user.circleWallet.walletId,token,userToken:circleCredentials.userToken,contractAddress,callData,intent,grossUsdc:intent.type==='USDC_APPROVE'?BigInt(intent.amount):grossUsdc,assertCurrent};
+      const budget=await reviewCircleFee(request);
+      assertCurrent();assertCircleFeeBudget(budget,request);
+      // The native dialog must leave the top layer before the SDK portal opens.
+      await new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()));
+      assertCurrent();assertCircleFeeBudget(budget,request);
+      const latest=await readJson(await fetch('/api/circle/challenges/'+encodeURIComponent(challenge.challengeId),{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({userToken:circleCredentials.userToken})}));
+      assertCurrent();
+      if(!latest.challenge?.correlationIds?.[0]){if(latest.challenge?.id!==challenge.challengeId||!['PENDING','IN_PROGRESS'].includes(latest.challenge?.status))throw new CircleFeeReviewError('CIRCLE_FEE_UNAVAILABLE');await assertCurrentCircleFeeBalance(budget,request,assertCurrent);assertCurrent();await executeCircleChallenge(challenge.challengeId);}
+    }
+    assertCurrent();
+    return { txHash: await waitForCircleTransaction(challenge.challengeId,onBroadcast,assertCurrent) };
+    } finally {circleTransactionFlight.current=false;}
+  };
+
+  const sendReviewedExternalCall=async(signer:ethers.Signer,to:string,data:string,intent:CircleIntent,grossUsdc:bigint,send:()=>Promise<ethers.ContractTransactionResponse>)=>{
+    if(externalTransactionFlight.current)throw new UiError(uiMessage('Một yêu cầu ví ngoài đang được xử lý. Chờ kết quả trước khi ký yêu cầu khác.','An external wallet request is in progress. Wait for its outcome before signing another.'));
+    externalTransactionFlight.current=true;
+    try{
+      const scope=captureWalletScope(),principal=account,owner=user?.id,expectedExternal=externalIdentityRef.current;
+      const assertCurrent=()=>{scope.assertCurrent();const active=externalIdentityRef.current;if(!principal||!owner||walletOwnerRef.current!==owner||selectedAccountRef.current?.toLowerCase()!==principal.toLowerCase()||circleIdentityRef.current.walletMode!=='EXTERNAL_REOWN'||active.address&&active.address.toLowerCase()!==principal.toLowerCase()||expectedExternal.connected&&!active.connected)throw externalStopped();};
+      const assertWallet=async()=>{assertCurrent();const provider=signer.provider as ethers.BrowserProvider|null;if(!provider||typeof provider.send!=='function')throw externalStopped();const [accounts,chain]=await Promise.all([provider.send('eth_accounts',[]),provider.send('eth_chainId',[])]);assertCurrent();if(!Array.isArray(accounts)||typeof accounts[0]!=='string'||accounts[0].toLowerCase()!==principal!.toLowerCase()||BigInt(chain)!==BigInt(ARC_CHAIN_ID))throw externalStopped();};
+      assertCurrent();await assertWallet();
+      const request:ExternalFeeRequest={id:crypto.randomUUID(),account:principal!,to,data,intent,grossUsdc,assertCurrent};
+      const budget=await new Promise<CallBudget>((resolve,reject)=>{externalFeePending.current={request,resolve,reject};setExternalFeeRequest(request);});
+      await assertCurrentCallBudget(budget,request,assertCurrent);await assertWallet();assertCurrent();assertReviewedCallBudget(budget,request);
+      return await send();
+    }finally{externalTransactionFlight.current=false;}
   };
 
   const sendHubCall = async (
     contractInterface: ethers.Interface,
     functionName: string,
     args: unknown[],
-    intent: CircleIntent
+    intent: CircleIntent,
+    onBroadcast?: (hash:string)=>void|Promise<void>,
+    stableOperationId?:string
   ): Promise<{ txHash: string }> => {
     if (walletMode === "CIRCLE_EMBEDDED") {
-      return sendCircleTransaction(
+      const result=await sendCircleTransaction(
         hubAddress,
         contractInterface.encodeFunctionData(functionName, args),
-        intent
+        intent,stableOperationId,onBroadcast
       );
+      return result;
     }
     const signer = await ensureArcExternalSigner();
     const contract = new ethers.Contract(hubAddress, contractInterface.fragments, signer);
-    const transaction = await contract[functionName](...args);
+    const transaction = await sendReviewedExternalCall(signer,hubAddress,contractInterface.encodeFunctionData(functionName,args),intent,0n,()=>contract[functionName](...args));
+    await onBroadcast?.(transaction.hash);
     const receipt = await transaction.wait();
     if (!receipt || receipt.status !== 1) throw new Error("Giao dịch Arc đã bị revert");
     return { txHash: transaction.hash as string };
   };
 
-  const createCampaignOnchain = async (campaign: CampaignDraftForChain) => {
+  const createCampaignOnchain = async (campaign: CampaignDraftForChain, onBroadcast?: (hash:string)=>void|Promise<void>) => {
     if (!account) throw new Error("Ví người bán chưa được kết nối");
     if (account.toLowerCase() !== campaign.sellerPayoutWallet.toLowerCase()) {
       throw new Error("Ví ký phải trùng với ví nhận tiền đã đăng ký của người bán");
@@ -398,7 +480,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     return sendHubCall(contractInterface, "createCampaign", [terms, tiers], {
       type: "CREATE_CAMPAIGN",
       draftId: campaign.id,
-    });
+    }, onBroadcast);
   };
 
   const recordDeliveryOnchain = (
@@ -417,18 +499,49 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const broadcastPreparedOperation:Web3ContextType["broadcastPreparedOperation"] = (operation,onBroadcast) => {
+    if(operation.chainId!==ARC_CHAIN_ID||operation.hubAddress.toLowerCase()!==hubAddress.toLowerCase()||operation.principal.toLowerCase()!==account?.toLowerCase())throw new Error("Kết nối đúng ví principal và deployment của intent trước khi ký");
+    const iface=new ethers.Interface(HUB_ABI);
+    const call=iface.parseTransaction({data:operation.calldata});
+    if(!call)throw new Error("Intent chưa có calldata hợp lệ");
+    if(operation.action==="BUY"&&call.name==="commitToBuy"){
+      if(!operation.purchaseQuote)throw new Error("Thiếu quote mua đã kiểm tra");
+      return commitToBuyOnchain({campaignId:Number(call.args.campaignId),campaignIdentity:String(call.args.campaignIdentity),quantity:Number(call.args.quantity),requireEarlySlot:call.args.requireEarlySlot,maxAuthQuantity:Number(call.args.maxAuthQuantity),authDeadline:Number(call.args.authDeadline),authSignature:String(call.args.authSignature),lockedUnitPriceUSDC:operation.purchaseQuote.lockedUnitPrice,operationId:operation.id,onBroadcast});
+    }
+    let intent:CircleIntent;
+    if(operation.action==="PUBLISH"&&call.name==="createCampaign")intent={type:"CREATE_CAMPAIGN",draftId:operation.resourceId};
+    else if(operation.action==="DELIVER"&&call.name==="recordDelivery")intent={type:"RECORD_DELIVERY",orderId:operation.resourceId,proofHash:String(call.args[2])};
+    else if(operation.action==="BUYER_CLAIM"&&call.name==="claimBuyerFunds")intent={type:"CLAIM_BUYER",campaignId:String(call.args[0]),orderIds:call.args[1].map(String)};
+    else if(operation.action==="SELLER_CLAIM"&&call.name==="claimSellerProceeds")intent={type:"CLAIM_SELLER",campaignId:String(call.args[0]),orderIds:call.args[1].map(String)};
+    else if(operation.action==="CONFIRM"&&call.name==="confirmReceipt")intent={type:"CONFIRM_RECEIPT",campaignId:String(call.args[0]),orderId:String(call.args[1])};
+    else if(operation.action==="DISPUTE"&&call.name==="openDispute")intent={type:"OPEN_DISPUTE",campaignId:String(call.args[0]),orderId:String(call.args[1])};
+    else if(operation.action==="BREACH"&&call.name==="claimDeliveryBreach")intent={type:"CLAIM_DELIVERY_BREACH",campaignId:String(call.args[0]),orderId:String(call.args[1])};
+    else if(operation.action==="SETTLE"&&call.name==="settleUndisputedOrder")intent={type:"SETTLE_UNDISPUTED",campaignId:String(call.args[0]),orderId:String(call.args[1])};
+    else if(operation.action==="RESOLVE"&&call.name==="resolveDispute")intent={type:"RESOLVE_DISPUTE",campaignId:String(call.args[0]),orderId:String(call.args[1]),buyerShare:String(call.args[2]),sellerShare:String(call.args[3])};
+    else throw new Error("Thao tác chưa hỗ trợ ký từ lịch sử giao dịch");
+    if(iface.encodeFunctionData(call.name,Array.from(call.args)).toLowerCase()!==operation.calldata.toLowerCase())throw new Error("Intent calldata không canonical");
+    return sendHubCall(iface,call.name,Array.from(call.args),intent,onBroadcast,`circle:${operation.id}`);
+  };
+
+  const readOwnedCircleOperation=async(operation:RecoveryOperation,allowMissingReceipt=false)=>{
+    if(!user||!token||!circleCredentials||walletMode!=='CIRCLE_EMBEDDED'||operation.principal.toLowerCase()!==account?.toLowerCase()||operation.chainId!==ARC_CHAIN_ID||operation.hubAddress.toLowerCase()!==hubAddress.toLowerCase())throw new CircleRecoveryError('SESSION');
+    const scope=captureWalletScope(),expected={...circleIdentityRef.current},owner=user.id,principal=account;
+    const assertCurrent=()=>{scope.assertCurrent();const current=circleIdentityRef.current;if(current.walletId!==expected.walletId||current.userToken!==expected.userToken||current.walletMode!=='CIRCLE_EMBEDDED'||walletOwnerRef.current!==owner||selectedAccountRef.current?.toLowerCase()!==principal?.toLowerCase())throw new CircleRecoveryError('SESSION');};
+    assertCurrent();return readCircleOperationStatus(operation,token,circleCredentials.userToken,assertCurrent,allowMissingReceipt);
+  };
+  const recoverCircleOperation:Web3ContextType['recoverCircleOperation']=async(operation)=>{const result=await readOwnedCircleOperation(operation);if(!result)throw new CircleRecoveryError();return result;};
+
   const commitToBuyOnchain: Web3ContextType["commitToBuyOnchain"] = async (params) => {
     if (!account || !ethers.isAddress(hubAddress) || !ethers.isAddress(usdcAddress)) throw new Error("Chưa có ví hoặc cấu hình hợp đồng Arc hợp lệ");
     if (!Number.isSafeInteger(params.quantity) || params.quantity <= 0) throw new Error("Số lượng mua không hợp lệ");
-    if (params.authDeadline <= Math.floor(Date.now() / 1000) + 30) throw new Error("Chứng thực mua sắp hết hạn; lấy chứng thực mới");
     const totalGross = BigInt(params.lockedUnitPriceUSDC) * BigInt(params.quantity);
+    const checkoutScope=captureWalletScope();checkoutScope.assertCurrent();
     const assertCurrentIdentity = () => {
+      checkoutScope.assertCurrent();
       if (!user || walletOwnerRef.current !== user.id || selectedAccountRef.current?.toLowerCase() !== account.toLowerCase()) {
         throw new Error("Tài khoản đã thay đổi trong lúc checkout. Không gửi giao dịch của phiên cũ.");
       }
     };
-    assertPurchaseBudget(await purchaseBudget(account, totalGross));
-    assertCurrentIdentity();
     const usdc = new ethers.Interface([
       "function approve(address spender, uint256 amount) external returns (bool)",
     ]);
@@ -440,11 +553,21 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     const commitData = hub.encodeFunctionData("commitToBuy", args);
     const approveData = usdc.encodeFunctionData("approve", [hubAddress, totalGross]);
     const verify = async (txHash: string) => {
+      assertCurrentIdentity();
       const proof = await verifyArcCommitment(txHash, { hubAddress, buyer: account, campaignId: params.campaignId,
         campaignIdentity: params.campaignIdentity, quantity: params.quantity, maxGross: totalGross });
+      assertCurrentIdentity();
       await refreshBalance();
+      assertCurrentIdentity();
       return { txHash, orderId: proof.orderId };
     };
+    if(walletMode==='CIRCLE_EMBEDDED'&&params.operationId){
+      const known=await readOwnedCircleOperation({id:params.operationId,action:'BUY',chainId:ARC_CHAIN_ID,hubAddress,principal:account,calldata:commitData},true);assertCurrentIdentity();
+      if(known){const hash=known.transaction?.txHash;if(!hash)throw new UiError(circleRecoveryMessage(known));await params.onBroadcast?.(hash);assertCurrentIdentity();return verify(hash);}
+    }
+    if (params.authDeadline <= Math.floor(Date.now() / 1000) + 30) throw new Error("Chứng thực mua sắp hết hạn; lấy chứng thực mới");
+    assertPurchaseBudget(await purchaseBudget(account, totalGross));
+    assertCurrentIdentity();
 
     if (walletMode === "CIRCLE_EMBEDDED") {
       params.onStep?.("APPROVE");
@@ -453,7 +576,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       await sendCircleTransaction(
         usdcAddress,
         approveData,
-        { type: "USDC_APPROVE", amount: totalGross.toString() }
+        { type: "USDC_APPROVE", amount: totalGross.toString() },
+        params.operationId?`circle:${params.operationId}:approve`:undefined
       );
       await assertCallBudget(account, hubAddress, commitData, totalGross);
       assertCurrentIdentity();
@@ -461,9 +585,11 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       const result = await sendCircleTransaction(
         hubAddress,
         commitData,
-        { type: "COMMIT_BUY", campaignId: params.campaignId.toString(), quantity: params.quantity.toString() }
+        { type: "COMMIT_BUY", campaignId: params.campaignId.toString(), quantity: params.quantity.toString() },
+        params.operationId?`circle:${params.operationId}:commit`:undefined,
+        params.onBroadcast,
+        totalGross
       );
-      params.onBroadcast?.(result.txHash);
       return verify(result.txHash);
     }
 
@@ -482,7 +608,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     if ((await readUsdc.allowance(account, hubAddress)) !== totalGross) {
       await assertCallBudget(account, usdcAddress, approveData, totalGross);
       assertCurrentIdentity();
-      const approvalReceipt = await (await usdcContract.approve(hubAddress, totalGross)).wait();
+      const approvalReceipt = await (await sendReviewedExternalCall(signer,usdcAddress,approveData,{type:'USDC_APPROVE',amount:totalGross.toString()},totalGross,()=>usdcContract.approve(hubAddress,totalGross))).wait();
       if (!approvalReceipt || approvalReceipt.status !== 1) throw new Error("Approve USDC chưa thành công");
     }
     await assertCallBudget(account, hubAddress, commitData, totalGross);
@@ -491,7 +617,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     const commitSigner = await ensureArcExternalSigner();
     assertCurrentIdentity();
     const hubContract = new ethers.Contract(hubAddress, hub.fragments, commitSigner);
-    const transaction = await hubContract.commitToBuy(
+    const transaction = await sendReviewedExternalCall(commitSigner,hubAddress,commitData,{type:'COMMIT_BUY',campaignId:String(params.campaignId),quantity:String(params.quantity)},totalGross,()=>{assertCurrentIdentity();if(params.authDeadline<=Math.floor(Date.now()/1000)+30)throw new UiError(uiMessage('Chứng thực mua sắp hết hạn; giữ yêu cầu và kiểm tra lại.','Purchase authorization is expiring; keep the request and review it again.'));return hubContract.commitToBuy(
       params.campaignId,
       params.campaignIdentity,
       params.quantity,
@@ -499,8 +625,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       params.maxAuthQuantity,
       params.authDeadline,
       params.authSignature
-    );
-    params.onBroadcast?.(transaction.hash);
+    );});
+    await params.onBroadcast?.(transaction.hash);
     return verify(transaction.hash);
   };
 
@@ -525,7 +651,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     const signer = await ensureArcExternalSigner();
     const contract = new ethers.Contract(hubAddress, contractInterface.fragments, signer);
-    const transaction = await contract[functionName](...args);
+    const transaction = await sendReviewedExternalCall(signer,hubAddress,contractInterface.encodeFunctionData(functionName,args),intent,0n,()=>contract[functionName](...args));
     await transaction.wait();
     return { txHash: transaction.hash as string };
   };
@@ -624,7 +750,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         switchToCircleWallet,
         createCampaignOnchain,
         recordDeliveryOnchain,
+        broadcastPreparedOperation,
         commitToBuyOnchain,
+        recoverCircleOperation,
         claimBuyerFundsOnchain,
         claimSellerProceedsOnchain,
         confirmReceiptOnchain,
@@ -636,6 +764,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       }}
     >
       {children}
+      {externalFeeRequest&&<ExternalFeeReviewModal key={externalFeeRequest.id} request={externalFeeRequest} onApprove={approveExternalFee} onCancel={stopExternalFeeReview}/>}
+      {circleFeeRequest&&<CircleFeeReviewModal key={circleFeeRequest.id} request={circleFeeRequest} onApprove={approveCircleFee} onCancel={stopCircleFeeReview}/>}
     </Web3Context.Provider>
   );
 };

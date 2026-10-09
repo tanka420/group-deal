@@ -2,6 +2,7 @@ import assert from "node:assert";
 import { ethers } from "ethers";
 import * as fs from "fs";
 import * as path from "path";
+import * as os from "os";
 import { validateManifestAndEnvironment } from "../src/services/manifestValidator";
 
 async function runTests() {
@@ -52,8 +53,8 @@ async function runTests() {
     const realHash = ethers.keccak256(realCode);
 
     // Save temporary manifest with expected hash
-    const localManifestPath = path.resolve(__dirname, "../../shared/manifests/local.json");
-    const origContent = fs.readFileSync(localManifestPath, "utf8");
+    const localManifestPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(),"groupdeal-manifest-")),"local.json");
+    const origContent = fs.readFileSync(path.resolve(__dirname, "../../shared/manifests/local.json"), "utf8");
     const origJson = JSON.parse(origContent);
 
     try {
@@ -68,7 +69,7 @@ async function runTests() {
 
       let threw = false;
       try {
-        await validateManifestAndEnvironment(mockProvider);
+        await validateManifestAndEnvironment(mockProvider,localManifestPath);
       } catch (err: any) {
         threw = true;
         assert(err.message.includes("Bytecode hash mismatch"));
@@ -76,16 +77,15 @@ async function runTests() {
       }
       assert(threw, "Must reject tampered bytecode hash");
     } finally {
-      // Restore manifest
-      fs.writeFileSync(localManifestPath, origContent);
+      fs.unlinkSync(localManifestPath);
     }
   }
 
   // Test 4: Arc Testnet Predeploy and Blocklist Enforcements
   console.log("\n[Test 4] Arc Testnet Specific Enforcements: Predeploy USDC & Blocklist Operator");
   {
-    const arcManifestPath = path.resolve(__dirname, "../../shared/manifests/arc-testnet.json");
-    const origArcContent = fs.readFileSync(arcManifestPath, "utf8");
+    const arcManifestPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(),"groupdeal-manifest-")),"arc-testnet.json");
+    const origArcContent = fs.readFileSync(path.resolve(__dirname, "../../shared/manifests/arc-testnet.json"), "utf8");
     const origArcJson = JSON.parse(origArcContent);
 
     try {
@@ -100,7 +100,7 @@ async function runTests() {
 
       let threw = false;
       try {
-        await validateManifestAndEnvironment(mockArcProvider);
+        await validateManifestAndEnvironment(mockArcProvider,arcManifestPath);
       } catch (err: any) {
         threw = true;
         assert(err.message.includes("Arc Testnet USDC must be 0x3600000000000000000000000000000000000000"));
@@ -115,7 +115,7 @@ async function runTests() {
 
       threw = false;
       try {
-        await validateManifestAndEnvironment(mockArcProvider);
+        await validateManifestAndEnvironment(mockArcProvider,arcManifestPath);
       } catch (err: any) {
         threw = true;
         assert(err.message.includes("Arc blocklist test address"));
@@ -123,7 +123,7 @@ async function runTests() {
       }
       assert(threw, "Must reject blocklist address as operator on Arc");
     } finally {
-      fs.writeFileSync(arcManifestPath, origArcContent);
+      fs.unlinkSync(arcManifestPath);
     }
   }
 
@@ -183,6 +183,25 @@ async function runTests() {
     assert(primitiveJourneySource.includes("ARC_CONTRACT_PRIMITIVE_JOURNEY.json"));
     assert(!primitiveJourneySource.includes('"../reports/evidence/G5_ACCEPTANCE_DOSSIER.json"'));
     console.log("  ✓ Primitive journey cannot impersonate the signer or overwrite G5 acceptance evidence.");
+  }
+
+  console.log("\n[Test 7] Financial protocol v2 must match the deployed getter");
+  {
+    const candidatePath=path.join(fs.mkdtempSync(path.join(os.tmpdir(),"groupdeal-manifest-v2-")),"local.json");
+    const candidate=JSON.parse(fs.readFileSync(path.resolve(__dirname,"../../shared/manifests/local.json"),"utf8"));
+    const code="0x1234";candidate.protocolVersion=2;candidate.contracts.GroupDealHub.bytecodeHash=ethers.keccak256(code);
+    fs.writeFileSync(candidatePath,JSON.stringify(candidate));
+    const versionInterface=new ethers.Interface(["function protocolVersion() view returns(uint256)"]);
+    const provider={getNetwork:async()=>({chainId:31337n}),getCode:async()=>code,call:async()=>versionInterface.encodeFunctionResult("protocolVersion",[1])} as unknown as ethers.Provider;
+    try {
+      await assert.rejects(validateManifestAndEnvironment(provider,candidatePath),/Protocol version differs/);
+      const success=await validateManifestAndEnvironment({...provider,call:async()=>versionInterface.encodeFunctionResult("protocolVersion",[2])} as unknown as ethers.Provider,candidatePath);
+      assert.equal(success.protocolVersion,2);
+      await assert.rejects(validateManifestAndEnvironment({...provider,call:async()=>{throw new Error("getter unavailable");}} as unknown as ethers.Provider,candidatePath));
+      candidate.protocolVersion=3;fs.writeFileSync(candidatePath,JSON.stringify(candidate));
+      await assert.rejects(validateManifestAndEnvironment(provider,candidatePath),/Unsupported protocol version/);
+      console.log("  ✓ Candidate protocol/getter mismatch, unsupported version and missing getter fail closed (local fixtures).");
+    } finally {fs.unlinkSync(candidatePath);}
   }
 
   console.log("\n=== ALL GATE G5 VERIFICATION TESTS PASSED SUCCESSFULLY! ===\n");

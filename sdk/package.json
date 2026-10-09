@@ -1,16 +1,31 @@
 {
   "name": "@groupdeal/sdk",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "GroupDeal Seller Integration SDK for Arc Testnet",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc"
-  },
-  "dependencies": {
-    "ethers": "^6.13.0"
+    "build": "tsc",
+    "test": "npm run build && node test/consumer.cjs"
   },
   "devDependencies": {
-    "typescript": "^5.4.5"
+    "@types/node": "24.19.0",
+    "typescript": "5.9.3"
+  },
+  "private": true,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "examples/receiver.cjs"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
   }
 }

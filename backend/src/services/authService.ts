@@ -1,242 +1,73 @@
+import {circleWalletRecord,circleBoundAccount,sameCircleAuthority,faucetRate,type CircleWalletAuthority} from '../domain/circleWalletAuthority';
+import {StorageConflict} from '../db/rowPersistence';
+import type {CircleAuthWrite,CircleAuthPlan} from '../db/rowPersistence';
+import {CircleAuthError,circleIdentityInput,circleContext,circleAttempt,circlePublicUser,circleRateKey,circleRate,type CircleRateScope,type CircleVerification} from '../domain/circleAuthentication';
 import * as crypto from "crypto";
-import jwt from "jsonwebtoken";
+import {SessionService,SessionError} from "./sessionService";
+import type {SessionProof} from './sessionService';
 import { ethers } from "ethers";
-import { store, UserRecord, sanitizeUser, SanitizedUser } from "../db/store";
+import { store, UserRecord, WalletChallengeRecord,sanitizeUser, SanitizedUser } from "../db/store";
 import { config } from "../config";
 import { encryptEntitlement } from "../utils/crypto";
+import {WalletAuthError,walletAddress as parseWallet,walletAuthMessage,walletAuthContext,assertWalletAuthChallenge,walletAuthAdmission,type WalletAuthBudget} from '../domain/walletAuthentication';
+import type {WalletAuthWrite} from '../db/rowPersistence';
 
 export class AuthService {
-  private static issueSessionToken(user: UserRecord): string {
-    return jwt.sign(
-      {
-        userId: user.id,
-        email: sanitizeUser(user).email,
-        roles: user.roles,
-        activeWallet: user.activeWallet,
-      },
-      config.jwtSecret,
-      { expiresIn: "7d" }
-    );
-  }
-
   /**
    * Create or refresh the local application session after Circle has verified
    * the email OTP and the backend has validated the Circle user token.
    * Circle tokens and encryption keys are deliberately never persisted.
    */
-  public static createCircleSession(
-    email: string | null,
-    circleUserId: string,
-    circleWallet?: { walletId: string; address: string; blockchain: "ARC-TESTNET" }
-  ): { token: string; user: SanitizedUser } {
-    const normalizedEmail = email?.trim().toLowerCase() || null;
-    if ((normalizedEmail && !normalizedEmail.includes("@")) || !circleUserId) {
-      throw new Error("Circle identity is incomplete");
-    }
-
-    const byCircle = store.db.userByCircleId[circleUserId];
-    const byEmail = normalizedEmail ? store.db.userByEmail[normalizedEmail] : undefined;
-    // Never claim a pre-existing email account by submitting a Circle token.
-    // Linking identities requires an independently authenticated linking flow.
-    if (byEmail && byCircle !== byEmail) {
-      throw new Error("Circle identity is already bound to another GroupDeal account");
-    }
-
-    let userId = byCircle;
-    let user: UserRecord;
-    if (!userId) {
-      userId = `usr_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
-      user = {
-        id: userId,
-        email: normalizedEmail || `circle-${crypto.createHash("sha256").update(circleUserId).digest("hex")}@circle.invalid`,
-        emailVerified: Boolean(normalizedEmail),
-        loginMethod: "CIRCLE_EMAIL",
-        circleUserId,
-        createdAt: Date.now(),
-        roles: ["buyer"],
-        activeWallet: null,
-      };
-      store.db.users[userId] = user;
-      if (normalizedEmail) store.db.userByEmail[normalizedEmail] = userId;
-      store.addAuditLog(userId, "buyer", "CIRCLE_USER_REGISTERED", {
-        circleUserId,
-      });
-    } else {
-      user = store.db.users[userId];
-      if (!user) throw new Error("Bound GroupDeal account no longer exists");
-      if (normalizedEmail && user.emailVerified !== false && user.email !== normalizedEmail) {
-        throw new Error("Circle email does not match the existing GroupDeal account");
+  public static consumeCircleRates(values:{scope:CircleRateScope;identifier:string}[]):void{
+    const keys=values.map(v=>circleRateKey(v.scope,v.identifier));try{store.mutateCircleAuthentication({mode:'RATE',rateKeys:keys},state=>{const now=Date.now();circleContext(state.auth.authRecovery);return{result:undefined,writes:values.map((v,i)=>({collection:'rateLimits' as const,key:keys[i],value:circleRate(v.scope,state.rates[keys[i]],now)}))}})}catch(e){this.circleFailure(e)}
+  }
+  private static circleFailure(e:unknown):never{if(e instanceof CircleAuthError||e instanceof SessionError)throw e;if(e instanceof StorageConflict||e instanceof Error&&e.message.startsWith('CONFLICT:'))throw new CircleAuthError('CIRCLE_AUTH_CONFLICT',409);throw new CircleAuthError('CIRCLE_AUTH_UNAVAILABLE',503)}
+  public static createCircleSession(email:string|null,circleUserId:string,circleWallet?:{walletId:string;address:string;blockchain:'ARC-TESTNET'},verification?:CircleVerification):{token:string;user:SanitizedUser}{
+    const input=circleIdentityInput({email,circleUserId,...(circleWallet?{circleWallet}:{})}),wallet=input.circleWallet?.address.toLowerCase();
+    try{return store.mutateCircleAuthentication({mode:'LOGIN',circleUserId:input.circleUserId,email:input.email??undefined,wallet,attemptId:verification?.attemptId,rateKeys:[]},state=>{
+      const now=Date.now(),context=circleContext(state.auth.authRecovery);let consumeAttemptAt:number|undefined;if(verification){const attempt=circleAttempt(state.attempt,state.auth.authRecovery,verification,now);if(input.email!==null&&attempt.email!==input.email)throw new CircleAuthError('CIRCLE_AUTH_EMAIL_MISMATCH',403,'Circle user token does not match the requested email login');consumeAttemptAt=now}else if(context!==undefined)throw new CircleAuthError('CIRCLE_AUTH_FRESH_LOGIN_REQUIRED',401);
+      if(state.emailOwner&&state.emailOwner!==state.boundUserId)throw new CircleAuthError('CIRCLE_AUTH_IDENTITY_CONFLICT',409,'Circle identity is already bound to another GroupDeal account');
+      const registration=state.boundUserId===undefined,writes:CircleAuthWrite[]=[],audit:NonNullable<CircleAuthPlan<unknown>['audit']>=[];let user:UserRecord,userPatch:CircleAuthPlan<unknown>['userPatch'],walletPatch:UserRecord['circleWallet'];
+      if(registration){const id='usr_'+now+'_'+crypto.randomBytes(4).toString('hex');user={id,email:input.email??('circle-'+crypto.createHash('sha256').update(input.circleUserId).digest('hex')+'@circle.invalid'),emailVerified:input.email!==null,loginMethod:'CIRCLE_EMAIL',circleUserId:input.circleUserId,createdAt:now,roles:['buyer'],activeWallet:null};
+        writes.push({collection:'users',key:id,value:user},{collection:'userByCircleId',key:input.circleUserId,value:id},{collection:'notificationPreferences',key:id,value:{inApp:true,email:false}});if(input.email)writes.push({collection:'userByEmail',key:input.email,value:id});audit.push({actor:id,role:'buyer',action:'CIRCLE_USER_REGISTERED',details:{circleUserId:input.circleUserId}});
+      }else{if(!state.auth.user||state.auth.user.id!==state.boundUserId||state.auth.user.circleUserId!==input.circleUserId)throw new CircleAuthError('CIRCLE_AUTH_ACCOUNT_UNAVAILABLE',503);user=structuredClone(state.auth.user);circlePublicUser(user);
+        if(input.email&&user.emailVerified!==false&&user.email!==input.email)throw new CircleAuthError('CIRCLE_AUTH_EMAIL_MISMATCH',403,'Circle email does not match the existing GroupDeal account');const patch:NonNullable<typeof userPatch>={};if(input.email&&(user.email!==input.email||user.emailVerified!==true)){patch.email=input.email;patch.emailVerified=true}if(user.loginMethod===undefined)patch.loginMethod='CIRCLE_EMAIL';if(Object.keys(patch).length){userPatch=patch;Object.assign(user,patch)}if(input.email&&!state.emailOwner)writes.push({collection:'userByEmail',key:input.email,value:user.id});
       }
-      if (user.circleUserId && user.circleUserId !== circleUserId) {
-        throw new Error("GroupDeal account is already bound to another Circle identity");
-      }
-      user.circleUserId = circleUserId;
-      if (normalizedEmail) {
-        user.email = normalizedEmail;
-        user.emailVerified = true;
-        store.db.userByEmail[normalizedEmail] = user.id;
-      }
-      user.loginMethod ||= "CIRCLE_EMAIL";
-    }
-
-    store.db.userByCircleId[circleUserId] = user.id;
-
-    if (circleWallet) {
-      const normalizedWallet = ethers.getAddress(circleWallet.address).toLowerCase();
-      const existingWalletOwner = store.db.userByWallet[normalizedWallet];
-      if (existingWalletOwner && existingWalletOwner !== user.id) {
-        throw new Error("Circle wallet is already bound to another GroupDeal account");
-      }
-      user.circleWallet = {
-        walletId: circleWallet.walletId,
-        address: ethers.getAddress(circleWallet.address),
-        blockchain: "ARC-TESTNET",
-      };
-      user.activeWallet = user.circleWallet.address;
-      store.db.userByWallet[normalizedWallet] = user.id;
-    }
-
-    store.save();
-    return { token: this.issueSessionToken(user), user: sanitizeUser(user) };
+      if(input.circleWallet){if(state.walletOwner&&state.walletOwner!==user.id)throw new CircleAuthError('CIRCLE_AUTH_IDENTITY_CONFLICT',409,'Circle wallet is already bound to another GroupDeal account');if(!state.walletOwner)writes.push({collection:'userByWallet',key:wallet!,value:user.id});if(user.activeWallet!==input.circleWallet.address){if(!registration)userPatch={...userPatch,activeWallet:input.circleWallet.address};user.activeWallet=input.circleWallet.address}if(!user.circleWallet||user.circleWallet.address!==input.circleWallet.address||user.circleWallet.walletId!==input.circleWallet.walletId||user.circleWallet.blockchain!==input.circleWallet.blockchain){if(!registration)walletPatch=input.circleWallet;user.circleWallet=input.circleWallet}}
+      const publicUser=circlePublicUser(user),prepared=SessionService.prepareIssuedSession(user,state.auth.authRecovery,'CIRCLE_EMAIL');writes.push({collection:'authSessions',key:prepared.key,value:prepared.record});audit.push({actor:user.id,role:'user',action:'APP_SESSION_CREATED',details:{sessionId:prepared.record.id,loginMethod:'CIRCLE_EMAIL'}});
+      return{result:{token:prepared.token,user:publicUser},writes,userId:registration?user.id:undefined,userPatch,circleWallet:walletPatch,consumeAttemptAt,audit};
+    })}catch(e){return this.circleFailure(e)}
   }
 
-  public static bindCircleWallet(
-    userId: string,
-    circleUserId: string,
-    circleWallet: { walletId: string; address: string; blockchain: "ARC-TESTNET" }
-  ): SanitizedUser {
-    const user = store.db.users[userId];
-    if (!user || user.circleUserId !== circleUserId) {
-      throw new Error("Circle wallet cannot be bound to this GroupDeal account");
-    }
-    const normalizedWallet = ethers.getAddress(circleWallet.address).toLowerCase();
-    const existingWalletOwner = store.db.userByWallet[normalizedWallet];
-    if (existingWalletOwner && existingWalletOwner !== user.id) {
-      throw new Error("Circle wallet is already bound to another GroupDeal account");
-    }
-    user.circleWallet = {
-      walletId: circleWallet.walletId,
-      address: ethers.getAddress(circleWallet.address),
-      blockchain: "ARC-TESTNET",
-    };
-    user.activeWallet = user.circleWallet.address;
-    store.db.userByWallet[normalizedWallet] = user.id;
-    store.save();
-    return sanitizeUser(user);
+  private static walletActor(state:import('../db/rowPersistence').CircleAuthState,userId:string,proof?:SessionProof){
+    const context=circleContext(state.auth.authRecovery);if(proof){if(proof.account.id!==userId)throw new CircleAuthError('CIRCLE_WALLET_NOT_BOUND',403);return SessionService.assertCommitted(proof,state.auth)}if(context!==undefined)throw new CircleAuthError('CIRCLE_WALLET_FRESH_SESSION_REQUIRED',401);if(!state.auth.user||state.auth.user.id!==userId)throw new CircleAuthError('CIRCLE_WALLET_ACCOUNT_UNAVAILABLE',503);return state.auth.user;
   }
-  /**
-   * Request email OTP with CSPRNG, rate limiting, and secure hashing.
-   * Never returns OTP in response or writes OTP to logs.
-   */
-  public static requestOtp(email: string): { success: boolean; message: string } {
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail || !normalizedEmail.includes("@")) {
-      throw new Error("Địa chỉ email không hợp lệ");
-    }
-
-    const existing = store.db.emailOtps[normalizedEmail];
-    const now = Date.now();
-
-    // Rate-limit: 30 seconds cooldown between requests
-    if (existing && existing.requestedAt && now - existing.requestedAt < 30 * 1000) {
-      const waitSec = Math.ceil((30 * 1000 - (now - existing.requestedAt)) / 1000);
-      throw new Error(`Vui lòng đợi ${waitSec} giây trước khi yêu cầu mã OTP mới`);
-    }
-
-    // CSPRNG 6-digit code
-    const code = crypto.randomInt(100000, 1000000).toString();
-    const salt = crypto.randomBytes(16).toString("hex");
-    const hashedCode = crypto.createHash("sha256").update(salt + code).digest("hex");
-    const expiresAt = now + 5 * 60 * 1000; // 5 minutes TTL
-
-    store.db.emailOtps[normalizedEmail] = {
-      hashedCode,
-      salt,
-      expiresAt,
-      attempts: 0,
-      requestedAt: now,
-    };
-    store.save();
-
-    // Production log: audit only, never log the plaintext code
-    return {
-      success: true,
-      message: "Mã OTP đã được gửi đến email của bạn.",
-    };
+  public static circleWalletAuthority(userId:string,proof?:SessionProof):CircleWalletAuthority{
+    try{const state=store.readCircleAuthState({mode:'BOUND',actorId:userId,sessionKey:proof?.key,rateKeys:[]}),user=this.walletActor(state,userId,proof);return circleBoundAccount(user,userId,state.boundUserId,state.auth.authRecovery)}catch(e){return this.circleFailure(e)}
+  }
+  /** Provider inventory may provision the first Circle EOA; explicit selections and existing bindings stay pinned. */
+  public static bindCircleWallet(userId:string,circleUserId:string,input:{walletId:string;address:string;blockchain:'ARC-TESTNET'},proof?:SessionProof,expected?:CircleWalletAuthority):SanitizedUser{
+    const wallet=circleWalletRecord(input),key=wallet.address.toLowerCase();try{return store.mutateCircleAuthentication({mode:'BIND',actorId:userId,sessionKey:proof?.key,circleUserId,wallet:key,rateKeys:[]},state=>{
+      const user=this.walletActor(state,userId,proof),authority=circleBoundAccount(user,userId,state.boundUserId,state.auth.authRecovery);if(authority.circleUserId!==circleUserId)throw new CircleAuthError('CIRCLE_WALLET_NOT_BOUND',403);if(expected)sameCircleAuthority(expected,authority);
+      if(state.walletOwner&&state.walletOwner!==userId)throw new CircleAuthError('CIRCLE_WALLET_OWNER_CONFLICT',409);if(user.circleWallet&&(user.circleWallet.walletId!==wallet.walletId||user.circleWallet.address.toLowerCase()!==key))throw new CircleAuthError('CIRCLE_WALLET_BINDING_REQUIRED',409);
+      const changed=!user.circleWallet||user.circleWallet.walletId!==wallet.walletId||user.circleWallet.address!==wallet.address||user.circleWallet.blockchain!==wallet.blockchain,newIndex=state.walletOwner===undefined,select=user.activeWallet===null,writes:CircleAuthWrite[]=newIndex?[{collection:'userByWallet',key,value:userId}]:[],result={...user,...(select?{activeWallet:wallet.address}:{}),circleWallet:wallet};
+      return{result:circlePublicUser(result),writes,...(select?{userPatch:{activeWallet:wallet.address}}:{}),...(changed?{circleWallet:wallet}:{}),...((changed||newIndex||select)?{audit:[{actor:userId,role:'user' as const,action:'CIRCLE_WALLET_BOUND' as const,details:{walletId:wallet.walletId,address:wallet.address,selected:select}}]}:{})};
+    })}catch(e){return this.circleFailure(e)}
+  }
+  public static assertFaucetAuthority(userId:string,address:string,proof:SessionProof){
+    try{if(config.arcChainId!==5042002)throw new CircleAuthError('FAUCET_UNAVAILABLE',503);const wallet=ethers.getAddress(address).toLowerCase(),state=store.readCircleAuthState({mode:'FAUCET',actorId:userId,sessionKey:proof.key,wallet,rateKeys:[]}),user=this.walletActor(state,userId,proof);circlePublicUser(user);if(state.walletOwner!==userId||![user.activeWallet,user.circleWallet?.address].some(a=>typeof a==='string'&&a.toLowerCase()===wallet))throw new CircleAuthError('FAUCET_WALLET_NOT_OWNED',403);return user}catch(e){return this.circleFailure(e)}
+  }
+  public static reserveFaucet(userId:string,address:string,proof:SessionProof){
+    const wallet=ethers.getAddress(address).toLowerCase(),key='arc-faucet:'+wallet;try{if(config.arcChainId!==5042002)throw new CircleAuthError('FAUCET_UNAVAILABLE',503);return store.mutateCircleAuthentication({mode:'FAUCET',actorId:userId,sessionKey:proof.key,wallet,rateKeys:[key]},state=>{const user=this.walletActor(state,userId,proof);circlePublicUser(user);if(state.walletOwner!==userId||![user.activeWallet,user.circleWallet?.address].some(a=>typeof a==='string'&&a.toLowerCase()===wallet))throw new CircleAuthError('FAUCET_WALLET_NOT_OWNED',403);return{result:undefined,writes:[{collection:'rateLimits',key,value:faucetRate(state.rates[key],Date.now())}],audit:[{actor:userId,role:'user',action:'ARC_FAUCET_REQUESTED',details:{recipient:ethers.getAddress(address),chainId:5042002,asset:'NATIVE',confirmed:false}}]}})}catch(e){return this.circleFailure(e)}
+  }
+  /** Retired local OTP entrypoints remain callable only to return a finite denial.
+   * Historical OTP rows are retained; Circle owns email verification. */
+  public static requestOtp(_email: string): { success: boolean; message: string } {
+    throw new SessionError("LEGACY_EMAIL_OTP_RETIRED",410);
   }
 
-  /**
-   * Verify email OTP with timing-safe hash comparison and attempt limiting.
-   * Returns JWT session and sanitized user (without raw or encrypted private keys).
-   */
-  public static verifyOtp(email: string, code: string): { token: string; user: SanitizedUser } {
-    const normalizedEmail = email.trim().toLowerCase();
-    const entry = store.db.emailOtps[normalizedEmail];
-    const now = Date.now();
-
-    if (!entry || entry.expiresAt < now) {
-      throw new Error("Mã OTP không hợp lệ hoặc đã hết hạn");
-    }
-
-    entry.attempts = (entry.attempts || 0) + 1;
-
-    // Brute-force protection: Max 5 attempts
-    if (entry.attempts > 5) {
-      delete store.db.emailOtps[normalizedEmail];
-      store.save();
-      throw new Error("Quá số lần thử OTP cho phép. Vui lòng yêu cầu mã OTP mới.");
-    }
-
-    let isValid = false;
-    if (entry.hashedCode && entry.salt) {
-      const candidateHash = crypto.createHash("sha256").update(entry.salt + code.trim()).digest("hex");
-      try {
-        isValid = crypto.timingSafeEqual(
-          Buffer.from(candidateHash, "hex"),
-          Buffer.from(entry.hashedCode, "hex")
-        );
-      } catch {
-        isValid = false;
-      }
-    } else if (entry.code) {
-      // Backward compatibility for existing plaintext entry
-      isValid = entry.code === code.trim();
-    }
-
-    if (!isValid) {
-      store.save();
-      throw new Error("Mã OTP không chính xác");
-    }
-
-    // Clear consumed OTP
-    delete store.db.emailOtps[normalizedEmail];
-
-    let userId = store.db.userByEmail[normalizedEmail];
-    let user: UserRecord;
-
-    if (!userId) {
-      userId = `usr_${now}_${crypto.randomBytes(4).toString("hex")}`;
-      user = {
-        id: userId,
-        email: normalizedEmail,
-        loginMethod: "CIRCLE_EMAIL",
-        createdAt: now,
-        roles: ["buyer"],
-        activeWallet: null,
-      };
-
-      store.db.users[userId] = user;
-      store.db.userByEmail[normalizedEmail] = userId;
-      store.addAuditLog(userId, "buyer", "USER_REGISTERED", { email: normalizedEmail });
-    } else {
-      user = store.db.users[userId];
-    }
-
-    store.save();
-
-    const token = this.issueSessionToken(user);
-
-    return { token, user: sanitizeUser(user) };
+  public static verifyOtp(_email: string, _code: string): { token: string; user: SanitizedUser } {
+    throw new SessionError("LEGACY_EMAIL_OTP_RETIRED",410);
   }
 
   /**
@@ -247,8 +78,21 @@ export class AuthService {
     action: "LINK_WALLET" | "SELLER_PAYOUT" | "OPERATOR_ACTION",
     walletAddress: string,
     chainId?: number,
-    origin?: string
+    origin?: string,
+    proof?:SessionProof
   ): { challengeMessage: string; expiresAt: number; nonce: string } {
+    if(action==='SELLER_PAYOUT')throw new WalletAuthError('SELLER_PROFILE_INTENT_REQUIRED',410);
+    if(action==='LINK_WALLET'){
+      const wallet=parseWallet(walletAddress),targetChainId=chainId??config.arcChainId,targetOrigin=origin??'groupdeal.app',nonce=crypto.randomBytes(16).toString('hex'),now=Math.floor(Date.now()/1000),expiresAt=now+300,key=userId+':LINK_WALLET:'+wallet.toLowerCase();
+      if(targetChainId!==config.arcChainId||!targetOrigin||targetOrigin.length>2000||/[\u0000-\u001f\u007f]/.test(targetOrigin))throw new WalletAuthError('WALLET_AUTH_INPUT_INVALID');
+      return store.mutateWalletAuth({mode:'ISSUE_LINK',actorId:userId,sessionKey:proof?.key,wallet:wallet.toLowerCase(),challengeKey:key,rateKeys:[]},state=>{
+        const account=proof?SessionService.assertCommitted(proof,state.auth):state.auth.user,context=walletAuthContext(state.auth.authRecovery);
+        if(!account||account.id!==userId||!Array.isArray(account.roles)||account.roles.some(r=>!['buyer','seller','operator'].includes(r))||!proof&&context!==undefined)throw new SessionError('AUTH_SESSION_INVALID');
+        const value:WalletChallengeRecord={userId,action:'LINK_WALLET',walletAddress:wallet.toLowerCase(),message:'',expiresAt,nonce,chainId:targetChainId,origin:targetOrigin,...(context?{authRecoveryContext:context}:{})};value.message=walletAuthMessage(value,now);
+        return{result:{challengeMessage:value.message,expiresAt,nonce},writes:[{collection:'walletChallenges',key,value}],audit:[{actor:userId,role:'user',action:'WALLET_AUTH_CHALLENGE_ISSUED',details:{action:'LINK_WALLET',wallet}}]};
+      });
+    }
+    if(action!=='OPERATOR_ACTION')throw new WalletAuthError('WALLET_AUTH_INPUT_INVALID');
     const normalizedWallet = ethers.getAddress(walletAddress).toLowerCase();
     const nonce = crypto.randomBytes(16).toString("hex");
     const now = Math.floor(Date.now() / 1000);
@@ -269,57 +113,28 @@ export class AuthService {
     ].join("\n");
 
     const key = `${userId}:${action}:${normalizedWallet}`;
-    if (!store.db.walletChallenges) {
-      store.db.walletChallenges = {};
+    if(action==='OPERATOR_ACTION'){
+      if(targetChainId!==config.arcChainId||!targetOrigin||targetOrigin.length>2000||/[\u0000-\u001f\u007f]/.test(targetOrigin)||normalizedWallet===ethers.ZeroAddress)throw Error('FORBIDDEN: operator challenge scope is invalid');
+      const value:WalletChallengeRecord={userId,action,walletAddress:normalizedWallet,message:challengeMessage,expiresAt,nonce,chainId:targetChainId,origin:targetOrigin};
+      return store.mutateProduct({actorId:userId,sessionKey:proof?.key,challengeKey:key},state=>{
+        const account=SessionService.assertOperatorCommitted(proof,state.auth);
+        if(!account||account.id!==userId||!Array.isArray(account.roles)||account.roles.some(r=>!['buyer','seller','operator'].includes(r))||!account.roles.includes('operator'))throw new SessionError('OPERATOR_ROLE_REQUIRED',403);
+        if(account.activeWallet?.toLowerCase()!==normalizedWallet||normalizedWallet!==config.operatorAddress.toLowerCase())throw Error('FORBIDDEN: operator wallet is not actively bound');
+        return{result:{challengeMessage,expiresAt,nonce},writes:[{kind:'OPERATOR_CHALLENGE',key,value}],audit:[{role:'operator',action:'OPERATOR_CHALLENGE_ISSUED',details:{wallet:normalizedWallet,action}}]};
+      });
     }
-    store.db.walletChallenges[key] = {
-      userId,
-      action,
-      walletAddress: normalizedWallet,
-      message: challengeMessage,
-      expiresAt,
-      nonce,
-      chainId: targetChainId,
-      origin: targetOrigin,
-    };
-    store.save();
-
-    return { challengeMessage, expiresAt, nonce };
+    throw new WalletAuthError('WALLET_AUTH_INPUT_INVALID');
   }
 
   public static consumeWalletChallenge(
     userId: string,
-    action: "LINK_WALLET" | "SELLER_PAYOUT" | "OPERATOR_ACTION",
+    action: "LINK_WALLET" | "SELLER_PAYOUT",
     walletAddress: string,
     message: string
   ): void {
-    if (!message || typeof message !== "string") {
-      throw new Error("Challenge message is required and must be a valid string.");
-    }
-    const normalizedWallet = ethers.getAddress(walletAddress).toLowerCase();
-    const key = `${userId}:${action}:${normalizedWallet}`;
-    if (!store.db.walletChallenges) {
-      store.db.walletChallenges = {};
-    }
-    const challenge = store.db.walletChallenges[key];
-
-    if (!challenge) {
-      throw new Error("Challenge expired or not found or already consumed. Please request a new wallet challenge.");
-    }
-
-    if (Math.floor(Date.now() / 1000) > challenge.expiresAt) {
-      delete store.db.walletChallenges[key];
-      store.save();
-      throw new Error("Challenge expired or not found. Please request a new challenge.");
-    }
-
-    if (challenge.message.trim() !== message.trim()) {
-      throw new Error("Invalid challenge message: does not match server issued challenge.");
-    }
-
-    // Atomically consume: one-time use only (strictly prevents replay)
-    delete store.db.walletChallenges[key];
-    store.save();
+    if(!['LINK_WALLET','SELLER_PAYOUT'].includes(action))throw Error('FORBIDDEN: operator challenges require verified scoped consumption');
+    if(action==='SELLER_PAYOUT')throw new WalletAuthError('SELLER_PROFILE_INTENT_REQUIRED',410);
+    throw new WalletAuthError('WALLET_AUTH_VERIFIED_CONSUMPTION_REQUIRED',403);
   }
 
   /**
@@ -327,134 +142,29 @@ export class AuthService {
    * The nonce is part of the storage key so a second requester cannot overwrite
    * another user's pending challenge for the same public address.
    */
-  public static issueWalletLoginChallenge(
-    walletAddress: string,
-    origin = "groupdeal.app"
-  ): { challengeMessage: string; expiresAt: number; nonce: string } {
-    const checksumWallet = ethers.getAddress(walletAddress);
-    const normalizedWallet = checksumWallet.toLowerCase();
-    const nonce = crypto.randomBytes(16).toString("hex");
-    const now = Math.floor(Date.now() / 1000);
-    const expiresAt = now + 300;
-    const subject = `wallet-login:${normalizedWallet}`;
-
-    const challengeMessage = [
-      "=== GroupDeal Wallet Login ===",
-      "Action: WALLET_LOGIN",
-      `Wallet: ${checksumWallet}`,
-      `Chain ID: ${config.arcChainId}`,
-      `Origin: ${origin}`,
-      `Nonce: ${nonce}`,
-      `Timestamp: ${now}`,
-      `Expires: ${expiresAt}`,
-      "This signature does not submit a transaction or spend funds.",
-    ].join("\n");
-
-    const key = `${subject}:WALLET_LOGIN:${nonce}`;
-    const currentTime = Math.floor(Date.now() / 1000);
-    for (const [candidateKey, challenge] of Object.entries(store.db.walletChallenges)) {
-      if (challenge.expiresAt < currentTime) delete store.db.walletChallenges[candidateKey];
-    }
-    store.db.walletChallenges[key] = {
-      userId: subject,
-      action: "WALLET_LOGIN",
-      walletAddress: normalizedWallet,
-      message: challengeMessage,
-      expiresAt,
-      nonce,
-      chainId: config.arcChainId,
-      origin,
-    };
-    store.save();
-    return { challengeMessage, expiresAt, nonce };
+  public static issueWalletLoginChallenge(walletAddress:string,origin='groupdeal.app',budgets:WalletAuthBudget[]=[]):{challengeMessage:string;expiresAt:number;nonce:string}{
+    const wallet=parseWallet(walletAddress),normalizedWallet=wallet.toLowerCase(),nonce=crypto.randomBytes(16).toString('hex'),now=Math.floor(Date.now()/1000),expiresAt=now+300,subject='wallet-login:'+normalizedWallet,key=subject+':WALLET_LOGIN:'+nonce;
+    if(typeof origin!=='string'||!origin||origin.length>2000||/[\u0000-\u001f\u007f]/.test(origin))throw new WalletAuthError('WALLET_AUTH_INPUT_INVALID');
+    const result=store.mutateWalletAuth<{challengeMessage:string;expiresAt:number;nonce:string}|{error:WalletAuthError}>({mode:'ISSUE_LOGIN',wallet:normalizedWallet,challengeKey:key,rateKeys:budgets.map(b=>b.key)},state=>{
+      const admission=walletAuthAdmission(budgets,state.rates);if(admission.error)return{result:{error:admission.error},writes:admission.writes};
+      const context=walletAuthContext(state.auth.authRecovery),value:WalletChallengeRecord={userId:subject,action:'WALLET_LOGIN',walletAddress:normalizedWallet,message:'',expiresAt,nonce,chainId:config.arcChainId,origin,...(context?{authRecoveryContext:context}:{})};value.message=walletAuthMessage(value,now);
+      return{result:{challengeMessage:value.message,expiresAt,nonce},writes:[...admission.writes,{collection:'walletChallenges',key,value}],audit:[{actor:subject,role:'user',action:'WALLET_AUTH_CHALLENGE_ISSUED',details:{action:'WALLET_LOGIN',wallet}}]};
+    });if('error' in result)throw result.error;return result;
   }
 
-  /**
-   * Verify a one-time wallet signature and create or resume the account bound
-   * to that address. Only the public address is persisted; GroupDeal never
-   * receives a wallet private key or seed phrase.
-   */
-  public static verifyWalletLogin(
-    walletAddress: string,
-    signature: string,
-    message: string,
-    nonce: string
-  ): { token: string; user: SanitizedUser } {
-    const checksumWallet = ethers.getAddress(walletAddress);
-    const normalizedWallet = checksumWallet.toLowerCase();
-    const subject = `wallet-login:${normalizedWallet}`;
-    const key = `${subject}:WALLET_LOGIN:${nonce}`;
-    const challenge = store.db.walletChallenges[key];
-
-    if (
-      !challenge ||
-      challenge.action !== "WALLET_LOGIN" ||
-      challenge.walletAddress !== normalizedWallet ||
-      challenge.nonce !== nonce
-    ) {
-      throw new Error("Wallet login challenge is invalid, expired, or already used");
-    }
-
-    if (Math.floor(Date.now() / 1000) > challenge.expiresAt) {
-      delete store.db.walletChallenges[key];
-      store.save();
-      throw new Error("Wallet login challenge has expired");
-    }
-    if (challenge.message !== message) {
-      delete store.db.walletChallenges[key];
-      store.save();
-      throw new Error("Wallet login message does not match the server challenge");
-    }
-
-    let recovered: string;
-    try {
-      recovered = ethers.verifyMessage(message, signature).toLowerCase();
-    } catch {
-      delete store.db.walletChallenges[key];
-      store.save();
-      throw new Error("Wallet login signature is invalid");
-    }
-    delete store.db.walletChallenges[key];
-    if (recovered !== normalizedWallet) {
-      store.save();
-      throw new Error("Wallet login signature does not match the requested address");
-    }
-
-    let userId: string | undefined = store.db.userByWallet[normalizedWallet];
-    let user = userId ? store.db.users[userId] : undefined;
-    if (userId && !user) {
-      delete store.db.userByWallet[normalizedWallet];
-      userId = undefined;
-    }
-
-    if (!user) {
-      userId = `usr_wallet_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
-      const internalEmail = `wallet+${normalizedWallet.slice(2)}@auth.groupdeal.invalid`;
-      user = {
-        id: userId,
-        email: internalEmail,
-        loginMethod: "EVM_WALLET",
-        createdAt: Date.now(),
-        roles: ["buyer"],
-        activeWallet: checksumWallet,
-      };
-      store.db.users[userId] = user;
-      store.db.userByEmail[internalEmail] = userId;
-      store.db.userByWallet[normalizedWallet] = userId;
-      store.db.notificationPreferences[userId] = { inApp: true, email: false };
-      store.addAuditLog(userId, "buyer", "EVM_WALLET_USER_REGISTERED", {
-        wallet: checksumWallet,
-      });
-    } else {
-      user.activeWallet = checksumWallet;
-      store.db.userByWallet[normalizedWallet] = user.id;
-      store.addAuditLog(user.id, "buyer", "EVM_WALLET_LOGIN_VERIFIED", {
-        wallet: checksumWallet,
-      });
-    }
-
-    store.save();
-    return { token: this.issueSessionToken(user), user: sanitizeUser(user) };
+  public static verifyWalletLogin(walletAddress:string,signature:string,message:string,nonce:string,budgets:WalletAuthBudget[]=[]):{token:string;user:SanitizedUser}{
+    const wallet=parseWallet(walletAddress),normalizedWallet=wallet.toLowerCase(),subject='wallet-login:'+normalizedWallet;
+    if(typeof nonce!=='string'||! /^[a-f0-9]{32}$/.test(nonce)||typeof message!=='string'||message.length>4096||typeof signature!=='string')throw new WalletAuthError('WALLET_AUTH_INPUT_INVALID');
+    const key=subject+':WALLET_LOGIN:'+nonce,result=store.mutateWalletAuth<{token:string;user:SanitizedUser}|{error:WalletAuthError}>({mode:'LOGIN',wallet:normalizedWallet,challengeKey:key,rateKeys:budgets.map(b=>b.key)},state=>{
+      const admission=walletAuthAdmission(budgets,state.rates);if(admission.error)return{result:{error:admission.error},writes:admission.writes};
+      try{assertWalletAuthChallenge(state.challenge,{action:'WALLET_LOGIN',userId:subject,wallet,chainId:config.arcChainId,nonce,context:walletAuthContext(state.auth.authRecovery)},message,signature);}catch(e){if(e instanceof WalletAuthError&&e.status===400)return{result:{error:e},writes:admission.writes};throw e;}
+      let user=state.auth.user;const isNew=state.boundUserId===undefined,writes:WalletAuthWrite[]=[...admission.writes];
+      if(!isNew&&(!user||user.id!==state.boundUserId))throw new WalletAuthError('WALLET_ACCOUNT_BINDING_UNAVAILABLE',409);
+      if(isNew){if(state.emailOwner!==undefined)throw new WalletAuthError('WALLET_ACCOUNT_BINDING_UNAVAILABLE',409);const id='usr_wallet_'+crypto.randomUUID(),email='wallet+'+normalizedWallet.slice(2)+'@auth.groupdeal.invalid';user={id,email,loginMethod:'EVM_WALLET',createdAt:Date.now(),roles:['buyer'],activeWallet:wallet};writes.push({collection:'users',key:id,value:user},{collection:'userByEmail',key:email,value:id},{collection:'userByWallet',key:normalizedWallet,value:id},{collection:'notificationPreferences',key:id,value:{inApp:true,email:false}});
+      }else user={...user!,activeWallet:wallet};
+      const prepared=SessionService.prepareIssuedSession(user!,state.auth.authRecovery,'EVM_WALLET');writes.push({collection:'authSessions',key:prepared.key,value:prepared.record});
+      return{result:{token:prepared.token,user:sanitizeUser(user!)},userId:user!.id,writes,consumeChallenge:true,...(!isNew?{activeWallet:wallet}:{}),audit:[{actor:user!.id,role:'buyer',action:isNew?'EVM_WALLET_USER_REGISTERED':'EVM_WALLET_LOGIN_VERIFIED',details:{wallet}},{actor:user!.id,role:'user',action:'APP_SESSION_CREATED',details:{sessionId:prepared.record.id,loginMethod:'EVM_WALLET'}}]};
+    });if('error' in result)throw result.error;return result;
   }
 
   public static verifyStepUpSignature(
@@ -462,71 +172,44 @@ export class AuthService {
     action: "OPERATOR_ACTION",
     walletAddress: string,
     signature: string,
-    message: string
+    message: string,
+    proof?:SessionProof
   ): void {
-    const user = store.db.users[userId];
-    if (!user?.roles.includes("operator")) throw new Error("Operator role is required");
-    const normalizedWallet = ethers.getAddress(walletAddress);
-    if (
-      normalizedWallet.toLowerCase() !== config.operatorAddress.toLowerCase() ||
-      user.activeWallet?.toLowerCase() !== normalizedWallet.toLowerCase()
-    ) {
-      throw new Error("Step-up wallet must be the configured, actively bound operator wallet");
-    }
-    this.consumeWalletChallenge(userId, action, normalizedWallet, message);
-    if (ethers.verifyMessage(message, signature).toLowerCase() !== normalizedWallet.toLowerCase()) {
-      throw new Error("Operator step-up signature is invalid");
-    }
-    store.addAuditLog(userId, "operator", "OPERATOR_STEP_UP_VERIFIED", {
-      wallet: normalizedWallet,
-      action,
+    if(action!=='OPERATOR_ACTION')throw Error('FORBIDDEN: operator action is unavailable');
+    const wallet=ethers.getAddress(walletAddress).toLowerCase(),challengeKey=userId+':OPERATOR_ACTION:'+wallet;
+    store.mutateOperatorStepUp({actorId:userId,sessionKey:proof?.key,challengeKey},state=>{
+      const account=SessionService.assertOperatorCommitted(proof,state.auth);
+      if(!proof&&state.auth.authRecovery!==undefined)throw Error('FORBIDDEN: committed operator session is required');
+      this.assertCommittedStepUpSignature(account,state.challenge,walletAddress,signature,message);
+      return{result:undefined};
     });
+  }
+  /** Pure verification for commands that consume the committed challenge in their own SQL transaction. */
+  public static assertCommittedStepUpSignature(user:UserRecord|undefined,challenge:WalletChallengeRecord|undefined,walletAddress:string,signature:string,message:string):void {
+    try{
+      if(!user||!Array.isArray(user.roles)||user.roles.some(r=>!['buyer','seller','operator'].includes(r))||!user.roles.includes('operator')||typeof walletAddress!=='string'||typeof signature!=='string'||!/^0x[0-9a-fA-F]{128}(?:[0-9a-fA-F]{2})?$/.test(signature)||typeof message!=='string'||message.length>4096)throw Error();
+      const wallet=ethers.getAddress(walletAddress),now=Math.floor(Date.now()/1000);
+      if(wallet.toLowerCase()!==config.operatorAddress.toLowerCase()||user.activeWallet?.toLowerCase()!==wallet.toLowerCase()||!challenge||challenge.userId!==user.id||challenge.action!=='OPERATOR_ACTION'||challenge.walletAddress!==wallet.toLowerCase()||challenge.message!==message||!Number.isSafeInteger(challenge.expiresAt)||challenge.expiresAt<=now||challenge.chainId!==config.arcChainId||! /^[a-f0-9]{32}$/.test(challenge.nonce)||typeof challenge.origin!=='string'||!challenge.origin||challenge.origin.length>2000||/[\u0000-\u001f\u007f]/.test(challenge.origin))throw Error();
+      const timestamp=Number(/\nTimestamp: (\d+)\nExpires:/.exec(message)?.[1]);
+      const expected=['=== GroupDeal Security Challenge ===','Action: OPERATOR_ACTION',`User ID: ${user.id}`,`Wallet: ${wallet}`,`Chain ID: ${challenge.chainId}`,`Origin: ${challenge.origin}`,`Nonce: ${challenge.nonce}`,`Timestamp: ${timestamp}`,`Expires: ${challenge.expiresAt}`].join('\n');
+      if(!Number.isSafeInteger(timestamp)||timestamp<0||timestamp>now+30||challenge.expiresAt!==timestamp+300||message!==expected||ethers.verifyMessage(message,signature).toLowerCase()!==wallet.toLowerCase())throw Error();
+    }catch{throw Error('FORBIDDEN: committed operator step-up is unavailable');}
   }
 
   /**
    * Atomic binding of an external EVM wallet (MetaMask / injected).
    * Enforces that an external wallet can only be actively linked to ONE account at a time.
    */
-  public static linkExternalWallet(
-    userId: string,
-    walletAddress: string,
-    signature: string,
-    message: string
-  ): SanitizedUser {
-    const user = store.db.users[userId];
-    if (!user) throw new Error("User not found");
-
-    // Enforce anti-replay challenge verification
-    this.consumeWalletChallenge(userId, "LINK_WALLET", walletAddress, message);
-
-    const normalizedAddress = walletAddress.trim().toLowerCase();
-
-    // Verify cryptographic signature proving ownership of wallet
-    const recovered = ethers.verifyMessage(message, signature).toLowerCase();
-    if (recovered !== normalizedAddress) {
-      throw new Error("Signature verification failed: caller does not control wallet");
-    }
-
-    // Atomic 1-wallet-to-1-account constraint
-    const existingBinding = store.db.userByWallet[normalizedAddress];
-    if (existingBinding && existingBinding !== userId) {
-      throw new Error("This EVM wallet is already actively linked to another GroupDeal account");
-    }
-
-    // Unbind user's previous active wallet from reverse index if it was not their Circle wallet
-    if (user.activeWallet && user.activeWallet.toLowerCase() !== normalizedAddress) {
-      const prevAddr = user.activeWallet.toLowerCase();
-      if (!user.circleWallet || user.circleWallet.address.toLowerCase() !== prevAddr) {
-        delete store.db.userByWallet[prevAddr];
-      }
-    }
-
-    user.activeWallet = ethers.getAddress(walletAddress);
-    store.db.userByWallet[normalizedAddress] = userId;
-    store.addAuditLog(userId, "user", "WALLET_LINKED", { wallet: user.activeWallet });
-    store.save();
-
-    return sanitizeUser(user);
+  public static linkExternalWallet(userId:string,walletAddress:string,signature:string,message:string,proof?:SessionProof):SanitizedUser{
+    const wallet=parseWallet(walletAddress),target=wallet.toLowerCase(),key=userId+':LINK_WALLET:'+target;
+    if(typeof message!=='string'||message.length>4096||typeof signature!=='string')throw new WalletAuthError('WALLET_AUTH_INPUT_INVALID');
+    return store.mutateWalletAuth({mode:'SELECT',actorId:userId,sessionKey:proof?.key,wallet:target,challengeKey:key,rateKeys:[]},state=>{
+      const user=proof?SessionService.assertCommitted(proof,state.auth):state.auth.user,context=walletAuthContext(state.auth.authRecovery);
+      if(!user||user.id!==userId||!Array.isArray(user.roles)||user.roles.some(r=>!['buyer','seller','operator'].includes(r))||!proof&&context!==undefined)throw new SessionError('AUTH_SESSION_INVALID');
+      if(state.boundUserId!==userId)throw new WalletAuthError('WALLET_LINK_STEP_UP_REQUIRED',409);
+      assertWalletAuthChallenge(state.challenge,{action:'LINK_WALLET',userId,wallet,chainId:config.arcChainId,context},message,signature);
+      return{result:sanitizeUser({...user,activeWallet:wallet}),userId,activeWallet:wallet,consumeChallenge:true,writes:[],audit:[{actor:userId,role:'user',action:'WALLET_LINKED',details:{wallet}}]};
+    });
   }
 
   /**
@@ -542,41 +225,8 @@ export class AuthService {
       challengeMessage: string;
     }
   ): SanitizedUser {
-    const user = store.db.users[userId];
-    if (!user) throw new Error("User not found");
-
-    const payoutWallet = ethers.getAddress(profileData.payoutWallet);
-
-    // Enforce anti-replay challenge verification
-    this.consumeWalletChallenge(userId, "SELLER_PAYOUT", payoutWallet, profileData.challengeMessage);
-
-    // Verify proof of control of payout wallet
-    const recovered = ethers
-      .verifyMessage(profileData.challengeMessage, profileData.proofSignature)
-      .toLowerCase();
-    if (recovered !== payoutWallet.toLowerCase()) {
-      throw new Error("Invalid proof signature: caller does not control payout wallet");
-    }
-
-    user.sellerProfile = {
-      displayName: profileData.displayName,
-      bio: profileData.bio,
-      payoutWallet: payoutWallet,
-      verifiedSellerBadge: false, // Must be reviewed by operator
-      verifiedRightsBadge: false, // Must be reviewed by operator
-      payoutProofSignature: profileData.proofSignature,
-    };
-
-    if (!user.roles.includes("seller")) {
-      user.roles.push("seller");
-    }
-
-    store.addAuditLog(userId, "seller", "SELLER_PROFILE_CREATED", {
-      displayName: profileData.displayName,
-      payoutWallet,
-    });
-    store.save();
-
-    return sanitizeUser(user);
+    // The legacy challenge did not bind profile fields or authorize an unlinked payout.
+    // Retain a rejecting compatibility entry point so older callers cannot bypass intents.
+    throw new Error("SELLER_PROFILE_INTENT_REQUIRED");
   }
 }

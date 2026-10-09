@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import express from "express";
+import crypto from 'node:crypto';
+import jwt from 'jsonwebtoken';
 import { ethers } from "ethers";
 import { circleRouter } from "../src/routes/circleRoutes";
 import { faucetRouter } from "../src/routes/faucetRoutes";
@@ -8,14 +10,14 @@ import { AuthService } from "../src/services/authService";
 import { store } from "../src/db/store";
 
 async function run() {
-  assert.ok(store.filePath.includes("groupdeal-test-"), "Tests must not open the application database");
+  assert.ok(store.isIsolated);
   const originals = {
-    verifyIdentity: CircleWalletService.verifyIdentity,
     listArcWallets: CircleWalletService.listArcWallets,
     requestArcTestnetTokens: CircleWalletService.requestArcTestnetTokens,
   };
+  const provider=CircleWalletService as unknown as{client:unknown},originalClient=provider.client;
+  provider.client={createDeviceTokenForEmailLogin:async()=>({data:{deviceToken:'fixture-device-token',otpToken:'fixture-otp-token',deviceEncryptionKey:'fixture-device-key'}}),getUserStatus:async()=>({data:{id:'fixture-circle-id',status:'ENABLED'}})};
   let inventoryCalls = 0;
-  CircleWalletService.verifyIdentity = async () => ({ email: "fixture@example.com", circleUserId: "fixture-circle-id" });
   CircleWalletService.listArcWallets = async () => { inventoryCalls++; throw new Error("Inventory is offline"); };
   const wallet = ethers.Wallet.createRandom();
   const challenge = AuthService.issueWalletLoginChallenge(wallet.address, "http://localhost:5173");
@@ -33,7 +35,8 @@ async function run() {
     body: JSON.stringify(body),
   });
   try {
-    const login = await post("/circle/session", { userToken: "mock-circle-token", loginAttemptId: "mock-attempt" });
+    const attempt=await CircleWalletService.requestEmailOtp('fixture@example.com',crypto.randomUUID()),userToken=jwt.sign({sub:'fixture-circle-id',email:'fixture@example.com',email_verified:true},'fixture-provider');
+    const login = await post("/circle/session", { userToken, loginAttemptId:attempt.loginAttemptId });
     assert.equal(login.status, 200);
     const loginBody = await login.json() as { token: string; user: { activeWallet: string | null }; walletInitialized: boolean };
     assert.ok(loginBody.token);
@@ -55,7 +58,7 @@ async function run() {
     const accepted = await attempts.find((response) => response.status === 202)!.json() as Record<string, unknown>;
     assert.equal(accepted.status, "REQUESTED");
     assert.equal(accepted.txHash, undefined, "A queued faucet request is not a confirmed transaction");
-    delete store.db.rateLimits[`arc-faucet:${wallet.address.toLowerCase()}`];
+    store.transaction(()=>{delete store.db.rateLimits[`arc-faucet:${wallet.address.toLowerCase()}`]});
     CircleWalletService.requestArcTestnetTokens = async () => { throw { status: 403 }; };
     const denied = await post("/faucet/usdc", { address: wallet.address }, session.token);
     assert.equal(denied.status, 502);
@@ -63,6 +66,7 @@ async function run() {
     console.log("PASS: session independent of inventory; faucet auth, ownership, concurrency, queued semantics and API access errors");
   } finally {
     Object.assign(CircleWalletService, originals);
+    provider.client=originalClient;
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 }

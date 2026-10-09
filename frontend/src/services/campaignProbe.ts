@@ -1,0 +1,26 @@
+import {UiError,uiMessage} from '../utils/uiMessage';
+import {readCanceledResourceReceipt} from './resourceCommandTerminal';
+export type ProbePending={schema:1;actorId:string;scope:string;commandId:string;campaignId:string;draftVersion:number;productVersionId:string;resourceId:string;method:'FILE_LINK'|'LICENSE_KEY';sha256:string;inputDigest:string;publishKey:string};
+export type ProbeCheckpoint=ProbePending|{unverified:true};
+export type ProbeReceipt={schema:'GroupDealResourceCommandV1';commandId:string;sellerAccountId:string;kind:'PROBE';status:'SUCCEEDED';productVersionId:string;resourceId:string;campaignId:string;committedAt:number;probeId:string;method:'FILE_LINK'|'LICENSE_KEY';evidenceHash:string;sha256:string};
+const object=(v:unknown):v is Record<string,any>=>!!v&&typeof v==='object'&&!Array.isArray(v);
+const id=(v:unknown):v is string=>typeof v==='string'&&v.length>0&&v.length<=180&&!['__proto__','prototype','constructor'].includes(v);
+const integer=(v:unknown,min=0)=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=min&&v<=8640000000000000;
+const digest=(v:unknown)=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v);
+export const probeUnconfirmed=()=>new UiError(uiMessage('Chưa xác nhận lần kiểm tra giao hàng. Giữ bản nháp và kiểm tra biên nhận trước khi tiếp tục.','The delivery check is unconfirmed. Keep the draft and check its receipt before continuing.'));
+export const probePreparationUnfinished=()=>new UiError(uiMessage('Đã xác nhận kiểm tra giao hàng. Giữ checkpoint và kiểm tra bản nháp trước khi tiếp tục.','Delivery check confirmed. Keep the checkpoint and check the draft before continuing.'));
+export const probeChanged=()=>new UiError(uiMessage('Bản nháp hoặc tài nguyên đã thay đổi. Giữ checkpoint và mở lại đúng bản nháp để kiểm tra kết quả.','The draft or resource changed. Keep the checkpoint and reopen the matching draft to check the result.'));
+export class ProbeDraftConflict extends UiError{constructor(){super(uiMessage('CONFLICT: bản nháp đã đổi hoặc có publish intent. Mở lại bản nháp để kiểm tra; không ghi đè.','CONFLICT: the draft has changed or has a publish intent. Reopen it to review before making any further changes.'))}}
+export function readProbeCheckpoint(key:string,actorId:string,scope:string):ProbeCheckpoint|null{
+ try{const raw=sessionStorage.getItem(key);if(!raw)return null;if(raw.length>8192)return{unverified:true};const v=JSON.parse(raw);if(!object(v)||v.schema!==1||v.actorId!==actorId||v.scope!==scope||!id(v.commandId)||!/^[-A-Za-z0-9:_]{8,180}$/.test(v.commandId)||!id(v.publishKey)||!/^[-A-Za-z0-9:_]{8,180}$/.test(v.publishKey)||!['campaignId','productVersionId','resourceId'].every(k=>id(v[k]))||!integer(v.draftVersion,1)||!['FILE_LINK','LICENSE_KEY'].includes(v.method)||!digest(v.sha256)||!digest(v.inputDigest))return{unverified:true};return{schema:1,actorId,scope,commandId:v.commandId,campaignId:v.campaignId,draftVersion:v.draftVersion,productVersionId:v.productVersionId,resourceId:v.resourceId,method:v.method,sha256:v.sha256,inputDigest:v.inputDigest,publishKey:v.publishKey};}catch{return{unverified:true}}
+}
+export function saveProbeCheckpoint(key:string,pending:ProbePending){try{sessionStorage.setItem(key,JSON.stringify(pending))}catch{throw new UiError(uiMessage('Chưa lưu được checkpoint kiểm tra giao hàng. Kiểm tra bộ nhớ trình duyệt trước khi gửi.','The delivery check checkpoint could not be saved. Check browser storage before sending.'))}}
+export function clearProbeCheckpoint(key:string){try{sessionStorage.removeItem(key)}catch{throw probeUnconfirmed()}}
+export function readProbeReceipt(value:unknown,p:ProbePending):ProbeReceipt{
+ const r=object(value)&&value.receipt;if(!object(r)||r.schema!=='GroupDealResourceCommandV1'||r.commandId!==p.commandId||r.sellerAccountId!==p.actorId||r.kind!=='PROBE'||r.status!=='SUCCEEDED'||r.productVersionId!==p.productVersionId||r.resourceId!==p.resourceId||r.campaignId!==p.campaignId||r.method!==p.method||r.sha256!==p.sha256||!integer(r.committedAt)||!id(r.probeId)||typeof r.evidenceHash!=='string'||!/^0x[a-fA-F0-9]{64}$/.test(r.evidenceHash))throw probeUnconfirmed();return{schema:r.schema,commandId:r.commandId,sellerAccountId:r.sellerAccountId,kind:r.kind,status:r.status,productVersionId:r.productVersionId,resourceId:r.resourceId,campaignId:r.campaignId,committedAt:r.committedAt,probeId:r.probeId,method:r.method,evidenceHash:r.evidenceHash,sha256:r.sha256};
+}
+export function readProbeAck(value:unknown,p:ProbePending){
+ const r=readProbeReceipt(value,p),probe=object(value)&&object(value.result)&&value.result.probe;if(!object(value)||value.success!==true||!object(value.result)||value.result.success!==true||!object(probe)||probe.id!==r.probeId||probe.sellerId!==p.actorId||probe.productVersionId!==p.productVersionId||probe.resourceId!==p.resourceId||probe.method!==p.method||probe.resourceSha256!==p.sha256||probe.checkedAt!==r.committedAt||probe.evidenceHash!==r.evidenceHash)throw probeUnconfirmed();return r;
+}
+export function readProbeTerminalReceipt(value:unknown,p:ProbePending){return readCanceledResourceReceipt(value,p.actorId,p.commandId)??readProbeReceipt(value,p)}
+export function readProbeResult(value:unknown,p:ProbePending){if(!object(value)||!integer(value.revision)||!integer(value.serverTime))throw probeUnconfirmed();return readProbeTerminalReceipt(value,p)}

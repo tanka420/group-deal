@@ -1,113 +1,31 @@
-import React, { useEffect, useState } from "react";
-import QRCode from "qrcode";
-import { X, Copy, Check, QrCode, Code } from "lucide-react";
-
-interface ShareModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  campaignId: string;
-  campaignTitle: string;
-}
-
-export const ShareModal: React.FC<ShareModalProps> = ({
-  isOpen,
-  onClose,
-  campaignId,
-  campaignTitle,
-}) => {
-  const [qrDataUrl, setQrDataUrl] = useState<string>("");
-  const [copiedLink, setCopiedLink] = useState(false);
-  const [copiedWidget, setCopiedWidget] = useState(false);
-
-  const campaignUrl = `${window.location.origin}/#campaign-${campaignId}`;
-  const embedSnippet = `<iframe src="${window.location.origin}/api/v1/campaigns/${campaignId}/widget-data" width="380" height="220" frameborder="0"></iframe>`;
-
-  useEffect(() => {
-    if (isOpen && campaignUrl) {
-      QRCode.toDataURL(campaignUrl, { width: 200, margin: 1, color: { dark: "#0f172a", light: "#ffffff" } })
-        .then(setQrDataUrl)
-        .catch(console.error);
-    }
-  }, [isOpen, campaignUrl]);
-
-  if (!isOpen) return null;
-
-  const copyToClipboard = (text: string, isLink: boolean) => {
-    navigator.clipboard.writeText(text);
-    if (isLink) {
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2500);
-    } else {
-      setCopiedWidget(true);
-      setTimeout(() => setCopiedWidget(false), 2500);
-    }
-  };
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <QrCode size={20} color="var(--primary-light)" />
-            <h3 style={{ fontSize: "1.15rem" }}>Chia sẻ chiến dịch & Mã QR</h3>
-          </div>
-          <button className="modal-close" onClick={onClose}>
-            <X size={18} />
-          </button>
-        </div>
-
-        <p style={{ color: "var(--text-secondary)", fontSize: "0.88rem", marginBottom: "1.25rem" }}>
-          {campaignTitle}
-        </p>
-
-        {/* QR Code */}
-        {qrDataUrl && (
-          <div
-            style={{
-              background: "#ffffff",
-              padding: "1rem",
-              borderRadius: "var(--radius-lg)",
-              width: "fit-content",
-              margin: "0 auto 1.5rem",
-              boxShadow: "0 8px 24px rgba(0, 0, 0, 0.3)",
-            }}
-          >
-            <img src={qrDataUrl} alt="Campaign QR Code" style={{ display: "block" }} />
-          </div>
-        )}
-
-        {/* Copy Link */}
-        <div className="form-group">
-          <label className="form-label">Đường dẫn chiến dịch</label>
-          <div style={{ display: "flex", gap: "0.5rem" }}>
-            <input type="text" className="form-input" value={campaignUrl} readOnly />
-            <button
-              className="btn btn-secondary"
-              onClick={() => copyToClipboard(campaignUrl, true)}
-              style={{ padding: "0.6rem 1rem" }}
-            >
-              {copiedLink ? <Check size={16} color="var(--success)" /> : <Copy size={16} />}
-              {copiedLink ? "Đã copy" : "Copy"}
-            </button>
-          </div>
-        </div>
-
-        {/* Embed Widget Snippet */}
-        <div className="form-group" style={{ marginBottom: 0 }}>
-          <label className="form-label">Mã nhúng Widget chỉ đọc (Iframe / Website bán hàng)</label>
-          <div style={{ display: "flex", gap: "0.5rem" }}>
-            <input type="text" className="form-input font-mono" value={embedSnippet} readOnly style={{ fontSize: "0.8rem" }} />
-            <button
-              className="btn btn-secondary"
-              onClick={() => copyToClipboard(embedSnippet, false)}
-              style={{ padding: "0.6rem 1rem" }}
-            >
-              {copiedWidget ? <Check size={16} color="var(--success)" /> : <Code size={16} />}
-              {copiedWidget ? "Đã copy" : "Copy"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+import React,{useEffect,useLayoutEffect,useRef,useState} from 'react';
+import {createPortal} from 'react-dom';
+import {X} from 'lucide-react';
+import {useLanguage} from '../context/LanguageContext';
+import {focusPageElement} from '../utils/focus';
+import deployment from '../../../shared/contracts.json';
+import {readPublicWidget,publicWidgetText,PublicWidget} from '../../../shared/publicWidget.mjs';
+import {shareQr,shareImage,widgetSnippet,downloadShare} from '../services/campaignShare';
+interface ShareModalProps{isOpen:boolean;onClose:()=>void;campaignId:string;}
+type Action='LINK'|'WIDGET'|'QR'|'IMAGE'|'RELOAD';
+export const ShareModal:React.FC<ShareModalProps>=({isOpen,onClose,campaignId})=>{
+ const {language}=useLanguage(),en=language==='en',text=(vi:string,english:string)=>en?english:vi;
+ const [snapshot,setSnapshot]=useState<PublicWidget|null>(null),[qr,setQr]=useState(''),[pending,setPending]=useState(false),[error,setError]=useState<string|null>(null),[notice,setNotice]=useState<string|null>(null);
+ const panel=useRef<HTMLDivElement>(null),heading=useRef<HTMLHeadingElement>(null),status=useRef<HTMLParagraphElement>(null),epoch=useRef(0),locked=useRef(false),controller=useRef<AbortController|null>(null),close=useRef(onClose);close.current=onClose;
+ const alive=(g:number)=>g===epoch.current;
+ useLayoutEffect(()=>{epoch.current++;locked.current=false;controller.current?.abort();setSnapshot(null);setQr('');setPending(false);setError(null);setNotice(null);return()=>{epoch.current++;controller.current?.abort();};},[isOpen,campaignId,language]);
+ useLayoutEffect(()=>{if(!isOpen)return;const previous=document.activeElement instanceof HTMLElement?document.activeElement:null,app=document.getElementById('root'),inert=app?.inert,overflow=document.body.style.overflow;if(app)app.inert=true;document.body.style.overflow='hidden';heading.current?.focus();const keydown=(event:KeyboardEvent)=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close.current();return;}if(event.key!=='Tab'||!panel.current)return;const nodes=Array.from(panel.current.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),textarea:not(:disabled),a[href],summary,[tabindex]:not([tabindex="-1"])')).filter(el=>el.getClientRects().length>0&&!el.closest('[hidden],[inert]'));const first=nodes[0],last=nodes[nodes.length-1];if(!first||!last){event.preventDefault();heading.current?.focus();}else if(event.shiftKey&&(document.activeElement===first||!nodes.includes(document.activeElement as HTMLElement))){event.preventDefault();last.focus();}else if(!event.shiftKey&&(document.activeElement===last||!nodes.includes(document.activeElement as HTMLElement))){event.preventDefault();first.focus();}};document.addEventListener('keydown',keydown,true);return()=>{document.removeEventListener('keydown',keydown,true);if(app)app.inert=Boolean(inert);document.body.style.overflow=overflow;if(previous?.isConnected)focusPageElement(previous);};},[isOpen]);
+ useEffect(()=>{if(isOpen)void run('RELOAD');},[isOpen,campaignId,language]);
+ useEffect(()=>{if(error||notice)status.current?.focus();},[error,notice]);
+ async function read(g:number){controller.current?.abort();const abort=new AbortController();controller.current=abort;if(!/^[A-Za-z0-9_-]{1,128}$/.test(campaignId))throw new Error();const response=await fetch('/api/v1/campaigns/'+encodeURIComponent(campaignId)+'/widget-data',{credentials:'omit',cache:'no-store',redirect:'error',signal:AbortSignal.any([abort.signal,AbortSignal.timeout(10000)])});if(!response.ok||!response.headers.get('content-type')?.includes('application/json'))throw new Error();const data=readPublicWidget(await response.json(),campaignId,{chainId:deployment.chainId,hubAddress:deployment.contracts.GroupDealHub.address});if(!alive(g))return null;setSnapshot(data);const nextQr=data.campaignUrl?await shareQr(data):'';if(!alive(g))return null;setQr(nextQr);return data;}
+ async function run(action:Action){if(locked.current||!isOpen)return;locked.current=true;const g=epoch.current;setPending(true);setSnapshot(null);setQr('');setError(null);setNotice(null);try{const data=await read(g);if(!data||!alive(g))return;if(action==='RELOAD')return;if(!data.campaignUrl||!data.widgetUrl)throw new Error();if(action==='LINK'||action==='WIDGET'){await navigator.clipboard.writeText(action==='LINK'?data.campaignUrl:widgetSnippet(data,language));if(!alive(g))return;setNotice(action==='LINK'?text('Đã sao chép link canonical.','Canonical link copied.'):text('Đã sao chép mã iframe HTML.','HTML iframe code copied.'));}else if(action==='IMAGE'){const blob=await shareImage(data,language);if(!alive(g))return;downloadShare(blob,'groupdeal-'+data.id+'.png');setNotice(text('Đã tạo ảnh chia sẻ từ dữ liệu vừa kiểm tra.','Share image created from the checked public snapshot.'));}else{const raw=await shareQr(data);if(!alive(g))return;const blob=await fetch(raw).then(r=>r.blob());if(!alive(g))return;downloadShare(blob,'groupdeal-qr-'+data.id+'.png');setNotice(text('Đã tạo file QR cho link canonical.','QR file created for the canonical link.'));}}catch{if(alive(g)){setSnapshot(null);setQr('');setError(text('Chưa xác nhận được dữ liệu public hoặc thao tác chia sẻ. Tải lại; kiểm tra quyền clipboard/tải file nếu cần.','Public data or sharing action unconfirmed. Refresh; check clipboard/download permission if needed.'));}}finally{if(alive(g)){locked.current=false;setPending(false);}}}
+ if(!isOpen)return null;const p=snapshot?publicWidgetText(snapshot,language):null,ready=!!snapshot?.campaignUrl&&!!snapshot.widgetUrl&&!pending;
+ return createPortal(<div className="modal-overlay auth-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}><div className="modal-content auth-dialog share-dialog" ref={panel} role="dialog" aria-modal="true" aria-labelledby="share-title" aria-describedby="share-description"><div className="modal-header"><h2 id="share-title" tabIndex={-1} ref={heading}>{text('Chia sẻ deal','Share deal')}</h2><button type="button" className="modal-close" aria-label={text('Đóng chia sẻ','Close sharing')} onClick={onClose}><X size={18} aria-hidden="true"/></button></div><p id="share-description" className="muted">{text('Link, QR và ảnh lấy từ dữ liệu public. Mỗi thao tác kiểm lại visibility và deployment; widget chỉ đọc, không ký hoặc gửi tiền.','Links, QR and images use public data. Each action rechecks visibility and deployment; the widget is read only and cannot sign or send funds.')}</p>
+ {pending&&!error&&!notice&&<p role="status">{text('Đang kiểm tra dữ liệu public…','Checking public data…')}</p>}{(error||notice)&&<p ref={status} tabIndex={-1} role={error?'alert':'status'} className={error?'notice notice-error':'notice'}>{error||notice}</p>}
+ <button type="button" className="btn btn-secondary" disabled={pending} onClick={()=>void run('RELOAD')}>{text('Tải lại dữ liệu chia sẻ','Refresh share data')}</button>
+ {snapshot&&p&&<><h3>{snapshot.title}</h3>{p.unlisted&&<p className="notice">{p.unlisted}</p>}<dl className="detail-list"><dt>{text('Trạng thái','Status')}</dt><dd>{p.status}</dd><dt>{p.priceLabel}</dt><dd className="font-mono">{p.price}</dd></dl>{p.held&&<p className="notice">{p.held}</p>}{p.next&&<p>{p.next}</p>}<p className="muted">{p.rebate} {p.fee}</p><p className="muted">{p.source}</p>{!snapshot.campaignUrl&&<p className="notice">{text('Link chia sẻ chưa sẵn sàng. Thử lại sau hoặc liên hệ hỗ trợ.','Sharing links are not ready. Try again later or contact support.')}</p>}
+ {qr&&<img className="share-qr" src={qr} alt={text('QR dẫn tới link canonical của deal','QR for the canonical deal link')} width={240} height={240}/>}
+ <label htmlFor="share-link">{text('Link deal canonical','Canonical deal link')}</label><input id="share-link" className="form-input" readOnly value={snapshot.campaignUrl||''}/><div className="action-row"><button className="btn btn-secondary" disabled={!ready} onClick={()=>void run('LINK')}>{text('Sao chép link','Copy link')}</button><button className="btn btn-secondary" disabled={!ready} onClick={()=>void run('QR')}>{text('Tải QR PNG','Download QR PNG')}</button><button className="btn btn-primary" disabled={!ready} onClick={()=>void run('IMAGE')}>{text('Tải ảnh deal PNG','Download deal image PNG')}</button></div>
+ <label htmlFor="share-widget">{text('Mã nhúng widget HTML','HTML widget embed code')}</label><textarea id="share-widget" className="form-textarea font-mono" readOnly value={snapshot.widgetUrl?widgetSnippet(snapshot,language):''}/><button className="btn btn-secondary" disabled={!ready} onClick={()=>void run('WIDGET')}>{text('Sao chép mã widget','Copy widget code')}</button><p className="muted">{text('Widget HTML chỉ đọc. Link và ảnh đã chia sẻ là snapshot; bản sao bên ngoài không tự thu hồi khi đổi quyền hiển thị.','The HTML widget is read only. Shared links and images are snapshots; external copies cannot be automatically recalled after visibility changes.')}</p></>}
+ </div></div>,document.body);
 };

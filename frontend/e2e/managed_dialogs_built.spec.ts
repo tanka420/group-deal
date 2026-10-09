@@ -1,0 +1,28 @@
+import {test,expect} from '@playwright/test';
+const principal='0x70997970C51812dc3A010C7d01b50e0d17dc79C8',hub='0x2A7aECd1CE90f1284EB060488c8dDEF4b1bE0574',hash='0x'+'ab'.repeat(32);
+for(const kind of ['claim','order','delivery'])for(const language of ['vi','en'])test(`emitted ${kind} ${language} dialog keeps mismatched projection and recovers without signing`,async({page},info)=>{
+ let recovered=0,completed=false,ready=0;const role=kind==='delivery'?'seller':'buyer';
+ const op={id:'built-review',action:kind==='claim'?'BUYER_CLAIM':kind==='order'?'CONFIRM':'DELIVER',resourceId:kind==='claim'?'campaign':'order',chainId:5042002,hubAddress:hub,principal,calldata:'0x1234',phase:'SUBMITTED',txHash:hash,createdAt:1,updatedAt:1,expectedEventArgs:{proofHash:hash},financialQuote:{kind:'READ_ONLY_SIMULATION',blockNumber:125,blockHash:hash,amountBaseUnits:'89000000'},orderQuote:{kind:'READ_ONLY_SIMULATION',blockNumber:125,blockHash:hash,remainingGross:'89000000',disputeDeadline:1900000000}};
+ const checkpoint='groupdeal_operation:'+role+':built-review';
+ await page.addInitScript(({language,checkpoint,hash})=>{localStorage.setItem('groupdeal_token','fixture-built-session');localStorage.setItem('groupdeal_lang',language);localStorage.setItem(checkpoint,JSON.stringify({id:'built-review',txHash:hash,phase:'SUBMITTED'}));},{language,checkpoint,hash});
+ const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route('**/*',r=>new URL(r.request().url()).hostname==='127.0.0.1'?r.continue():r.abort());
+ await page.route('**/api/**',r=>r.fulfill({json:{notifications:[],unread:0,campaigns:[],orders:[],operations:[],pagination:{nextCursor:null}}}));
+ await page.route('**/api/health',r=>r.fulfill({json:{hubAddress:hub,usdcAddress:principal}}));
+ await page.route('**/api/auth/me',r=>r.fulfill({json:{user:{id:role,email:null,roles:role==='buyer'?['buyer']:['buyer','seller'],loginMethod:'EVM_WALLET',activeWallet:principal,sellerProfile:{displayName:'Built fixture seller',bio:'Local built fixture',payoutWallet:principal,verifiedSellerBadge:false,verifiedRightsBadge:false}}}}));
+ const row=()=>({id:'order',campaignId:'campaign',campaignTitle:'Built dialog review',buyerAccountId:'buyer',sellerAccountId:'seller',buyerPrincipal:principal,sellerPayoutWallet:principal,quantity:1,lockedUnitPrice:'105000000',committedGross:'105000000',rebateAllocated:'16000000',buyerRefundAllocated:kind==='claim'?'89000000':'0',buyerClaimedAmount:kind==='claim'?(completed?'105000000':'16000000'):'0',buyerClaimable:kind==='claim'?(completed?'0':'89000000'):'16000000',sellerAllocated:'0',sellerClaimedAmount:'0',sellerClaimable:'0',accountingVerified:true,disputeDeadline:1900000000,deliveryStatus:kind==='claim'?'BREACHED_REFUNDED':kind==='delivery'?(completed?'DELIVERED':'PENDING'):(completed?'CONFIRMED':'DELIVERED')});
+ await page.route('**/api/orders/buyer',r=>r.fulfill({json:{buyerAccountId:'buyer',orders:[row()]}}));await page.route('**/api/seller/orders',r=>r.fulfill({json:{sellerAccountId:'seller',orders:[row()]}}));
+ await page.route(/\/api\/transactions(?:\?.*)?$/,r=>r.fulfill({json:{operations:new URL(r.request().url()).searchParams.has('resourceId')?[op]:[]}}));
+ await page.route('**/api/transactions/claims/prepare',r=>r.fulfill({json:{operation:op}}));await page.route('**/api/transactions/built-review',r=>r.fulfill({json:{operation:op}}));
+ await page.route('**/api/transactions/built-review/ready',r=>{ready++;return r.fulfill({status:409,json:{error:'Signing is not part of this recovery fixture'}})});
+ await page.route('**/api/transactions/built-review/recover',r=>{expect(r.request().postDataJSON()).toEqual({txHash:hash});recovered++;completed=recovered===2;return r.fulfill({json:{operation:{...op,phase:'PROJECTED',...(completed?{}:{id:'other',txHash:'0x'+'cd'.repeat(32)})}}})});
+ await page.goto(kind==='delivery'?'/#seller':'/#orders');
+ if(kind==='delivery'){await page.getByRole('button',{name:language==='en'?/Orders & access delivery/:/Đơn hàng & Giao quyền truy cập/}).click();await page.getByRole('button',{name:language==='en'?'Deliver resource':'Giao tài nguyên',exact:true}).click();}
+ else await page.getByRole('button',{name:kind==='claim'?(language==='en'?'Withdraw $89 USDC':'Rút $89 USDC'):(language==='en'?'Confirm Receipt':'Xác nhận đã nhận sản phẩm'),exact:true}).click();
+ const dialog=page.getByRole('dialog');await expect(dialog).toBeVisible();
+ for(const width of [320,375,430,768,1024,1280,1440]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);expect(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)}
+ await page.setViewportSize({width:375,height:700});await page.screenshot({path:info.outputPath(`${kind}-${language}-built-375.png`)});
+ const verify=dialog.getByRole('button',{name:kind==='claim'?(language==='en'?'Verify receipt and recover withdrawal':'Kiểm tra receipt và phục hồi khoản rút'):kind==='order'?(language==='en'?'Verify receipt and recover action':'Kiểm tra receipt và phục hồi thao tác'):(language==='en'?'Verify receipt and enable downloads':'Xác minh receipt và mở quyền tải')});
+ await verify.click();await expect(dialog.getByRole('alert')).toContainText('projection');expect(await page.evaluate(key=>localStorage.getItem(key),checkpoint)).toContain(hash);expect(completed).toBe(false);
+ await verify.click();await expect(dialog).not.toBeVisible();expect(await page.evaluate(key=>localStorage.getItem(key),checkpoint)).toBeNull();expect(recovered).toBe(2);expect(ready).toBe(0);expect(errors).toEqual([]);
+});

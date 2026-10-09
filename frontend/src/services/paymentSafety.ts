@@ -1,5 +1,7 @@
 import { ethers } from "ethers";
 import type { BridgeEstimateResult } from "@circle-fin/app-kit";
+import {signerHoldMessage} from "./signerHoldMessage";
+import { UiError, uiMessage, type UiMessage } from "../utils/uiMessage";
 
 export const bridgeSources = {
   Ethereum_Sepolia: { label: "Ethereum Sepolia", chainId: 11155111, chainIdHex: "0xaa36a7", usdc: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238" },
@@ -8,23 +10,41 @@ export const bridgeSources = {
 } as const;
 export type BridgeSource = keyof typeof bridgeSources;
 
-export function paymentError(error: unknown): string {
+/** Provider diagnostics are not display copy. Preserve only messages owned by the app. */
+export function paymentError(error: unknown): UiMessage {
   const seen = new Set<unknown>();
-  const messages: string[] = [];
-  let current: any = error;
+  let display: UiMessage | undefined;
+  let connection: "timeout" | "network" | undefined;
+  let current: unknown = error;
   for (let depth = 0; current && depth < 8 && !seen.has(current); depth += 1) {
     seen.add(current);
-    if (current.code === 4001 || current.code === "ACTION_REJECTED" || current.name === "UserRejectedRequestError") {
-      return "Ví đã từ chối yêu cầu ký. Chưa thể xác nhận thanh toán; kiểm tra cảnh báo và lịch sử ví trước khi thử lại. Không tắt cảnh báo bảo mật.";
+    const details = typeof current === "object" ? current as Record<string, unknown> : {};
+    const message = typeof current === "string" ? current.slice(0, 2000) : typeof details.message === "string" ? details.message.slice(0, 2000) : "";
+    if (details.code === 4001 || details.code === "4001" || details.code === "ACTION_REJECTED" || details.name === "UserRejectedRequestError" || /user (rejected|denied)|denied request signature/i.test(message)) {
+      return uiMessage(
+        "Ví đã từ chối yêu cầu ký. Chưa thể xác nhận thanh toán; kiểm tra cảnh báo và lịch sử ví trước khi thử lại. Không tắt cảnh báo bảo mật.",
+        "Your wallet rejected the signature request. Payment is unconfirmed; check the warnings and wallet history before retrying. Do not disable security warnings.",
+      );
     }
-    messages.push(typeof current === "string" ? current : String(current.message || ""));
-    current = current.cause || current.error;
+    if (current instanceof UiError && display === undefined) display = current.displayMessage;
+    if (display === undefined) display = signerHoldMessage(details.code);
+    if (details.name === "TimeoutError" || details.name === "AbortError") connection = "timeout";
+    else if (!connection && (details.code === "NETWORK_ERROR" || current instanceof TypeError && /fetch|network/i.test(message))) connection = "network";
+    current = details.cause || details.error;
   }
-  const message = messages.join(" ");
-  if (/user (rejected|denied)|denied request signature/i.test(message)) {
-    return "Ví đã từ chối yêu cầu ký. Kiểm tra mạng, phí gas và cảnh báo hợp đồng; không bỏ qua cảnh báo bảo mật.";
-  }
-  return messages[0] || "Không thể hoàn tất thanh toán. Kiểm tra trạng thái giao dịch trước khi gửi lại.";
+  if (display !== undefined) return display;
+  if (connection === "timeout") return uiMessage(
+    "Kết nối hết thời gian trước khi xác nhận thanh toán. Kiểm tra cùng giao dịch và giữ intent để phục hồi.",
+    "The connection timed out before payment was confirmed. Check this transaction and keep the intent for recovery.",
+  );
+  if (connection === "network") return uiMessage(
+    "Lỗi kết nối chưa xác nhận được thanh toán. Kiểm tra cùng giao dịch và giữ intent để phục hồi.",
+    "A connection error left payment unconfirmed. Check this transaction and keep the intent for recovery.",
+  );
+  return uiMessage(
+    "Chưa xác nhận thanh toán. Kiểm tra trạng thái giao dịch và lịch sử ví trước khi thử lại.",
+    "Payment is unconfirmed. Check the transaction status and wallet history before retrying.",
+  );
 }
 
 export function parseUsdc(amount: string): bigint {
@@ -34,6 +54,14 @@ export function parseUsdc(amount: string): bigint {
   return value;
 }
 
+/** Installed AppKit formats gas fees in each chain's native currency, not wei.
+ * Approved source ETH and Arc native USDC both use 18 decimals. */
+const maxBridgeBudget=(1n<<256n)-1n;
+function boundedBridgeBudget(value:bigint){if(value<0n||value>maxBridgeBudget)throw new Error("Báo giá phí vượt giới hạn hợp lệ");return value;}
+function nativeBridgeFee(value:unknown){
+  if(typeof value!=="string"||value.length>100||!/^\d+(?:\.\d{1,18})?$/.test(value))throw new Error("Báo giá gas không hợp lệ");
+  return boundedBridgeBudget(ethers.parseUnits(value,18));
+}
 /** Native gas budgets, not a promised final gas price. Reserve 20% for fluctuation. */
 export function bridgeQuoteSummary(estimate: BridgeEstimateResult, source: BridgeSource, amount: string) {
   if (!Array.isArray(estimate.gasFees) || !estimate.gasFees.length || !Array.isArray(estimate.fees)) {
@@ -46,17 +74,17 @@ export function bridgeQuoteSummary(estimate: BridgeEstimateResult, source: Bridg
     if (fee.amount === null || fee.error || fee.token !== "USDC") throw new Error("Chưa xác định được phí USDC của tuyến bridge");
     const value = ethers.parseUnits(fee.amount, 6);
     if (value < 0n) throw new Error("Báo giá phí không hợp lệ");
-    feesUsdc += value;
+    feesUsdc = boundedBridgeBudget(feesUsdc + value);
   }
   for (const item of estimate.gasFees) {
     if (!item.fees || item.error) throw new Error("Chưa ước tính được gas cho tất cả các bước bridge");
-    const fee = BigInt(item.fees.fee);
+    const fee = nativeBridgeFee(item.fees.fee);
     if (fee < 0n) throw new Error("Báo giá gas không hợp lệ");
-    if (String(item.blockchain) === source && item.token === "ETH") sourceGas += fee;
-    else if (String(item.blockchain) === "Arc_Testnet" && item.token === "USDC") arcGas += fee;
+    if (String(item.blockchain) === source && item.token === "ETH") sourceGas = boundedBridgeBudget(sourceGas + fee);
+    else if (String(item.blockchain) === "Arc_Testnet" && item.token === "USDC") arcGas = boundedBridgeBudget(arcGas + fee);
     else throw new Error("Báo giá chứa mạng hoặc token gas không được hỗ trợ");
   }
   const received = parseUsdc(amount) - feesUsdc;
   if (received <= 0n || sourceGas <= 0n) throw new Error("Báo giá không đủ số nhận hoặc phí gas nguồn");
-  return { feesUsdc, received, sourceGas: (sourceGas * 120n + 99n) / 100n, arcGas: (arcGas * 120n + 99n) / 100n };
+  return { feesUsdc, received, sourceGas: boundedBridgeBudget((sourceGas * 120n + 99n) / 100n), arcGas: boundedBridgeBudget((arcGas * 120n + 99n) / 100n) };
 }

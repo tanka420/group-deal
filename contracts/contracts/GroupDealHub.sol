@@ -138,6 +138,8 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
             }
         }
 
+        _validateCampaignTerms(terms, tiers);
+
         campaignId = nextCampaignId++;
         campaignTerms[campaignId] = terms;
 
@@ -289,11 +291,7 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
                 state.earlySlotsTaken++;
                 // Early rebate applies to the 1st unit only
                 uint256 currentUnitPrice = _campaignTiers[campaignId][state.currentUnlockedTier].price;
-                if (terms.earlyRebateAmount > 0) {
-                    earlyRebateValue = terms.earlyRebateAmount;
-                } else if (terms.earlyRebateBps > 0) {
-                    earlyRebateValue = (currentUnitPrice * terms.earlyRebateBps) / 10000;
-                }
+                earlyRebateValue = _calculateEarlyValue(terms.earlyRebateAmount, terms.earlyRebateBps, currentUnitPrice);
                 if (earlyRebateValue > currentUnitPrice) {
                     earlyRebateValue = currentUnitPrice;
                 }
@@ -469,14 +467,7 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
         CampaignState storage state = campaignStates[campaignId];
         Order storage order = orders[orderId];
         if ((state.status == CampaignStatus.FINALIZED || state.finalizedAt > 0) && order.rebateAllocated == 0 && state.finalClearingPrice > 0) {
-            uint256 unitDiff = order.lockedUnitPrice > state.finalClearingPrice
-                ? order.lockedUnitPrice - state.finalClearingPrice
-                : 0;
-            uint256 totalRebate = (unitDiff * order.quantity) + order.earlyRebateValue;
-            if (totalRebate > order.committedGross) {
-                totalRebate = order.committedGross;
-            }
-            order.rebateAllocated = totalRebate;
+            order.rebateAllocated = _calculateRebate(order.lockedUnitPrice, state.finalClearingPrice, order.quantity, order.earlyRebateValue, order.committedGross);
         }
     }
 
@@ -760,14 +751,7 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
         for (uint256 i = startIndex; i < end; i++) {
             Order storage order = orders[orderIds[i]];
             if (order.rebateAllocated == 0 && state.finalClearingPrice > 0) {
-                uint256 unitDiff = order.lockedUnitPrice > state.finalClearingPrice
-                    ? order.lockedUnitPrice - state.finalClearingPrice
-                    : 0;
-                uint256 totalRebate = (unitDiff * order.quantity) + order.earlyRebateValue;
-                if (totalRebate > order.committedGross) {
-                    totalRebate = order.committedGross;
-                }
-                order.rebateAllocated = totalRebate;
+                order.rebateAllocated = _calculateRebate(order.lockedUnitPrice, state.finalClearingPrice, order.quantity, order.earlyRebateValue, order.committedGross);
             }
         }
     }
@@ -793,6 +777,21 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
         emit EmergencyCancelled(campaignId, reasonHash, refundPool);
     }
 
+    // Protocol hooks keep v1 economics intact while a separate deployment can override them.
+    function _validateCampaignTerms(CampaignTerms calldata, Tier[] calldata) internal pure virtual {}
+
+    function _calculateEarlyValue(uint256 fixedAmount, uint256 bps, uint256 price) internal pure virtual returns(uint256) {
+        return fixedAmount > 0 ? fixedAmount : (price * bps) / 10000;
+    }
+
+    function _calculateRebate(
+        uint256 lockedPrice, uint256 finalPrice, uint256 quantity, uint256 earlyValue, uint256 gross
+    ) internal pure virtual returns (uint256) {
+        uint256 unitDiff = lockedPrice > finalPrice ? lockedPrice - finalPrice : 0;
+        uint256 rebate = (unitDiff * quantity) + earlyValue;
+        return rebate > gross ? gross : rebate;
+    }
+
     // View helpers
     function getCampaignTiers(uint256 campaignId) external view returns (Tier[] memory) {
         return _campaignTiers[campaignId];
@@ -807,14 +806,7 @@ contract GroupDealHub is IGroupDealHub, EIP712, ReentrancyGuard, Ownable {
         CampaignState storage state = campaignStates[order.campaignId];
 
         if ((state.status == CampaignStatus.FINALIZED || state.finalizedAt > 0) && order.rebateAllocated == 0 && state.finalClearingPrice > 0) {
-            uint256 unitDiff = order.lockedUnitPrice > state.finalClearingPrice
-                ? order.lockedUnitPrice - state.finalClearingPrice
-                : 0;
-            uint256 totalRebate = (unitDiff * order.quantity) + order.earlyRebateValue;
-            if (totalRebate > order.committedGross) {
-                totalRebate = order.committedGross;
-            }
-            order.rebateAllocated = totalRebate;
+            order.rebateAllocated = _calculateRebate(order.lockedUnitPrice, state.finalClearingPrice, order.quantity, order.earlyRebateValue, order.committedGross);
         }
 
         if (state.status == CampaignStatus.CANCELLED) {

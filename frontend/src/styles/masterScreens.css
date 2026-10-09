@@ -1,0 +1,131 @@
+/* Shared product components for the four reference screens. */
+.deal-key-facts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; margin:1.25rem 0; padding:1rem; background:var(--bg-tertiary); border:1px solid var(--border-subtle); border-radius:var(--radius-md); }
+.deal-key-facts > div { min-width:0; }
+.deal-key-facts dt { color:var(--text-secondary); font-size:.875rem; }
+.deal-key-facts dd { margin:.35rem 0 0; font-weight:700; overflow-wrap:anywhere; }
+.deal-section-nav { display:flex; flex-wrap:wrap; gap:.5rem; margin:1.5rem 0; padding-bottom:1rem; border-bottom:1px solid var(--border-subtle); }
+.deal-section-nav .btn { white-space:normal; text-align:left; }
+.deal-license-section, .delivery-terms { scroll-margin-block:calc(var(--app-header-height,84px) + 24px) 90px; }
+.price-tier-rail { padding:1rem; border:1px solid var(--border-subtle); border-radius:var(--radius-md); background:white; }
+.price-tier-rail h3 { font-size:1rem; margin-bottom:.4rem; }
+.price-tier-rail ol { margin-top:1.7rem; }
+.price-tier-rail li { padding-top:1rem; }
+.price-tier-rail .deal-price { font-size:1.05rem; }
+.price-tier-rail li > .deal-price { display:flex; flex-direction:column; }
+.mobile-purchase-price { display:none; }
+.tier-current .rail-dot { width:18px; height:18px; top:-11px; box-shadow:0 0 0 4px #dceaff; border:3px solid white; }
+.tier-next { margin-top:.75rem; padding:.85rem; background:var(--bg-tertiary); border-radius:var(--radius-sm); }
+.tier-next p + p { margin-top:.3rem; }
+.deal-purchase-panel { box-shadow:var(--shadow-md); gap:.8rem; }
+.deal-purchase-panel > .deal-price-large { font-size:clamp(2rem,3.4vw,3rem); }
+.join-product-card { display:grid; grid-template-columns:minmax(100px,.65fr) minmax(0,1fr); gap:1rem; align-items:center; }
+.join-product-card > * { min-width:0; }
+.join-product-card .product-gallery { margin:0; }
+.join-product-card h3 { font-size:1.2rem; line-height:1.45; }
+.join-dialog .modal-header { position:sticky; top:-2rem; z-index:2; background:white; padding:1rem 0; }
+.join-dialog .deal-key-facts { grid-template-columns:minmax(0,1fr); }
+.join-dialog .deal-key-facts > div { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:.5rem; }
+.join-dialog .deal-key-facts dd { margin:0; }
+.join-summary { background:white; box-shadow:var(--shadow-sm); }
+.commitment-total { background:var(--bg-tertiary); border-radius:var(--radius-md); padding:1rem; }
+.join-summary .price-tier-rail { padding:.8rem; }
+.join-summary .price-tier-rail ol { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.6rem; }
+.transaction-dialog { width:min(600px,calc(100vw - 2rem)); max-width:none; max-height:calc(100dvh - 2rem); margin:auto; padding:1.5rem; overflow:auto; color:var(--text-primary); background:white; border:1px solid var(--border-subtle); text-align:left; }
+.transaction-dialog::backdrop { background:rgb(16 26 51 / 50%); }
+.transaction-overlay { background:rgb(16 26 51 / 50%); backdrop-filter:none; }
+.transaction-overlay[hidden] { display:none; }
+.transaction-dialog h2, .transaction-dialog p { margin-bottom:1rem; }
+.transaction-dialog .btn { width:100%; margin-top:.75rem; justify-content:center; white-space:normal; }
+.transaction-dialog .join-steps { font-size:.875rem; }
+.transaction-symbol { display:grid; place-items:center; width:64px; height:64px; margin:1rem auto; border-radius:50%; background:var(--bg-tertiary); color:var(--primary); }
+.transaction-symbol.confirmed { color:var(--success); background:#e8faef; }
+.transaction-symbol.failed { color:var(--danger); background:#fff0f1; }
+.transaction-technical { margin:1rem 0; }
+.transaction-technical a { display:inline-flex; align-items:center; gap:.5rem; min-height:44px; }
+.wizard-completed { display:grid; gap:.75rem; margin-bottom:1.25rem; }
+.wizard-completed section { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem; padding:1rem; background:white; border:1px solid var(--border-subtle); border-radius:var(--radius-md); }
+.wizard-completed section > div { flex:1 1 230px; min-width:0; }
+.wizard-completed h2 { font-size:1rem; }
+.rights-approved { color:var(--success); font-weight:600; }
+.seller-create-layout { grid-template-columns:170px minmax(0,1fr) 300px; gap:1.5rem; }
+.wizard-main { overflow-wrap:anywhere; }
+.wizard-steps button span { display:grid; place-items:center; width:28px; height:28px; background:white; border:1px solid var(--border-medium); border-radius:50%; }
+.wizard-steps button[aria-current=step] span { background:var(--primary); color:white; border-color:var(--primary); }
+.deal-preview { container-type:inline-size; padding:1.25rem; }
+.preview-mode { display:flex; gap:.5rem; margin:1rem 0; border-bottom:1px solid var(--border-subtle); }
+.preview-mode button { flex:1; min-height:44px; padding:.5rem; border:0; border-bottom:3px solid transparent; background:white; color:var(--text-secondary); font:inherit; cursor:pointer; }
+.preview-mode button[aria-pressed=true] { border-color:var(--primary); color:var(--primary); font-weight:700; }
+.preview-content { overflow-wrap:anywhere; }
+.preview-mobile { max-width:340px; margin:auto; padding:.75rem; border:2px solid var(--border-medium); border-radius:20px; }
+.deal-preview .product-gallery-main img { height:100%; aspect-ratio:auto; margin:0; border-radius:0; object-fit:contain; }
+.deal-preview .deal-key-facts { grid-template-columns:minmax(0,1fr); margin:1rem 0; }
+.deal-preview .price-tier-rail ol { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.75rem; }
+.deal-preview .price-tier-rail { padding:.75rem; }
+.operator-deal-card { padding:1.5rem; align-items:flex-start; }
+.operator-deal-card img { width:140px; aspect-ratio:4/3; }
+.operator-deal-card h2 { font-size:clamp(1.3rem,2.2vw,1.8rem); }
+.operator-deal-card .btn { margin-top:.75rem; }
+.operator-deal-facts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; flex:1 1 100%; padding-top:1rem; border-top:1px solid var(--border-subtle); }
+.operator-deal-facts dt { color:var(--text-secondary); font-size:.875rem; }
+.operator-deal-facts dd { margin:.4rem 0 0; font-size:1.25rem; font-weight:700; }
+.operator-deal-card > .deal-deadline { width:100%; }
+.operator-view-nav .btn { white-space:normal; text-align:left; }
+.operator-exceptions { margin:1rem 0; }
+.operator-exception-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; margin-top:1rem; }
+.operator-exception-grid .btn { display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; white-space:normal; text-align:left; height:100%; }
+.operator-exception-grid strong { color:var(--primary); font-size:1.5rem; }
+.operator-exception-grid strong { flex:none; min-width:2ch; white-space:nowrap; }
+.operator-metrics dd .deal-price { font-size:1.3rem; }
+.operator-overview-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; margin:1.5rem 0; }
+.operator-overview-grid > * { min-width:0; }
+.operator-overview-grid .deal-key-facts { grid-template-columns:minmax(0,1fr); }
+.operator-overview-grid .price-tier-rail ol { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.75rem; }
+.operator-loaded-orders { list-style:none; padding:0; margin:1rem 0; }
+.operator-loaded-orders li { display:flex; flex-wrap:wrap; gap:.5rem; justify-content:space-between; padding:.85rem 0; border-bottom:1px solid var(--border-subtle); }
+.operator-loaded-orders strong { width:100%; }
+.operator-terms { margin-block:1.25rem; }
+@media (max-width:1200px) {
+  .seller-create-layout { grid-template-columns:150px minmax(0,1fr); }
+  .deal-preview { grid-column:2; position:static; }
+  .operator-overview-grid { grid-template-columns:minmax(0,1fr); }
+}
+@media (max-width:992px) {
+  .deal-key-facts { order:4; }
+  .deal-section-nav { order:5; }
+  .deal-license-section { order:6; }
+  .delivery-terms { order:7; }
+  .join-summary { order:-1; }
+}
+@media (max-width:767px) {
+  .header { transition:none; background:white; }
+  .header-inner { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.5rem; padding:.6rem .75rem; }
+  .header-brand { grid-column:1; min-width:0; gap:0!important; }
+  .header-brand .network-badge, .header-brand .logo-text > span { display:none; }
+  .header .logo-group { gap:.35rem; min-width:0; }
+  .header .logo-mark { flex:none; width:32px; height:32px; }
+  .header .logo-text { font-size:1.1rem; }
+  .header-actions { grid-column:2; gap:.25rem; flex-wrap:nowrap; }
+  .header-funding, .header-login { width:44px; padding:.5rem; justify-content:center; }
+  .header-funding > span, .header-auth-label, .header .account-summary { position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+  .header .account-dropdown-wrapper { gap:.25rem; }
+  .header .account-pill-btn { width:44px; height:44px; justify-content:center; padding:.5rem; }
+  .header .account-pill-btn > svg { display:none; }
+  .header .nav-links { grid-column:1/-1; justify-content:space-between; flex-wrap:wrap; gap:.25rem; }
+  .header .nav-item { min-height:44px; padding:.5rem .65rem; }
+  .mobile-purchase-price { display:block; }
+  .mobile-purchase-price .deal-price, .mobile-purchase-price .deal-price small { color:inherit; }
+  .deal-join-cta { justify-content:space-between; gap:1rem; padding-inline:1rem; }
+  .seller-create-layout { grid-template-columns:minmax(0,1fr); gap:1rem; }
+  .deal-preview { grid-column:1; }
+  .deal-key-facts { grid-template-columns:minmax(0,1fr); }
+  .join-dialog .modal-header { top:-1rem; }
+  .join-product-card { grid-template-columns:minmax(0,1fr); }
+  .join-product-card .product-gallery { max-width:220px; }
+  .operator-deal-card { padding:1rem; }
+  .operator-deal-facts, .operator-exception-grid { grid-template-columns:minmax(0,1fr); }
+  .operator-exception-grid .btn { flex-direction:row; align-items:center; }
+}
+@media (max-height:500px) {
+  .join-dialog .modal-header { position:static; }
+  .deal-license-section, .delivery-terms { scroll-margin-block:16px 80px; }
+}

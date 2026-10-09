@@ -1,0 +1,22 @@
+import {ethers} from 'ethers';
+import type {Page} from '@playwright/test';
+import {serverBridgeMessage,type ServerBridgeRecord} from '../../src/services/bridgeServer';
+/** API responses are synthetic here; backend/frontend real-HTTP composition is verified separately. */
+export async function installBridgeServerFixture(page:Page,actorId:string,recipient:string){
+ const rows=new Map<string,ServerBridgeRecord>(),calls:Array<{path:string;method:string}> = [];
+ await page.route('**/api/bridge**',async route=>{const req=route.request(),url=new URL(req.url()),path=url.pathname.slice('/api/bridge'.length),parts=path.split('/'),body=req.method()==='POST'?req.postDataJSON():undefined;calls.push({path,method:req.method()});const reply=(value:unknown,status=200)=>route.fulfill({status,json:value});
+ if(path==='/current'){const values=[...rows.values()].reverse(),record=values.find(r=>r.phase==='RESERVED')??values[0]??null;return reply({record});}
+ if(path==='/'){const r:ServerBridgeRecord={version:1,id:body.idempotencyKey,accountId:actorId,idempotencyKey:body.idempotencyKey,scope:body.scope,origin:url.origin,nonce:'a'.repeat(64),createdAt:Date.now(),expiresAt:Date.now()+300000,phase:'CHALLENGE',revision:0,writes:[]};r.expiresAt=r.createdAt+300000;rows.set(r.id,r);return reply({record:r,sourceMessage:serverBridgeMessage(r)},201);}
+ const r=rows.get(parts[1]);if(!r)return reply({code:'BRIDGE_TRANSFER_NOT_FOUND'},404);
+ if(req.method()==='GET')return reply({record:r,sourceMessage:serverBridgeMessage(r)});
+ if(parts[2]==='authorize'){if(r.phase==='CHALLENGE'){r.phase='RESERVED';r.revision++;r.sourceAuthorization={messageHash:ethers.id(serverBridgeMessage(r)),authorizedAt:Date.now()};}return reply({record:r});}
+ if(parts[2]==='ready'){const previous=r.writes.find(w=>w.id===body.writeId);if(previous)return reply({record:r,write:previous,dispatchAllowed:false});if(r.writes.some(w=>w.state==='REQUESTED'))return reply({code:'BRIDGE_TRANSFER_WRITE_UNRESOLVED'},409);const data=body.transaction.data,selector=data.slice(0,10),kind=selector===ethers.id('approve(address,uint256)').slice(0,10)?'approve':selector===ethers.id('receiveMessage(bytes,bytes)').slice(0,10)?'mint':'burn',write={id:body.writeId,kind,chainId:body.chainId,calldataHash:ethers.keccak256(data),nonce:BigInt(body.transaction.nonce).toString(),afterBlock:'10',state:'REQUESTED' as const};r.writes.push(write as any);r.revision++;return reply({record:r,write,transaction:body.transaction,readWitness:{readAt:Date.now(),block:{number:'0xa',hash:ethers.id('fixture-pre-sign-block')},estimatedGas:'21000',estimatedNativeFeeBaseUnits:'21000000000000'},dispatchAllowed:true});}
+ if(parts[2]==='writes'){const w=r.writes.find(w=>w.id===parts[3]);if(!w)return reply({code:'BRIDGE_TRANSFER_NOT_FOUND'},404);w.hash=body.txHash;w.state='BROADCAST';r.revision++;return reply({record:r},202);}
+ const proofs=r.writes.filter(w=>w.hash).map(w=>({writeId:w.id,proof:{kind:w.kind,hash:w.hash!,caller:r.scope.sender,nonce:w.nonce,calldataHash:w.calldataHash,blockNumber:'0x64',blockHash:ethers.id('fixture-receipt-'+w.kind),reverted:false,finalizedBlock:{number:'0x64',hash:ethers.id('fixture-finalized')}}}));
+ const state=r.writes.some(w=>w.state==='REQUESTED')?'UNKNOWN':r.writes.some(w=>w.kind==='mint')?'MINTED':r.writes.some(w=>w.kind==='burn')?'BURNED':r.writes.length?'APPROVED':'UNKNOWN';
+ if(parts[2]==='inspect')return reply({inspection:{state,recordId:r.id,recordRevision:r.revision,inspectedAt:Date.now(),proofs}});
+ if(parts[2]==='close'){if(r.phase!=='CLOSED'){const cancel=body.mode==='stop-before-burn';if(cancel&&r.writes.some(w=>w.kind!=='approve'||w.state==='REQUESTED')||!cancel&&state!=='MINTED')return reply({code:'BRIDGE_TRANSFER_WRITE_UNRESOLVED'},409);r.phase='CLOSED';r.revision++;r.completion={outcome:cancel?'CANCELLED':'MINTED',basis:cancel?(r.writes.length?'BURN_NOT_ISSUED':'NO_WRITE_ISSUED'):'FINALIZED_MINT',checkedAt:Date.now(),receipts:proofs.map(({writeId,proof})=>({writeId,chainId:r.writes.find(w=>w.id===writeId)!.chainId,...proof}))};}return reply({record:r});}
+ return reply({code:'BRIDGE_TRANSFER_NOT_FOUND'},404);
+ });return{rows,calls,recipient};
+}
+export const confirmSourceWallet=async(page:Page)=>{await page.getByRole('button',{name:/^(Xác nhận ví nguồn trong ví|Confirm source wallet in wallet)$/}).click();};

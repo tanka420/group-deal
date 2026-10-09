@@ -7,25 +7,21 @@ import { useWeb3 } from "../context/Web3Context";
 import { PreTxModal } from "../components/PreTxModal";
 import { TxTrackerModal, TxStep } from "../components/TxTrackerModal";
 import { ShareModal } from "../components/ShareModal";
+import {CampaignAmendmentHistory} from "../components/CampaignAmendments";
 import { FundingModal } from "../components/FundingModal";
 import { CheckoutIntent, checkoutKey, paymentLockKey, withCheckoutLock, purchaseBudget, assertPurchaseBudget, verifyArcCommitment, waitForIndexedOrder } from "../services/checkout";
 import { paymentError } from "../services/paymentSafety";
-import {
-  Clock,
-  Users,
-  ShieldCheck,
-  CheckCircle2,
-  Share2,
-  AlertCircle,
-  Sparkles,
-  Lock,
-  ArrowLeft,
-  KeyRound,
-  FileCheck,
-  Check,
-} from "lucide-react";
+import {observeBroadcast,TransactionOperation,operationRequest,broadcastCheckpoint,checkpointKey,localBroadcast,requireProjected,requireExpiredBuy} from "../services/transactionOperations";
+import { DealDeadline, DealKeyFacts, ProductGallery, SellerIdentity, LicenseSummary, PriceDisplay, PriceTierRail, purchaseIssue, issueText, useDealLanguage } from "../components/DealPresentation";
+import { focusPageElement } from "../utils/focus";
+import { clearJoinDraft, defaultJoinSelection, fitJoinSelection, readJoinDraft, saveJoinDraft, type JoinSelection } from "../services/joinDraft";
+import {HUB_ABI} from "../contracts/hubAbi";
+import { UiError, uiMessage, messageText, type UiMessage } from "../utils/uiMessage";
+import { Share2, ShieldCheck, ArrowLeft } from "lucide-react";
 
 interface CampaignDetailPageProps {
+  isAuthOpen: boolean;
+  onRequestAuth: () => void;
   campaignId: string;
   onBack: () => void;
   onGoToOrders: () => void;
@@ -33,47 +29,86 @@ interface CampaignDetailPageProps {
 
 export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
   campaignId,
+  isAuthOpen,
+  onRequestAuth,
   onBack,
   onGoToOrders,
 }) => {
-  const { t } = useLanguage();
-  const { user, token } = useAuth();
+  const { t, language } = useLanguage();
+  const { text } = useDealLanguage();
+  const [now, setNow] = useState(() => Math.floor(Date.now()/1000));
+  useEffect(() => { const timer = window.setInterval(() => setNow(Math.floor(Date.now()/1000)), 15000); return () => window.clearInterval(timer); }, []);
+  const { user, token, getSessionEpoch } = useAuth();
   const { account, hubAddress, commitToBuyOnchain } = useWeb3();
 
   const [campaign, setCampaign] = useState<any>(null);
   const [seller, setSeller] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError,setLoadError]=useState<string|null>(null);
+  const [notFound,setNotFound]=useState(false);
 
   // Modals state
   const [isPreTxOpen, setIsPreTxOpen] = useState(false);
+  const [joinSelection, setJoinSelection] = useState<JoinSelection>(() => readJoinDraft(campaignId) ?? defaultJoinSelection);
+  const [resumeAfterAuth, setResumeAfterAuth] = useState(false);
+  const [joinNotice, setJoinNotice] = useState(false);
+  const rememberJoin = (selection: JoinSelection) => {
+    setJoinSelection(selection);
+    if (campaign) saveJoinDraft(campaignId, campaign.termsHash, selection);
+  };
+  const openJoin = () => {
+    setJoinSelection(fitJoinSelection(joinSelection, campaign));
+    setResumeAfterAuth(false); setJoinNotice(false); setIsPreTxOpen(true);
+  };
   const [isShareOpen, setIsShareOpen] = useState(false);
 
   // Tx tracking state
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [txStep, setTxStep] = useState<TxStep>("AUTH");
   const [txHash, setTxHash] = useState<string | null>(null);
-  const [txError, setTxError] = useState<string | null>(null);
+  const [txError, setTxError] = useState<UiMessage | null>(null);
   const [isCommitting, setIsCommitting] = useState(false);
   const [fundingIntent, setFundingIntent] = useState<CheckoutIntent | null>(null);
   const [requiredFunding, setRequiredFunding] = useState<string | undefined>();
   const committingRef = useRef(false);
+  const purchaseTrigger = useRef<HTMLButtonElement>(null);
   const accountRef = useRef(account);
   accountRef.current = account;
+  const purchaseRetryKey=user?`groupdeal_buy_retry:${user.id}:${campaignId}`:"";
 
-  const fetchCampaign = () => {
-    fetch(`/api/campaigns/${campaignId}`)
-      .then((r) => r.json())
+  const fetchCampaign = (signal?:AbortSignal) => {
+    setLoading(true);setLoadError(null);setNotFound(false);
+    return fetch(`/api/campaigns/${campaignId}`,{signal})
+      .then(async r=>{if(r.status===404){setNotFound(true);return null;}if(!r.ok)throw new Error("Không tải được deal. Thử lại khi kết nối ổn định.");return r.json();})
       .then((data) => {
+        if(signal?.aborted)return;
+        if(!data){setCampaign(null);return;}
+        if(!data.campaign||!Array.isArray(data.campaign.tiers)||data.campaign.tiers.length===0)throw new Error("Dữ liệu deal chưa đầy đủ");
         setCampaign(data.campaign);
         setSeller(data.seller);
+        return data.campaign;
       })
-      .catch((e) => console.warn("Error fetching campaign", e))
-      .finally(() => setLoading(false));
+      .catch((e) => {if(!signal?.aborted)setLoadError(e.message);})
+      .finally(() => {if(!signal?.aborted)setLoading(false);});
   };
 
   useEffect(() => {
-    fetchCampaign();
+    const controller=new AbortController();setCampaign(null);fetchCampaign(controller.signal);return()=>controller.abort();
   }, [campaignId]);
+
+  useEffect(() => {
+    const currentRoute = () => window.location.hash === '#campaign-' + campaignId;
+    if (!currentRoute() || !resumeAfterAuth || isAuthOpen || !user || !token || !account || user.activeWallet?.toLowerCase() !== account.toLowerCase()) return;
+    const controller = new AbortController();
+    void fetchCampaign(controller.signal).then(fresh => {
+      if (!fresh || controller.signal.aborted || !currentRoute()) return;
+      setJoinSelection(fitJoinSelection(joinSelection, fresh)); setJoinNotice(true);
+      setResumeAfterAuth(false); setIsPreTxOpen(true);
+    });
+    return () => controller.abort();
+  }, [resumeAfterAuth, isAuthOpen, user?.id, user?.activeWallet, token, account, campaignId]);
+
+  useEffect(() => { if (txStep === "CONFIRMED") clearJoinDraft(campaignId); }, [txStep, campaignId]);
 
   useEffect(() => {
     if (!account) return;
@@ -83,10 +118,26 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
       const intent = JSON.parse(raw) as CheckoutIntent;
       if (intent.phase === "BUY_PENDING" || intent.phase === "BUY_BROADCAST") {
         setTxHash(intent.txHash || null); setTxStep("PENDING_CHECK"); setIsTxModalOpen(true);
-        setTxError("Có lượt mua cũ chưa xác minh. Kiểm tra lại lượt này trước khi mua tiếp.");
+        setTxError(uiMessage("Có lượt mua cũ chưa xác minh. Kiểm tra lại lượt này trước khi mua tiếp.", "A previous purchase is unverified. Check it before buying again."));
       }
-    } catch { setTxStep("PENDING_CHECK"); setIsTxModalOpen(true); setTxError("Hồ sơ checkout cũ không đọc được. Kiểm tra lịch sử ví trước khi mua tiếp."); }
+    } catch { setTxStep("PENDING_CHECK"); setIsTxModalOpen(true); setTxError(uiMessage("Hồ sơ checkout cũ không đọc được. Kiểm tra lịch sử ví trước khi mua tiếp.", "The previous checkout record could not be read. Check wallet history before buying again.")); }
   }, [account, campaignId]);
+
+  useEffect(()=>{
+    if(!user||!token||!account)return;let cancelled=false;
+    const query=new URLSearchParams({action:"BUY",resourceId:campaignId,principal:account});
+    void operationRequest<{operations:TransactionOperation[]}>(token,"/api/transactions?"+query).then(({operations})=>{
+      if(cancelled)return;
+      const pending=operations.find(o=>o.action==="BUY"&&o.resourceId===campaignId&&o.principal.toLowerCase()===account.toLowerCase()&&!["PROJECTED","REVERTED","SUPERSEDED","EXPIRED"].includes(o.phase));
+      if(!pending)return;
+      const call=new ethers.Interface(HUB_ABI).parseTransaction({data:pending.calldata});if(!call||!pending.purchaseQuote)throw new UiError(uiMessage("Intent mua trên server cần kiểm tra ở lịch sử giao dịch", "Review the server purchase intent in transaction history."));
+      const key=checkoutKey(account,campaignId),saved=JSON.parse(localStorage.getItem(key)||"null") as CheckoutIntent|null;
+      const hash=pending.txHash||localBroadcast(user.id,pending.id)||saved?.txHash;
+      const intent:CheckoutIntent={operationId:pending.id,quantity:Number(call.args.quantity),requireEarlySlot:call.args.requireEarlySlot,maxGrossUsdc:pending.purchaseQuote.maxGrossAmount,campaignIdentity:String(call.args.campaignIdentity),onchainCampaignId:Number(call.args.campaignId),phase:hash?"BUY_BROADCAST":"BUY_PENDING",txHash:hash,createdAt:pending.createdAt};
+      localStorage.setItem(key,JSON.stringify(intent));setTxHash(hash||null);setTxStep("PENDING_CHECK");setIsTxModalOpen(true);setTxError(hash?uiMessage("Lượt mua từ server đang chờ phục hồi. Kiểm tra receipt của cùng giao dịch.", "The server purchase awaits recovery. Check the receipt for this transaction."):uiMessage("Lượt mua đã được giữ trên server. Mở lịch sử giao dịch để tiếp tục đúng intent; chưa ký lại.", "The server has kept this purchase. Open transaction history to continue the same intent; do not sign again."));
+    }).catch(()=>{/* Server preparation still refuses a second unresolved purchase. */});
+    return()=>{cancelled=true;};
+  },[user?.id,token,account,campaignId]);
 
   const checkPreviousPurchase = async (locked = false): Promise<void> => {
     if (!account || !token || committingRef.current) return;
@@ -99,9 +150,25 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
     committingRef.current = true;
     try {
       const intent = JSON.parse(localStorage.getItem(key) || "null") as CheckoutIntent | null;
+      if(intent?.operationId){
+        const current=(await operationRequest<{operation:TransactionOperation}>(token,`/api/transactions/${intent.operationId}`)).operation;
+        const releaseExpired=(expired:TransactionOperation)=>{
+          requireExpiredBuy({operation:expired},current);localStorage.removeItem(key);localStorage.removeItem(purchaseRetryKey);if(user)localStorage.removeItem(checkpointKey(user.id,intent.operationId!));
+          setTxStep("EXPIRED");setTxError(uiMessage("Chứng thực cũ đã hết hạn trên chain và nonce chưa sử dụng. Đóng cửa sổ để yêu cầu quote mới; lượt mua cũ vẫn nằm trong lịch sử.","The old authorization expired on chain and its nonce is unused. Close this window to request a fresh quote; the old purchase remains in history."));
+        };
+        if(current.phase==="EXPIRED"){releaseExpired(current);return;}
+        if(current.phase==="SUPERSEDED")throw new UiError(uiMessage("Nonce của intent cũ đã được giao dịch khác sử dụng trên chain. Kiểm tra lịch sử trước khi mua lại.", "Another onchain transaction used the old intent's nonce. Check history before buying again."));
+        const hash=current?.txHash||intent.txHash||(user?localBroadcast(user.id,intent.operationId):undefined);
+        if(!hash&&current?.phase!=="PROJECTED"){
+          const expired=await operationRequest<{operation:TransactionOperation}>(token,`/api/transactions/${intent.operationId}/expire`,{});releaseExpired(expired.operation);return;
+        }
+        setTxStep("SYNCING");const recovered=await operationRequest<{operation:TransactionOperation}>(token,`/api/transactions/${intent.operationId}/recover`,hash?{txHash:hash}:{});requireProjected(recovered,current,hash||"");
+        localStorage.removeItem(key);localStorage.removeItem(purchaseRetryKey);if(user)localStorage.removeItem(checkpointKey(user.id,intent.operationId));setTxStep("CONFIRMED");setTxError(null);fetchCampaign();return;
+      }
       if (!intent?.txHash || !intent.campaignIdentity || !intent.onchainCampaignId) {
-        if (!window.confirm("Chỉ xóa khóa checkout nếu bạn đã kiểm tra lịch sử ví và chắc chắn CHƯA gửi commitToBuy. Giao dịch approve riêng không tạo đơn. Xác nhận chưa gửi giao dịch mua?")) return;
-        localStorage.removeItem(key); setIsTxModalOpen(false); return;
+        setTxStep("PENDING_CHECK");
+        setTxError(uiMessage("Lượt mua cũ chưa có đủ hash hoặc mã thao tác để đối chiếu. Trạng thái được giữ nguyên; kiểm tra lịch sử giao dịch hoặc liên hệ hỗ trợ với principal của order.", "The previous purchase lacks a hash or operation ID for verification. Its state is preserved; check transaction history or contact support as the order principal."));
+        return;
       }
       setTxStep("SYNCING");
       const proof = await verifyArcCommitment(intent.txHash, { hubAddress, buyer: account, campaignId: intent.onchainCampaignId,
@@ -109,30 +176,32 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
       await waitForIndexedOrder(token, intent.txHash, account, proof.orderId);
       localStorage.removeItem(key); setTxStep("CONFIRMED"); setTxError(null); fetchCampaign();
     } catch (error) {
-      if ((error as { code?: string }).code === "PURCHASE_REVERTED") { localStorage.removeItem(key); setTxStep("REVERTED"); }
+      let verifiedRevert=false,verifiedSuperseded=false;
+      try{const saved=JSON.parse(localStorage.getItem(key)||"null") as CheckoutIntent|null;if(saved?.operationId){const current=(await operationRequest<{operation:TransactionOperation}>(token,`/api/transactions/${saved.operationId}`)).operation;verifiedRevert=current.phase==="REVERTED";verifiedSuperseded=current.phase==="SUPERSEDED";}}catch{/* A failed status read cannot release the durable intent. */}
+      if (verifiedRevert||verifiedSuperseded) { localStorage.removeItem(key);localStorage.removeItem(purchaseRetryKey);setTxStep(verifiedRevert?"REVERTED":"FAILED"); }
       else setTxStep("PENDING_CHECK");
       setTxError(paymentError(error));
     }
     finally { committingRef.current = false; }
   };
 
+  if (notFound||loadError) return <section className="glass-card"><h1>{notFound?text("Không tìm thấy deal","Deal not found"):text("Không tải được deal","Unable to load deal")}</h1><p role={loadError?"alert":undefined}>{loadError?text("Không tải được dữ liệu. Thử lại khi kết nối ổn định.","Unable to load deal data. Retry when your connection is stable."):text("Deal chưa xuất bản hoặc link không còn phù hợp.","This deal is unpublished or the link is no longer available.")}</p><div className="action-row"><button className="btn btn-secondary" onClick={onBack}>{text("Quay về danh mục","Back to catalogue")}</button>{!notFound&&<button className="btn btn-primary" onClick={()=>fetchCampaign()}>{text("Thử lại","Retry")}</button>}</div></section>;
   if (loading || !campaign) {
     return (
       <div style={{ textAlign: "center", padding: "5rem 1rem", color: "var(--text-muted)" }}>
-        Đang tải thông tin chiến dịch từ Arc Testnet...
+        <p role="status">{text("Đang tải thông tin deal…", "Loading deal details…")}</p>
       </div>
     );
   }
 
   const currentTier = campaign.tiers[campaign.currentUnlockedTier] || campaign.tiers[0];
-  const currentPrice = Number(currentTier.price) / 1e6;
-  const lowestPrice = Number(campaign.tiers[campaign.tiers.length - 1].price) / 1e6;
+  const blocked = issueText(purchaseIssue(campaign, now), text);
   const currentMetric = campaign.metric === "BUYER_COUNT" ? campaign.totalBuyerCount : campaign.totalUnitsCommitted;
 
   const handleConfirmPurchase = async (params: { quantity: number; requireEarlySlot: boolean; paymentSource?: "ARC_USDC" | "OTHER_USDC" }, resumed?: CheckoutIntent, locked = false): Promise<void> => {
-    if (!account) {
-      alert("Vui lòng kết nối ví hoặc đăng nhập trước khi mua!");
-      return;
+    if (!user || !token || !account) {
+      rememberJoin({ quantity: params.quantity, requireEarlySlot: params.requireEarlySlot, paymentSource: params.paymentSource ?? "ARC_USDC" });
+      setIsPreTxOpen(false); setResumeAfterAuth(true); onRequestAuth(); return;
     }
     if (!token || committingRef.current) return;
     const buyer = account;
@@ -147,7 +216,7 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
       try {
         const old = JSON.parse(existing) as CheckoutIntent;
         if (old.phase !== "FUNDING") { setIsPreTxOpen(false); setIsTxModalOpen(true); setTxStep("PENDING_CHECK"); return; }
-      } catch { setIsTxModalOpen(true); setTxStep("PENDING_CHECK"); setTxError("Hồ sơ checkout cũ không đọc được. Kiểm tra lịch sử ví trước khi mua tiếp."); return; }
+      } catch { setIsTxModalOpen(true); setTxStep("PENDING_CHECK"); setTxError(uiMessage("Hồ sơ checkout cũ không đọc được. Kiểm tra lịch sử ví trước khi mua tiếp.", "The previous checkout record could not be read. Check wallet history before buying again.")); return; }
     }
     committingRef.current = true;
 
@@ -157,10 +226,14 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
     setTxError(null);
     setTxHash(null);
     setIsCommitting(true);
+    let purchaseOperation:TransactionOperation|undefined;
+    const purchaseEpoch=getSessionEpoch?.();
+    const assertPurchaseIdentity=()=>{if(accountRef.current?.toLowerCase()!==buyer.toLowerCase()||purchaseEpoch!==undefined&&getSessionEpoch()!==purchaseEpoch)throw new UiError(uiMessage("Phiên đăng nhập hoặc ví đã thay đổi trong lúc kiểm tra ngân sách. Đọc lại deal trước khi tiếp tục.", "The session or wallet changed during the budget check. Refresh the deal before continuing."));};
 
     try {
       const maxGross = resumed ? BigInt(resumed.maxGrossUsdc) : BigInt(currentTier.price) * BigInt(params.quantity);
       const budget = await purchaseBudget(buyer, maxGross);
+      assertPurchaseIdentity();
       if (!resumed && (params.paymentSource === "OTHER_USDC" || budget.balance < budget.required)) {
         const intent: CheckoutIntent = { quantity: params.quantity, requireEarlySlot: params.requireEarlySlot,
           maxGrossUsdc: maxGross.toString(), phase: "FUNDING", createdAt: Date.now() };
@@ -172,10 +245,12 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
       // Campaign price, inventory, deadline and authorization are checked AFTER funding.
       const campaignResponse = await fetch(`/api/campaigns/${campaignId}`, { signal: AbortSignal.timeout(10_000) });
       const fresh = (await campaignResponse.json()).campaign;
-      if (!campaignResponse.ok || !fresh || !["ACTIVE", "PUBLISHED"].includes(fresh.status) || fresh.endTime * 1000 <= Date.now()) throw new Error("Chiến dịch đã đóng; tiền nạp vẫn ở ví, chưa tạo đơn.");
+      assertPurchaseIdentity();
+      if (!campaignResponse.ok || !fresh || !["ACTIVE", "PUBLISHED"].includes(fresh.status) || fresh.endTime * 1000 <= Date.now()) throw new UiError(uiMessage("Chiến dịch đã đóng; tiền nạp vẫn ở ví, chưa tạo đơn.", "The campaign closed; funded USDC remains in your wallet and no order was created."));
       const freshPrice = BigInt((fresh.tiers[fresh.currentUnlockedTier] || fresh.tiers[0]).price);
-      if (fresh.termsHash !== campaign.termsHash || fresh.onchainCampaignId !== campaign.onchainCampaignId || freshPrice * BigInt(params.quantity) > maxGross) throw new Error("Điều khoản hoặc giá đã thay đổi. Hãy xem lại chiến dịch trước khi xác nhận mua.");
+      if (fresh.termsHash !== campaign.termsHash || fresh.onchainCampaignId !== campaign.onchainCampaignId || freshPrice * BigInt(params.quantity) > maxGross) throw new UiError(uiMessage("Điều khoản hoặc giá đã thay đổi. Hãy xem lại chiến dịch trước khi xác nhận mua.", "The terms or price changed. Review the campaign before confirming the purchase."));
       // 1. Request EIP-712 buy authorization from backend
+      const idempotencyKey=localStorage.getItem(purchaseRetryKey)||`buy:${crypto.randomUUID()}`;localStorage.setItem(purchaseRetryKey,idempotencyKey);
       const authRes = await fetch("/api/orders/authorize", {
         method: "POST",
         headers: {
@@ -186,19 +261,36 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
           campaignId: campaign.id,
           quantity: params.quantity,
           walletAddress: buyer,
+          requireEarlySlot:params.requireEarlySlot,
+          maxGrossAmount:maxGross.toString(),
+          idempotencyKey,
         }),
+        signal:AbortSignal.timeout(10000),
       });
 
       const authData = await authRes.json();
+      assertPurchaseIdentity();
       if (!authRes.ok) {
         throw new Error(authData.error || "Failed to obtain buy authorization");
       }
       if (accountRef.current?.toLowerCase() !== buyer.toLowerCase() || authData.buyerWallet?.toLowerCase() !== buyer.toLowerCase() ||
-        String(authData.campaignId) !== String(fresh.onchainCampaignId) || authData.termsHash !== fresh.termsHash) throw new Error("Ví hoặc chiến dịch của chứng thực không khớp checkout");
+        String(authData.campaignId) !== String(fresh.onchainCampaignId) || authData.termsHash !== fresh.termsHash) throw new UiError(uiMessage("Ví hoặc chiến dịch của chứng thực không khớp checkout", "The authorization wallet or campaign does not match this checkout."));
+      if(!authData.quote||!/^0x[0-9a-fA-F]{64}$/.test(authData.quote.blockHash)||!/^\d+$/.test(authData.quote.lockedUnitPrice)||!/^\d+$/.test(authData.quote.commitmentAmount))throw new UiError(uiMessage("Thiếu quote tài chính đã xác minh theo block; chưa gửi giao dịch mua", "A verified quote bound to a block is missing; no purchase was submitted."));
+      const quotedPrice=BigInt(authData.quote.lockedUnitPrice);
+      if(quotedPrice<=0n||BigInt(authData.quote.commitmentAmount)!==quotedPrice*BigInt(params.quantity)||quotedPrice*BigInt(params.quantity)>maxGross)throw new UiError(uiMessage("Giá trên chain đã vượt khoản cam kết được duyệt; xem lại deal trước khi ký", "The onchain price exceeds the reviewed commitment. Review the deal before signing."));
+      const operation=authData.operation as TransactionOperation;
+      if(!operation||operation.action!=="BUY"||operation.resourceId!==campaignId||operation.principal.toLowerCase()!==buyer.toLowerCase())throw new UiError(uiMessage("Thiếu intent mua bền vững từ server; chưa ký giao dịch", "The durable server purchase intent is missing; no transaction was signed."));
+      purchaseOperation=operation;
+      if(operation.phase==="EXPIRED"){
+        requireExpiredBuy({operation},operation);localStorage.removeItem(key);localStorage.removeItem(purchaseRetryKey);if(user)localStorage.removeItem(checkpointKey(user.id,operation.id));
+        setTxStep("EXPIRED");setTxError(uiMessage("Chứng thực cũ đã hết hạn. Đóng cửa sổ và xác nhận lại để lấy quote mới.","The old authorization expired. Close this window and confirm again to request a fresh quote."));return;
+      }
       const intent: CheckoutIntent = { quantity: params.quantity, requireEarlySlot: params.requireEarlySlot, maxGrossUsdc: maxGross.toString(),
-        phase: "BUY_PENDING", campaignIdentity: authData.campaignIdentity, onchainCampaignId: fresh.onchainCampaignId, createdAt: Date.now() };
+        operationId:operation.id,phase: "BUY_PENDING", campaignIdentity: authData.campaignIdentity, onchainCampaignId: fresh.onchainCampaignId, createdAt: Date.now() };
       localStorage.setItem(key, JSON.stringify(intent));
       setFundingIntent(null);
+      const ready=await operationRequest<{operation:TransactionOperation}>(token,`/api/transactions/${operation.id}/ready`,{});
+      if(ready.operation.calldata!==operation.calldata||!ready.operation.purchaseQuote||BigInt(ready.operation.purchaseQuote.commitmentAmount)>maxGross||accountRef.current?.toLowerCase()!==buyer.toLowerCase())throw new UiError(uiMessage("Intent hoặc quote trước chữ ký đã thay đổi; giữ lượt mua để phục hồi", "The intent or quote changed before signing. Keep the purchase for recovery."));
 
       // 2. Approve USDC & commit to buy on Arc Testnet Smart Contract
       setTxStep("APPROVE");
@@ -211,19 +303,22 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
         maxAuthQuantity: authData.maxQuantity,
         authDeadline: authData.deadline,
         authSignature: authData.signature,
-        lockedUnitPriceUSDC: freshPrice.toString(),
+        lockedUnitPriceUSDC: ready.operation.purchaseQuote.lockedUnitPrice,
+        operationId:operation.id,
         onStep: setTxStep,
-        onBroadcast: (hash) => { setTxHash(hash); localStorage.setItem(key, JSON.stringify({ ...intent, phase: "BUY_BROADCAST", txHash: hash })); },
+        onBroadcast: async(hash) => { setTxHash(hash); localStorage.setItem(key, JSON.stringify({ ...intent, phase: "BUY_BROADCAST", txHash: hash }));if(user)broadcastCheckpoint(user.id,operation,hash);await operationRequest(token,`/api/transactions/${operation.id}/submit`,{txHash:hash});await observeBroadcast(token,operation.id,hash); },
       });
 
       setTxHash(result.txHash);
       setTxStep("SYNCING");
+      const recovered=await operationRequest<{operation:TransactionOperation}>(token,`/api/transactions/${operation.id}/recover`,{txHash:result.txHash});requireProjected(recovered,operation,result.txHash);
       await waitForIndexedOrder(token, result.txHash, buyer, result.orderId);
       localStorage.removeItem(key);
+      localStorage.removeItem(purchaseRetryKey);if(user)localStorage.removeItem(checkpointKey(user.id,operation.id));
       setTxStep("CONFIRMED");
 
       // Trigger victory celebration
-      confetti({
+      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) confetti({
         particleCount: 100,
         spread: 70,
         origin: { y: 0.6 },
@@ -232,11 +327,19 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
       // Refresh campaign state
       fetchCampaign();
     } catch (err: any) {
-      if (err.code === "PURCHASE_REVERTED") localStorage.removeItem(key);
+      let verifiedRevert=false;
+      if(purchaseOperation){
+        try{
+          const saved=JSON.parse(localStorage.getItem(key)||"null") as CheckoutIntent|null;
+          if(err.code==="PURCHASE_REVERTED"&&saved?.txHash)await operationRequest(token,`/api/transactions/${purchaseOperation.id}/recover`,{txHash:saved.txHash}).catch(()=>{});
+          const current=(await operationRequest<{operation:TransactionOperation}>(token,`/api/transactions/${purchaseOperation.id}`)).operation;verifiedRevert=current.phase==="REVERTED";
+        }catch{/* A wallet rejection or uncertain receipt cannot release the durable server intent. */}
+      }
+      if(verifiedRevert){localStorage.removeItem(key);localStorage.removeItem(purchaseRetryKey);if(user&&purchaseOperation)localStorage.removeItem(checkpointKey(user.id,purchaseOperation.id));}
       const saved = localStorage.getItem(key);
       let pending = false;
       try { pending = Boolean(saved && ["BUY_PENDING", "BUY_BROADCAST"].includes(JSON.parse(saved).phase)); } catch { pending = true; }
-      setTxStep(err.code === "PURCHASE_REVERTED" ? "REVERTED" : pending ? "PENDING_CHECK" : "FAILED");
+      setTxStep(verifiedRevert ? "REVERTED" : pending ? "PENDING_CHECK" : "FAILED");
       setTxError(paymentError(err));
     } finally {
       setIsCommitting(false);
@@ -245,307 +348,33 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
   };
 
   return (
-    <div>
-      {/* Back button */}
-      <button
-        className="btn btn-secondary btn-sm"
-        onClick={onBack}
-        style={{ marginBottom: "1.5rem" }}
-      >
-        <ArrowLeft size={16} /> Quay lại danh sách
-      </button>
-
+    <div className="buyer-deal-detail">
+      <nav className="deal-breadcrumb" aria-label={text("Điều hướng deal", "Deal navigation")}><button className="btn btn-secondary" onClick={onBack}><ArrowLeft size={16}/>{text("Quay lại danh sách", "Back to deals")}</button><span>{campaign.category}</span></nav>
       <div className="campaign-detail-grid">
-        {/* Left Column: Details & Tier Progression */}
-        <div>
-          {/* Main Visual Header */}
-          <div
-            style={{
-              position: "relative",
-              borderRadius: "var(--radius-xl)",
-              overflow: "hidden",
-              height: "320px",
-              marginBottom: "1.5rem",
-              border: "1px solid var(--border-subtle)",
-            }}
-          >
-            <img
-              src={campaign.thumbnailUrl}
-              alt={campaign.title}
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                background: "linear-gradient(to top, rgba(7, 9, 14, 0.95) 0%, transparent 60%)",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "flex-end",
-                padding: "2rem",
-              }}
-            >
-              <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem" }}>
-                <span className="badge badge-sla">SLA Giao hàng {campaign.deliverySlaSeconds / 3600}h</span>
-                {campaign.earlyRebateEnabled && (
-                  <span className="badge badge-early">Early Supporter Rebate</span>
-                )}
-                <span className="badge badge-verified-seller">Arc Testnet Escrow</span>
-              </div>
-              <h1 style={{ fontSize: "1.85rem", lineHeight: 1.25, color: "#fff" }}>
-                {campaign.title}
-              </h1>
-            </div>
-          </div>
-
-          {/* Seller Profile & Verification Badges */}
-          <div
-            className="glass-card"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: "1.5rem",
-              padding: "1.25rem 1.5rem",
-            }}
-          >
-            <div>
-              <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "0.2rem" }}>
-                Người bán / Nhà phân phối
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <strong style={{ fontSize: "1.05rem" }}>{seller?.displayName || "Seller"}</strong>
-                {seller?.verifiedSellerBadge && (
-                  <span className="badge badge-verified-seller" title="Xác minh danh tính & tư cách pháp nhân">
-                    <CheckCircle2 size={12} /> Seller Verified
-                  </span>
-                )}
-                {seller?.verifiedRightsBadge && (
-                  <span className="badge badge-verified-rights" title="Xác minh quyền phân phối bản quyền">
-                    <ShieldCheck size={12} /> Rights Verified
-                  </span>
-                )}
-              </div>
-              {seller?.bio && (
-                <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginTop: "0.35rem" }}>
-                  {seller.bio}
-                </p>
-              )}
-            </div>
-
-            <button className="btn btn-secondary btn-sm" onClick={() => setIsShareOpen(true)}>
-              <Share2 size={15} />
-              Chia sẻ / QR
-            </button>
-          </div>
-
-          {/* Interactive Tier Ladder Visualizer */}
-          <div className="glass-card" style={{ marginBottom: "1.5rem" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-              <h3 style={{ fontSize: "1.2rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Sparkles size={18} color="var(--primary-light)" />
-                {t("tierProgression")}
-              </h3>
-              <span style={{ fontSize: "0.85rem", color: "var(--cyan)" }}>
-                Chỉ số: {campaign.metric === "BUYER_COUNT" ? "Số người mua đủ điều kiện" : "Số đơn vị thanh toán"}
-              </span>
-            </div>
-
-            <div className="tier-ladder">
-              {campaign.tiers.map((tier: any, idx: number) => {
-                const isUnlocked = idx <= campaign.currentUnlockedTier;
-                const isActive = idx === campaign.currentUnlockedTier;
-                const tierPrice = Number(tier.price) / 1e6;
-
-                return (
-                  <div
-                    key={idx}
-                    className={`tier-step ${isActive ? "active" : isUnlocked ? "unlocked" : ""}`}
-                  >
-                    <div className="tier-step-left">
-                      <div className="tier-badge-number">
-                        {isUnlocked ? <Check size={14} /> : idx + 1}
-                      </div>
-                      <div>
-                        <div className="tier-info-title">
-                          Tier {idx + 1}: Ngưỡng đạt {tier.threshold}{" "}
-                          {campaign.metric === "BUYER_COUNT" ? "người mua" : "đơn vị"}
-                        </div>
-                        <div className="tier-info-sub">
-                          {isUnlocked
-                            ? isActive
-                              ? "★ Đang áp dụng mức giá này"
-                              : "Đã vượt qua mức này"
-                            : `Cần thêm ${tier.threshold - currentMetric} nữa để mở khóa`}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="tier-price-tag font-mono">
-                      ${tierPrice} <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>USDC</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div
-              style={{
-                background: "rgba(99, 102, 241, 0.08)",
-                border: "1px solid rgba(99, 102, 241, 0.25)",
-                borderRadius: "var(--radius-md)",
-                padding: "0.85rem 1.25rem",
-                fontSize: "0.85rem",
-                color: "var(--text-secondary)",
-                lineHeight: 1.5,
-              }}
-            >
-              💡 <strong>Cơ chế Rebate tự động:</strong> Bạn sẽ thanh toán ở mức giá tier hiện tại (<strong>${currentPrice} USDC</strong>). Nếu chiến dịch kết thúc đạt tier tốt hơn (thấp nhất <strong>${lowestPrice} USDC</strong>), bạn sẽ được rút phần tiền chênh lệch (Rebate) trực tiếp từ Smart Contract về ví của mình!
-            </div>
-          </div>
-
-          {/* Delivery & Protection Terms */}
-          <div className="glass-card">
-            <h3 style={{ fontSize: "1.2rem", marginBottom: "1rem" }}>{t("deliveryInfo")}</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.25rem" }}>
-              <div
-                style={{
-                  background: "rgba(255, 255, 255, 0.03)",
-                  padding: "1rem",
-                  borderRadius: "var(--radius-md)",
-                  border: "1px solid var(--border-subtle)",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "var(--cyan)", fontSize: "0.85rem", marginBottom: "0.3rem" }}>
-                  <KeyRound size={16} /> {t("deliveryMethod")}
-                </div>
-                <div style={{ fontWeight: 600 }}>{campaign.deliveryMethod}</div>
-                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "0.2rem" }}>
-                  Mã hóa AES-256 bảo vệ offchain, chỉ buyer mới có thể giải mã.
-                </div>
-              </div>
-
-              <div
-                style={{
-                  background: "rgba(255, 255, 255, 0.03)",
-                  padding: "1rem",
-                  borderRadius: "var(--radius-md)",
-                  border: "1px solid var(--border-subtle)",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "var(--warning)", fontSize: "0.85rem", marginBottom: "0.3rem" }}>
-                  <Clock size={16} /> {t("deliverySla")}
-                </div>
-                <div style={{ fontWeight: 600 }}>{campaign.deliverySlaSeconds / 3600} giờ sau khi đóng</div>
-                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "0.2rem" }}>
-                  Nếu quá hạn không giao, hợp đồng tự động kích hoạt Full Refund 100%.
-                </div>
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: "0.75rem",
-                padding: "0.85rem 1rem",
-                background: "rgba(16, 185, 129, 0.08)",
-                border: "1px solid rgba(16, 185, 129, 0.25)",
-                borderRadius: "var(--radius-md)",
-                fontSize: "0.85rem",
-                color: "#6ee7b7",
-              }}
-            >
-              <ShieldCheck size={20} style={{ flexShrink: 0, marginTop: "0.15rem" }} />
-              <div>
-                <strong>{t("disputeWindow")}:</strong> {t("disputeWindowDesc")}. Tiền của bạn không bao giờ được chuyển cho seller nếu bạn mở tranh chấp hợp lệ. Có fallback trực tiếp trên Arc Smart Contract nếu mạng internet/backend gặp sự cố!
-              </div>
-            </div>
-          </div>
+        <div className="deal-main">
+          <ProductGallery key={campaign.id} title={campaign.title} thumbnailUrl={campaign.thumbnailUrl} media={campaign.product?.media}/>
+          <SellerIdentity seller={seller}/>
+          <header className="deal-title"><div className="deal-badges"><span className="badge">{campaign.category}</span><span className="badge badge-sla">Arc Testnet</span></div><h1>{campaign.title}</h1><p>{campaign.description}</p></header>
+          {Array.isArray(campaign.amendments)&&campaign.amendments.length>0&&<CampaignAmendmentHistory items={campaign.amendments}/>}
+          <DealKeyFacts product={campaign.product} slaSeconds={campaign.deliverySlaSeconds}/>
+          <nav className="deal-section-nav" aria-label={text("Nội dung sản phẩm", "Product information")}><button className="btn btn-secondary" onClick={()=>focusPageElement(document.getElementById("deal-license"))}>{text("License và quyền sử dụng", "License and usage rights")}</button><button className="btn btn-secondary" onClick={()=>focusPageElement(document.getElementById("deal-delivery"))}>{text("Giao hàng và điều khoản", "Delivery and terms")}</button></nav>
+          <div id="deal-license" className="deal-license-section" tabIndex={-1}><LicenseSummary product={campaign.product} rights={campaign.rights}/></div>
+          <section id="deal-delivery" tabIndex={-1} className="glass-card delivery-terms"><h2>{text("Giao hàng và bảo vệ khoản mua", "Delivery and purchase protection")}</h2><dl className="detail-list"><dt>{text("Cách nhận", "Delivery method")}</dt><dd>{campaign.deliveryMethod === "FILE_LINK" ? text("Tải tài nguyên được bảo vệ", "Protected resource download") : campaign.deliveryMethod === "LICENSE_KEY" ? text("Mã truy cập tài nguyên GroupDeal", "GroupDeal resource access code") : campaign.deliveryMethod}</dd><dt>{text("Hạn giao hàng", "Delivery deadline")}</dt><dd>{campaign.deliverySlaSeconds / 3600} {text("giờ sau finalize", "hours after finalization")}</dd><dt>{text("Tranh chấp", "Dispute window")}</dt><dd>{text("48 giờ sau khi ghi nhận giao hàng trên chain", "48 hours after delivery is recorded on chain")}</dd></dl><p>{text("Tài nguyên được bảo vệ bằng quyền truy cập gắn với order và principal. Sau khi nhận hàng, kiểm tra tài nguyên trước khi xác nhận.", "Resource access is bound to the order and its principal. Check the delivered resource before confirming receipt.")}</p><div className="deal-info"><ShieldCheck size={20}/><p>{text("Quá hạn không giao: ghi nhận breach để phân bổ khoản hoàn đủ điều kiện, sau đó claim về ví. Dispute hợp lệ giữ phần tiền chưa phân bổ để operator xem xét.", "Non-delivery after the deadline: record a breach to allocate the entitled refund, then claim it. A valid dispute holds the unallocated funds for operator review.")}</p></div><details><summary>{text("Khi API GroupDeal không hoạt động", "When the GroupDeal API is unavailable")}</summary><p>{text("Công cụ trực tiếp vẫn cần RPC và ví principal.", "The direct tool still requires RPC and the principal wallet.")} <a href="/fallback.html" target="_blank" rel="noreferrer">{text("Mở công cụ trực tiếp", "Open direct tool")}</a></p></details></section>
         </div>
-
-        {/* Right Column: Checkout Action Card */}
-        <div>
-          <div className="glass-card highlight" style={{ position: "sticky", top: "5.5rem" }}>
-            <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "0.3rem" }}>
-              {t("currentPrice")}
-            </div>
-
-            <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", marginBottom: "1.25rem" }}>
-              <span
-                className="font-mono"
-                style={{ fontSize: "2.5rem", fontWeight: 800, color: "var(--cyan)" }}
-              >
-                ${currentPrice}
-              </span>
-              <span style={{ color: "var(--text-muted)" }}>USDC / đơn vị</span>
-            </div>
-
-            {/* Campaign Summary Stats */}
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.6rem",
-                padding: "1rem",
-                background: "rgba(0, 0, 0, 0.25)",
-                borderRadius: "var(--radius-md)",
-                border: "1px solid var(--border-subtle)",
-                marginBottom: "1.5rem",
-                fontSize: "0.88rem",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--text-secondary)" }}>Đã tham gia:</span>
-                <span className="font-mono" style={{ fontWeight: 600 }}>
-                  {currentMetric} {campaign.metric === "BUYER_COUNT" ? "người" : "đơn vị"}
-                </span>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--text-secondary)" }}>Giới hạn mỗi ví:</span>
-                <span className="font-mono">{campaign.maxPerAccount} đơn vị</span>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--text-secondary)" }}>Thời gian còn lại:</span>
-                <span style={{ color: "var(--warning)", fontWeight: 600 }}>
-                  {Math.max(0, Math.floor((campaign.endTime - Date.now() / 1000) / 86400))} ngày
-                </span>
-              </div>
-            </div>
-
-            <button
-              className="btn btn-primary btn-lg"
-              style={{ width: "100%", justifyContent: "center", marginBottom: "0.75rem" }}
-              onClick={() => setIsPreTxOpen(true)}
-              disabled={isCommitting}
-            >
-              {t("commitToBuy")}
-            </button>
-
-            <button
-              className="btn btn-secondary"
-              style={{ width: "100%", justifyContent: "center" }}
-              onClick={() => setIsShareOpen(true)}
-            >
-              <Share2 size={16} />
-              {t("shareCampaign")}
-            </button>
-
-            <div
-              style={{
-                fontSize: "0.75rem",
-                color: "var(--text-muted)",
-                textAlign: "center",
-                marginTop: "1.25rem",
-                lineHeight: 1.4,
-              }}
-            >
-              🔒 Khóa điều khoản tài chính bất biến trên Arc Testnet. Gas thanh toán bằng USDC Native.
-            </div>
-          </div>
-        </div>
+        <aside className="deal-purchase-panel glass-card" aria-label={text("Giá và tham gia deal", "Pricing and joining the deal")}>
+          <div className="deal-panel-status"><span className="badge">{({ACTIVE:text("Đang mở", "Open"),PUBLISHED:text("Đã xuất bản", "Published"),FINALIZED:text("Đã finalize", "Finalized"),CANCELLED:text("Đã hủy", "Cancelled")} as Record<string,string>)[campaign.status] || campaign.status}</span><span className="muted">{campaign.metric === "BUYER_COUNT" ? text("Tài khoản đủ điều kiện", "Eligible accounts") : text("Đơn vị cam kết", "Committed units")}: <strong>{currentMetric}</strong></span></div>
+          <DealDeadline startTime={campaign.startTime} endTime={campaign.endTime} now={now} status={campaign.status}/>
+          <p className="muted">{campaign.status === "FINALIZED" ? text("Giá clearing sau finalize", "Final clearing price") : text("Giá khóa tham khảo hiện tại", "Current indicative locked price")}</p>
+          <PriceDisplay amount={campaign.status === "FINALIZED" ? campaign.finalClearingPrice || "" : currentTier.price} large/><p className="muted">{text("Mỗi đơn vị · cam kết vào escrow ngay khi mua", "Per unit · transferred into escrow on purchase")}</p>
+          <PriceTierRail tiers={campaign.tiers} current={campaign.currentUnlockedTier} metric={campaign.metric} count={currentMetric} canUnlock={purchaseIssue(campaign,now)===null} finalized={campaign.status==="FINALIZED"}/>
+          {blocked && <p className="notice notice-warning" role="status">{blocked}</p>}
+          <button ref={purchaseTrigger} className="btn btn-primary btn-lg deal-join-cta" onClick={openJoin} disabled={isCommitting || !!blocked}><span className="mobile-purchase-price"><PriceDisplay amount={campaign.status==="FINALIZED"?campaign.finalClearingPrice||"":currentTier.price}/></span><span>{t("commitToBuy")}</span></button>
+          {blocked && <button className="btn btn-secondary" onClick={onGoToOrders}>{text("Xem đơn đã mua", "View existing orders")}</button>}
+          <div className="deal-info"><p>{text("Giá nhóm thấp hơn có thể tạo rebate khi finalize. Buyer chủ động claim phần đã phân bổ; không tự động chuyển về ví.", "A lower group price can create a rebate at finalization. Buyers claim allocated funds; they are not automatically transferred.")}</p></div>
+          <dl className="summary-list"><dt>{text("Giới hạn mỗi account", "Limit per account")}</dt><dd>{campaign.maxPerAccount} {text("đơn vị", "units")}</dd><dt>{text("Fee nền tảng", "Platform fee")}</dt><dd>{campaign.platformFeeBps === 0 ? "0 USDC" : text("Kiểm tra điều khoản", "Verify terms")}</dd></dl>
+          <button className="btn btn-secondary" onClick={() => setIsShareOpen(true)}><Share2 size={16}/>{t("shareCampaign")}</button>
+          <p className="muted form-help">{text("Giá, số lượng, quyền phân phối và ví được kiểm lại trước ký. Phí mạng thanh toán riêng bằng USDC native.", "Price, quantity, rights and wallet are checked before signing. Network fees are paid separately in native USDC.")}</p>
+        </aside>
       </div>
 
       {/* Pre-Tx Modal */}
@@ -555,6 +384,12 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
         campaign={campaign}
         isLoading={isCommitting}
         onConfirm={handleConfirmPurchase}
+        initialSelection={joinSelection}
+        onSelectionChange={rememberJoin}
+        requiresSignIn={!user || !token}
+        budgetAccount={account??undefined}
+        reviewIdentity={JSON.stringify([user?.id, account, getSessionEpoch?.()])}
+        reviewNotice={joinNotice ? text("Đã tải lại deal sau đăng nhập. Kiểm tra giá, số lượng, license và đồng ý lại trước khi tiếp tục.", "The deal was refreshed after sign-in. Review the price, quantity and license and agree again before continuing.") : undefined}
       />
 
       <FundingModal isOpen={Boolean(fundingIntent)} requiredUsdc={requiredFunding}
@@ -571,8 +406,9 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
         isOpen={isTxModalOpen}
         step={txStep}
         txHash={txHash}
-        errorMessage={txError}
+        errorMessage={txError === null ? null : messageText(txError, language)}
         onCheck={() => void checkPreviousPurchase()}
+        returnFocus={() => purchaseTrigger.current}
         onClose={() => {
           setIsTxModalOpen(false);
           if (txStep === "CONFIRMED") onGoToOrders();
@@ -584,7 +420,6 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
         isOpen={isShareOpen}
         onClose={() => setIsShareOpen(false)}
         campaignId={campaign.id}
-        campaignTitle={campaign.title}
       />
     </div>
   );

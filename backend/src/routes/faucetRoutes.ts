@@ -1,47 +1,34 @@
 import { Router } from "express";
 import { ethers } from "ethers";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth";
-import { store } from "../db/store";
+import {AuthService} from '../services/authService';
+import {SessionError} from '../services/sessionService';
+import {CircleAuthError} from '../domain/circleAuthentication';
+import {faucetInput} from '../domain/circleWalletAuthority';
+import {config} from '../config';
 import { CircleWalletService } from "../services/circleWalletService";
 
 export const faucetRouter = Router();
 const OFFICIAL_ARC_FAUCET_URL = "https://faucet.circle.com";
+faucetRouter.use((req,res,next)=>{res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');if(Object.keys(req.query).length){res.status(400).json({error:'FAUCET_INVALID_INPUT'});return}const origin=req.headers.origin,configured=config.publicAppUrl?new URL(config.publicAppUrl).origin:undefined;if(origin&&origin!==configured&&!config.allowedOrigins.includes(origin)){res.status(403).json({error:'FAUCET_INVALID_ORIGIN'});return}next()});
 
 faucetRouter.post("/usdc", authMiddleware, async (req: AuthenticatedRequest, res) => {
-  const { address } = req.body || {};
-  if (typeof address !== "string" || !ethers.isAddress(address)) {
+  const input=faucetInput.safeParse(req.body);
+  if (!input.success) {
     res.status(400).json({ error: "Valid EVM address is required" });
     return;
   }
 
-  const user = store.db.users[req.user!.userId];
-  const ownedAddresses = [user?.activeWallet, user?.circleWallet?.address].filter(Boolean);
-  if (!ownedAddresses.some((owned) => owned!.toLowerCase() === address.toLowerCase())) {
-    res.status(403).json({ error: "Chỉ được nhận faucet cho ví đã gắn với tài khoản của bạn" });
-    return;
-  }
-  const key = `arc-faucet:${address.toLowerCase()}`;
-  const now = Date.now();
-  const previous = store.db.rateLimits[key];
-  // Reserve before await, including unknown provider outcomes after timeout.
-  if (previous && now - previous.lastAttemptAt < 60_000) {
-    res.setHeader("Retry-After", "60");
-    res.status(429).json({ error: "Vui lòng đợi ít nhất 60 giây. Circle có hạn mức faucet riêng." });
-    return;
-  }
-  const windowActive = Boolean(previous && now - previous.windowStartedAt < 3600_000);
-  if (windowActive && previous.count >= 5) {
-    res.status(429).json({ error: "Đã đạt giới hạn 5 yêu cầu faucet mỗi giờ cho ví này. Circle cũng áp dụng hạn mức riêng." });
-    return;
-  }
-  store.db.rateLimits[key] = { windowStartedAt: windowActive ? previous.windowStartedAt : now,
-    lastAttemptAt: now, count: windowActive ? previous.count + 1 : 1 };
-  store.save();
+  const address=input.data.address;
   try {
+    AuthService.reserveFaucet(req.user!.userId,address,req.sessionProof!);
+    AuthService.assertFaucetAuthority(req.user!.userId,address,req.sessionProof!);
     await CircleWalletService.requestArcTestnetTokens(address);
+    AuthService.assertFaucetAuthority(req.user!.userId,address,req.sessionProof!);
     res.status(202).json({ status: "REQUESTED", recipient: ethers.getAddress(address),
       message: "Circle đã nhận yêu cầu faucet. Số dư sẽ cập nhật khi token đến ví." });
   } catch (error) {
+    if(error instanceof CircleAuthError||error instanceof SessionError){if(error.status===429)res.setHeader('Retry-After','60');res.status(error.status).json({error:error.code});return}
     const providerStatus = (error as { status?: number; statusCode?: number }).status
       || (error as { statusCode?: number }).statusCode;
     res.status(providerStatus === 429 ? 429 : 502).json({

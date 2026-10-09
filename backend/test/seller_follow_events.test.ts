@@ -1,0 +1,41 @@
+import assert from 'node:assert/strict';
+import {ethers} from 'ethers';
+import crypto from 'node:crypto';
+import {store} from '../src/db/store';
+import {SessionService} from '../src/services/sessionService';
+import {config} from '../src/config';
+import {reviewedProductVerified} from './fixtures/product';
+import {CampaignEditorService} from '../src/services/campaignEditorService';
+import {ProductService} from '../src/services/productService';
+import {sellerFollows,sellerFollowKey} from '../src/services/sellerFollowService';
+import {IndexerService} from '../src/services/indexerService';
+import {TransactionVerifier} from '../src/services/transactionVerifier';
+import {campaignCalldata,bindVerifiedCampaign} from '../src/services/campaignBindingService';
+import {NotificationService} from '../src/services/notificationService';
+import {notifySellerFollowers} from '../src/services/followNotifications';
+import {eventProvider} from './fixtures/events';
+import {HUB_ABI} from '../src/contracts/hubAbi';
+async function main(){assert.ok(store.isIsolated);const oldBlock=config.deploymentBlock;config.deploymentBlock=1;try{
+ const payout=ethers.Wallet.createRandom().address,product=await reviewedProductVerified('follow-seller',payout),now=Math.floor(Date.now()/1000),iface=new ethers.Interface(HUB_ABI),logs:any[]=[],calls:Record<string,any>={};
+ const draft=()=>CampaignEditorService.saveDraft('follow-seller',{title:'Follow events LOCAL FIXTURE',description:'Canonical events fixture',thumbnailUrl:product.version.thumbnailUrl,productVersionId:product.version.id,metric:'BUYER_COUNT',tiers:[{threshold:1,priceUSDC:'105'},{threshold:2,priceUSDC:'89'}],maxPerAccount:3,inventoryLimit:100,durationDays:7,deliverySlaHours:24,deliveryMethod:'FILE_LINK'});
+ const base=draft();Object.assign(base,{status:'ACTIVE',visibility:'PUBLIC',projectionOrigin:'VERIFIED_PUBLISH',chainId:config.arcChainId,hubAddress:config.hubAddress,onchainCampaignId:1,startTime:now,endTime:now+3600,productSnapshot:product.snapshot});
+ for(const id of ['watcher','muted','new-only','stranger','late'])store.db.users[id]={id,email:id+'@fixture.invalid',emailVerified:true,roles:['buyer'],activeWallet:null,createdAt:Date.now()};store.save();
+ const follow=(id:string,updates:boolean)=>sellerFollows.update(id,'follow-seller',{idempotencyKey:crypto.randomUUID(),expectedRevision:0,following:true,notifyNewDeals:true,notifyDealUpdates:updates},SessionService.authenticate(SessionService.issue(store.db.users[id])));follow('watcher',true);follow('muted',true);follow('new-only',false);NotificationService.updatePreferences('muted',{inApp:false});
+ const event=(name:string,args:any[],block:number,hash=ethers.id('follow-event-'+logs.length))=>{const log={...iface.encodeEventLog(iface.getEvent(name)!,args),address:config.hubAddress,blockNumber:block,blockHash:ethers.id('block-'+block),transactionHash:hash,transactionIndex:logs.filter(l=>l.blockNumber===block).length,index:0};logs.push(log);return log;};
+ const provider=eventProvider(logs,calls,block=>now+block+(block>=3?7*86400:0));IndexerService.setProvider(provider);TransactionVerifier.setProvider(provider as any);
+ const fresh=draft();store.db.campaigns[fresh.id].visibility='PUBLIC';fresh.productSnapshot=ProductService.snapshot('follow-seller',product.version.id,now+9*86400);fresh.termsHash=CampaignEditorService.termsHash(fresh);store.save();const calldata=campaignCalldata(fresh),created=event('CampaignCreated',[2,payout,fresh.termsHash,0,now+1,now+1+fresh.durationSeconds,fresh.inventoryLimit],1);calls[created.transactionHash]={from:payout,data:calldata};
+ await IndexerService.processLogs([created]);assert.equal(NotificationService.list('watcher').filter(n=>n.type.startsWith('SELLER_FOLLOW_')).length,0,'Unbound owner must not notify followers');
+ const proof=await TransactionVerifier.verifyExpectedTransaction({intentId:'follow-publish-'+fresh.id,expectedTo:config.hubAddress,expectedSender:payout,expectedFunction:'createCampaign',expectedCalldata:calldata,expectedEvent:'CampaignCreated',expectedEventArgs:{termsHash:fresh.termsHash,sellerPayoutWallet:payout}},created.transactionHash);
+ bindVerifiedCampaign(fresh.id,proof,calldata);const notices=(id:string)=>NotificationService.list(id).filter(n=>n.type.startsWith('SELLER_FOLLOW_'));
+ assert.equal(notices('watcher').length,1);assert.equal(notices('new-only').length,1);assert.equal(notices('muted').length,0);assert.equal(notices('stranger').length,0);assert.equal(Object.values(store.db.emailOutbox).filter(n=>['watcher','muted','new-only'].includes(n.userId)).length,0,'Following must not opt into email');
+ const before=JSON.stringify(store.db.notifications);bindVerifiedCampaign(fresh.id,proof,calldata);await IndexerService.processLogs([created]);assert.equal(JSON.stringify(store.db.notifications),before,'API/indexer replay duplicated follow notices');
+ const commits=[1,2].map(i=>event('CommitmentMade',[2,i,ethers.id('follow-identity-'+i),ethers.Wallet.createRandom().address,1,105000000,105000000,false,0],2));const tier=event('TierUnlocked',[2,1,2,89000000],2);await IndexerService.processLogs([...commits,tier]);assert.equal(notices('watcher').length,2);assert.equal(notices('new-only').length,1);assert.equal(notices('watcher')[0].source?.kind,'SELLER_FOLLOW_EVENT');
+ store.db.campaigns[fresh.id].visibility='PRIVATE';store.save();assert.equal(notices('watcher').length,0);assert.equal(NotificationService.notificationPage('watcher',{}).unread,0);assert.throws(()=>NotificationService.markRead('watcher',Object.values(store.db.notifications).find(n=>n.userId==='watcher')!.id));store.db.campaigns[fresh.id].visibility='UNLISTED';store.save();assert.equal(notices('watcher').length,0);store.db.campaigns[fresh.id].visibility='PUBLIC';store.save();assert.equal(notices('watcher').length,2);
+ const stored=Object.values(store.db.eventJournal).find(r=>r.eventName==='TierUnlocked')!,count=notices('watcher').length;notifySellerFollowers({...stored,chainId:config.arcChainId+1});assert.equal(notices('watcher').length,count);
+ // Move only this fixture's subscription clock beyond old blocks; catch-up must not deliver past events.
+ const clock=Date.now;try{Date.now=()=>clock()+10000;follow('late',true);}finally{Date.now=clock;}for(const row of Object.values(store.db.eventJournal))notifySellerFollowers(row);assert.equal(notices('late').length,0,'Past events were delivered to a later subscription');
+ const watcher=store.db.sellerFollows[sellerFollowKey('watcher','follow-seller')];sellerFollows.update('watcher','follow-seller',{idempotencyKey:crypto.randomUUID(),expectedRevision:watcher.revision,following:false,notifyNewDeals:false,notifyDealUpdates:false},SessionService.authenticate(SessionService.issue(store.db.users.watcher)));
+ const final=event('CampaignFinalized',[2,89000000,1,210000000,2],3);await IndexerService.processLogs([final]);assert.equal(notices('watcher').length,count);assert.equal(notices('new-only').length,1);assert.equal(notices('late').length,1);assert.equal(store.db.campaigns[fresh.id].status,'FINALIZED');
+ console.log('PASS LOCAL_CHAIN_FIXTURE: canonical creation binding race, future-event selection, dedupe, per-category/in-app preference, no email/stranger notice, live privacy recheck, scope exclusion and unsubscribe; no live acceptance');
+ }finally{config.deploymentBlock=oldBlock;}}
+main().catch(e=>{console.error('Follow event verification failed: '+e.name);if(e instanceof Error){console.error(/^[A-Z][A-Z0-9_:-]{0,100}$/.test(e.message)?e.message:'Message redacted');for(const l of(e.stack||'').split('\n').filter(l=>/^\s+at /.test(l)).slice(0,5))console.error(l);}process.exitCode=1;}).finally(()=>store.close());

@@ -1,6 +1,10 @@
 # GroupDeal — Nền tảng Mua Chung Sản Phẩm Số trên Arc Testnet
 
-GroupDeal hiện là **release candidate trên Arc Testnet**, chưa phải bản đã nghiệm thu production. Arc là lớp settlement và nguồn sự thật tài chính; ứng dụng hỗ trợ Circle User-Controlled Wallet, ví ngoài qua Reown AppKit và nạp USDC qua Circle Arc App Kit Bridge. Candidate mới là `GroupDealHub` tại `0x2A7a...0574`, dùng Safe 2-of-3 đã xác minh tại `0xdDB2...72e6`; deployment cũ `0x7d4b...9F9a` đã được dọn hết escrow và loại khỏi nghiệm thu. Xem [báo cáo tiến độ live](./reports/BAO_CAO_TIEN_DO_LIVE_ARC_30_09_2026.md). Việc nghiệm thu cuối vẫn cần credential, quyền kiểm soát các principal độc lập, hành trình sản phẩm live G5 và reviewer độc lập G6.
+**Tài liệu bàn giao để xây dự án mới:** [GroupDeal từ đầu](./docs/rebuild/README.md), gồm đặc tả sản phẩm/nghiệp vụ, kiến trúc/dữ liệu, lộ trình/nghiệm thu và prompt khởi tạo. Bộ này phục vụ codebase mới theo `PLAN.md`; kế hoạch và trạng thái candidate bên dưới thuộc repository hiện tại.
+
+GroupDeal hiện là **release candidate trên Arc Testnet**, chưa hoàn tất nghiệm thu sản phẩm. Arc là lớp settlement và nguồn sự thật tài chính; ứng dụng hỗ trợ Circle User-Controlled Wallet, ví ngoài qua Reown AppKit và nạp USDC qua Circle Arc App Kit Bridge. Candidate mới là `GroupDealHub` tại `0x2A7a...0574`, dùng Safe 2-of-3 đã xác minh tại `0xdDB2...72e6`; deployment cũ `0x7d4b...9F9a` đã được dọn hết escrow và loại khỏi nghiệm thu. Xem [báo cáo tiến độ live](./reports/BAO_CAO_TIEN_DO_LIVE_ARC_30_09_2026.md) và [báo cáo checkout mới hơn](./reports/BAO_CAO_SUA_LOI_VA_CHECKOUT_03_10_2026.md). Credential/readiness đã có bằng chứng cấu hình; nghiệm thu cuối cần xác minh lại hiệu lực, quyền kiểm soát các principal độc lập, hành trình sản phẩm live G5 và rà soát độc lập G6.
+
+**Đầu mối thực thi duy nhất:** [Kế hoạch thống nhất hoàn thiện GroupDeal v2.0](./reports/KE_HOACH_HOAN_TAT_DU_AN.md). Kế hoạch hợp nhất báo cáo lỗi, thẩm tra, định hướng sản phẩm và ảnh thiết kế; xác định công việc, phụ thuộc và bằng chứng hoàn tất cho backend, contract, dữ liệu, frontend và vận hành. Các báo cáo/checklist cũ được giữ làm lịch sử theo phạm vi bằng chứng đã ghi.
 
 ---
 
@@ -23,7 +27,7 @@ $$\text{buyerAllocation} + \text{sellerGrossAllocation} + \text{stillUnallocated
 - Không thể phân bổ hay rút vượt quá số tiền đã cam kết trên chuỗi.
 
 ### 3. Bảo vệ Danh tính & Quyền Tài chính Bất biến (Buyer Principal Pinning)
-- **Campaign Identity ẩn danh**: Sinh tự động bằng hàm băm mật mã `keccak256(accountId, campaignId, salt)`. Tuyệt đối không đưa email hay thông tin cá nhân lên chuỗi, ngăn chặn liên kết chéo giữa các chiến dịch.
+- **Campaign Identity**: Sinh bằng hàm băm từ account, campaign và secret theo mục đích; không đưa email hay PII lên chuỗi. Cùng địa chỉ ví vẫn có thể được liên kết công khai giữa các campaign. Persist mapping và version khi xoay secret là việc cần hoàn thiện trong kế hoạch.
 - **Principal Pinning**: Cam kết nạp tiền đầu tiên ghim vĩnh viễn địa chỉ ví của người mua làm *Buyer Principal* duy nhất. Mọi khoản rebate, refund hay claim chỉ có thể được rút về ví này.
 - **Ràng buộc Ví Nguyên tử (1-to-1 Atomic Binding)**: Một ví EVM chỉ có thể liên kết chủ động với một tài khoản GroupDeal tại một thời điểm.
 
@@ -32,14 +36,14 @@ $$\text{buyerAllocation} + \text{sellerGrossAllocation} + \text{stillUnallocated
 - Chống tấn công phát lại (replay attack) bằng nonce tăng tuần tự trên hợp đồng.
 
 ### 5. Giao Hàng Số Bí Mật & Fallback Tranh Chấp Onchain
-- **Bảo mật Entitlement**: Mã license key, link tải riêng hay token kích hoạt được mã hóa **AES-256-GCM** offchain và chỉ buyer sở hữu đơn hàng mới có thể giải mã.
+- **Bảo mật Entitlement**: Mã license key, link tải riêng hay token kích hoạt được mã hóa **AES-256-GCM** offchain và kiểm quyền truy cập theo đơn hàng. Backend hiện có khả năng giải mã; chưa phải mã hóa đầu cuối chỉ buyer giải mã được. Adapter giao hàng thật và quản lý key version còn cần hoàn thiện.
 - **SLA Giao hàng**: 24 giờ hoặc 48 giờ sau khi chốt chiến dịch. Quá hạn không có bằng chứng giao cho phép buyer gửi `claimDeliveryBreach` lên Arc; indexer chỉ cập nhật projection sau event onchain, không có worker DB tự hoàn tiền.
 - **Cửa sổ Tranh chấp 48h**: Sau khi nhận, người mua có 48h để xác nhận sớm hoặc mở tranh chấp.
-- **Direct Onchain Dispute Fallback**: Nếu ứng dụng web hay máy chủ backend ngừng hoạt động, người mua vẫn có thể gọi trực tiếp hàm `openDispute(campaignId, orderId, reasonHash)` trên Arc Smart Contract để phong tỏa tiền!
+- **Direct Onchain Dispute Fallback**: Contract có hàm `openDispute(campaignId, orderId, reasonHash)` để buyer gọi trực tiếp. Luồng dự phòng độc lập cho cả external và Circle embedded khi app/backend/evidence service mất còn cần triển khai và kiểm chứng.
 - **Trọng tài Operator**: Chỉ có quyền phân bổ chính xác khoản đang tranh chấp giữa buyer principal và seller payout wallet (tuân thủ 100% định luật bảo toàn).
 
 ### 6. Tích hợp & Mở rộng (Signed Webhooks & SDK)
-- **Webhook có chữ ký HMAC-SHA256**: Gửi thông báo kèm header `X-GroupDeal-Signature` và `X-GroupDeal-Timestamp` với cơ chế chống replay (cửa sổ 300 giây).
+- **Webhook có chữ ký HMAC-SHA256**: Gửi thông báo kèm header `X-GroupDeal-Signature` và `X-GroupDeal-Timestamp`, kiểm cửa sổ thời gian 300 giây. Chống xử lý lặp còn cần dedup bằng event ID; receiver/retry/DLQ phải được kiểm thử đầy đủ.
 - **Public Read API**: `/api/v1/campaigns` và `/api/v1/campaigns/:id` cho các nền tảng đối tác.
 - **Embed Widget**: Iframe chỉ đọc cho người bán nhúng trực tiếp vào website bán hàng / landing page.
 
@@ -55,7 +59,7 @@ group-deal/
 │   │   ├── interfaces/      # Interface IGroupDealHub, IERC20
 │   │   └── mocks/           # MockUSDC với faucet 500 USDC
 │   ├── scripts/             # deploy.ts & seed_demo.ts
-│   └── test/                # Unit test, Fuzzing, Invariants, E2E Simulation
+│   └── test/                # Contract regression/invariants và local E2E simulation
 ├── backend/                 # Node.js TypeScript API, Indexer & Reconciler
 │   ├── src/
 │   │   ├── accounting/      # Reference Accounting Model độc lập
@@ -76,11 +80,23 @@ group-deal/
 
 ## 🧪 Chạy kiểm thử và candidate pipeline
 
-Pipeline chuẩn compile lại artifact, chạy contract/backend/browser test, Arc smoke probe, build/typecheck và kiểm tra working tree:
+Pipeline local compile/typecheck contract, chạy reference model và contract → indexer → đối soát, backend, SDK packed consumer, build frontend và browser fixtures. Nó dùng credential tạm trong child process; không xóa build/cache, sinh lại ABI nguồn, reset/seed DB hoặc chạy Arc probe/deploy/live journey. Node fixture chặn cả RPC Arc fallback; browser vẫn dùng các RPC/wallet/provider fixtures đã khai báo, chưa phải hành trình live.
 
 ```bash
-# Candidate pipeline (không gửi giao dịch tài chính live)
+# Xem các bước; chưa chạy kiểm tra
+npm run verify:pipeline -- --list
+
+# Toàn bộ local suite; cần cổng 4173, 4175 và 4180 đang trống
 npm run verify:pipeline
+
+# Chạy lớp bị tác động; kết quả ghi rõ scope chưa đầy đủ
+npm run verify:pipeline -- --only=backend,sdk
+
+# Giữ server đang có; tạo server riêng cho lượt browser này
+npm run test:browser -- --port=4178 -- transaction_history_locale.spec.ts
+
+# Kiểm các chunks đã build, navigation/loading/error và font self-host
+npm run verify:pipeline -- --only=frontend-build,browser-built
 
 # Các lớp kiểm thử riêng
 npm run test:contracts
@@ -90,6 +106,12 @@ npm run test:arc-smoke
 ```
 
 `test:arc-smoke` chỉ đọc Arc Testnet và kiểm tra chain/predeploy/system behavior. `test:arc-live` chỉ là hành trình **contract primitive**, không phải G5 product acceptance; lệnh fail-closed nếu thiếu acknowledgment riêng, deployer key đúng owner và private key của authorized signer đúng manifest. G5 vẫn phải chạy qua browser/API/Circle/Reown/operator/Safe bằng các principal độc lập.
+
+Runner chỉ dùng server nó tạo, đóng sau khi kiểm tra và từ chối cổng đang có process khác. Static fallback được kiểm riêng trên bytes đã package, SHA256 qua HTTP và app/API404/POST405/HEAD empty. Kết quả local có scope, source fingerprint, runtime và exit code trong `.cache/local-pipeline-*.json`; thay source trong lúc chạy sẽ FAIL. Secret scan literal xuất rule/file/line và hash exception cho fixture public, không in giá trị; chưa thay audit đầy đủ cho Git history, ignored config hoặc secret bị ghép/obfuscate.
+
+Frontend tải riêng các trang deal/buyer/seller/operator/docs, giữ auth và checkpoint khi chuyển trang. Lỗi tải trang có trạng thái Việt/Anh và nút reload chủ động. Plus Jakarta Sans/JetBrains Mono được self-host bằng hai package variable pin5.3.0; OFL licenses nằm trong frontend/public/fonts. Không tải Google Fonts. `GROUPDEAL_BUNDLE_REPORT=label` khi build ghi emitted module graph/JS byte counts vào `.cache/bundle-label.json`, không source map/content hoặc báo đạt Core Web Vitals. Các phụ thuộc SDK có eval và chunk lớn vẫn cần kiểm CSP/provider thật; hai overrides gRPC/Undici cùng major không là kết luận audit đã sạch.
+
+Workflow `.github/workflows/local-candidate.yml` chuẩn bị clean checkout trên Ubuntu/Node24.11.1, cài cả bốn lockfile và Chromium, ghim Actions bằng commit SHA, dùng quyền contents:read và không giữ checkout credential. Artifact chỉ gồm JSON đã redacted, không upload DB, `.env`, entitlement hoặc browser traces. Workflow chưa có lượt GitHub PASS trên candidate cố định; các kiểm tra Windows/local không thay bằng chứng đó hoặc G5/G6.
 
 ---
 
@@ -104,9 +126,10 @@ Chạy từ thư mục gốc để cài dependency theo các lockfile đã commi
 npm ci --prefix contracts
 npm ci --prefix backend
 npm ci --prefix frontend
+npm ci --prefix sdk
 ```
 
-SDK được build bằng `npm run build:sdk` từ thư mục gốc. Các tệp `.env` thật, dữ liệu runtime, dependency và build artifact được loại khỏi Git; cấu hình riêng trên máy theo các bước bên dưới.
+SDK được build bằng `npm run build:sdk` từ thư mục gốc và kiểm packed consumer bằng `npm --prefix sdk test`. Các tệp `.env` thật, dữ liệu runtime, dependency và build artifact được loại khỏi Git; cấu hình riêng trên máy theo các bước bên dưới.
 
 ### 1. Cấu hình tích hợp
 Sao chép `backend/.env.example` thành `backend/.env` và `frontend/.env.example` thành `frontend/.env`. Circle yêu cầu API key/App ID và Gmail SMTP được cấu hình trong Circle Console; backend cũng hỗ trợ Gmail SMTP bằng Google App Password cho email thông báo. Reown yêu cầu Project ID. Không đưa `CIRCLE_API_KEY`, Gmail App Password hoặc private key vào frontend.
@@ -115,7 +138,7 @@ Sao chép `backend/.env.example` thành `backend/.env` và `frontend/.env.exampl
 ```bash
 npm run backend:dev
 ```
-Backend sẽ khởi chạy tại `http://localhost:4000` và tự động khởi tạo indexer sự kiện onchain. Dữ liệu demo chỉ được tạo ở môi trường không phải production.
+Backend kiểm runtime security, manifest/deployment và projection scope trước khi mở `http://localhost:4000` hoặc khởi tạo worker. Fixture demo chỉ được tạo khi không phải production, chain31337 và có cờ `GROUPDEAL_ENABLE_LOCAL_FIXTURES=1`; không bật trên môi trường nghiệm thu Arc.
 
 ### 3. Khởi động Frontend Web (Port 5173)
 ```bash
@@ -132,3 +155,5 @@ Truy cập giao diện tại `http://localhost:5173`.
 6. Truy cập **"Quản trị Hệ thống"** để xem báo cáo đối soát tự động Smart Contract và phân bổ tranh chấp.
 
 Xem [kế hoạch hoàn tất](./reports/KE_HOACH_HOAN_TAT_DU_AN.md), [runbook vận hành](./reports/RUNBOOK_VAN_HAN_ARC.md) và báo cáo tái nghiệm thu mới nhất trong thư mục `reports/` trước khi tuyên bố hoàn thành.
+
+Chuẩn bị contract V2: `npm run prepare:arc-candidate` tại root tạo payload chưa ký từ compiler/source hiện tại và read-only deployment reference đã ghim. Lệnh chạy Hardhat offline, không gửi transaction hay thay active manifest/DB. `ARC_CANDIDATE_PREPARATION_LATEST.json` có trạng thái PREPARED, `broadcastReady=false`; source review/freeze, principal/nonce/fee reads, initialized runtime/receipt và staged rollout vẫn cần thực hiện. `deploy:arc` cũ bị chặn vì triển khai V1 và ghi đè cấu hình đang dùng; local development command vẫn giữ. Xem runbook §41–42 cho `verify:live-readiness`, `verify:arc-deployment` và giới hạn bằng chứng.

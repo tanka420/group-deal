@@ -1,0 +1,51 @@
+name: Local candidate checks
+
+on:
+  pull_request:
+  push:
+    branches: [main, master, 'codex/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: local-candidate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  local:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24.11.1'
+          package-manager-cache: false
+      - name: Locked workspace dependencies
+        run: |
+          npm ci --prefix contracts --no-audit --no-fund
+          npm ci --prefix backend --no-audit --no-fund
+          npm ci --prefix frontend --no-audit --no-fund
+          npm ci --prefix sdk --no-audit --no-fund
+      - name: Chromium for fixture journeys
+        working-directory: frontend
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Tooling isolation and redaction guards
+        run: node test/local_pipeline.test.cjs
+      - name: Compile, models, APIs, SDK, builds and browser fixtures
+        run: npm run verify:pipeline
+      - name: Redacted local result records
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: local-results-${{ github.sha }}
+          path: |
+            .cache/local-pipeline-*.json
+            .cache/secret-scan-*.json
+            .cache/fallback-http-*.json
+          if-no-files-found: warn
+          retention-days: 14

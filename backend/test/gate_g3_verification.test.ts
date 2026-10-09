@@ -9,6 +9,9 @@ import { BackupService } from "../src/services/backupService";
 import { WebhookService } from "../src/services/webhookService";
 import { config } from "../src/config";
 import { HUB_ABI } from "../src/services/onchainService";
+import { reconciliationProvider } from "./fixtures/reconciliation";
+
+import { eventProvider } from "./fixtures/events";
 
 async function runGateG3VerificationTests() {
   console.log("=================================================");
@@ -18,6 +21,8 @@ async function runGateG3VerificationTests() {
   const iface = new ethers.Interface(HUB_ABI);
   const testHubAddress = config.hubAddress;
   const testChainId = config.arcChainId;
+  config.deploymentBlock=1;
+  const creationCalldata=iface.encodeFunctionData("createCampaign",[{sellerPayoutWallet:"0x70997970C51812dc3A010C7d01b50e0d17dc79C8",metric:0,maxPerAccount:10,inventoryLimit:100,durationSeconds:1000,deliverySlaSeconds:86400,earlyRebateEnabled:true,earlySlotsCount:10,earlyRebateAmount:10_000_000,earlyRebateBps:0,platformFeeBps:0,termsHash:ethers.id("canonical_terms_v1")},[{threshold:1,price:100_000_000},{threshold:2,price:90_000_000}]]);
 
   // ---------------------------------------------------------------------------
   // [G3.1] Store Migrations, Unique Indexes & Tamper-Evident Audit Chain
@@ -90,9 +95,9 @@ async function runGateG3VerificationTests() {
   const logCampaignCreated = {
     address: testHubAddress,
     blockNumber: 100,
-    blockHash: "0xblock100",
+    blockHash: ethers.id("block-100"),
     transactionIndex: 0,
-    transactionHash: "0xtx_create_campaign",
+    transactionHash: ethers.id("0xtx_create_campaign"),
     index: 0,
     topics: encCampaignCreated.topics,
     data: encCampaignCreated.data,
@@ -113,9 +118,9 @@ async function runGateG3VerificationTests() {
   const logCommitment1 = {
     address: testHubAddress,
     blockNumber: 105,
-    blockHash: "0xblock105",
+    blockHash: ethers.id("block-105"),
     transactionIndex: 0,
-    transactionHash: "0xtx_commit_order_1",
+    transactionHash: ethers.id("0xtx_commit_order_1"),
     index: 0,
     topics: encCommitment1.topics,
     data: encCommitment1.data,
@@ -131,9 +136,9 @@ async function runGateG3VerificationTests() {
   const logTierUnlocked = {
     address: testHubAddress,
     blockNumber: 105,
-    blockHash: "0xblock105",
+    blockHash: ethers.id("block-105"),
     transactionIndex: 0,
-    transactionHash: "0xtx_commit_order_1",
+    transactionHash: ethers.id("0xtx_commit_order_1"),
     index: 1,
     topics: encTierUnlocked.topics,
     data: encTierUnlocked.data,
@@ -150,9 +155,9 @@ async function runGateG3VerificationTests() {
   const logCampaignFinalized = {
     address: testHubAddress,
     blockNumber: 110,
-    blockHash: "0xblock110",
+    blockHash: ethers.id("block-110"),
     transactionIndex: 0,
-    transactionHash: "0xtx_finalize",
+    transactionHash: ethers.id("0xtx_finalize"),
     index: 0,
     topics: encCampaignFinalized.topics,
     data: encCampaignFinalized.data,
@@ -169,9 +174,9 @@ async function runGateG3VerificationTests() {
   const logDelivery = {
     address: testHubAddress,
     blockNumber: 115,
-    blockHash: "0xblock115",
+    blockHash: ethers.id("block-115"),
     transactionIndex: 0,
-    transactionHash: "0xtx_delivery",
+    transactionHash: ethers.id("0xtx_delivery"),
     index: 0,
     topics: encDelivery.topics,
     data: encDelivery.data,
@@ -186,9 +191,9 @@ async function runGateG3VerificationTests() {
   const logOrderConfirmed = {
     address: testHubAddress,
     blockNumber: 120,
-    blockHash: "0xblock120",
+    blockHash: ethers.id("block-120"),
     transactionIndex: 0,
-    transactionHash: "0xtx_confirm",
+    transactionHash: ethers.id("0xtx_confirm"),
     index: 0,
     topics: encOrderConfirmed.topics,
     data: encOrderConfirmed.data,
@@ -204,6 +209,7 @@ async function runGateG3VerificationTests() {
     logCommitment1,
   ];
 
+  IndexerService.setProvider(eventProvider(shuffledLogs,{[logCampaignCreated.transactionHash]:{data:creationCalldata}},block=>block*10));
   await IndexerService.processLogs(shuffledLogs);
 
   // Check state projections
@@ -279,15 +285,7 @@ async function runGateG3VerificationTests() {
   console.log("\n[G3.3] Testing Fixed-Block Reconciliation Service:");
 
   // Case 1: Healthy & Solvency Verified
-  const mockHealthyProvider = {
-    getBlockNumber: async () => 125,
-    getBlock: async (tag: number) => ({ number: tag, hash: "0xhealthyblockhash" }),
-    call: async () => {
-      // Return 200 USDC (200,000,000) for balanceOf
-      const coder = new ethers.AbiCoder();
-      return coder.encode(["uint256"], [200_000_000n]);
-    },
-  };
+  const mockHealthyProvider = reconciliationProvider(store.db, 200_000_000n);
 
   store.db.syncState.lastIndexedBlock = 125;
   let report = await ReconciliationService.runReconciliation({
@@ -299,19 +297,11 @@ async function runGateG3VerificationTests() {
   assert.strictEqual(report.severity, "NONE", "Healthy reconciliation has NONE severity");
   assert.strictEqual(report.conservationLawPassed, true, "Conservation law must pass");
   assert.strictEqual(report.onchainBalanceVerified, true, "Onchain balance must be verified");
-  assert.strictEqual(report.blockHash, "0xhealthyblockhash", "Report captures fixed block hash");
+  assert.strictEqual(report.blockHash, ethers.id("block-125"), "Report captures fixed block hash");
   console.log("✔ Healthy scenario verified at fixed block 125 with solvency passed");
 
   // Case 2: Escrow Shortfall Detected (Discrepancy)
-  const mockShortfallProvider = {
-    getBlockNumber: async () => 125,
-    getBlock: async (tag: number) => ({ number: tag, hash: "0xshortfallblockhash" }),
-    call: async () => {
-      // Contract only holds 50 USDC but liabilities are 200 USDC!
-      const coder = new ethers.AbiCoder();
-      return coder.encode(["uint256"], [50_000_000n]);
-    },
-  };
+  const mockShortfallProvider = reconciliationProvider(store.db, 50_000_000n);
 
   report = await ReconciliationService.runReconciliation({
     fixedBlockNumber: 125,
@@ -368,7 +358,8 @@ async function runGateG3VerificationTests() {
   // Verify file is authenticated AES-256-GCM envelope
   const envelopeRaw = fs.readFileSync(backup.backupPath, "utf8");
   const envelope = JSON.parse(envelopeRaw);
-  assert.strictEqual(envelope.version, 1, "Envelope version must be 1");
+  assert.strictEqual(envelope.version, 2, "New backups must identify the encryption key version");
+  assert.strictEqual(envelope.keyId, config.masterEncryptionKeyId);
   assert.ok(envelope.authTagHex, "Envelope must have authTagHex");
   assert.ok(envelope.encryptedDataHex, "Envelope must have encryptedDataHex");
   console.log("✔ Encrypted backup created with AES-256-GCM authentication tag and SHA-256 checksum");

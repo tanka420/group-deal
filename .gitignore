@@ -33,3 +33,9 @@ backend/data/
 # OS / Editor files
 .DS_Store
 Thumbs.db
+
+# Vite build helpers are source files required by a clean checkout.
+!/frontend/build/
+/frontend/build/*
+!/frontend/build/bundleInventory.ts
+!/frontend/build/circleBrowserJwt.ts

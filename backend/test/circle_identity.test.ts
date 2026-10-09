@@ -5,7 +5,7 @@ import { AuthService } from "../src/services/authService";
 import { store } from "../src/db/store";
 
 async function run() {
-  assert.ok(store.filePath.includes("groupdeal-test-"));
+  assert.ok(store.isIsolated);
   const service = CircleWalletService as unknown as { client: unknown };
   const original = service.client;
   const deviceId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";

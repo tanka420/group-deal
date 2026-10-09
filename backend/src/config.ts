@@ -3,6 +3,13 @@ import * as path from "path";
 import * as fs from "fs";
 
 dotenv.config();
+function previousEncryptionKeys(): Record<string,string> {
+  try {
+    const keys=JSON.parse(process.env.MASTER_ENCRYPTION_PREVIOUS_KEYS || "{}");
+    if (!keys || Array.isArray(keys) || typeof keys!=="object" || Object.entries(keys).some(([id,key])=>!/^[-a-zA-Z0-9_]{1,64}$/.test(id)||typeof key!=="string"||key.length<32)) throw new Error();
+    return keys;
+  } catch { throw new Error("Invalid encryption keyring configuration"); }
+}
 
 const smtpHost = process.env.SMTP_HOST || "";
 const smtpPort = parseInt(process.env.SMTP_PORT || "587", 10);
@@ -46,12 +53,16 @@ export const config = {
     process.env.CAMPAIGN_IDENTITY_SECRET || "groupdeal-campaign-identity-salt-2026",
   masterEncryptionKey:
     process.env.MASTER_ENCRYPTION_KEY || "groupdeal-master-aes-key-32chars!", // 32 chars
+  masterEncryptionKeyId: process.env.MASTER_ENCRYPTION_KEY_ID || "current-v1",
+  previousEncryptionKeys: previousEncryptionKeys(),
+  legacyEncryptionKey: process.env.MASTER_ENCRYPTION_LEGACY_KEY || process.env.MASTER_ENCRYPTION_KEY || "groupdeal-master-aes-key-32chars!",
   arcRpcUrl: process.env.ARC_RPC_URL || process.env.ARC_TESTNET_RPC || "http://127.0.0.1:8545",
   arcWsUrl: process.env.ARC_WS_URL || (process.env.ARC_TESTNET_RPC ? process.env.ARC_TESTNET_RPC.replace(/^http/, "ws") : "wss://rpc.testnet.arc.io"),
   arcChainId: parseInt(process.env.ARC_CHAIN_ID || contractsConfig.chainId?.toString() || "31337", 10),
   hubAddress: process.env.GROUPDEAL_HUB_ADDRESS || contractsConfig.contracts.GroupDealHub.address,
   usdcAddress: process.env.USDC_ADDRESS || contractsConfig.contracts.USDC.address,
   deploymentBlock: parseInt(process.env.DEPLOYMENT_BLOCK || contractsConfig.deploymentBlock?.toString() || "0", 10),
+  protocolVersion: contractsConfig.protocolVersion || 1,
   
   // Signer used to authorize buys via EIP-712
   authorizedSignerPrivateKey:
@@ -62,6 +73,7 @@ export const config = {
     process.env.OPERATOR_ADDRESS || "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
   
   explorerUrl: process.env.EXPLORER_URL || "https://testnet.arcscan.app",
+  publicAppUrl: process.env.PUBLIC_APP_URL || "",
 
   // Circle User-Controlled Wallets. The API key never leaves the backend.
   circleApiKey: process.env.CIRCLE_API_KEY || "",

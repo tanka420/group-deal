@@ -17,7 +17,7 @@ export const translations = {
 
     // Hero
     heroTitle: "Mua Chung Sản Phẩm Số",
-    heroSub: "Càng đông người mua, giá càng rẻ. Cam kết USDC qua Smart Contract trên Arc Testnet, tự động hoàn trả chênh lệch và giao quyền truy cập riêng cho từng đơn hàng.",
+    heroSub: "Cam kết USDC vào escrow trên Arc Testnet ở giá hiện tại. Khi giá nhóm giảm, bạn có quyền rút phần chênh lệch đã được phân bổ. Theo dõi giao hàng và quyền hoàn tiền theo từng đơn.",
     totalVolume: "Tổng giá trị cam kết",
     activeCampaigns: "Chiến dịch đang mở",
     avgDiscount: "Giảm giá trung bình",
@@ -63,6 +63,7 @@ export const translations = {
     txBroadcasting: "Đang phát sóng lên Arc Testnet...",
     txPending: "Đang chờ thợ đào xác nhận trên mempool...",
     txConfirmed: "Giao dịch thành công trên Arc Testnet!",
+    authorizationExpired: "Chứng thực mua đã hết hạn",
     viewOnArcScan: "Xem trên ArcScan Explorer",
 
     // Buyer Dashboard
@@ -113,7 +114,7 @@ export const translations = {
 
     // Hero
     heroTitle: "Group Buying for Digital Goods",
-    heroSub: "More buyers, lower prices. Commit USDC via Smart Contracts on Arc Testnet, auto-rebate price differences, and receive individual digital entitlements.",
+    heroSub: "Commit USDC into Arc Testnet escrow at the current price. When the group price falls, claim the allocated difference back to your wallet. Track delivery and refund rights for each order.",
     totalVolume: "Total Volume Committed",
     activeCampaigns: "Active Campaigns",
     avgDiscount: "Average Discount",
@@ -159,6 +160,7 @@ export const translations = {
     txBroadcasting: "Broadcasting to Arc Testnet...",
     txPending: "Pending miner confirmation on mempool...",
     txConfirmed: "Transaction Confirmed on Arc Testnet!",
+    authorizationExpired: "Purchase authorization expired",
     viewOnArcScan: "View on ArcScan Explorer",
 
     // Buyer Dashboard

@@ -1,0 +1,28 @@
+import {ethers} from "ethers";
+import {readUser} from "./appSession";
+import type {User} from "../context/AuthContext";
+
+const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+const time=(v:unknown):v is number=>Number.isSafeInteger(v)&&Number(v)>=0&&Number(v)<=8640000000000000;
+const addr=(v:unknown):v is string=>typeof v==="string"&&ethers.isAddress(v)&&v!==ethers.ZeroAddress;
+const same=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();
+export type WalletRow={address:string;kind:"CIRCLE"|"EXTERNAL";selected:boolean;canSignIn:true};
+export type WalletIntent={id:string;userId:string;sourceWallet:string;targetWallet:string;baseActiveWallet:string|null;chainId:number;origin:string;createdAt:number;expiresAt:number;state:"PENDING"|"EXPIRED"|"LOCKED"|"COMMITTED"|"CANCELLED";sourceMessage:string;targetMessage:string;currentActiveWallet:string|null;committedAt?:number;cancelledAt?:number;bindingWasNew?:boolean;selectionCurrent?:boolean;user?:User};
+export type WalletCheckpoint={id:string;userId:string;sourceWallet:string;targetWallet:string;origin:string};
+export function readWalletInventory(value:any,userId:string){
+ if(!value||value.userId!==userId||!(value.activeWallet===null||addr(value.activeWallet))||!time(value.serverTime)||!Array.isArray(value.wallets)||value.wallets.length>100||!value.pagination||!(value.pagination.nextCursor===null||typeof value.pagination.nextCursor==="string"&&value.pagination.nextCursor.length<=1024))throw new Error("WALLET_RESPONSE_INVALID");
+ const wallets:WalletRow[]=value.wallets.map((r:any)=>{if(!r||!addr(r.address)||!["CIRCLE","EXTERNAL"].includes(r.kind)||r.canSignIn!==true||typeof r.selected!=="boolean"||r.selected!==(value.activeWallet!==null&&same(r.address,value.activeWallet)))throw new Error("WALLET_RESPONSE_INVALID");return {address:ethers.getAddress(r.address),kind:r.kind,selected:r.selected,canSignIn:true};});
+ if(new Set(wallets.map(r=>r.address.toLowerCase())).size!==wallets.length)throw new Error("WALLET_RESPONSE_INVALID");
+ return {wallets,activeWallet:value.activeWallet as string|null,cursor:value.pagination.nextCursor as string|null};
+}
+export function readWalletIntent(value:any,expected:WalletCheckpoint):WalletIntent {
+ if(!value||!uuid.test(value.id)||value.id!==expected.id||value.userId!==expected.userId||!addr(value.sourceWallet)||!same(value.sourceWallet,expected.sourceWallet)||!addr(value.targetWallet)||!same(value.targetWallet,expected.targetWallet)||value.chainId!==5042002||value.origin!==expected.origin||!["PENDING","EXPIRED","LOCKED","COMMITTED","CANCELLED"].includes(value.state)||![value.createdAt,value.expiresAt].every(time)||value.expiresAt!==value.createdAt+300_000||!(value.baseActiveWallet===null||addr(value.baseActiveWallet))||!(value.currentActiveWallet===null||addr(value.currentActiveWallet))||typeof value.sourceMessage!=="string"||value.sourceMessage.length>4096||typeof value.targetMessage!=="string")throw new Error("WALLET_RESPONSE_INVALID");
+ const nonce=value.sourceMessage.match(/^Nonce: ([a-f0-9]{32})$/m)?.[1];if(!nonce)throw new Error("WALLET_RESPONSE_INVALID");
+ const common=["=== GroupDeal Wallet Binding ===","Action: ADD_OR_SELECT_SIGN_IN_WALLET",`Account: ${value.userId}`,`Existing credential: ${ethers.getAddress(value.sourceWallet)}`,`Target credential: ${ethers.getAddress(value.targetWallet)}`,`Chain ID: ${value.chainId}`,`Origin: ${value.origin}`,`Request: ${value.id}`,`Nonce: ${nonce}`,`Created: ${value.createdAt}`,`Expires: ${value.expiresAt}`,"The target can sign in to this account. Previously verified credentials remain valid.","Existing order principals and seller payout wallets do not change.","This signature does not submit a transaction or spend funds."];
+ const shared=same(value.sourceWallet,value.targetWallet),sourceMessage=[...common,"Proof: "+(shared?"EXISTING_AND_TARGET":"EXISTING_CREDENTIAL_AUTHORIZATION")].join("\n"),targetMessage=[...common,"Proof: "+(shared?"EXISTING_AND_TARGET":"TARGET_CREDENTIAL_OWNERSHIP")].join("\n");if(value.sourceMessage!==sourceMessage||value.targetMessage!==targetMessage)throw new Error("WALLET_RESPONSE_INVALID");
+ const r:WalletIntent={id:value.id,userId:expected.userId,sourceWallet:ethers.getAddress(value.sourceWallet),targetWallet:ethers.getAddress(value.targetWallet),baseActiveWallet:value.baseActiveWallet,chainId:value.chainId,origin:value.origin,createdAt:value.createdAt,expiresAt:value.expiresAt,state:value.state,sourceMessage,targetMessage,currentActiveWallet:value.currentActiveWallet};
+ if(value.state==="COMMITTED"){const user=readUser(value.user);if(user.id!==expected.userId||user.activeWallet!==value.currentActiveWallet||!time(value.committedAt)||value.committedAt<value.createdAt||value.committedAt>=value.expiresAt||typeof value.bindingWasNew!=="boolean"||typeof value.selectionCurrent!=="boolean"||value.selectionCurrent!==(value.currentActiveWallet!==null&&same(value.currentActiveWallet,value.targetWallet)))throw new Error("WALLET_RESPONSE_INVALID");Object.assign(r,{user,committedAt:value.committedAt,bindingWasNew:value.bindingWasNew,selectionCurrent:value.selectionCurrent});}
+ if(value.state==="CANCELLED"){if(!time(value.cancelledAt)||value.cancelledAt<value.createdAt)throw new Error("WALLET_RESPONSE_INVALID");r.cancelledAt=value.cancelledAt;}
+ return r;
+}
+export function walletCheckpoint(userId:string):WalletCheckpoint|null {try{const r=JSON.parse(localStorage.getItem("groupdeal_wallet_intent_"+userId)||"null");return r&&r.userId===userId&&uuid.test(r.id)&&addr(r.sourceWallet)&&addr(r.targetWallet)&&r.origin===location.origin?{id:r.id,userId,sourceWallet:ethers.getAddress(r.sourceWallet),targetWallet:ethers.getAddress(r.targetWallet),origin:r.origin}:null;}catch{return null;}}

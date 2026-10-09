@@ -1,281 +1,134 @@
-import React, { useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { X, Mail, Sparkles, CheckCircle2, Wallet, ShieldCheck } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useWeb3 } from "../context/Web3Context";
-import { X, Mail, Sparkles, CheckCircle2, Wallet, ShieldCheck } from "lucide-react";
+import { WalletManager } from "./WalletManager";
+import { focusPageElement } from "../utils/focus";
+import { authErrorMessage, authProgressText, requiresWalletReload } from "../services/authPresentation";
+import { messageText, type UiMessage } from "../utils/uiMessage";
 
-interface AuthModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
+interface AuthModalProps { isOpen: boolean; onClose: () => void }
+type Action = "SEND" | "VERIFY" | "WALLET" | null;
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
-  const {
-    requestOtp,
-    verifyOtp,
-    user,
-    circleReady,
-    circleProgress,
-    circleCredentials,
-  } = useAuth();
-  const {
-    connectExternalWallet,
-    externalWalletConfigured,
-    loginWithExternalWallet,
-    switchToCircleWallet,
-  } = useWeb3();
-  const { t } = useLanguage();
-
+  const { requestOtp, verifyOtp, user, token, circleReady, circleInitState, prepareCircle, circleProgress, circleCredentials } = useAuth();
+  const { externalWalletConfigured, loginWithExternalWallet } = useWeb3();
+  const { language } = useLanguage();
+  const text = (vi: string, en: string) => language === "en" ? en : vi;
   const [email, setEmail] = useState("");
   const [step, setStep] = useState<"EMAIL" | "OTP">("EMAIL");
-  const [loading, setLoading] = useState(false);
-  const [walletLoading, setWalletLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [action, setAction] = useState<Action>(null);
+  const [error, setError] = useState<UiMessage | null>(null);
+  const [walletReloadRequired, setWalletReloadRequired] = useState(false);
+  const panel = useRef<HTMLDivElement>(null), heading = useRef<HTMLHeadingElement>(null), errorElement = useRef<HTMLParagraphElement>(null);
+  const epoch = useRef(0), actionRef = useRef<Action>(null), closeRef = useRef(onClose);
+  closeRef.current = onClose;
   const emailReauthentication = Boolean(user?.loginMethod === "CIRCLE_EMAIL" && !circleCredentials);
+  const providerHandoff = action === "VERIFY" || action === "WALLET";
 
+  useEffect(()=>{if(isOpen&&(!user||emailReauthentication)&&prepareCircle)void prepareCircle().catch(()=>{});},[isOpen,user?.id,emailReauthentication,prepareCircle]);
+
+  // A late request from a closed dialog or a different account cannot change this view.
+  useLayoutEffect(() => {
+    epoch.current++; actionRef.current = null;
+    setAction(null); setError(null); setStep("EMAIL"); setEmail(""); setWalletReloadRequired(false);
+    return () => { epoch.current++; actionRef.current = null; };
+  }, [isOpen, user?.id]);
+
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const app = document.getElementById("root"), wasInert = app?.inert;
+    const overflow = document.body.style.overflow;
+    if (app) app.inert = true;
+    document.body.style.overflow = "hidden";
+    heading.current?.focus();
+    // Provider approval portals stay usable outside the inert application root.
+    const providerOpen = () => {
+      if (actionRef.current === "VERIFY" || actionRef.current === "WALLET") return true;
+      const frame = document.getElementById("sdkIframe");
+      if (frame && frame.getBoundingClientRect().width > 0 && frame.getBoundingClientRect().height > 0 && getComputedStyle(frame).display !== "none") return true;
+      const reown = document.querySelector("w3m-modal") as (HTMLElement & { open?: boolean }) | null;
+      return Boolean(reown?.open || reown?.hasAttribute("open"));
+    };
+    const keydown = (event: KeyboardEvent) => {
+      if (providerOpen() || !panel.current?.contains(event.target as Node)) return;
+      if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); closeRef.current(); return; }
+      if (event.key !== "Tab") return;
+      const controls = Array.from(panel.current.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],[tabindex]:not([tabindex="-1"])'))
+        .filter(el => el.getClientRects().length > 0 && !el.closest("[hidden],[inert]"));
+      const first = controls[0], last = controls[controls.length - 1];
+      if (!first || !last) { event.preventDefault(); heading.current?.focus(); return; }
+      if (event.shiftKey && (document.activeElement === first || !controls.includes(document.activeElement as HTMLElement))) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", keydown, true);
+    return () => {
+      document.removeEventListener("keydown", keydown, true);
+      if (app) app.inert = Boolean(wasInert);
+      document.body.style.overflow = overflow;
+      if (previous?.isConnected) focusPageElement(previous);
+    };
+  }, [isOpen]);
+
+  useEffect(() => { if (isOpen && error) errorElement.current?.focus(); }, [isOpen, error]);
+  useEffect(() => { if (isOpen && step === "OTP") document.getElementById("circle-otp-instructions")?.focus(); }, [isOpen, step]);
+
+  const run = async (next: Exclude<Action, null>) => {
+    if (actionRef.current || !isOpen) return;
+    const current = epoch.current;
+    actionRef.current = next; setAction(next); setError(null);
+    const valid = () => epoch.current === current;
+    try {
+      if (next === "SEND") { await requestOtp(email.trim()); if (valid()) setStep("OTP"); }
+      else { if (next === "VERIFY") await verifyOtp(email.trim()); else await loginWithExternalWallet(); if (valid()) closeRef.current(); }
+    } catch (failure) { if (valid()) { setError(authErrorMessage(failure, next)); if(next === "WALLET" && requiresWalletReload(failure)) setWalletReloadRequired(true); } }
+    finally { if (valid()) { actionRef.current = null; setAction(null); } }
+  };
   if (!isOpen) return null;
-
-  const handleSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await requestOtp(email);
-      setStep("OTP");
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      await verifyOtp(email);
-      onClose();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleWalletLogin = async () => {
-    setWalletLoading(true);
-    setError(null);
-    try {
-      await loginWithExternalWallet();
-      onClose();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setWalletLoading(false);
-    }
-  };
-
   return createPortal(
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay auth-overlay" onClick={event => { if (event.target === event.currentTarget && !actionRef.current) onClose(); }}>
+      <div className="modal-content auth-dialog" ref={panel} role="dialog" aria-modal={!providerHandoff} aria-labelledby="auth-title" aria-describedby="auth-description">
         <div className="modal-header">
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <Sparkles size={20} color="var(--primary-light)" />
-            <h3 style={{ fontSize: "1.25rem" }}>
-              {user ? "Tài khoản của bạn" : "Đăng nhập GroupDeal"}
-            </h3>
-          </div>
-          <button className="modal-close" onClick={onClose} aria-label="Đóng đăng nhập">
-            <X size={18} />
-          </button>
+          <div className="auth-title"><Sparkles size={20} aria-hidden="true"/><h2 id="auth-title" ref={heading} tabIndex={-1}>{user ? text("Tài khoản của bạn", "Your account") : text("Đăng nhập GroupDeal", "Sign in to GroupDeal")}</h2></div>
+          <button type="button" className="modal-close" onClick={onClose} disabled={providerHandoff} aria-label={text("Đóng đăng nhập", "Close sign-in")}><X size={18} aria-hidden="true"/></button>
         </div>
-
-        {error && (
-          <div
-            style={{
-              padding: "0.75rem 1rem",
-              background: "rgba(244, 63, 94, 0.15)",
-              border: "1px solid rgba(244, 63, 94, 0.3)",
-              borderRadius: "var(--radius-md)",
-              color: "#fda4af",
-              fontSize: "0.85rem",
-              marginBottom: "1rem",
-            }}
-          >
-            {error}
-          </div>
-        )}
-
-        {!user || emailReauthentication ? (
-          <div>
-            {step === "EMAIL" ? (
-              <div>
-                <div
-                  style={{
-                    padding: "1rem",
-                    border: "1px solid rgba(34, 211, 238, 0.3)",
-                    borderRadius: "var(--radius-lg)",
-                    background: "rgba(34, 211, 238, 0.06)",
-                  }}
-                >
-                  <div style={{ display: "flex", gap: "0.65rem", alignItems: "center", marginBottom: "0.55rem" }}>
-                    <Wallet size={20} color="var(--cyan)" />
-                    <strong>Đăng nhập bằng ví EVM</strong>
-                  </div>
-                  <p style={{ color: "var(--text-secondary)", fontSize: "0.82rem", lineHeight: 1.5, marginBottom: "0.8rem" }}>
-                    Dùng MetaMask, Rabby, Trust Wallet hoặc ví tương thích Reown. Bạn chỉ ký thông điệp đăng nhập một lần; không có giao dịch và không tốn USDC.
-                  </p>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    style={{ width: "100%" }}
-                    onClick={() => void handleWalletLogin()}
-                    disabled={walletLoading || !externalWalletConfigured}
-                  >
-                    {walletLoading
-                      ? "Đang chờ ví và chữ ký..."
-                      : externalWalletConfigured
-                        ? "Kết nối và đăng nhập bằng ví"
-                        : "Reown AppKit chưa được cấu hình"}
-                  </button>
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", margin: "1rem 0" }}>
-                  <div style={{ flex: 1, height: 1, background: "var(--border-subtle)" }} />
-                  <span style={{ color: "var(--text-muted)", fontSize: "0.78rem" }}>HOẶC</span>
-                  <div style={{ flex: 1, height: 1, background: "var(--border-subtle)" }} />
-                </div>
-
-                <form onSubmit={handleSendOtp}>
-                  <div style={{ display: "flex", gap: "0.65rem", alignItems: "center", marginBottom: "0.55rem" }}>
-                    <Mail size={20} color="var(--primary-light)" />
-                    <strong>Đăng nhập Gmail và tạo ví Circle</strong>
-                  </div>
-                  <p style={{ color: "var(--text-secondary)", fontSize: "0.82rem", lineHeight: 1.5, marginBottom: "1rem" }}>
-                    Circle gửi OTP và tạo ví EOA user-controlled trên Arc Testnet. GroupDeal chỉ lưu địa chỉ công khai và mã định danh ví, không giữ private key.
-                  </p>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="circle-login-email">Địa chỉ Email</label>
-                    <div style={{ position: "relative" }}>
-                      <Mail
-                        size={18}
-                        color="var(--text-muted)"
-                        style={{ position: "absolute", left: "1rem", top: "50%", transform: "translateY(-50%)" }}
-                      />
-                      <input
-                        id="circle-login-email"
-                        type="email"
-                        className="form-input"
-                        placeholder="ban@gmail.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        style={{ paddingLeft: "2.75rem" }}
-                      />
-                    </div>
-                  </div>
-                  <button type="submit" className="btn btn-secondary" style={{ width: "100%" }} disabled={loading || !circleReady}>
-                    {loading
-                      ? "Đang gửi OTP..."
-                      : circleReady
-                        ? "Gửi mã OTP qua Circle"
-                        : "Circle Wallet chưa được cấu hình"}
-                  </button>
-                </form>
-              </div>
-            ) : (
-              <form onSubmit={handleVerifyOtp}>
-                <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: "1rem" }}>
-                  OTP đã được Circle gửi tới <strong>{email}</strong>. Nhấn nút bên dưới để mở cửa sổ xác thực bảo mật của Circle; mã OTP không đi qua GroupDeal.
-                </p>
-                <div style={{ display: "flex", gap: "0.75rem" }}>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    style={{ flex: 1 }}
-                    onClick={() => setStep("EMAIL")}
-                  >
-                    Quay lại
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    style={{ flex: 2 }}
-                    disabled={loading}
-                  >
-                    {loading ? circleProgress || "Đang xác thực và tạo ví..." : "Mở xác thực Circle"}
-                  </button>
-                </div>
-                {loading && (
-                  <div style={{ marginTop: "0.8rem", color: "var(--cyan)", fontSize: "0.78rem", lineHeight: 1.45 }}>
-                    {circleProgress || "Đang xử lý..."}
-                  </div>
-                )}
-              </form>
-            )}
-            <div style={{ display: "flex", alignItems: "flex-start", gap: "0.45rem", marginTop: "1rem", color: "var(--text-muted)", fontSize: "0.75rem", lineHeight: 1.45 }}>
-              <ShieldCheck size={15} style={{ flexShrink: 0, marginTop: 1 }} />
-              Cả hai lựa chọn đều yêu cầu người dùng tự phê duyệt. GroupDeal không nhận seed phrase hoặc private key.
-            </div>
-          </div>
-        ) : (
-          <div>
-            <div
-              style={{
-                background: "rgba(255, 255, 255, 0.03)",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-lg)",
-                padding: "1.25rem",
-                marginBottom: "1.25rem",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
-                <CheckCircle2 size={18} color="var(--success)" />
-                <span style={{ fontWeight: 600, fontSize: "0.95rem" }}>
-                  {user.email || (user.activeWallet ? `${user.activeWallet.slice(0, 8)}...${user.activeWallet.slice(-4)}` : "Tài khoản ví")}
-                </span>
-              </div>
-              <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginBottom: "0.5rem" }}>
-                Ví hoạt động:{" "}
-                <span className="font-mono" style={{ color: "var(--cyan)" }}>
-                  {user.activeWallet}
-                </span>
-              </div>
-              <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                Vai trò: {user.roles.join(", ")}
-              </div>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-              <button
-                className="btn btn-secondary"
-                style={{ width: "100%" }}
-                disabled={!user.circleWallet}
-                onClick={() => {
-                  switchToCircleWallet();
-                  onClose();
-                }}
-              >
-                {circleCredentials ? "Dùng ví Circle User-Controlled EOA" : "Xác thực lại Circle để ký giao dịch"}
-              </button>
-              <button
-                className="btn btn-secondary"
-                style={{ width: "100%" }}
-                onClick={async () => {
-                  await connectExternalWallet();
-                  onClose();
-                }}
-              >
-                Kết nối ví EVM ngoài qua Reown AppKit
-              </button>
-            </div>
-          </div>
-        )}
+        <p id="auth-description" className="muted">{text("Chọn phương thức đăng nhập. Thêm ví vào tài khoản cần xác nhận riêng trong quản lý ví.", "Choose a sign-in method. Adding a wallet to your account requires a separate approval in wallet management.")}</p>
+        {error && <p ref={errorElement} tabIndex={-1} role="alert" className="notice notice-error">{messageText(error, language)}</p>}
+        {user && <section className="auth-method" aria-label={text("Thông tin tài khoản", "Account information")}>
+          <h3><CheckCircle2 size={18} aria-hidden="true"/><span className="address-value">{user.email || text("Tài khoản ví", "Wallet account")}</span></h3>
+          <dl className="detail-list"><dt>{text("Ví hoạt động", "Active wallet")}</dt><dd className="address-value font-mono">{user.activeWallet || text("Chưa chọn ví", "No wallet selected")}</dd><dt>{text("Vai trò", "Roles")}</dt><dd>{user.roles.map(role => ({buyer: text("Người mua", "Buyer"), seller: text("Người bán", "Seller"), operator: text("Vận hành", "Operator")}[role] || role)).join(", ")}</dd></dl>
+        </section>}
+        {!user || emailReauthentication ? <div>
+          {emailReauthentication && <p className="notice">{text("Phiên tài khoản còn hiệu lực. Xác thực lại cùng danh tính Circle để mở phiên ký; các đơn và ví đã liên kết vẫn thuộc tài khoản hiện tại.", "Your account session is active. Authenticate the same Circle identity to open a signing session; existing orders and linked wallets remain with the current account.")}</p>}
+          {step === "EMAIL" ? <>
+            <section className="auth-method" aria-labelledby="auth-wallet-title">
+              <h3 id="auth-wallet-title"><Wallet size={20} aria-hidden="true"/>{text("Đăng nhập bằng ví EVM", "Sign in with an EVM wallet")}</h3>
+              <p className="muted">{text("Kết nối ví tương thích Reown và phê duyệt thông điệp đăng nhập. Thao tác này không tạo giao dịch chuyển tiền.", "Connect a Reown-compatible wallet and approve the sign-in message. This action does not create a payment transaction.")}</p>
+              <button type="button" className="btn btn-primary" onClick={() => void run("WALLET")} disabled={!!action || !externalWalletConfigured || walletReloadRequired}>{action === "WALLET" ? text("Đang chờ ví và chữ ký…", "Waiting for wallet approval…") : externalWalletConfigured ? text("Kết nối và đăng nhập bằng ví", "Connect wallet and sign in") : text("Đăng nhập bằng ví hiện chưa sẵn sàng", "Wallet sign-in is currently unavailable")}</button>
+              {walletReloadRequired && <button type="button" className="btn btn-secondary" disabled={!!action} onClick={() => window.location.reload()}>{text("Tải lại trang để kết nối ví", "Reload page to connect wallet")}</button>}
+            </section>
+            <p className="auth-divider">{text("HOẶC", "OR")}</p>
+            <form onSubmit={event => { event.preventDefault(); void run("SEND"); }} className="auth-method" aria-labelledby="auth-email-title">
+              <h3 id="auth-email-title"><Mail size={20} aria-hidden="true"/>{text("Đăng nhập email qua Circle", "Sign in by email with Circle")}</h3>
+              <p id="circle-email-help" className="muted">{text("Circle gửi OTP và quản lý ví trên Arc Testnet. Bạn nhập OTP trong cửa sổ của Circle.", "Circle sends the OTP and manages your wallet on Arc Testnet. Enter the OTP in Circle’s window.")}</p>
+              <div className="form-group"><label className="form-label" htmlFor="circle-login-email">{text("Địa chỉ email", "Email address")}</label><input id="circle-login-email" type="email" className="form-input" value={email} onChange={event => setEmail(event.target.value)} required autoComplete="email" autoCapitalize="none" spellCheck={false} maxLength={254} disabled={!!action} aria-describedby="circle-email-help"/></div>
+              {circleInitState==='INITIALIZING'&&<p role="status">{text('Đang khởi tạo kết nối Circle…','Initializing the Circle connection…')}</p>}
+              {circleInitState==='UNAVAILABLE'&&prepareCircle&&<button type="button" className="btn btn-secondary" disabled={!!action} onClick={()=>{document.getElementById("circle-login-email")?.focus();void prepareCircle().catch(()=>{});}}>{text('Thử lại kết nối Circle','Retry Circle connection')}</button>}
+              <button type="submit" className="btn btn-secondary" disabled={!!action || !circleReady}>{action === "SEND" ? text("Đang gửi OTP…", "Sending OTP…") : circleReady ? text("Gửi mã OTP qua Circle", "Send OTP with Circle") : text("Đăng nhập email hiện chưa sẵn sàng", "Email sign-in is currently unavailable")}</button>
+            </form>
+          </> : <form onSubmit={event => { event.preventDefault(); void run("VERIFY"); }} className="auth-method">
+            <p id="circle-otp-instructions" tabIndex={-1}>{text("Đã yêu cầu Circle gửi OTP tới", "Circle was asked to send an OTP to")} <strong className="address-value">{email.trim()}</strong>. {text("Mở cửa sổ Circle để xác thực. GroupDeal không yêu cầu bạn nhập mã OTP tại đây.", "Open Circle’s window to authenticate. GroupDeal does not ask you to enter the OTP here.")}</p>
+            <div className="auth-actions"><button type="button" className="btn btn-secondary" disabled={!!action} onClick={() => { setStep("EMAIL"); setError(null); }}>{text("Quay lại", "Back")}</button><button type="submit" className="btn btn-primary" disabled={!!action}>{action === "VERIFY" ? text("Đang xác thực…", "Authenticating…") : text("Mở xác thực Circle", "Open Circle authentication")}</button></div>
+          </form>}
+          {action && <p role="status" className="auth-progress">{action === "SEND" ? text("Đang yêu cầu mã đăng nhập qua email…", "Requesting an email sign-in code…") : action === "WALLET" ? text("Hoàn tất lựa chọn ví và chữ ký trong cửa sổ ví. Bạn có thể từ chối tại đó.", "Complete the wallet selection and signature in your wallet window. You can decline there.") : authProgressText(circleProgress, language)}</p>}
+          <p className="auth-security muted"><ShieldCheck size={16} aria-hidden="true"/>{text("Bạn tự phê duyệt OTP hoặc chữ ký. Không nhập seed phrase hay private key vào GroupDeal.", "You approve the OTP or signature yourself. Do not enter a seed phrase or private key into GroupDeal.")}</p>
+        </div> : <div>
+          {token && <WalletManager token={token} userId={user.id} embedded/>}
+        </div>}
       </div>
-    </div>,
-    document.body
+    </div>, document.body,
   );
 };

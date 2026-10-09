@@ -1,0 +1,25 @@
+.funding-dialog{margin:auto;border:1px solid var(--border-medium);border-radius:var(--radius-xl);background:var(--bg-card);color:var(--text-primary);padding:1.25rem;width:min(560px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;box-sizing:border-box;box-shadow:var(--shadow-lg);font-size:1rem}
+.funding-dialog::backdrop{background:rgba(15,23,42,.48)}
+.funding-dialog h2{font-size:1.2rem;display:flex;gap:.5rem;align-items:center;line-height:1.5}
+.funding-dialog .modal-header{position:sticky;top:-1.25rem;padding:.75rem 0;background:var(--bg-card);z-index:1}
+.funding-dialog p{line-height:1.6;margin:.75rem 0}
+.funding-dialog button,.funding-dialog a.btn{min-height:44px;white-space:normal}
+.funding-dialog .modal-close{min-width:44px;flex-shrink:0}
+.funding-balance,.funding-quote,.funding-recovery,.funding-checkout{padding:1rem;border:1px solid var(--border-medium);border-radius:var(--radius-md);background:var(--bg-secondary)}
+.funding-balance{display:flex;gap:1rem;justify-content:space-between;align-items:center;flex-wrap:wrap}
+.funding-balance strong{display:block;font-size:1.35rem;overflow-wrap:anywhere}
+.funding-balance>span{display:flex;gap:.3rem;align-items:center}
+.funding-tabs{display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0}
+.funding-panel{display:flex;flex-direction:column;gap:.65rem}
+.funding-panel label{font-weight:600}
+.funding-panel input,.funding-panel select{display:block;box-sizing:border-box;width:100%;padding:.7rem;font:inherit;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-medium);border-radius:var(--radius-md);min-height:44px}
+.funding-panel dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.65rem}
+.funding-panel dd{margin:0;overflow-wrap:anywhere;text-align:right}
+.funding-address{display:flex;align-items:center;gap:.65rem}.funding-address span{min-width:0;overflow-wrap:anywhere}
+.funding-error{color:var(--danger)}
+.funding-recovery{display:flex;flex-direction:column;gap:.65rem}
+.funding-write a{display:block;overflow-wrap:anywhere;text-decoration:underline}
+.funding-checkout{margin-top:1rem}
+@media(max-width:400px){.funding-dialog{padding:1rem}.funding-dialog .modal-header{top:-1rem}.funding-dialog h2{font-size:1.05rem}.funding-panel dl{grid-template-columns:1fr}.funding-panel dd{text-align:left}.funding-address{flex-wrap:wrap}}
+
+.funding-source-proof pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;font-size:.8rem}.funding-proof-actions{display:flex;flex-wrap:wrap;gap:.65rem;margin-top:.75rem}

@@ -1,0 +1,10 @@
+import {Router} from 'express';
+import {SessionError} from '../services/sessionService';
+import {authMiddleware,AuthenticatedRequest} from '../middleware/auth';
+import {sellerFollows,SellerFollowError} from '../services/sellerFollowService';
+export const followRouter=Router();followRouter.use((_req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});followRouter.use(authMiddleware);
+followRouter.get('/sellers',(req:AuthenticatedRequest,res,next)=>{try{res.json(sellerFollows.list(req.user!.userId,req.query,req.sessionProof));}catch(error){next(error);}});
+followRouter.get('/sellers/:id',(req:AuthenticatedRequest,res,next)=>{try{if(Object.keys(req.query).length)throw new SellerFollowError('FOLLOW_INVALID_QUERY',400);res.json(sellerFollows.status(req.user!.userId,req.params.id,req.sessionProof));}catch(error){next(error);}});
+followRouter.get('/sellers/:id/commands/:commandId',(req:AuthenticatedRequest,res,next)=>{try{if(Object.keys(req.query).length)throw new SellerFollowError('FOLLOW_INVALID_QUERY',400);res.json(sellerFollows.command(req.user!.userId,req.params.id,req.params.commandId,req.sessionProof));}catch(error){next(error);}});
+followRouter.post('/sellers/:id',(req:AuthenticatedRequest,res,next)=>{try{res.json(sellerFollows.update(req.user!.userId,req.params.id,req.body,req.sessionProof));}catch(error){next(error);}});
+followRouter.use((error:unknown,_req:any,res:any,_next:any)=>{const known=error instanceof SellerFollowError||error instanceof SessionError;if(error instanceof SellerFollowError&&error.retryAfter)res.setHeader('Retry-After',String(error.retryAfter));res.status(known?error.status:503).json({code:known?error.code:'FOLLOW_UNAVAILABLE'});});

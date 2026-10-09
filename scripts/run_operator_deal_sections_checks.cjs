@@ -1,0 +1,2 @@
+const {spawnSync}=require('node:child_process'),path=require('node:path'),{localCheckEnvironment}=require('./local_check_runtime.cjs'),root=path.resolve(__dirname,'..');
+const r=spawnSync(process.execPath,[path.join(root,'backend/node_modules/tsx/dist/cli.mjs'),path.join(root,'backend/test/operator_deal_sections.test.ts')],{cwd:path.join(root,'backend'),env:localCheckEnvironment(root),stdio:'inherit',windowsHide:true,timeout:120000});if(r.status!==0||r.signal||r.error)process.exitCode=1;

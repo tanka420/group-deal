@@ -4,6 +4,7 @@ import arcTestnetManifest from "./manifests/arc-testnet.json";
 export type EnvironmentName = "local" | "arc-testnet";
 
 export interface NetworkManifest {
+  protocolVersion?:1|2;
   environment: EnvironmentName;
   networkName: string;
   chainId: number;
