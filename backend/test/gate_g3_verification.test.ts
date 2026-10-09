@@ -363,7 +363,7 @@ async function runGateG3VerificationTests() {
   // Verify file is authenticated AES-256-GCM envelope
   const envelopeRaw = fs.readFileSync(backup.backupPath, "utf8");
   const envelope = JSON.parse(envelopeRaw);
-  assert.strictEqual(envelope.version, 2, "New backups must identify the encryption key version");
+  assert.strictEqual(envelope.version, 3, "Current backup envelope must use version 3 and retain its encryption key ID");
   assert.strictEqual(envelope.keyId, config.masterEncryptionKeyId);
   assert.ok(envelope.authTagHex, "Envelope must have authTagHex");
   assert.ok(envelope.encryptedDataHex, "Envelope must have encryptedDataHex");
