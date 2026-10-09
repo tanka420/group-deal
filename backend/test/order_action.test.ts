@@ -1,7 +1,7 @@
+import {enrollFixtureOperator} from './helpers/operatorFixture';
 import {SessionService} from '../src/services/sessionService';
 import assert from "node:assert/strict";
 import express from "express";
-import jwt from "jsonwebtoken";
 import {ethers} from "ethers";
 import {store} from "../src/db/store";
 import {config} from "../src/config";
@@ -19,11 +19,14 @@ let failureObservation:unknown;
 async function run(){
   assert.ok(store.isIsolated,"Tests must not open the active application database");
   const iface=new ethers.Interface(HUB_ABI),buyer=ethers.Wallet.createRandom().address,seller=ethers.Wallet.createRandom().address,now=Math.floor(Date.now()/1000);
+  const controller=ethers.Wallet.createRandom();config.operatorAddress=controller.address;
   config.deploymentBlock=1;
   for(const [id,principal,roles] of [["buyer",buyer,["buyer"]],["seller",seller,["seller"]],["operator",config.operatorAddress,["operator"]],["other",ethers.Wallet.createRandom().address,["buyer"]]] as const){store.db.users[id]={id,email:id+"@fixture.invalid",activeWallet:principal,roles:[...roles],createdAt:0,circleUserId:'fixture-circle-'+id,circleWallet:{address:principal,walletId:'fixture-wallet-'+id,blockchain:'ARC-TESTNET'}};store.db.userByCircleId['fixture-circle-'+id]=id;store.db.userByWallet[principal.toLowerCase()]=id;}
   store.db.campaigns.stable={id:"stable",onchainCampaignId:1,chainId:config.arcChainId,hubAddress:config.hubAddress,sellerId:"seller",sellerPayoutWallet:seller,status:"FINALIZED",termsHash:ethers.id("order-action-terms"),finalizedAt:now-200,deliverySlaSeconds:100,deliveryContentTemplate:"private-template-preserved"} as any;
   for(let n=1;n<=5;n++)store.db.orders["order-"+n]={id:"order-"+n,onchainOrderId:n,campaignId:"stable",chainId:config.arcChainId,hubAddress:config.hubAddress,buyerAccountId:"buyer",buyerPrincipal:buyer,quantity:1,lockedUnitPrice:"100000000",committedGross:"100000000",rebateAllocated:"10000000",buyerRefundAllocated:n===5?"5000000":"0",sellerAllocated:n===5?"10000000":"0",buyerClaimedAmount:"0",sellerClaimedAmount:"0",isEarlySupporter:false,earlyRebateValue:"0",deliveryStatus:n===3?"PENDING":n===5?"DISPUTED":"DELIVERED",deliveryTimestamp:n===4?now-172801:now-10,deliveredEntitlementEncrypted:"private-entitlement-preserved",txHash:ethers.id("commit-"+n)} as any;
   store.db.syncState={lastIndexedBlock:4,lastSyncTimestamp:0};store.save();
+  const tokens=new Map(Object.keys(store.db.users).map(id=>[id,SessionService.issue(store.db.users[id])]));
+  const enrollment=await enrollFixtureOperator("operator",SessionService.authenticate(tokens.get("operator")!),{wallet:controller,chainId:config.arcChainId});
   const truth=structuredClone(store.db),canonical=reconciliationProvider(truth,500000000n,5);
   let stale=false,changed=false,reads=0,deny=false,wrongOrder=false,wrongChain=false;
   const provider={...canonical,getNetwork:async()=>({chainId:wrongChain?1n:BigInt(config.arcChainId)}),getBlock:async(n:number)=>({number:n,hash:changed&&++reads%2===0?ethers.id("changed-block"):ethers.id("block-"+n),timestamp:stale?now-121:now}),call:async(tx:any)=>{
@@ -41,7 +44,7 @@ async function run(){
   OrderActionService.setProvider(provider);
   const app=express();app.use(express.json());app.use("/api/transactions",operationRouter);const server=app.listen(0,"127.0.0.1");await new Promise<void>(resolve=>server.once("listening",resolve));
   const base="http://127.0.0.1:"+(server.address() as any).port;
-  const request=(path:string,body:any|undefined,user="buyer")=>fetch(base+"/api/transactions"+path,{method:body===undefined?"GET":"POST",headers:{Authorization:"Bearer "+jwt.sign({userId:user},config.jwtSecret,{expiresIn:"1m"}),"Content-Type":"application/json"},...(body===undefined?{}:{body:JSON.stringify(body)})}).then(async response=>{const body=response.status>=400?await response.clone().json().catch(()=>({})):{};const code=typeof body.error==='string'?body.error.match(/^(?:[A-Z][A-Z_]{2,80})(?=:|$)/)?.[0]:undefined;failureObservation={route:path.split('/').at(-1),status:response.status,code:body.code??code??null};return response;});
+  const request=(path:string,body:any|undefined,user="buyer")=>fetch(base+"/api/transactions"+path,{method:body===undefined?"GET":"POST",headers:{Authorization:"Bearer "+tokens.get(user)!,"Content-Type":"application/json"},...(body===undefined?{}:{body:JSON.stringify(body)})}).then(async response=>{const body=response.status>=400?await response.clone().json().catch(()=>({})):{};const code=typeof body.error==='string'?body.error.match(/^(?:[A-Z][A-Z_]{2,80})(?=:|$)/)?.[0]:undefined;failureObservation={route:path.split('/').at(-1),status:response.status,code:body.code??code??null};return response;});
   const input={orderId:"order-1",idempotencyKey:"order:dispute-fixture",intent:{action:"DISPUTE",reason:"Private issue description",evidenceUrls:["https://fixture.invalid/private-evidence"]}};
   const logs:any[]=[],calls:Record<string,any>={};let block=6;
   const nativeFetch=globalThis.fetch,nativeNonceReads:string[]=[];
@@ -104,7 +107,7 @@ async function run(){
     const legacy=store.db.orders["order-1"];legacy.committedGross="3";legacy.rebateAllocated="2";store.save();
     const legacyHash=ethers.id("legacy-resolution"),legacyData=iface.encodeFunctionData("resolveDispute",[1,1,40000000,50000000]);
     const log={...iface.encodeEventLog(iface.getEvent("DisputeResolved")!,[1,1,40000000,50000000]),address:config.hubAddress,transactionHash:legacyHash,blockNumber:block,blockHash:ethers.id("block-"+block),transactionIndex:0,index:0};logs.push(log);calls[legacyHash]={from:config.operatorAddress,data:legacyData,nonce:Object.values(calls).filter(tx=>tx.from.toLowerCase()===config.operatorAddress.toLowerCase()).length};const chain=eventProvider(logs,calls,()=>now);TransactionVerifier.setProvider(chain);IndexerService.setProvider(chain);
-    await DisputeService.resolveDispute("operator",legacy.id,"040000000","050000000","Verified legacy receipt",legacyHash,SessionService.authenticate(SessionService.issue(store.db.users.operator)));assert.equal(legacy.deliveryStatus,"RESOLVED");
+    await DisputeService.resolveDispute("operator",legacy.id,"040000000","050000000","Verified legacy receipt",legacyHash,enrollment.proof);assert.equal(legacy.deliveryStatus,"RESOLVED");
     assert.equal(store.verifyAuditLogIntegrity().valid,true);assert.ok(nativeNonceReads.length>=3,'Sequential same-wallet ready must use fresh pinned-block nonce RPC proof');const loans=Object.values(store.db.signerReservations??{});assert.ok(loans.some(r=>r.phase==='RELEASED'&&r.completion),'Finalized completed owner leaves nonce history');assert.equal(loans.filter(r=>r.phase==='ACTIVE'&&r.principal===buyer.toLowerCase()).length,1);
     console.log("PASS LOCAL_FIXTURE: durable order actions; fixed-block capability/chain-only unallocated split, corrupt DB independence, atomic duplicate prepare and one signature, pinned roles/principals, encrypted private stage/DTO exclusion, Circle exact reservation, UNKNOWN recovery, indexer-first metadata retry, confirm/breach/settle/resolve receipts and private audit digests. No live wallet/provider acceptance.");
   }finally{globalThis.fetch=nativeFetch;OrderActionService.setProvider(undefined);await new Promise<void>(resolve=>server.close(()=>resolve()));store.close();}
