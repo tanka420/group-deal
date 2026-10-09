@@ -1,7 +1,5 @@
 # GroupDeal — Nền tảng Mua Chung Sản Phẩm Số trên Arc Testnet
 
-**Tài liệu bàn giao để xây dự án mới:** [GroupDeal từ đầu](./docs/rebuild/README.md), gồm đặc tả sản phẩm/nghiệp vụ, kiến trúc/dữ liệu, lộ trình/nghiệm thu và prompt khởi tạo. Bộ này phục vụ codebase mới theo `PLAN.md`; kế hoạch và trạng thái candidate bên dưới thuộc repository hiện tại.
-
 GroupDeal hiện là **release candidate trên Arc Testnet**, chưa hoàn tất nghiệm thu sản phẩm. Arc là lớp settlement và nguồn sự thật tài chính; ứng dụng hỗ trợ Circle User-Controlled Wallet, ví ngoài qua Reown AppKit và nạp USDC qua Circle Arc App Kit Bridge. Candidate mới là `GroupDealHub` tại `0x2A7a...0574`, dùng Safe 2-of-3 đã xác minh tại `0xdDB2...72e6`; deployment cũ `0x7d4b...9F9a` đã được dọn hết escrow và loại khỏi nghiệm thu. Xem [báo cáo tiến độ live](./reports/BAO_CAO_TIEN_DO_LIVE_ARC_30_09_2026.md) và [báo cáo checkout mới hơn](./reports/BAO_CAO_SUA_LOI_VA_CHECKOUT_03_10_2026.md). Credential/readiness đã có bằng chứng cấu hình; nghiệm thu cuối cần xác minh lại hiệu lực, quyền kiểm soát các principal độc lập, hành trình sản phẩm live G5 và rà soát độc lập G6.
 
 **Đầu mối thực thi duy nhất:** [Kế hoạch thống nhất hoàn thiện GroupDeal v2.0](./reports/KE_HOACH_HOAN_TAT_DU_AN.md). Kế hoạch hợp nhất báo cáo lỗi, thẩm tra, định hướng sản phẩm và ảnh thiết kế; xác định công việc, phụ thuộc và bằng chứng hoàn tất cho backend, contract, dữ liệu, frontend và vận hành. Các báo cáo/checklist cũ được giữ làm lịch sử theo phạm vi bằng chứng đã ghi.
@@ -116,6 +114,18 @@ Workflow `.github/workflows/local-candidate.yml` chuẩn bị clean checkout tr�
 ---
 
 ## 🛠️ Hướng dẫn Khởi chạy Ứng dụng
+
+### Bản Testnet đã chuẩn bị trong workspace hiện tại
+
+Chạy tại thư mục gốc với Node.js 24.11.1:
+
+```bash
+npm run start:testnet
+```
+
+Mở `http://127.0.0.1:5173`. Lệnh phục vụ frontend đã đóng gói với Circle/Reown được cấu hình và khởi động backend production trên bản dữ liệu phục hồi đã được admission; các hash source/package/runtime được kiểm trước khi mở cổng. Dừng bằng `Ctrl+C` để đóng API, indexer, worker và lease của lượt chạy.
+
+Đây là ứng dụng local kết nối Arc Testnet. Deployment dịch vụ, hành trình OTP/chữ ký của các principal độc lập, giao tài nguyên/provider thật và G5/G6 vẫn cần nghiệm thu. Hướng dẫn cài đặt/development bên dưới dành cho checkout mới; workspace có dữ liệu phục hồi dùng lệnh trên.
 
 ### 0. Cài đặt sau khi clone
 Yêu cầu Node.js 24 LTS và npm. Backend sử dụng `node:sqlite`; đợt kiểm tra gần nhất chạy trên Node.js `24.11.1` và npm `11.6.2`.
