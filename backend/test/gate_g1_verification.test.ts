@@ -1,3 +1,5 @@
+import {OperationCompletionError} from '../domain/operationCompletion';
+import {SessionService} from '../src/services/sessionService';
 import assert from "node:assert";
 import { ethers } from "ethers";
 import { AuthService } from "../src/services/authService";
@@ -160,8 +162,11 @@ async function runGateG1Tests() {
   console.log("✔ TransactionVerifier anti-replay protection verified");
 
   // 3.4 DeliveryService fail-closed on missing txHash
+  store.transaction(() => {
+  store.db.users[testUserId].roles=["buyer","seller"];
   store.db.campaigns["c_g1"] = {
     id: "c_g1",
+    chainId:config.arcChainId,hubAddress:config.hubAddress,protocolVersion:config.protocolVersion,
     onchainCampaignId: 1,
     title: "G1 Test Campaign",
     description: "Testing",
@@ -197,6 +202,7 @@ async function runGateG1Tests() {
 
   store.db.orders["o_g1"] = {
     id: "o_g1",
+    chainId:config.arcChainId,hubAddress:config.hubAddress,protocolVersion:config.protocolVersion,
     onchainOrderId: 1,
     campaignId: "c_g1",
     buyerAccountId: testUserId,
@@ -217,17 +223,19 @@ async function runGateG1Tests() {
     sellerClaimed: false,
   };
 
+  });
+  const deliveryProof=SessionService.authenticate(SessionService.issue(store.db.users[testUserId]));
   await assert.rejects(
     async () => {
-      await DeliveryService.fulfillOrder(testUserId, "o_g1", "SECRET_KEY_123", "");
+      await DeliveryService.fulfillOrder(testUserId, "o_g1", "SECRET_KEY_123", "", deliveryProof);
     },
-    /valid onchain transaction hash from seller's wallet is required/,
+    (error:unknown)=>error instanceof OperationCompletionError&&error.code==='OPERATION_COMPLETION_INPUT_INVALID'&&error.status===400,
     "Delivery without txHash must be rejected"
   );
   console.log("✔ DeliveryService strictly enforces onchain transaction hash requirement");
 
   // 3.5 DisputeService fail-closed on missing txHash
-  store.db.orders["o_g1"].deliveryStatus = "DELIVERED";
+  store.transaction(()=>{store.db.orders["o_g1"].deliveryStatus = "DELIVERED";});
   await assert.rejects(
     async () => {
       await DisputeService.openDispute(testUserId, "o_g1", "Broken product", [], "");
