@@ -7,6 +7,8 @@ import { encryptEntitlement, decryptEntitlement, computeTermsHash } from "../src
 import { store } from "../src/db/store";
 
 async function runServicesAuditTests() {
+  assert.strictEqual(process.env.NODE_ENV, "test");
+  assert.ok(store.isIsolated, "Services audit requires an isolated test store");
   console.log("=== Running Backend Services & Invariant Tests ===");
 
   // 1. WebhookService SSRF Protection (F22)
@@ -45,6 +47,7 @@ async function runServicesAuditTests() {
 
   // 2. Reconciliation Service Financial Conservation (F13)
   console.log("\n[Test 2] Reconciliation Service Invariant Conservation:");
+  store.transaction(() => {
   store.db.orders = {};
   store.db.orders["test_ord_1"] = {
     id: "test_ord_1",
@@ -66,7 +69,10 @@ async function runServicesAuditTests() {
     createdAt: Date.now(),
     buyerClaimed: false,
     sellerClaimed: false,
+    buyerClaimedAmount: "0",
+    sellerClaimedAmount: "0",
   };
+  });
 
   const offlineProvider = { getNetwork: async () => { throw new Error("Fixture RPC offline"); } };
   const reportHealthy = await ReconciliationService.runReconciliation({ customProvider: offlineProvider });
@@ -80,6 +86,7 @@ async function runServicesAuditTests() {
   console.log("✔ Conservation verified and offline RPC accurately identified as UNVERIFIED (Fix A07 verified)");
 
   // Invariant leak detection
+  store.transaction(() => {
   store.db.orders["test_ord_leak"] = {
     id: "test_ord_leak",
     onchainOrderId: 2,
@@ -100,7 +107,10 @@ async function runServicesAuditTests() {
     createdAt: Date.now(),
     buyerClaimed: false,
     sellerClaimed: false,
+    buyerClaimedAmount: "0",
+    sellerClaimedAmount: "0",
   };
+  });
 
   const reportLeaking = await ReconciliationService.runReconciliation({ customProvider: offlineProvider });
   assert.strictEqual(reportLeaking.conservationLawPassed, false, "Should detect math discrepancy");
