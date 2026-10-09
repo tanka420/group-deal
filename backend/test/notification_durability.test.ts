@@ -7,8 +7,8 @@ import express from "express";
 import nodemailer from "nodemailer";
 import { store, TransactionalStore, EmailOutboxRecord } from "../src/db/store";
 import { config } from "../src/config";
-import { NotificationService, OutboxError } from "../src/services/notificationService";
-import {SessionService} from '../src/services/sessionService';
+import { NotificationService } from "../src/services/notificationService";
+import {SessionService,SessionError} from '../src/services/sessionService';
 import { notificationRouter } from "../src/routes/notificationRoutes";
 import { operatorRouter } from "../src/routes/operatorRoutes";
 
@@ -145,7 +145,7 @@ async function runAcl(owner:string,other:string,failId:string,visibleId:string){
   const operator=user();store.db.users[operator].roles=["operator"];
   (job(failId) as any).lastError="legacy-private-email-or-token";store.save();
   const enrollment=await enrollFixtureOperator(operator,proofFor(operator),{chainId:config.arcChainId});
-  assert.throws(()=>NotificationService.emailOutbox(owner,proofFor(owner)),error=>error instanceof OutboxError&&error.code==='OPERATOR_ACCESS_REQUIRED'&&error.status===403);
+  assert.throws(()=>NotificationService.emailOutbox(owner,proofFor(owner)),error=>error instanceof SessionError&&error.code==='OPERATOR_ACCESS_REQUIRED'&&error.status===403);
   const safe=JSON.stringify(NotificationService.emailOutbox(operator,enrollment.proof));
   for(const privateField of ["payloadEncrypted","buyer@example.test","leaseToken","legacy-private-email-or-token"])assert.ok(!safe.includes(privateField));
   assert.ok(safe.includes("LEGACY_ERROR_REDACTED"));
