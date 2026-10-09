@@ -60,6 +60,7 @@ export async function restoreShadowBackup(backupPath:string,rebuild=false,toBloc
     if(report.sqliteIntegrity!=="ok")report.status="RESTORE_REJECTED";
   }
   const publicPath=path.join(root,"reports/evidence",`RESTORE_${path.basename(targetDir)}.json`);
+  fs.mkdirSync(path.dirname(publicPath),{recursive:true});
   fs.writeFileSync(path.join(targetDir,"RESTORE.json"),JSON.stringify(report,null,2),{flag:"wx",mode:0o600});
   fs.writeFileSync(publicPath,JSON.stringify(report,null,2),{flag:"wx"});
   return {status:report.status,evidence:publicPath,targetDirectory:targetDir};
