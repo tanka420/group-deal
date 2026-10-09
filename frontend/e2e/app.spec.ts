@@ -1,3 +1,4 @@
+import {installBridgeServerFixture,confirmSourceWallet} from './fixtures/bridgeServer';
 import { expect, test } from "@playwright/test";
 import {installEmptyCatalog} from './fixtures/catalog';
 
@@ -50,8 +51,8 @@ test("renders Arc identity and fails closed when Circle is not configured", asyn
   });
 
   await page.goto("/");
-  await expect(page.getByText("Mạng Arc Testnet • USDC Smart Contract Escrow")).toBeVisible();
-  await expect(page.getByText("Chain ID: 5042002")).toBeVisible();
+  await expect(page.getByText("Arc Testnet · USDC escrow",{exact:true})).toBeVisible();
+  await expect(page.getByText("Arc Testnet (5042002)",{exact:true}).first()).toBeVisible();
 
   await page.getByRole("button", { name: /đăng nhập/i }).click();
   const walletLogin = page.getByRole("button", { name: "Đăng nhập bằng ví hiện chưa sẵn sàng", exact: true });
@@ -76,7 +77,7 @@ test("offers an in-app Arc App Kit bridge and reports missing Reown configuratio
 
   await expect(page.getByText(/Kết nối ví ngoài chưa được cấu hình/)).toBeVisible();
   await expect(page.getByText("Arc Testnet (5042002)").last()).toBeVisible();
-  await page.getByLabel("Số USDC cần bridge").fill("1.25");
+  await expect(page.getByLabel("Số USDC cần bridge")).toBeDisabled();
   await expect(page.getByRole("button", { name: "Lấy báo giá bridge USDC vào Arc" })).toBeDisabled();
   await expect(page.getByText("Hãy đăng nhập trước",{exact:true})).toBeVisible();
   expect(consoleErrors).toEqual([]);
@@ -177,6 +178,7 @@ test("SDK result without a captured financial write cannot confirm a mint", asyn
     contentType: "application/javascript",
     body: `export const ExternalWalletProvider = ({children}) => children;
       const provider = { request: async ({method}) => {
+        if(method==="personal_sign") return "0x"+"11".repeat(65);
         if(method==="eth_accounts") return ["${sender}"];
         if(method==="eth_chainId") return "0xaa36a7";
         if(method==="eth_getBalance") return "0xde0b6b3a7640000";
@@ -204,6 +206,7 @@ test("SDK result without a captured financial write cannot confirm a mint", asyn
       async retryBridge(result) { window.bridgeRetried = {recipient:result.destination.recipientAddress,amount:result.amount}; return {...result,state:"success",steps:result.steps.map(step=>({...step,state:"success"}))}; }
     } export default {AppKit};`,
   }));
+  await installBridgeServerFixture(page,"circle-fixture",recipient);
   await page.goto("/");
   await page.getByRole("button", { name: /nạp usdc/i }).click();
   await page.getByRole("button", { name: "CCTP Bridge" }).click();
@@ -212,6 +215,7 @@ test("SDK result without a captured financial write cannot confirm a mint", asyn
   await expect(page.getByText(/Số nhận dự kiến tối thiểu/)).toBeVisible();
   expect(await page.evaluate(() => (window as any).bridgeWrites || 0)).toBe(0);
   await page.getByRole("button", { name: "Xác nhận bridge USDC vào Arc" }).click();
+  await confirmSourceWallet(page);
   await expect(page.getByRole('dialog').locator('p[role="status"]')).toContainText("Lượt đã dừng trước burn");
   await expect(page.getByText(/Receipt Arc xác nhận đã mint/)).toHaveCount(0);
   await expect(page.getByRole("button",{name:"Tiếp tục attestation / mint"})).toHaveCount(0);
@@ -237,6 +241,7 @@ test("bridge blocks a source wallet with USDC but no native ETH before estimatin
     body: "export const createViemAdapterFromProvider=()=>({actionRegistry:{registerHandler(){},executeAction(){throw Error('Mock SDK must not execute registry actions');}}}); export default {createViemAdapterFromProvider};" }));
   await page.route("**/*circle-fin_app-kit.js*", route => route.fulfill({ contentType: "application/javascript", body: `
     export class AppKit {on(){} off(){} async estimateBridge(){window.unexpectedEstimate=true;throw new Error("Unexpected estimate")} async bridge(){window.unexpectedWrite=true;} } export default {AppKit};` }));
+  await installBridgeServerFixture(page,"fixture",address);
   await page.goto("/");
   await page.getByRole("button", { name: /nạp usdc/i }).click();
   await page.getByRole("button", { name: "CCTP Bridge" }).click();
