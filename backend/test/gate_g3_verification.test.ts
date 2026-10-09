@@ -14,6 +14,7 @@ import { reconciliationProvider } from "./fixtures/reconciliation";
 import { eventProvider } from "./fixtures/events";
 
 async function runGateG3VerificationTests() {
+  assert.strictEqual(process.env.NODE_ENV,"test");assert.ok(store.isIsolated,"G3 requires an isolated fixture store");
   console.log("=================================================");
   console.log("=== GATE G3 INTEGRATION & VERIFICATION TESTS ===");
   console.log("=================================================\n");
@@ -66,10 +67,12 @@ async function runGateG3VerificationTests() {
   console.log("\n[G3.2] Testing Arc Deterministic Indexer:");
 
   // Reset store for indexer testing
+  store.transaction(()=>{
   store.db.campaigns = {};
   store.db.orders = {};
   store.db.eventJournal = {};
   store.db.syncState = { lastIndexedBlock: 0, lastSyncTimestamp: 0 };
+  });
 
   // Prepare test events
   const campaignCreatedFragment = iface.getEvent("CampaignCreated")!;
@@ -249,9 +252,11 @@ async function runGateG3VerificationTests() {
   const snapshotOrder = JSON.stringify(store.db.orders["1"]);
 
   // Reset projection and re-process the exact event stream
+  store.transaction(()=>{
   store.db.eventJournal = {};
   store.db.orders = {};
   store.db.campaigns = {};
+  });
 
   await IndexerService.processLogs([
     logCampaignCreated,
@@ -287,7 +292,7 @@ async function runGateG3VerificationTests() {
   // Case 1: Healthy & Solvency Verified
   const mockHealthyProvider = reconciliationProvider(store.db, 200_000_000n);
 
-  store.db.syncState.lastIndexedBlock = 125;
+  store.transaction(()=>{store.db.syncState.lastIndexedBlock = 125;store.db.syncState.lastIndexedBlockHash=ethers.id("block-125");});
   let report = await ReconciliationService.runReconciliation({
     fixedBlockNumber: 125,
     customProvider: mockHealthyProvider,
@@ -314,7 +319,7 @@ async function runGateG3VerificationTests() {
   console.log("✔ Escrow shortfall discrepancy detected with CRITICAL severity as required");
 
   // Case 3: Stale Indexer Lag Detected
-  store.db.syncState.lastIndexedBlock = 100; // 25 blocks behind target block 125
+  store.transaction(()=>{store.db.syncState.lastIndexedBlock = 100;store.db.syncState.lastIndexedBlockHash=ethers.id("block-100");}); // 25 blocks behind target block 125
   report = await ReconciliationService.runReconciliation({
     fixedBlockNumber: 125,
     customProvider: mockHealthyProvider,
@@ -347,7 +352,7 @@ async function runGateG3VerificationTests() {
   // ---------------------------------------------------------------------------
   console.log("\n[G3.4] Testing Encrypted Backup, Retention & Clean Restore Drill:");
 
-  const testBackupDir = path.resolve(__dirname, "../../data/test_backups");
+  const testBackupDir = path.join(store.storageDirectory,"gate-g3-backups");
   if (!fs.existsSync(testBackupDir)) fs.mkdirSync(testBackupDir, { recursive: true });
 
   // Create encrypted backup
