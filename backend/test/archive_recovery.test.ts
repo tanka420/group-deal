@@ -75,7 +75,7 @@ async function main(){
    [r=>{r.signedPrivateReceipt=changed(f.directory,r.signedPrivateReceipt,v=>{v.body.keyId='missing-fixture-key';});},'INTERNAL_TEST_ARCHIVE_KEY_UNAVAILABLE']
   ];for(const [mutate,code] of edits)errorCode(()=>loadVerifiedInternalTestArchive({...f.verify,reference:changed(f.directory,f.archiveReference,mutate)}),code);
   const file=path.resolve(root,f.archiveReport.archive.path),before=fs.readFileSync(file);try{fs.appendFileSync(file,'fixture-corruption');errorCode(()=>loadVerifiedInternalTestArchive(f.verify),'INTERNAL_TEST_ARCHIVE_REFERENCE_CHANGED');}finally{fs.writeFileSync(file,before);}
-  errorCode(()=>loadVerifiedInternalTestArchive({...f.verify,fixtureRoot:path.join(root,'backend/data')}),'INTERNAL_TEST_ARCHIVE_FIXTURE_DISABLED');
+  errorCode(()=>loadVerifiedInternalTestArchive({...f.verify,fixtureRoot:path.join(root,'backend')}),'INTERNAL_TEST_ARCHIVE_FIXTURE_DISABLED');
  });
  await check('missing or unsigned archive cannot clear legacy preparation and admission gates',async()=>{
   const f=await fixture(),{internalTestArchiveReference,...missing}=f.prepare;const a=await prepareRecoveryApplication(missing);assert.equal(a.report.failureCode,'RECOVERY_APPLICATION_LEGACY_REVIEW_REQUIRED');
