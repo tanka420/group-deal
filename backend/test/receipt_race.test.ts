@@ -1,3 +1,4 @@
+import {enrollFixtureOperator} from './helpers/operatorFixture';
 import {OperationCompletionError} from '../src/domain/operationCompletion';
 import {DisputeMetadataError} from '../src/domain/disputeMetadata';
 import {SessionService,SessionProof} from '../src/services/sessionService';
@@ -54,6 +55,7 @@ async function main() {
   assert.equal(store.db.orders["1"].transactionHistory?.length,1);
   console.log("PASS indexer-first confirm, concurrent identical receipt, immutable commitment hash/history");
   reset();
+  await enrollFixtureOperator("operator",metadataProofs.operator,{chainId:config.arcChainId});
   const reason = "License does not activate", reasonHash = ethers.keccak256(ethers.toUtf8Bytes(reason));
   const dispute = transaction("openDispute",[1,1,reasonHash],"OrderDisputed",[1,1,buyer,reasonHash],buyer);
   await IndexerService.processLogs([dispute.log]);
