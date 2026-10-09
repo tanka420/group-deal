@@ -40,6 +40,7 @@ describe('WP26 local queued transaction/model/projection concurrency',function()
  for(const cancellationFirst of [true,false])it(`preserves effective cancelled status when dispute/cancel share a block (${cancellationFirst?'cancel first':'dispute first'})`,async()=>{
   const context=await localFixture(terms(991)),backend=await backendFor(context,991),trace:any[]=[];
   try{
+   await checkModel(context,backend);
    trace.push(...await mineCommands(context,[commit(0)],backend));await time.increase(86401);
    trace.push(...await mineCommands(context,[{kind:'FINALIZE',campaign:0,caller:10}],backend));
    trace.push(...await mineCommands(context,[{kind:'DELIVER',campaign:0,caller:4,orderSlots:[0]}],backend));
@@ -53,6 +54,7 @@ describe('WP26 local queued transaction/model/projection concurrency',function()
   const configuration=terms(1001);configuration.earlySlots=1;configuration.fixed=configuration.prices[0];
   const context=await localFixture(configuration),backend=await backendFor(context,1001),trace:any[]=[];
   try{
+   await checkModel(context,backend);
    trace.push(...await mineCommands(context,[commit(0),commit(1)],backend));await time.increase(86401);
    trace.push(...await mineCommands(context,[{kind:'FINALIZE',campaign:0,caller:10}],backend));
    for(const slot of [0,1]){trace.push(...await mineCommands(context,[{kind:'DELIVER',campaign:0,caller:4,orderSlots:[slot]}],backend));trace.push(...await mineCommands(context,[{kind:'CONFIRM',campaign:0,caller:slot,orderSlots:[slot]}],backend));}
