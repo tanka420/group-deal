@@ -1,0 +1,24 @@
+GROUPDEAL CSV STUDIO — PERSONAL TESTNET LICENSE, VERSION 1
+
+Một đơn vị cấp quyền sử dụng cá nhân cho một người, không chuyển nhượng.
+Quyền sử dụng bản 1.0 đã nhận là lâu dài. Cửa sổ xác nhận mã để tải gói
+là 30 ngày kể từ thời điểm giao. Quyền tài chính của order và allocation/claim
+không bị giới hạn bởi cửa sổ nhận tài nguyên này.
+
+Được phép chạy, sao lưu và sửa công cụ cho nhu cầu cá nhân. Không bán lại,
+phân phối công khai gói, chia sẻ mã hoặc cấp lại mã cho người khác.
+Nguồn tạo: mã mới được viết trong dự án GroupDeal theo yêu cầu chủ dự án
+ngày 10/10/2026. Gói không chứa phần mềm hoặc license của hãng khác.
+
+Sản phẩm mẫu cho Arc Testnet. Không cam kết SLA hoặc hỗ trợ có thời hạn.
+LICENSE_KEY cấp quyền nhận tài nguyên, không phải DRM cho công cụ offline.
+
+TESTNET DISTRIBUTION PERMISSION
+
+Theo yêu cầu tạo mẫu đầy đủ của chủ dự án, seller được chủ dự án chỉ định
+và được operator phê duyệt có quyền phân phối bản 1.0 này qua GroupDeal
+trên Arc Testnet. Quyền này gồm phát hành mã cấp quyền, nhận thanh toán
+USDC Testnet và giao gói cho các buyer tham gia kiểm chứng. Không bao gồm
+phát hành Mainnet hoặc license cho sản phẩm của nhà cung cấp khác.
+Buyer nhận quyền PERSONAL như phần trên. Kho mã chưa nhập vẫn thuộc
+gói chuẩn bị; việc tạo tệp mã không tự tạo sản phẩm, order hay giao dịch.
