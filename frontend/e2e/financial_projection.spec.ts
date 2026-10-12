@@ -29,6 +29,7 @@ async function ordersFixture(page: Page, verified = true, unknownReceipt=false) 
   }]})}));
   await page.goto("/#orders");
   await expect(page.getByText("Cumulative claim fixture")).toBeVisible();
+  return {operation};
 }
 
 test("buyer can claim the later refund after an earlier rebate claim", async ({page})=>{
@@ -45,11 +46,11 @@ test("buyer can claim the later refund after an earlier rebate claim", async ({p
 });
 
 test("claim dialog retains intent and checkpoint on a successful HTTP partial projection",async({page})=>{
- await ordersFixture(page);await page.route("**/api/transactions/op_claim_fixture/recover",r=>r.fulfill({json:{operation:{id:"op_claim_fixture",phase:"RECEIPT_VERIFIED",txHash:claimHash}}}));
+ const {operation}=await ordersFixture(page);let recoveries=0;await page.route("**/api/transactions/op_claim_fixture/recover",r=>{recoveries++;expect(r.request().postDataJSON()).toEqual({txHash:claimHash});return r.fulfill({json:{operation:{...operation,phase:"RECEIPT_VERIFIED",txHash:claimHash}}});});
  await page.getByRole("button",{name:"Rút $89 USDC"}).click();await page.getByRole("button",{name:"Ký rút tiền đã kiểm tra"}).click();
  await expect(page.getByRole("dialog")).toBeVisible();await expect(page.getByRole("dialog").getByRole("alert")).toContainText("projection");
  expect(await page.evaluate(()=>localStorage.getItem("groupdeal_operation:buyer:op_claim_fixture"))).not.toBeNull();
- expect(await page.evaluate(()=>localStorage.getItem("groupdeal_claim:buyer:BUYER_CLAIM:stable:1"))).not.toBeNull();expect(await page.evaluate(()=>localStorage.getItem("fixture-claim-broadcasts"))).toBe("1");
+ expect(await page.evaluate(()=>localStorage.getItem("groupdeal_claim:buyer:BUYER_CLAIM:stable:1"))).not.toBeNull();expect(await page.evaluate(()=>localStorage.getItem("fixture-claim-broadcasts"))).toBe("1");expect(recoveries).toBe(3);
 });
 
 test("buyer claim with unknown receipt survives reload and recovers the same broadcast without another signature",async({page})=>{
