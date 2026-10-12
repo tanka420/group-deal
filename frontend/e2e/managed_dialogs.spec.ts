@@ -58,3 +58,17 @@ for(const kind of ['claim','order'] as Kind[])test(`${kind} late preparation can
 });
 
 
+
+for(const kind of ['claim','order'] as Kind[])test(kind+' automatically recovers a transient completion conflict with one signature',async({page})=>{
+ const state=await fixture(page,kind);await page.route('**/api/transactions/reviewed/recover',r=>{expect(r.request().postDataJSON()).toEqual({txHash:hash});state.recoveries++;if(state.recoveries===1){state.phase='RECEIPT_VERIFIED';return r.fulfill({status:409,json:{error:'Receipt completion pending',code:'OPERATION_COMPLETION_CONFLICT'}});}state.phase='PROJECTED';return r.fulfill({json:{operation:{id:'reviewed',action:kind==='claim'?'BUYER_CLAIM':'CONFIRM',resourceId:kind==='claim'?'campaign':'order',chainId:5042002,hubAddress:hub,principal,calldata:'0x1234',phase:state.phase,txHash:hash,createdAt:1,updatedAt:1,expectedEventArgs:{}}}});});
+ await open(page,kind);await sign(page);await expect(page.getByRole('dialog')).toHaveCount(0);expect(state.recoveries).toBe(2);expect(state.prepareCalls).toBe(1);expect(state.readyCalls).toBe(1);expect(await page.evaluate(()=>(window as any).fixtureSigned)).toBe(1);expect(await page.evaluate(()=>(window as any).fixtureCompleted)).toBe(1);expect(await page.evaluate(()=>localStorage.getItem('groupdeal_operation:first:reviewed'))).toBeNull();
+});
+test('order keeps both checkpoints after three incomplete receipt projections',async({page})=>{
+ const state=await fixture(page,'order');await page.route('**/api/transactions/reviewed/recover',r=>{expect(r.request().postDataJSON()).toEqual({txHash:hash});state.recoveries++;state.phase='RECEIPT_VERIFIED';return r.fulfill({json:{operation:{id:'reviewed',action:'CONFIRM',resourceId:'order',chainId:5042002,hubAddress:hub,principal,calldata:'0x1234',phase:state.phase,txHash:hash,createdAt:1,updatedAt:1,expectedEventArgs:{}}}});});
+ await open(page,'order');await sign(page);await expect(page.getByRole('dialog').getByRole('alert')).toBeVisible();expect(state.recoveries).toBe(3);expect(await page.evaluate(()=>(window as any).fixtureSigned)).toBe(1);expect(await page.evaluate(()=>(window as any).fixtureCompleted)).toBe(0);expect(await page.evaluate(()=>localStorage.getItem('groupdeal_operation:first:reviewed'))).not.toBeNull();expect(await page.evaluate(()=>localStorage.getItem('groupdeal_order_action:first:order'))).not.toBeNull();
+});
+
+test('order stops automatic receipt recovery when the signed-in account changes',async({page})=>{
+ const state=await fixture(page,'order');await page.route('**/api/transactions/reviewed/recover',r=>{state.recoveries++;state.phase='RECEIPT_VERIFIED';return r.fulfill({status:409,json:{error:'Receipt completion pending',code:'OPERATION_COMPLETION_CONFLICT'}});});
+ await open(page,'order');await sign(page);await expect.poll(()=>state.recoveries).toBe(1);await page.evaluate(()=>{(window as any).fixtureIdentity='second';dispatchEvent(new Event('fixture-change'));});await expect(page.getByRole('dialog')).toHaveCount(0);await page.waitForTimeout(1200);expect(state.recoveries).toBe(1);expect(await page.evaluate(()=>(window as any).fixtureCompleted)).toBe(0);expect(await page.evaluate(()=>(window as any).fixtureSigned)).toBe(1);expect(await page.evaluate(()=>localStorage.getItem('groupdeal_operation:first:reviewed'))).not.toBeNull();
+});

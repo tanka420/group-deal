@@ -520,7 +520,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     else if(operation.action==="RESOLVE"&&call.name==="resolveDispute")intent={type:"RESOLVE_DISPUTE",campaignId:String(call.args[0]),orderId:String(call.args[1]),buyerShare:String(call.args[2]),sellerShare:String(call.args[3])};
     else throw new Error("Thao tác chưa hỗ trợ ký từ lịch sử giao dịch");
     if(iface.encodeFunctionData(call.name,Array.from(call.args)).toLowerCase()!==operation.calldata.toLowerCase())throw new Error("Intent calldata không canonical");
-    return sendHubCall(iface,call.name,Array.from(call.args),intent,onBroadcast,`circle:${operation.id}`);
+    // Contract argument resolution mutates nested arrays; decoded ethers Results are read-only.
+    return sendHubCall(iface,call.name,call.args.toArray(true),intent,onBroadcast,`circle:${operation.id}`);
   };
 
   const readOwnedCircleOperation=async(operation:RecoveryOperation,allowMissingReceipt=false)=>{

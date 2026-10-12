@@ -38,7 +38,7 @@
     "test:operator-badges": "node ../scripts/run_operator_badge_checks.cjs",
     "test:campaign-drafts": "tsx test/campaign_draft_view.test.ts",
     "test:operation-replacement": "tsx test/operation_replacement.test.ts",
-    "test:buy-expiry": "tsx test/buy_expiry.test.ts",
+    "test:buy-expiry": "tsx test/buy_expiry.test.ts && tsx test/signer_expired_buy.test.ts && tsx test/signer_rpc_transport.test.ts --expiry-only",
     "test:delivery-retry": "tsx test/delivery_retry.test.ts --committed-ready-only && tsx test/delivery_retry.test.ts",
     "test:sessions": "npm run test:session-management && tsx test/session_logout_regression.test.ts && tsx test/auth_sessions.test.ts && npm run test:wallet-bindings && tsx test/legacy_session_materialization.test.ts",
     "test:wallet-bindings": "tsx test/wallet_identity_regression.test.ts && tsx test/wallet_binding.test.ts",

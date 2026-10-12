@@ -7,6 +7,7 @@ import {observeBroadcast,TransactionOperation,operationRequest,broadcastCheckpoi
 import {UiMessage,UiError,uiMessage,messageText} from '../utils/uiMessage';
 import {useDealLanguage} from './DealPresentation';
 import {DialogSurface} from './DialogSurface';
+import {recoverProjectedOperation} from '../services/operationRecovery';
 
 export function ManagedClaim({action,campaignId,orderId,principal,amount,onClaimed}:{action:'BUYER_CLAIM'|'SELLER_CLAIM';campaignId:string;orderId:string;principal:string;amount:bigint;onClaimed:()=>void}){
  const {user,token}=useAuth(),{account,broadcastPreparedOperation}=useWeb3(),{language,text}=useDealLanguage();
@@ -42,7 +43,7 @@ export function ManagedClaim({action,campaignId,orderId,principal,amount,onClaim
    }
    if(!ticket.current())return;
    if(!hash)throw new UiError(uiMessage('Kiểm tra lịch sử ví/Circle để lấy hash của intent đang chờ; chưa ký lại.','Check wallet or Circle history for the pending intent hash before signing again.'));
-   const result=await operationRequest<{operation:TransactionOperation}>(token,`/api/transactions/${operation.id}/recover`,{txHash:hash});if(!ticket.current())return;
+   const result=await recoverProjectedOperation(token,operation,hash,ticket.current);if(!ticket.current())return;
    requireProjected(result,operation,hash);requireMatchingOperation(result,operation);setOperation(result.operation);
    localStorage.removeItem(checkpointKey(user.id,operation.id));localStorage.removeItem(retryKey);setOpen(false);onClaimed();
   }catch(e){if(!ticket.current())return;setError(managedOperationError(e,uiMessage('Chưa xác minh được receipt; giữ intent để phục hồi.','The receipt is unverified. Keep the intent for recovery.')));

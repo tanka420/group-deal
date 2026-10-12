@@ -47,5 +47,6 @@ jobs:
             .cache/local-pipeline-*.json
             .cache/secret-scan-*.json
             .cache/fallback-http-*.json
+          include-hidden-files: true
           if-no-files-found: warn
           retention-days: 14

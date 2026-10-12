@@ -8,6 +8,7 @@ import {operationActionLabel} from './TransactionHistory';
 import {useDealLanguage} from './DealPresentation';
 import {UiMessage,UiError,uiMessage,messageText} from '../utils/uiMessage';
 import {DialogSurface} from './DialogSurface';
+import {recoverProjectedOperation} from '../services/operationRecovery';
 
 type Intent={action:'CONFIRM'|'BREACH'|'SETTLE'}|{action:'DISPUTE';reason:string;evidenceUrls:string[]}|{action:'RESOLVE';buyerPercent:number;notes:string};
 export interface ManagedOrderActionHandle {begin:(orderId:string,principal:string,intent:Intent)=>Promise<boolean>}
@@ -48,7 +49,7 @@ export const ManagedOrderAction=forwardRef<ManagedOrderActionHandle,{onRecovered
    }
    if(!ticket.current())return;
    if(!hash)throw new UiError(uiMessage('Intent đang chờ ví trả hash. Kiểm tra lịch sử ví; chưa ký lại.','This intent is awaiting a wallet hash. Check wallet history before signing again.'));
-   const result=await operationRequest<{operation:TransactionOperation}>(token,`/api/transactions/${operation.id}/recover`,{txHash:hash});if(!ticket.current())return;
+   const result=await recoverProjectedOperation(token,operation,hash,ticket.current);if(!ticket.current())return;
    requireProjected(result,operation,hash);requireMatchingOperation(result,operation);
    localStorage.removeItem(checkpointKey(user.id,operation.id));localStorage.removeItem(key(operation.resourceId));setOpen(false);onRecovered();
   }catch(e){if(!ticket.current())return;setError(managedOperationError(e,uiMessage('Chưa xác minh được receipt; intent được giữ để phục hồi.','The receipt is unverified. Keep the intent for recovery.')));

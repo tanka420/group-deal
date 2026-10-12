@@ -89,6 +89,7 @@ const steps=[
  ['bridge-recovery-and-fees','node',['scripts/run_bridge_fee_checks.cjs']],
  ['purchase-budget','node',['scripts/run_purchase_budget_checks.cjs']],
  ['circle-fee-review','node',['scripts/run_circle_fee_review_checks.cjs']],
+ ['operation-projection-recovery','node',['backend/node_modules/tsx/dist/cli.mjs','frontend/test/operation_projection_recovery.test.ts']],
  ['circle-decoder','npm',['--prefix','frontend','run','test:circle-decoder']],
  ['frontend-build','npm',['--prefix','frontend','run','build']],
  ['ops-preflight','node',['scripts/run_ops_checks.cjs']],

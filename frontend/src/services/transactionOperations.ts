@@ -50,11 +50,15 @@ export function requireDeliveryRetry(result:{operation?:TransactionOperation},pr
   if(!next||next.id===previous.id||next.action!=="DELIVER"||next.resourceId!==previous.resourceId||next.chainId!==previous.chainId||!equal(next.hubAddress,previous.hubAddress)||!equal(next.principal,previous.principal)||next.calldata!==previous.calldata||next.expectedEventArgs.proofHash!==previous.expectedEventArgs.proofHash||!proof||proof.previousOperationId!==previous.id||proof.terminal.phase!==previous.phase||!hash(proof.terminal.txHash)||!hash(proof.terminal.blockHash)||!Number.isSafeInteger(proof.terminal.blockNumber)||proof.terminal.blockNumber<1||!hash(proof.capability.blockHash)||!Number.isSafeInteger(proof.capability.blockNumber)||proof.capability.blockNumber<proof.terminal.blockNumber||!Number.isSafeInteger(proof.capability.checkedAt)||proof.capability.checkedAt<=0||previous.phase==="REVERTED"&&!equal(proof.terminal.txHash,previous.txHash))throw new UiError(uiMessage("Chưa có bằng chứng thử lại với đúng tài nguyên và intent cũ. Giữ yêu cầu để phục hồi.","There is no matching retry proof for the original delivery and resources. Keep the request for recovery."));
   return next;
 }
+/** Keep bounded API status codes for safe recovery retries; display copy stays app-owned. */
+export class OperationRequestFailure extends Error {
+ constructor(readonly status:number,readonly code:string|undefined,message:string){super(message);this.name='OperationRequestFailure';}
+}
 export async function operationRequest<T>(token:string|null,path:string,body?:unknown,headers?:Record<string,string>):Promise<T> {
   if(!token)throw new UiError(uiMessage("Đăng nhập để tiếp tục","Sign in to continue"));
   const response=await fetch(path,{method:body===undefined?"GET":"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json",...headers},...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(10000)});
   const data=await response.json().catch(()=>{throw new UiError(uiMessage("API chưa trả về phản hồi hợp lệ","The API has not returned a valid response"));});
-  if(!response.ok){const hold=signerHoldMessage(data?.code)??signerHoldMessage(data?.error);if(hold)throw new UiError(hold);if(typeof data.error==="string"&&data.error)throw new Error(data.error);throw new UiError(uiMessage("Thao tác chưa hoàn tất","The operation has not completed"));}
+  if(!response.ok){const hold=signerHoldMessage(data?.code)??signerHoldMessage(data?.error);if(hold)throw new UiError(hold);if(typeof data?.error==="string"&&data.error)throw new OperationRequestFailure(response.status,typeof data.code==="string"&&/^[A-Z_]{3,100}$/.test(data.code)?data.code:undefined,data.error);throw new UiError(uiMessage("Thao tác chưa hoàn tất","The operation has not completed"));}
   return data as T;
 }
 export const checkpointKey=(userId:string,operationId:string)=>`groupdeal_operation:${userId}:${operationId}`;
