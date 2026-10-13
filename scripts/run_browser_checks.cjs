@@ -12,7 +12,8 @@ async function main(){
   const runId=new Date().toISOString().replace(/[:.]/g,'-')+'-'+crypto.randomUUID();
   const outputDirectory='.cache/browser-artifacts-'+runId,reportPath=path.join(root,'.cache/browser-run-'+runId+'.json');
   fs.mkdirSync(path.join(root,outputDirectory),{recursive:true});
-  const runRecord={schemaVersion:1,startedAt:new Date().toISOString(),mode:artifact?'artifact':preview?'preview':'dev',configuredReownFixture:configuredReown,testArguments:tests,port,outputDirectory,result:'RUNNING',acceptanceEligible:false,maxFailures:1};
+  const maxFailures=process.env.CI==='true'?0:1;
+  const runRecord={schemaVersion:1,startedAt:new Date().toISOString(),mode:artifact?'artifact':preview?'preview':'dev',configuredReownFixture:configuredReown,testArguments:tests,port,outputDirectory,result:'RUNNING',acceptanceEligible:false,maxFailures};
   fs.writeFileSync(reportPath,JSON.stringify(runRecord,null,2)+'\n',{flag:'wx'});
   const environment={...localCheckEnvironment(root,{configuredReown}),PLAYWRIGHT_REUSE_SERVER:'1',GROUPDEAL_REOWN_CONFIGURED_FIXTURE:configuredReown?'1':'',GROUPDEAL_BROWSER_PORT:String(port),GROUPDEAL_BROWSER_MODE:preview?'preview':'dev',GROUPDEAL_FALLBACK_BASE_URL:artifact?'http://127.0.0.1:'+port:''};
   const frontend=path.join(root,'frontend');
@@ -35,7 +36,7 @@ async function main(){
       if(post.status!==405||head.status!==200||(await head.arrayBuffer()).byteLength!==0)throw new Error('Static fallback method boundary failed');
       const report='.cache/fallback-http-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';fs.writeFileSync(path.join(root,report),JSON.stringify({schemaVersion:1,layer:'LOCAL_STATIC_HTTP',result:'PASS',acceptanceEligible:false,package:packageManifest.artifactDirectory+'/PACKAGE.json',files,boundary:{appAndApi404:true,post405:true,headEmpty:true}},null,2)+'\n');console.log('PASS static HTTP package hashes and method/application boundary; '+report);
     }
-    const args=[path.join(frontend,'node_modules/@playwright/test/cli.js'),'test','--max-failures=1',...(artifact?['fallback.spec.ts']:[]),...tests,'--output='+path.join(root,outputDirectory)];
+    const args=[path.join(frontend,'node_modules/@playwright/test/cli.js'),'test','--max-failures='+maxFailures,...(artifact?['fallback.spec.ts']:[]),...tests,'--output='+path.join(root,outputDirectory)];
     console.log('Owned browser artifacts: '+outputDirectory);
     runner=spawn(process.execPath,args,{cwd:frontend,env:environment,stdio:'inherit'});
     const result=await new Promise((resolve,reject)=>{runner.once('error',()=>reject(new Error('Browser check process could not start')));runner.once('exit',(code,signal)=>resolve({code,signal}));});
