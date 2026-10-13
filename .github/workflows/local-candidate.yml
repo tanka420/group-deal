@@ -25,6 +25,11 @@ jobs:
         with:
           node-version: '24.21.0'
           package-manager-cache: false
+      - name: Locked package manager
+        run: |
+          npm install --global npm@11.6.2 --no-audit --no-fund --registry=https://registry.npmjs.org
+          node --version
+          npm --version
       - name: Locked workspace dependencies
         run: |
           npm ci --prefix contracts --no-audit --no-fund
