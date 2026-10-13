@@ -118,9 +118,12 @@ test('checkout hides provider diagnostics and stored messages follow the selecte
 });
 
 test('signer hold codes have bounded bilingual app copy and unknown diagnostics are hidden',()=>{
- const domain=readFileSync(new URL('../../backend/src/domain/signerReservation.ts',import.meta.url),'utf8'),rows=readFileSync(new URL('../../backend/src/db/rowPersistence.ts',import.meta.url),'utf8'),codes=[...new Set([...domain.matchAll(/['"](SIGNER_[A-Z_]+)['"]/g),...rows.matchAll(/['"](SIGNER_[A-Z_]+)['"]/g)].map(m=>m[1]))];expect(codes.length).toBeGreaterThan(20);
+ const domain=readFileSync(new URL('../../backend/src/domain/signerReservation.ts',import.meta.url),'utf8'),rows=readFileSync(new URL('../../backend/src/db/rowPersistence.ts',import.meta.url),'utf8');
+ const literals=[...domain.matchAll(/['"](SIGNER_[A-Z_]+)['"]/g),...rows.matchAll(/['"](SIGNER_[A-Z_]+)['"]/g)].map(m=>m[1]);
+ const expiryStages=[...new Set([...domain.matchAll(/\bproofStage\s*=\s*['"]([A-Z_]+)['"]/g)].map(m=>m[1]))];expect(expiryStages.length).toBeGreaterThan(0);
+ const codes=[...new Set(literals.flatMap(code=>code==='SIGNER_EXPIRY_'?expiryStages.map(stage=>'SIGNER_EXPIRY_'+stage+'_UNAVAILABLE'):[code]))];expect(codes.length).toBeGreaterThan(20);
  for(const code of codes){const message=signerHoldMessage(code);expect(message,code).toBeDefined();for(const language of ['vi','en'] as const){const text=messageText(message!,language);expect(text.length).toBeLessThan(500);expect(text).not.toContain(code);expect(text).not.toContain('PRIVATE_CHECKOUT_DIAGNOSTIC')}}
- expect(signerHoldMessage('SIGNER_UNKNOWN_PRIVATE_DIAGNOSTIC')).toBeUndefined();expect(signerHoldMessage({code:'SIGNER_RECEIPT_PENDING'})).toBeUndefined();expect(signerHoldMessage(null)).toBeUndefined();
+ expect(signerHoldMessage('SIGNER_EXPIRY_')).toBeUndefined();expect(signerHoldMessage('SIGNER_EXPIRY_PRIVATE_CHECKOUT_DIAGNOSTIC_UNAVAILABLE')).toBeUndefined(); expect(signerHoldMessage('SIGNER_UNKNOWN_PRIVATE_DIAGNOSTIC')).toBeUndefined();expect(signerHoldMessage({code:'SIGNER_RECEIPT_PENDING'})).toBeUndefined();expect(signerHoldMessage(null)).toBeUndefined();
  const nested={cause:{code:'SIGNER_RECEIPT_PENDING',message:'PRIVATE_CHECKOUT_DIAGNOSTIC'}};expect(messageText(paymentError(nested),'en')).toContain('earlier transaction');expect(messageText(paymentError({code:'SIGNER_RECEIPT_PENDING',cause:{code:4001}}),'en')).toContain('wallet rejected');
 });
 test('operation API preserves signer hold guidance without granting a signature phase',async()=>{
