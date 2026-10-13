@@ -8,7 +8,7 @@ import {circleChallengePayload,circleChallengeHash,circleChallengeReceipt,circle
 import {circleBoundAccount} from '../domain/circleWalletAuthority';
 import {AuthService} from './authService';
 import type {SessionProof} from './sessionService';
-import {circleWalletInput,circleWalletSelectInput,circleProviderWallets,sameCircleAuthority,type CircleWalletAuthority} from '../domain/circleWalletAuthority';
+import {CIRCLE_WALLET_PAGE_SIZE,circleWalletInput,circleWalletSelectInput,circleProviderWallets,sameCircleAuthority,type CircleWalletAuthority} from '../domain/circleWalletAuthority';
 import {StorageConflict} from '../db/rowPersistence';
 import {CircleAuthError,circleEmailInput,circleSessionInput,circleContext,circleAttempt,circleVerification,circleIdentityInput,type CircleVerification} from '../domain/circleAuthentication';
 import {
@@ -125,7 +125,7 @@ export class CircleWalletService {
   }
   public static async assertBoundIdentity(userId:string,userToken:string,proof?:SessionProof):Promise<{circleUserId:string}>{const current=await this.authenticatedWalletAuthority(userId,userToken,proof);return{circleUserId:current.circleUserId}}
   public static async listArcWallets(userToken:string,authorize?:()=>CircleWalletAuthority):Promise<ArcWallet[]>{
-    const p=circleWalletInput.safeParse({userToken});if(!p.success)throw new CircleAuthError('CIRCLE_WALLET_INVALID_INPUT');const initial=authorize?.(),response=await this.requireClient().listWallets({userToken:p.data.userToken,blockchain:ARC_BLOCKCHAIN,pageSize:100,xRequestId:crypto.randomUUID()}),current=authorize?.();if(initial&&current)sameCircleAuthority(initial,current);return circleProviderWallets(response.data?.wallets,current?.circleUserId);
+    const p=circleWalletInput.safeParse({userToken});if(!p.success)throw new CircleAuthError('CIRCLE_WALLET_INVALID_INPUT');const initial=authorize?.(),response=await this.requireClient().listWallets({userToken:p.data.userToken,blockchain:ARC_BLOCKCHAIN,pageSize:CIRCLE_WALLET_PAGE_SIZE,xRequestId:crypto.randomUUID()}),current=authorize?.();if(initial&&current)sameCircleAuthority(initial,current);return circleProviderWallets(response.data?.wallets,current?.circleUserId);
   }
   private static chooseInventoryWallet(wallets:ArcWallet[],authority:CircleWalletAuthority){
     if(authority.wallet){const selected=wallets.find(w=>w.walletId===authority.wallet!.walletId&&w.address.toLowerCase()===authority.wallet!.address.toLowerCase());if(!selected)throw new CircleAuthError('CIRCLE_WALLET_UNAVAILABLE',503);return selected}

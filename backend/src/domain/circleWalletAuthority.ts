@@ -3,6 +3,8 @@ import {ethers} from 'ethers';
 import {z} from 'zod';
 import {circleSessionInput,CircleAuthError,circleContext,circlePublicUser} from './circleAuthentication';
 import type {UserRecord,RateLimitRecord} from '../db/store';
+// A full provider page is incomplete inventory; never create or bind from it.
+export const CIRCLE_WALLET_PAGE_SIZE=50;
 export const circleWalletInput=z.object({userToken:circleSessionInput.shape.userToken}).strict();
 const id=z.string().min(1).max(128).regex(/^[^\s\u0000-\u001f\u007f]+$/).refine(v=>!['constructor','prototype','__proto__'].includes(v));
 export const circleWalletSelectInput=circleWalletInput.extend({walletId:id}).strict();
@@ -16,7 +18,7 @@ export function circleBoundAccount(user:UserRecord|undefined,userId:string,owner
 }
 export function sameCircleAuthority(initial:CircleWalletAuthority,current:CircleWalletAuthority){if(initial.userId!==current.userId||initial.circleUserId!==current.circleUserId||initial.context!==current.context||initial.base!==current.base)throw new CircleAuthError('CIRCLE_WALLET_AUTHORITY_CHANGED',409)}
 export function circleProviderWallets(value:unknown,circleUserId?:string):CircleArcWallet[]{
- if(!Array.isArray(value)||value.length>=100)throw new CircleAuthError('CIRCLE_WALLET_UNAVAILABLE',503);const wallets:CircleArcWallet[]=[],ids=new Set<string>(),addresses=new Set<string>();
+ if(!Array.isArray(value)||value.length>=CIRCLE_WALLET_PAGE_SIZE)throw new CircleAuthError('CIRCLE_WALLET_UNAVAILABLE',503);const wallets:CircleArcWallet[]=[],ids=new Set<string>(),addresses=new Set<string>();
  for(const v of value){if(!v||typeof v!=='object'||Array.isArray(v))throw new CircleAuthError('CIRCLE_WALLET_UNAVAILABLE',503);if(v.blockchain!=='ARC-TESTNET'||v.state!=='LIVE')continue;if(v.accountType!=='EOA'||circleUserId!==undefined&&v.userId!==undefined&&v.userId!==circleUserId)throw new CircleAuthError('CIRCLE_WALLET_UNAVAILABLE',503);let wallet:CircleArcWallet;try{wallet=circleWalletRecord({walletId:v.id,address:v.address,blockchain:v.blockchain})}catch{throw new CircleAuthError('CIRCLE_WALLET_UNAVAILABLE',503)}if(ids.has(wallet.walletId)||addresses.has(wallet.address.toLowerCase()))throw new CircleAuthError('CIRCLE_WALLET_UNAVAILABLE',503);ids.add(wallet.walletId);addresses.add(wallet.address.toLowerCase());wallets.push(wallet)}return wallets;
 }
 export function faucetRate(value:RateLimitRecord|undefined,now:number):RateLimitRecord{
