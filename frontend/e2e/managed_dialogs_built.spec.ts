@@ -23,6 +23,7 @@ for(const kind of ['claim','order','delivery'])for(const language of ['vi','en']
  for(const width of [320,375,430,768,1024,1280,1440]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);expect(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)}
  await page.setViewportSize({width:375,height:700});await page.screenshot({path:info.outputPath(`${kind}-${language}-built-375.png`)});
  const verify=dialog.getByRole('button',{name:kind==='claim'?(language==='en'?'Verify receipt and recover withdrawal':'Kiểm tra receipt và phục hồi khoản rút'):kind==='order'?(language==='en'?'Verify receipt and recover action':'Kiểm tra receipt và phục hồi thao tác'):(language==='en'?'Verify receipt and enable downloads':'Xác minh receipt và mở quyền tải')});
- await verify.click();await expect(dialog.getByRole('alert')).toContainText('projection');expect(await page.evaluate(key=>localStorage.getItem(key),checkpoint)).toContain(hash);expect(completed).toBe(false);
+ const mismatchMessage=kind==='delivery'?'projection':language==='en'?'does not match the reviewed intent':'không khớp intent đã xem';
+ await verify.click();await expect(dialog.getByRole('alert')).toContainText(mismatchMessage);expect(await page.evaluate(key=>localStorage.getItem(key),checkpoint)).toContain(hash);expect(completed).toBe(false);expect(recovered).toBe(1);expect(ready).toBe(0);
  await verify.click();await expect(dialog).not.toBeVisible();expect(await page.evaluate(key=>localStorage.getItem(key),checkpoint)).toBeNull();expect(recovered).toBe(2);expect(ready).toBe(0);expect(errors).toEqual([]);
 });
