@@ -11,7 +11,7 @@ export const ARC_RPC_ENDPOINTS = [
 const readMethods = new Set([
   "eth_chainId", "eth_getBalance", "eth_call", "eth_gasPrice", "eth_maxPriorityFeePerGas",
   "eth_getBlockByNumber", "eth_blockNumber", "eth_getCode", "eth_estimateGas",
-  "eth_getTransactionReceipt", "eth_getTransactionByHash", "eth_getTransactionCount",
+  "eth_getTransactionReceipt", "eth_getTransactionByHash", "eth_getTransactionCount", "eth_getLogs",
 ]);
 const inFlight = new Map<string, Promise<unknown>>();
 const blockedUntil = new Map<string, number>();
