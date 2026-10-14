@@ -1,0 +1,38 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),cp=require('node:child_process'),path=require('node:path'),{freshState,selectObservation,transition,deliver}=require('./hosted_alerts.cjs');
+const now=1792000000000,id='00000000-0000-4000-8000-000000000001',recipient='ops@example.test',smtp={host:'smtp.example.test',port:587,secure:false,user:'synthetic-user',password:'synthetic-password',from:'alerts@example.test'};
+const reply={schemaVersion:1,observedAt:new Date(now).toISOString(),scope:'HOSTED_PUBLIC_LIVENESS_AND_BACKUP_FRESHNESS',endpoint:'https://groupdeal.thanhtan.top/api/health',status:'UP',code:'LIVENESS_OBSERVED',httpStatus:200,backup:{status:'UP',code:'BACKUP_CURRENT'},test404:false,financialAccountingVerified:false,credentialsRead:false,emailSent:false};
+function entry(r=reply,time=now){return JSON.stringify({__REALTIME_TIMESTAMP:String(time*1000),MESSAGE:JSON.stringify(r)});}
+function obs(n=0,status='ATTENTION'){return{id:String((now+n*60000)*1000),status,code:status==='UP'?'LIVENESS_OBSERVED':'BACKUP_STALE',observedAt:new Date(now+n*60000).toISOString()};}
+function incident(){const first=transition(freshState(),obs());return transition(first.state,obs(1),()=>id);}
+test('only the current public probe contract becomes a bounded notification observation',()=>{
+ assert.equal(selectObservation(entry(),now).status,'UP');const failed={...reply,status:'ATTENTION',code:'BACKUP_STALE',backup:{status:'ATTENTION',code:'BACKUP_STALE'}};assert.equal(selectObservation(entry(failed),now).code,'BACKUP_STALE');
+ for(const r of [{...reply,financialAccountingVerified:true},{...reply,credentialsRead:true},{...reply,test404:true},{...reply,emailSent:true},{...reply,scope:'PROCESS_LIVENESS_ONLY'},{...reply,endpoint:'https://foreign.example.test'},{...failed,code:'private-provider-diagnostic'}]){const result=selectObservation(entry(r),now);assert.equal(result.code,'PROBE_RESULT_UNAVAILABLE');assert.ok(!JSON.stringify(result).includes('private-provider-diagnostic'));}
+});
+test('journal selection rejects stale/future entries, chooses the newest timestamp and bounds input',()=>{
+ assert.equal(selectObservation(entry({...reply,observedAt:new Date(now-180001).toISOString()}),now).code,'PROBE_RESULT_UNAVAILABLE');assert.equal(selectObservation(entry({...reply,observedAt:new Date(now+30001).toISOString()}),now).code,'PROBE_RESULT_UNAVAILABLE');const failed={...reply,status:'ATTENTION',code:'HTTP_STATUS_UNEXPECTED',httpStatus:503};assert.equal(selectObservation(entry(failed,now+1)+'\n'+entry(),now).status,'ATTENTION');assert.equal(selectObservation('not-json\n'+entry(),now).status,'UP');assert.throws(()=>selectObservation('x'.repeat(256*1024+1),now),/ALERT_OBSERVATION_INPUT/);
+});
+test('two distinct consecutive observations open one incident; duplicates and older records cannot open it',()=>{
+ let d=transition(freshState(),obs());assert.equal(d.action,null);let duplicate=transition(d.state,obs());assert.equal(duplicate.state.failureCount,1);d=transition(d.state,obs(1),()=>id);assert.equal(d.action.kind,'INCIDENT');assert.equal(d.state.incident.alertDelivery,'ATTEMPTING');
+ const cleared=transition(transition(freshState(),obs()).state,obs(1,'UP'));assert.equal(cleared.state.failureCount,0);assert.equal(transition(cleared.state,obs()).code,'ALERT_OBSERVATION_ALREADY_PROCESSED');
+});
+test('SMTP sends a single text-only incident after persisting the attempt and requires TLS',async()=>{
+ const d=incident(),saved=[];let calls=0,closed=false;const result=await deliver(d,recipient,smtp,options=>{assert.equal(options.requireTLS,true);assert.equal(options.logger,false);assert.equal(options.debug,false);return{sendMail:async m=>{calls++;assert.equal(saved[0].incident.alertDelivery,'ATTEMPTING');assert.equal(m.to,recipient);assert.ok(m.subject.includes('Arc Testnet'));assert.equal(m.attachments,undefined);assert.equal(m.html,undefined);assert.ok(!m.text.includes(smtp.password));return{accepted:[recipient],rejected:[]};},close:()=>{closed=true;}};},s=>saved.push(structuredClone(s)));
+ assert.equal(calls,1);assert.ok(closed);assert.equal(result.code,'ALERT_INCIDENT_SMTP_ACCEPTED');assert.equal(saved.at(-1).incident.alertDelivery,'ACCEPTED');assert.ok(!JSON.stringify(result).includes(recipient));
+});
+test('an accepted incident is not resent; recovery is sent once and the next incident gets a new ID',async()=>{
+ let d=incident(),sent=[],state;const persist=s=>{state=structuredClone(s);},factory=()=>({sendMail:async m=>{sent.push(m);return{accepted:[recipient],rejected:[]};}});await deliver(d,recipient,smtp,factory,persist);d=transition(state,obs(2));assert.equal(d.action,null);await deliver(d,recipient,null,()=>{throw Error('no-transport-expected');},persist);
+ d=transition(state,obs(3,'UP'));assert.equal(d.action.kind,'RECOVERY');await deliver(d,recipient,smtp,factory,persist);assert.equal(state.incident,null);assert.equal(transition(state,obs(4,'UP')).action,null);assert.equal(sent.length,2);assert.notEqual(sent[0].messageId,sent[1].messageId);
+ d=transition(state,obs(5));d=transition(d.state,obs(6),()=>id.replace(/1$/,'2'));assert.notEqual(d.action.incidentId,id);
+});
+test('unknown SMTP acknowledgement and a crashed ATTEMPTING state never trigger blind resend',async()=>{
+ const d=incident();let state,calls=0;const r=await deliver(d,recipient,smtp,()=>({sendMail:async()=>{calls++;throw Error('private-provider-diagnostic');}}),s=>{state=structuredClone(s);});assert.equal(r.code,'ALERT_DELIVERY_REVIEW_REQUIRED');assert.ok(!JSON.stringify(r).includes('private-provider-diagnostic'));assert.equal(state.incident.alertDelivery,'REVIEW_REQUIRED');assert.equal(calls,1);
+ for(const saved of [state,incident().state])for(const status of ['UP','ATTENTION']){const next=transition(saved,obs(2,status));assert.equal(next.action,null);assert.equal(next.code,'ALERT_DELIVERY_REVIEW_REQUIRED');}
+});
+test('rejected recipient or lost final persistence keeps delivery pending review',async()=>{
+ const rejected=incident();let state;const r=await deliver(rejected,recipient,smtp,()=>({sendMail:async()=>({accepted:[],rejected:[recipient]})}),s=>{state=structuredClone(s);});assert.equal(r.code,'ALERT_DELIVERY_REVIEW_REQUIRED');assert.equal(state.incident.alertDelivery,'REVIEW_REQUIRED');
+ const accepted=incident(),persisted=[];let saves=0;const lost=await deliver(accepted,recipient,smtp,()=>({sendMail:async()=>({accepted:[recipient],rejected:[]})}),s=>{if(++saves===2)throw Error('private-storage-diagnostic');persisted.push(structuredClone(s));});assert.equal(lost.code,'ALERT_DELIVERY_REVIEW_REQUIRED');assert.equal(persisted[0].incident.alertDelivery,'ATTEMPTING');assert.equal(persisted.at(-1).incident.alertDelivery,'REVIEW_REQUIRED');assert.ok(!JSON.stringify(lost).includes('private-storage-diagnostic'));
+});
+test('invalid state and CLI input fail closed without importing the backend or logging private arguments',()=>{
+ assert.throws(()=>transition({...freshState(),failureCount:95},obs()),/ALERT_STATE_INVALID/);const r=cp.spawnSync(process.execPath,[path.join(__dirname,'hosted_alerts.cjs'),'--unknown','private-provider-diagnostic'],{encoding:'utf8',windowsHide:true});assert.equal(r.status,1);assert.ok((r.stdout+r.stderr).includes('ALERT_ARGUMENTS_INVALID'));assert.ok(!(r.stdout+r.stderr).includes('private-provider-diagnostic'));
+});

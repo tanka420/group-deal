@@ -1,0 +1,19 @@
+[Unit]
+Description=GroupDeal operational alert email from the public health probe journal
+After=network-online.target groupdeal-health-probe.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+UMask=0077
+ExecStart=/usr/bin/flock --nonblock /home/ubuntu/groupdeal/operations/alerts-state/alert.lock /home/ubuntu/groupdeal-runtime/node-v24.21.0-linux-x64/bin/node /home/ubuntu/groupdeal/operations/hosted_alerts.cjs --app-root /home/ubuntu/groupdeal/releases/47d853f79ff5c2b1c8ac7f0f8163ca613fb82d9a --state-directory /home/ubuntu/groupdeal/operations/alerts-state --config-file /home/ubuntu/groupdeal/operations/alert-config.json
+TimeoutStartSec=40
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/groupdeal/operations/alerts-state
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SyslogIdentifier=groupdeal-alert

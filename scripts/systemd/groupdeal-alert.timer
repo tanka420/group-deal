@@ -1,0 +1,11 @@
+[Unit]
+Description=Evaluate GroupDeal operational email alerts each minute
+
+[Timer]
+OnActiveSec=10
+OnUnitActiveSec=60
+AccuracySec=5
+Unit=groupdeal-alert.service
+
+[Install]
+WantedBy=timers.target
