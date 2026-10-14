@@ -10,6 +10,7 @@ import {assertCircleFeeBudget,assertCurrentCircleFeeBalance,CircleFeeReviewError
 import {readCircleOperationStatus,circleRecoveryMessage,CircleRecoveryError,type RecoveryOperation,type CircleRecoveryStatus} from '../services/circleOperationRecovery';
 import {UiError,uiMessage} from '../utils/uiMessage';
 import {ExternalFeeReviewModal,type ExternalFeeRequest} from '../components/ExternalFeeReviewModal';
+import {operationRequest,requireMatchingOperation,localBroadcast,type TransactionOperation} from '../services/transactionOperations';
 
 type WalletMode = "EXTERNAL_REOWN" | "CIRCLE_EMBEDDED" | "DISCONNECTED";
 
@@ -50,6 +51,7 @@ interface Web3ContextType {
   createCampaignOnchain: (campaign: CampaignDraftForChain, onBroadcast?: (hash:string)=>void|Promise<void>) => Promise<{ txHash: string }>;
   broadcastPreparedOperation: (operation: {id:string;action:string;resourceId:string;chainId:number;hubAddress:string;principal:string;calldata:string;purchaseQuote?:{lockedUnitPrice:string}},onBroadcast:(hash:string)=>void|Promise<void>) => Promise<{txHash:string}>;
   recoverCircleOperation: (operation:RecoveryOperation)=>Promise<CircleRecoveryStatus>;
+  continueCircleOperation: (operation:TransactionOperation,onBroadcast:(hash:string)=>void|Promise<void>)=>Promise<{txHash:string}>;
   recordDeliveryOnchain: (
     campaignId: number,
     orderId: number,
@@ -360,7 +362,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     intent: CircleIntent,
     stableOperationId?:string,
     onBroadcast?:(hash:string)=>void|Promise<void>,
-    grossUsdc=0n
+    grossUsdc=0n,
+    existingChallengeId?:string
   ): Promise<{ txHash: string }> => {
     if (!token || !circleCredentials || !user?.circleWallet) {
       throw new Error("Vui lòng xác thực lại Circle trước khi ký giao dịch");
@@ -375,7 +378,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     const expectedOwner = user.id;
     const expectedAccount = account;
     const operationId = stableOperationId||`circle:${intent.type.toLowerCase()}:${crypto.randomUUID()}`;
-    const challenge = await readJson(
+    // Continuation uses the verified existing challenge without requesting another one.
+    const challenge = existingChallengeId ? {challengeId:existingChallengeId} : await readJson(
       await fetch("/api/circle/transactions/challenge", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -395,7 +399,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     scope.assertCurrent();
     assertCurrent();
     if(!existing.challenge?.correlationIds?.[0]){
-      if(existing.challenge?.id!==challenge.challengeId||!['PENDING','IN_PROGRESS'].includes(existing.challenge?.status)||!account)throw new CircleFeeReviewError('CIRCLE_FEE_UNAVAILABLE');
+      if(existing.challenge?.id!==challenge.challengeId||!(existingChallengeId?['PENDING']:['PENDING','IN_PROGRESS']).includes(existing.challenge?.status)||!account)throw new CircleFeeReviewError('CIRCLE_FEE_UNAVAILABLE');
       const request:CircleFeeRequest={id:operationId,account,walletId:user.circleWallet.walletId,token,userToken:circleCredentials.userToken,contractAddress,callData,intent,grossUsdc:intent.type==='USDC_APPROVE'?BigInt(intent.amount):grossUsdc,assertCurrent};
       const budget=await reviewCircleFee(request);
       assertCurrent();assertCircleFeeBudget(budget,request);
@@ -413,7 +417,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       assertCurrent();assertCircleFeeBudget(budget,request);
       const latest=await readJson(await fetch('/api/circle/challenges/'+encodeURIComponent(challenge.challengeId),{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({userToken:circleCredentials.userToken})}));
       assertCurrent();
-      if(!latest.challenge?.correlationIds?.[0]){if(latest.challenge?.id!==challenge.challengeId||!['PENDING','IN_PROGRESS'].includes(latest.challenge?.status))throw new CircleFeeReviewError('CIRCLE_FEE_UNAVAILABLE');await assertCurrentCircleFeeBalance(budget,request,assertCurrent);assertCurrent();await executeCircleChallenge(challenge.challengeId);}
+      if(!latest.challenge?.correlationIds?.[0]){if(latest.challenge?.id!==challenge.challengeId||!(existingChallengeId?['PENDING']:['PENDING','IN_PROGRESS']).includes(latest.challenge?.status))throw new CircleFeeReviewError('CIRCLE_FEE_UNAVAILABLE');await assertCurrentCircleFeeBalance(budget,request,assertCurrent);assertCurrent();await executeCircleChallenge(challenge.challengeId);}
     }
     assertCurrent();
     return { txHash: await waitForCircleTransaction(challenge.challengeId,onBroadcast,assertCurrent) };
@@ -441,13 +445,14 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     args: unknown[],
     intent: CircleIntent,
     onBroadcast?: (hash:string)=>void|Promise<void>,
-    stableOperationId?:string
+    stableOperationId?:string,
+    existingCircleChallengeId?:string
   ): Promise<{ txHash: string }> => {
     if (walletMode === "CIRCLE_EMBEDDED") {
       const result=await sendCircleTransaction(
         hubAddress,
         contractInterface.encodeFunctionData(functionName, args),
-        intent,stableOperationId,onBroadcast
+        intent,stableOperationId,onBroadcast,0n,existingCircleChallengeId
       );
       return result;
     }
@@ -508,7 +513,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const broadcastPreparedOperation:Web3ContextType["broadcastPreparedOperation"] = (operation,onBroadcast) => {
+  const broadcastPreparedOperation = (operation:Parameters<Web3ContextType['broadcastPreparedOperation']>[0],onBroadcast:Parameters<Web3ContextType['broadcastPreparedOperation']>[1],existingCircleChallengeId?:string):Promise<{txHash:string}> => {
+    if(existingCircleChallengeId&&(walletMode!=='CIRCLE_EMBEDDED'||operation.action==='BUY'))throw new CircleRecoveryError();
     if(operation.chainId!==ARC_CHAIN_ID||operation.hubAddress.toLowerCase()!==hubAddress.toLowerCase()||operation.principal.toLowerCase()!==account?.toLowerCase())throw new Error("Kết nối đúng ví principal và deployment của intent trước khi ký");
     const iface=new ethers.Interface(HUB_ABI);
     const call=iface.parseTransaction({data:operation.calldata});
@@ -530,7 +536,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     else throw new Error("Thao tác chưa hỗ trợ ký từ lịch sử giao dịch");
     if(iface.encodeFunctionData(call.name,Array.from(call.args)).toLowerCase()!==operation.calldata.toLowerCase())throw new Error("Intent calldata không canonical");
     // Contract argument resolution mutates nested arrays; decoded ethers Results are read-only.
-    return sendHubCall(iface,call.name,call.args.toArray(true),intent,onBroadcast,`circle:${operation.id}`);
+    return sendHubCall(iface,call.name,call.args.toArray(true),intent,onBroadcast,`circle:${operation.id}`,existingCircleChallengeId);
   };
 
   const readOwnedCircleOperation=async(operation:RecoveryOperation,allowMissingReceipt=false)=>{
@@ -540,6 +546,18 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     assertCurrent();return readCircleOperationStatus(operation,token,circleCredentials.userToken,assertCurrent,allowMissingReceipt);
   };
   const recoverCircleOperation:Web3ContextType['recoverCircleOperation']=async(operation)=>{const result=await readOwnedCircleOperation(operation);if(!result)throw new CircleRecoveryError();return result;};
+  const continueCircleOperation:Web3ContextType['continueCircleOperation']=async(operation,onBroadcast)=>{
+    const scope=captureWalletScope();scope.assertCurrent();
+    const assertPending=(current:TransactionOperation)=>{scope.assertCurrent();if(!user||!token||walletMode!=='CIRCLE_EMBEDDED'||current.action==='BUY'||current.phase!=='AWAITING_SIGNATURE'||current.txHash||localBroadcast(user.id,current.id))throw new CircleRecoveryError();};
+    assertPending(operation);
+    const response=await operationRequest<{operation:TransactionOperation}>(token,`/api/transactions/${encodeURIComponent(operation.id)}`);
+    scope.assertCurrent();const current=requireMatchingOperation(response,operation);assertPending(current);
+    const status=await recoverCircleOperation(current);assertPending(current);
+    const hash=status.transaction?.txHash;
+    if(hash){await onBroadcast(hash);scope.assertCurrent();return{txHash:hash};}
+    if(status.challenge.status!=='PENDING'||status.challenge.correlationIds?.length||status.transaction)throw new UiError(circleRecoveryMessage(status));
+    return broadcastPreparedOperation(current,onBroadcast,status.challenge.id);
+  };
 
   const commitToBuyOnchain: Web3ContextType["commitToBuyOnchain"] = async (params) => {
     if (!account || !ethers.isAddress(hubAddress) || !ethers.isAddress(usdcAddress)) throw new Error("Chưa có ví hoặc cấu hình hợp đồng Arc hợp lệ");
@@ -763,6 +781,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         broadcastPreparedOperation,
         commitToBuyOnchain,
         recoverCircleOperation,
+        continueCircleOperation,
         claimBuyerFundsOnchain,
         claimSellerProceedsOnchain,
         confirmReceiptOnchain,

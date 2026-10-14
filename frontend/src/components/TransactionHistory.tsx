@@ -22,7 +22,7 @@ function readHistoryPage(value:{operations:TransactionOperation[];pagination?:{n
  return {operations:value.operations,nextCursor:value.pagination?.nextCursor??null};
 }
 export function TransactionHistory({onRecovered}:{onRecovered?:()=>void}) {
-  const {user,token}=useAuth(),{account,broadcastPreparedOperation,recoverCircleOperation,walletMode}=useWeb3(),{language,text}=useDealLanguage();
+  const {user,token}=useAuth(),{account,broadcastPreparedOperation,recoverCircleOperation,continueCircleOperation,walletMode}=useWeb3(),{language,text}=useDealLanguage();
   const identity=JSON.stringify([user?.id,token,account?.toLowerCase()]),scope=useOperationScope(identity);
   const [operations,setOperations]=useState<TransactionOperation[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState<UiMessage|null>(null),[busy,setBusy]=useState<string|null>(null);
   const [nextCursor,setNextCursor]=useState<string|null>(null);
@@ -33,17 +33,17 @@ export function TransactionHistory({onRecovered}:{onRecovered?:()=>void}) {
   useEffect(()=>{void load();},[load]);
   const update=(operation:TransactionOperation)=>setOperations(current=>current.map(o=>o.id===operation.id?operation:o));
   const loadWithoutError=async(current:()=>boolean)=>{try{const response=await operationRequest<{operations:TransactionOperation[];pagination?:{nextCursor:string|null}}>(token,"/api/transactions");if(!current())return;const page=readHistoryPage(response);setOperations(page.operations);setNextCursor(page.nextCursor);}catch{/* Keep the actionable operation and previous error visible. */}};
-  const act=async(operation:TransactionOperation,sign:boolean,providedHash?:string)=>{
+  const act=async(operation:TransactionOperation,sign:boolean,providedHash?:string,continueCircle=false)=>{
     if(!user||!token)return;const ticket=scope.start();if(!ticket)return;setBusy(operation.id);setError(null);setCircleNotice(null);
     try {
       if(providedHash){if(!/^0x[0-9a-fA-F]{64}$/.test(providedHash))throw new UiError(uiMessage('Hash chưa hợp lệ.','The hash is invalid.'));broadcastCheckpoint(user.id,operation,providedHash);}
       let hash=operation.txHash||localBroadcast(user.id,operation.id);
       if(sign&&!hash) {
-        const response=await operationRequest<{operation:TransactionOperation}>(token,`/api/transactions/${operation.id}/ready`,{});
-        if(!ticket.current())return;
-        const ready={operation:requireReadyOperation(response,operation)};
+        let ready={operation};
+        if(!continueCircle){const response=await operationRequest<{operation:TransactionOperation}>(token,`/api/transactions/${operation.id}/ready`,{});if(!ticket.current())return;ready={operation:requireReadyOperation(response,operation)};}
         if(account?.toLowerCase()!==ready.operation.principal.toLowerCase())throw new UiError(uiMessage("Kết nối ví principal hiển thị bên dưới trước khi ký","Connect the displayed principal wallet before signing"));
-        const result=await broadcastPreparedOperation(ready.operation,async txHash=>{
+        const broadcast=continueCircle?continueCircleOperation:broadcastPreparedOperation;
+        const result=await broadcast(ready.operation,async txHash=>{
           broadcastCheckpoint(user.id,operation,txHash);
           if(ticket.current())update({...ready.operation,phase:'SUBMITTED',txHash});
           await operationRequest(token,`/api/transactions/${operation.id}/submit`,{txHash});await observeBroadcast(token,operation.id,txHash);
@@ -120,6 +120,7 @@ export function TransactionHistory({onRecovered}:{onRecovered?:()=>void}) {
           {hash&&<button className="btn btn-primary" disabled={!!busy} onClick={()=>void act(operation,false)}>{busy===operation.id?text("Đang xác minh…","Verifying…"):text("Kiểm tra receipt và phục hồi","Check receipt and recover")}</button>}
           {resumable&&<button className="btn btn-secondary" disabled={!!busy||account?.toLowerCase()!==operation.principal.toLowerCase()} onClick={()=>void act(operation,true)}>{text("Ký intent đã chuẩn bị","Sign prepared intent")}</button>}
           {!hash&&walletMode==='CIRCLE_EMBEDDED'&&<button type="button" className="btn btn-secondary" disabled={!!busy||loading||account?.toLowerCase()!==operation.principal.toLowerCase()} onClick={()=>void checkCircle(operation)}>{text('Kiểm tra trạng thái Circle','Check Circle status')}</button>}
+          {!hash&&walletMode==='CIRCLE_EMBEDDED'&&operation.phase==='AWAITING_SIGNATURE'&&operation.action!=='BUY'&&<button type="button" className="btn btn-secondary" disabled={!!busy||loading||account?.toLowerCase()!==operation.principal.toLowerCase()} onClick={()=>void act(operation,true,undefined,true)}>{text('Tiếp tục xác thực Circle','Continue Circle authentication')}</button>}
           {!hash&&<form onSubmit={e=>{e.preventDefault();const txHash=new FormData(e.currentTarget).get("txHash");if(user&&typeof txHash==="string"&&/^0x[0-9a-fA-F]{64}$/.test(txHash)){void act(operation,false,txHash);}}}><label htmlFor={`recover-${operation.id}`}>{text("Hash đã gửi từ ví","Hash broadcast by your wallet")}<input id={`recover-${operation.id}`} name="txHash" className="form-input address-value" pattern="0x[0-9a-fA-F]{64}" required autoComplete="off" disabled={!!busy||loading}/></label><button className="btn btn-secondary" disabled={!!busy}>{text("Phục hồi theo hash","Recover using hash")}</button></form>}
           {operation.txHash&&<details><summary>{text("Phục hồi giao dịch tăng phí hoặc hủy từ ví","Recover a wallet speed-up or cancellation")}</summary>
             <p>{text("Server kiểm tra cùng principal và nonce, receipt cùng block và vị trí giao dịch trên chain. RPC không tìm thấy hash chưa đủ kết luận giao dịch đã hủy.","The server checks principal, nonce, canonical receipt and transaction position. An unavailable RPC hash does not prove cancellation.")}</p>
