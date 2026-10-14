@@ -399,8 +399,17 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       const request:CircleFeeRequest={id:operationId,account,walletId:user.circleWallet.walletId,token,userToken:circleCredentials.userToken,contractAddress,callData,intent,grossUsdc:intent.type==='USDC_APPROVE'?BigInt(intent.amount):grossUsdc,assertCurrent};
       const budget=await reviewCircleFee(request);
       assertCurrent();assertCircleFeeBudget(budget,request);
-      // The native dialog must leave the top layer before the SDK portal opens.
-      await new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()));
+      // Wait for the approved dialog to close; frame callbacks pause in background tabs.
+      await new Promise<void>((resolve,reject)=>{
+        const deadline=Date.now()+3_000;
+        const check=()=>{try{
+          assertCurrent();
+          if(!document.querySelector<HTMLDialogElement>('dialog[aria-labelledby="circle-fee-title"]')?.open){resolve();return;}
+          if(Date.now()>=deadline){reject(new CircleFeeReviewError('CIRCLE_FEE_UNAVAILABLE'));return;}
+          window.setTimeout(check,25);
+        }catch(error){reject(error);}};
+        window.setTimeout(check,0);
+      });
       assertCurrent();assertCircleFeeBudget(budget,request);
       const latest=await readJson(await fetch('/api/circle/challenges/'+encodeURIComponent(challenge.challengeId),{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({userToken:circleCredentials.userToken})}));
       assertCurrent();
