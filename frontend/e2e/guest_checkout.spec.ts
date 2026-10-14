@@ -6,12 +6,13 @@ import {emptyCatalog} from './fixtures/catalog';
 // No provider OTP, wallet signatures, financial broadcast or live proof.
 const wallet='0x73307bdd39d875f98857ffce0fed1cdc62f50b6d';
 const pendingKey='groupdeal_checkout:v1:'+wallet+':master';
-async function fixture(page:Page,language='vi',legacy?:string){
+async function fixture(page:Page,language='vi',legacy?:string,login?:'CIRCLE'|'EXTERNAL'){
  const data=masterFixture(),state={reads:0,writes:[] as string[],errors:[] as string[],user:{id:'handoff-fixture',email:null,roles:['buyer'],loginMethod:'EVM_WALLET',activeWallet:wallet},offline:false};
- await page.addInitScript(({language,legacy,pendingKey})=>{if(window.top!==window.self)return;localStorage.setItem('groupdeal_lang',language);if(legacy){localStorage.setItem('groupdeal_token','legacy-session-fixture');localStorage.setItem(pendingKey,legacy);}}, {language,legacy,pendingKey});
+ if(login==='CIRCLE')Object.assign(state.user,{loginMethod:'CIRCLE_EMAIL',circleWallet:{walletId:'fixture-circle-wallet',address:wallet,blockchain:'ARC-TESTNET'}});
+ await page.addInitScript(({language,legacy,pendingKey,login})=>{if(window.top!==window.self)return;localStorage.setItem('groupdeal_lang',language);if(legacy||login)localStorage.setItem('groupdeal_token','legacy-session-fixture');if(legacy)localStorage.setItem(pendingKey,legacy);}, {language,legacy,pendingKey,login});
  await page.route('**/*',route=>new URL(route.request().url()).hostname==='127.0.0.1'?route.continue():route.abort());
  await page.route(/https:\/\/rpc(?:\.[a-z]+)?\.testnet\.arc\.io\/?$/,route=>{
-  const payload=route.request().postDataJSON();const reply=(req:any)=>({jsonrpc:'2.0',id:req.id,result:req.method==='eth_chainId'?'0x4cef52':req.method==='eth_getBalance'?'0x1bc16d674ec80000':req.method==='eth_gasPrice'?'0x4a817c800':'0x'+'0'.repeat(64)});
+  const payload=route.request().postDataJSON();const reply=(req:any)=>({jsonrpc:'2.0',id:req.id,result:req.method==='eth_chainId'?'0x4cef52':req.method==='eth_getBalance'?('0x'+(login?300n*10n**18n:2n*10n**18n).toString(16)):req.method==='eth_gasPrice'?'0x4a817c800':'0x'+'0'.repeat(64)});
   return route.fulfill({json:Array.isArray(payload)?payload.map(reply):reply(payload)});
  });
  await page.route('**/api/**',route=>{
@@ -94,4 +95,23 @@ test('navigating away during sign-in cannot reopen or purchase the previous deal
  const initialReads=state.reads; // StrictMode can make two initial reads in dev.
  await page.evaluate(()=>location.hash='#docs');await session(context,page);await expect(page.getByRole('dialog')).toHaveCount(0);
  await expect(page.locator('.developer-docs')).toBeVisible();expect(new URL(page.url()).hash).toBe('#docs');expect(state.reads).toBe(initialReads);expect(state.writes).toEqual([]);expect(state.errors).toEqual([]);
+});
+
+
+for(const language of ['vi','en'])test('Circle signing preflight '+language+': restored account without signing session creates no purchase intent',async({page})=>{
+ const {state}=await fixture(page,language,undefined,'CIRCLE'),dialog=await review(page);await dialog.locator('.join-agreement input').check();await dialog.locator('.join-submit').click();
+ const transaction=page.locator('dialog.transaction-dialog');await expect(transaction).toContainText(language==='vi'?'Giao dịch thất bại':'Transaction failed');expect(state.writes).toEqual([]);await expect(transaction).toContainText(language==='vi'?'Phiên ký Circle chưa có trong tab này.':'Circle signing is unavailable in this tab.');
+ expect(state.writes).toEqual([]);expect(state.errors).toEqual([]);
+ expect(await page.evaluate(pendingKey=>localStorage.getItem(pendingKey),pendingKey)).toBeNull();
+ expect(await page.evaluate(()=>localStorage.getItem('groupdeal_buy_retry:handoff-fixture:master'))).toBeNull();
+});
+test('Circle signing preflight preserves an existing pending purchase checkpoint',async({page})=>{
+ const retained=JSON.stringify({quantity:1,requireEarlySlot:false,maxGrossUsdc:'105000000',operationId:'retained-circle-intent',phase:'BUY_PENDING',createdAt:1});
+ const {state}=await fixture(page,'vi',retained,'CIRCLE');await page.getByRole('button',{name:'Đóng',exact:true}).click();const dialog=await review(page);await dialog.locator('.join-agreement input').check();await dialog.locator('.join-submit').click();
+ await expect(dialog).toHaveCount(0);await expect(page.getByRole('button',{name:'Kiểm tra lại giao dịch / đơn cũ',exact:true})).toBeVisible();
+ expect(await page.evaluate(pendingKey=>localStorage.getItem(pendingKey),pendingKey)).toBe(retained);expect(state.writes).toEqual([]);expect(state.errors).toEqual([]);
+});
+test('Circle signing preflight does not prevent an external account from requesting authorization',async({page})=>{
+ const {state}=await fixture(page,'en',undefined,'EXTERNAL'),dialog=await review(page);await dialog.locator('.join-agreement input').check();await dialog.locator('.join-submit').click();
+ await expect.poll(()=>state.writes).toEqual(['/api/orders/authorize']);expect(state.errors).toEqual([]);
 });

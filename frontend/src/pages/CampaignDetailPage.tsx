@@ -38,8 +38,8 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
   const { text } = useDealLanguage();
   const [now, setNow] = useState(() => Math.floor(Date.now()/1000));
   useEffect(() => { const timer = window.setInterval(() => setNow(Math.floor(Date.now()/1000)), 15000); return () => window.clearInterval(timer); }, []);
-  const { user, token, getSessionEpoch } = useAuth();
-  const { account, hubAddress, commitToBuyOnchain } = useWeb3();
+  const { user, token, circleCredentials, getSessionEpoch } = useAuth();
+  const { account, hubAddress, walletMode, commitToBuyOnchain } = useWeb3();
 
   const [campaign, setCampaign] = useState<any>(null);
   const [seller, setSeller] = useState<any>(null);
@@ -249,6 +249,11 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
       if (!campaignResponse.ok || !fresh || !["ACTIVE", "PUBLISHED"].includes(fresh.status) || fresh.endTime * 1000 <= Date.now()) throw new UiError(uiMessage("Chiến dịch đã đóng; tiền nạp vẫn ở ví, chưa tạo đơn.", "The campaign closed; funded USDC remains in your wallet and no order was created."));
       const freshPrice = BigInt((fresh.tiers[fresh.currentUnlockedTier] || fresh.tiers[0]).price);
       if (fresh.termsHash !== campaign.termsHash || fresh.onchainCampaignId !== campaign.onchainCampaignId || freshPrice * BigInt(params.quantity) > maxGross) throw new UiError(uiMessage("Điều khoản hoặc giá đã thay đổi. Hãy xem lại chiến dịch trước khi xác nhận mua.", "The terms or price changed. Review the campaign before confirming the purchase."));
+      // A restored account can lack the per-tab Circle signing credentials.
+      if(walletMode==='CIRCLE_EMBEDDED'&&!circleCredentials)throw new UiError(uiMessage(
+        'Phiên ký Circle chưa có trong tab này. Mở Tài khoản để xác thực Circle, rồi quay lại mua.',
+        'Circle signing is unavailable in this tab. Open Account to authenticate Circle, then return to buy.'
+      ));
       // 1. Request EIP-712 buy authorization from backend
       const idempotencyKey=localStorage.getItem(purchaseRetryKey)||`buy:${crypto.randomUUID()}`;localStorage.setItem(purchaseRetryKey,idempotencyKey);
       const authRes = await fetch("/api/orders/authorize", {
