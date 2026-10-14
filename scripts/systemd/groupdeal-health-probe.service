@@ -1,0 +1,17 @@
+[Unit]
+Description=GroupDeal public HTTPS liveness probe
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+ExecStart=/home/ubuntu/groupdeal-runtime/node-v24.21.0-linux-x64/bin/node /home/ubuntu/groupdeal/operations/observe_hosted_health.cjs
+TimeoutStartSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SyslogIdentifier=groupdeal-health-probe
