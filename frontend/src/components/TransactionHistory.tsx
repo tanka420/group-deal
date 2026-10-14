@@ -22,7 +22,7 @@ function readHistoryPage(value:{operations:TransactionOperation[];pagination?:{n
  return {operations:value.operations,nextCursor:value.pagination?.nextCursor??null};
 }
 export function TransactionHistory({onRecovered}:{onRecovered?:()=>void}) {
-  const {user,token}=useAuth(),{account,broadcastPreparedOperation,recoverCircleOperation,continueCircleOperation,walletMode}=useWeb3(),{language,text}=useDealLanguage();
+  const {user,token}=useAuth(),{account,broadcastPreparedOperation,recoverCircleOperation,continueCircleOperation,preflightPreparedOperation,walletMode}=useWeb3(),{language,text}=useDealLanguage();
   const identity=JSON.stringify([user?.id,token,account?.toLowerCase()]),scope=useOperationScope(identity);
   const [operations,setOperations]=useState<TransactionOperation[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState<UiMessage|null>(null),[busy,setBusy]=useState<string|null>(null);
   const [nextCursor,setNextCursor]=useState<string|null>(null);
@@ -40,7 +40,7 @@ export function TransactionHistory({onRecovered}:{onRecovered?:()=>void}) {
       let hash=operation.txHash||localBroadcast(user.id,operation.id);
       if(sign&&!hash) {
         let ready={operation};
-        if(!continueCircle){const response=await operationRequest<{operation:TransactionOperation}>(token,`/api/transactions/${operation.id}/ready`,{});if(!ticket.current())return;ready={operation:requireReadyOperation(response,operation)};}
+        if(!continueCircle){await preflightPreparedOperation(operation);if(!ticket.current())return;const response=await operationRequest<{operation:TransactionOperation}>(token,`/api/transactions/${operation.id}/ready`,{});if(!ticket.current())return;ready={operation:requireReadyOperation(response,operation)};}
         if(account?.toLowerCase()!==ready.operation.principal.toLowerCase())throw new UiError(uiMessage("Kết nối ví principal hiển thị bên dưới trước khi ký","Connect the displayed principal wallet before signing"));
         const broadcast=continueCircle?continueCircleOperation:broadcastPreparedOperation;
         const result=await broadcast(ready.operation,async txHash=>{

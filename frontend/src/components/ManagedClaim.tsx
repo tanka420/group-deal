@@ -10,7 +10,7 @@ import {DialogSurface} from './DialogSurface';
 import {recoverProjectedOperation} from '../services/operationRecovery';
 
 export function ManagedClaim({action,campaignId,orderId,principal,amount,onClaimed}:{action:'BUYER_CLAIM'|'SELLER_CLAIM';campaignId:string;orderId:string;principal:string;amount:bigint;onClaimed:()=>void}){
- const {user,token}=useAuth(),{account,broadcastPreparedOperation}=useWeb3(),{language,text}=useDealLanguage();
+ const {user,token}=useAuth(),{account,broadcastPreparedOperation,preflightPreparedOperation}=useWeb3(),{language,text}=useDealLanguage();
  const identity=JSON.stringify([user?.id,token,account?.toLowerCase(),action,campaignId,orderId,principal.toLowerCase()]),scope=useOperationScope(identity);
  const [open,setOpen]=useState(false),[operation,setOperation]=useState<TransactionOperation|null>(null),[error,setError]=useState<UiMessage|null>(null),[busy,setBusy]=useState(false);
  const trigger=useRef<HTMLButtonElement>(null);
@@ -33,6 +33,7 @@ export function ManagedClaim({action,campaignId,orderId,principal,amount,onClaim
   try{
    let hash=operation.txHash||localBroadcast(user.id,operation.id);
    if(sign&&!hash){
+    await preflightPreparedOperation(operation);if(!ticket.current())return;
     const response=await operationRequest<{operation:TransactionOperation}>(token,`/api/transactions/${operation.id}/ready`,{});if(!ticket.current())return;
     const ready=requireReadyOperation(response,operation);setOperation(ready);
     if(!walletMatches)throw new UiError(uiMessage('Kết nối đúng ví principal trước khi ký.','Connect the principal wallet before signing.'));

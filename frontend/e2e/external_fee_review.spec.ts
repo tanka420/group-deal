@@ -7,7 +7,7 @@ test.setTimeout(45_000);
 const principal='0x73307bdd39d875f98857ffce0fed1cdc62f50b6d',hub='0x2A7aECd1CE90f1284EB060488c8dDEF4b1bE0574',hash='0x'+'3'.repeat(64),blockHash='0x'+'12'.repeat(32),calldata=new ethers.Interface(['function confirmReceipt(uint256,uint256)']).encodeFunctionData('confirmReceipt',[1,1]);
 async function fixture(page:Page,language='en'){
  const user={id:'fixture-external-fee-owner',email:null as string|null,roles:['buyer'],loginMethod:'EVM_WALLET',activeWallet:principal};
- const state={balance:300n*10n**18n,price:1_000_000_000n,invalid:false,signs:0,submits:0,estimates:0,phase:'PREPARED',submitted:null as any,currentUser:user,hold:false,held:0,releases:[] as (()=>void)[]};
+ const state={balance:300n*10n**18n,price:1_000_000_000n,invalid:false,signs:0,submits:0,estimates:0,readies:0,connectedBeforeReady:false,phase:'PREPARED',submitted:null as any,currentUser:user,hold:false,held:0,releases:[] as (()=>void)[]};
  const operation=()=>({id:'external-fee-operation',action:'CONFIRM',resourceId:'external-fee-order',chainId:5042002,hubAddress:hub,principal,calldata,phase:state.phase,createdAt:1,updatedAt:1,...(['SUBMITTED','PROJECTED'].includes(state.phase)?{txHash:hash}:{})});
  await page.addInitScript(language=>{if(top!==self)return;localStorage.setItem('groupdeal_lang',language);localStorage.setItem('groupdeal_token','fixture-external-fee-session');localStorage.setItem('groupdeal_bridge_v2:retained-external-fee','retained-external-fee-checkpoint');},language);
  const wallet=await installCheckoutWallet(page,principal,async({method,params=[]})=>{
@@ -30,7 +30,7 @@ async function fixture(page:Page,language='en'){
  await page.route('**/api/auth/wallets?**',r=>r.fulfill({json:{userId:user.id,activeWallet:principal,wallets:[],pagination:{nextCursor:null},serverTime:Date.now()}}));
  await page.route('**/api/notifications/preferences',r=>r.fulfill({json:{preferences:{inApp:true,email:false},contactStatus:'MISSING'}}));
  await page.route('**/api/transactions',r=>r.fulfill({json:{operations:[operation()],pagination:{nextCursor:null}}}));
- await page.route('**/api/transactions/external-fee-operation/ready',r=>{state.phase='AWAITING_SIGNATURE';return r.fulfill({json:{operation:operation()}})});
+ await page.route('**/api/transactions/external-fee-operation/ready',async r=>{state.readies++;state.connectedBeforeReady=await page.evaluate(()=>(window as any).fixtureWalletRequests.includes('eth_requestAccounts'));state.phase='AWAITING_SIGNATURE';return r.fulfill({json:{operation:operation()}})});
  await page.route('**/api/transactions/external-fee-operation/submit',r=>{state.submits++;state.phase='SUBMITTED';return r.fulfill({status:202,json:{operation:operation()}})});
  await page.route('**/api/transactions/external-fee-operation/recover',r=>{state.phase='PROJECTED';return r.fulfill({json:{operation:operation()}})});
  await page.goto('/#orders');await expect(page.getByRole('button',{name:language==='en'?'Sign prepared intent':'Ký intent đã chuẩn bị',exact:true})).toBeEnabled();
@@ -62,4 +62,17 @@ test('expired external fee consent cannot sign with suspended interval ticks',as
  await page.clock.install();const f=await fixture(page),d=await f.open();await expect(d.locator('[data-external-fee=network]')).toBeVisible();await d.getByRole('checkbox').check();
  const pausedAt=await page.evaluate(()=>Date.now()+100);await page.clock.pauseAt(pausedAt);await page.clock.setSystemTime(pausedAt+60_001);
  await d.getByRole('button',{name:'Continue in wallet',exact:true}).dispatchEvent('click');await expect(d).toContainText('Fees or balance are unavailable');await expect(d.getByRole('checkbox')).not.toBeChecked();expect(f.state.signs).toBe(0);expect(f.state.submits).toBe(0);await f.retained();
+});
+
+test('external preflight blocks a hidden tab before reserving a signature',async({page})=>{
+ const f=await fixture(page);await page.evaluate(()=>Object.defineProperty(document,'visibilityState',{configurable:true,get:()=> 'hidden'}));await page.getByRole('button',{name:'Sign prepared intent',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Bring the GroupDeal tab to the foreground');expect(f.state.readies).toBe(0);expect(f.state.phase).toBe('PREPARED');expect(f.state.signs).toBe(0);expect(await page.evaluate(()=>(window as any).fixtureWalletRequests)).toEqual([]);await f.retained();
+});
+test('external preflight avoids redundant Arc network approval',async({page})=>{
+ const f=await fixture(page);await page.evaluate(()=>{const wallet=(window as any).ethereum,request=wallet.request.bind(wallet);let initialConnect=false;wallet.request=(input:any)=>{if(input.method==='wallet_switchEthereumChain'){if(initialConnect)return Promise.reject({code:4001,message:'Fixture redundant switch denied'});initialConnect=true;}return request(input);};});const d=await f.open();await expect(d.locator('[data-external-fee=network]')).toBeVisible();expect(f.state.connectedBeforeReady).toBe(true);await d.getByRole('checkbox').check();await d.getByRole('button',{name:'Continue in wallet',exact:true}).click();await expect.poll(()=>f.state.submits).toBe(1);expect(f.state.signs).toBe(1);expect(await page.evaluate(()=>(window as any).fixtureWalletRequests.filter((method:string)=>method==='wallet_switchEthereumChain'))).toHaveLength(1);await f.retained();
+});
+test('external preflight switches an actual foreign network before signing',async({page})=>{
+ const f=await fixture(page);await page.evaluate(()=>{const wallet=(window as any).ethereum,request=wallet.request.bind(wallet);let foreign=true;wallet.request=(input:any)=>{if(input.method==='eth_chainId'&&foreign)return Promise.resolve('0xaa36a7');if(input.method==='wallet_switchEthereumChain'){foreign=false;(window as any).foreignSwitchRequested=true;}return request(input);};});const d=await f.open();await expect(d.locator('[data-external-fee=network]')).toBeVisible();expect(f.state.connectedBeforeReady).toBe(true);expect(await page.evaluate(()=>(window as any).foreignSwitchRequested)).toBe(true);await d.getByRole('checkbox').check();await d.getByRole('button',{name:'Continue in wallet',exact:true}).click();await expect.poll(()=>f.state.submits).toBe(1);expect(f.state.signs).toBe(1);await f.retained();
+});
+test('external preflight keeps the held intent if the tab becomes hidden after fee review',async({page})=>{
+ const f=await fixture(page),d=await f.open();await expect(d.locator('[data-external-fee=network]')).toBeVisible();await d.getByRole('checkbox').check();await page.evaluate(()=>Object.defineProperty(document,'visibilityState',{configurable:true,get:()=> 'hidden'}));await d.getByRole('button',{name:'Continue in wallet',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Bring the GroupDeal tab to the foreground');expect(f.state.readies).toBe(1);expect(f.state.phase).toBe('AWAITING_SIGNATURE');expect(f.state.signs).toBe(0);expect(f.state.submits).toBe(0);await expect(page.getByRole('button',{name:'Sign prepared intent',exact:true})).toHaveCount(0);await f.retained();
 });

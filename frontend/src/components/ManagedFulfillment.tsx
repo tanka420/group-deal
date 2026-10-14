@@ -9,7 +9,7 @@ import {DialogSurface} from './DialogSurface';
 import {operationPhaseLabel} from './TransactionHistory';
 
 export function ManagedFulfillment({order,onClose,onDelivered}:{order:{id:string;quantity:number;campaignTitle?:string};onClose:()=>void;onDelivered:()=>void}){
- const {token,user}=useAuth(),{account,broadcastPreparedOperation}=useWeb3(),{text,language}=useDealLanguage();
+ const {token,user}=useAuth(),{account,broadcastPreparedOperation,preflightPreparedOperation}=useWeb3(),{text,language}=useDealLanguage();
  const identity=JSON.stringify([user?.id,token,account?.toLowerCase(),order.id]),scope=useOperationScope(identity),previous=useRef(identity);
  const [operation,setOperation]=useState<TransactionOperation|null>(null),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[loadFailed,setLoadFailed]=useState(false),[error,setError]=useState<UiMessage|null>(null);
  useLayoutEffect(()=>{if(previous.current!==identity){previous.current=identity;setOperation(null);setError(null);setBusy(false);onClose();}},[identity]);
@@ -43,6 +43,7 @@ export function ManagedFulfillment({order,onClose,onDelivered}:{order:{id:string
  const finish=()=>run(async current=>{
   if(!operation||!user)throw new UiError(uiMessage('Chưa có intent giao hàng.','The delivery intent is unavailable.'));let hash=operation.txHash||localBroadcast(user.id,operation.id);
   if(!hash){
+   await preflightPreparedOperation(operation);if(!current())return;
    const response=await operationRequest<{operation:TransactionOperation}>(token,'/api/transactions/'+operation.id+'/ready',{});if(!current())return;
    const ready=requireReadyOperation(response,operation);setOperation(ready);
    if(account?.toLowerCase()!==ready.principal.toLowerCase())throw new UiError(uiMessage('Kết nối đúng ví seller trước khi ký.','Connect the seller wallet before signing.'));

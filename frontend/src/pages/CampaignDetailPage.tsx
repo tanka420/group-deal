@@ -39,7 +39,7 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
   const [now, setNow] = useState(() => Math.floor(Date.now()/1000));
   useEffect(() => { const timer = window.setInterval(() => setNow(Math.floor(Date.now()/1000)), 15000); return () => window.clearInterval(timer); }, []);
   const { user, token, circleCredentials, getSessionEpoch } = useAuth();
-  const { account, hubAddress, walletMode, commitToBuyOnchain } = useWeb3();
+  const { account, hubAddress, walletMode, commitToBuyOnchain, preflightPreparedOperation } = useWeb3();
 
   const [campaign, setCampaign] = useState<any>(null);
   const [seller, setSeller] = useState<any>(null);
@@ -294,6 +294,7 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
         operationId:operation.id,phase: "BUY_PENDING", campaignIdentity: authData.campaignIdentity, onchainCampaignId: fresh.onchainCampaignId, createdAt: Date.now() };
       localStorage.setItem(key, JSON.stringify(intent));
       setFundingIntent(null);
+      await preflightPreparedOperation(operation);assertPurchaseIdentity();
       const ready=await operationRequest<{operation:TransactionOperation}>(token,`/api/transactions/${operation.id}/ready`,{});
       if(ready.operation.calldata!==operation.calldata||!ready.operation.purchaseQuote||BigInt(ready.operation.purchaseQuote.commitmentAmount)>maxGross||accountRef.current?.toLowerCase()!==buyer.toLowerCase())throw new UiError(uiMessage("Intent hoặc quote trước chữ ký đã thay đổi; giữ lượt mua để phục hồi", "The intent or quote changed before signing. Keep the purchase for recovery."));
 

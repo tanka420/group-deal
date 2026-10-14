@@ -15,7 +15,7 @@ async function base(page:Page,role="seller",language:"vi"|"en"="vi") {
   await page.route("https://fonts.googleapis.com/**",r=>r.fulfill({contentType:"text/css",body:""}));
   await page.route("https://asset.example.test/**",r=>r.fulfill({contentType:"image/svg+xml",body:"<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32'/>"}));
   await page.route("**/*circle-fin_w3s-pw-web-sdk.js*",r=>r.fulfill({contentType:"application/javascript",body:"export class W3SSdk{updateConfigs(){}};export default {W3SSdk};"}));
-  await page.route("**/src/context/Web3Context.tsx*",r=>r.fulfill({contentType:"application/javascript",body:`export const Web3Provider=({children})=>children;export const useWeb3=()=>({account:"${activeWallet}",usdcBalance:"10",balanceError:null,walletMode:"EXTERNAL_REOWN",externalSignerReady:true,refreshBalance:async()=>{},broadcastPreparedOperation:async(operation,onBroadcast)=>{localStorage.setItem("fixture-broadcasts",String(Number(localStorage.getItem("fixture-broadcasts")||0)+1));await onBroadcast("${hash}");return {txHash:"${hash}"};}});`}));
+  await page.route("**/src/context/Web3Context.tsx*",r=>r.fulfill({contentType:"application/javascript",body:`export const Web3Provider=({children})=>children;export const useWeb3=()=>({account:"${activeWallet}",usdcBalance:"10",balanceError:null,walletMode:"EXTERNAL_REOWN",externalSignerReady:true,refreshBalance:async()=>{},preflightPreparedOperation:async()=>{localStorage.setItem('fixture-preflights',String(Number(localStorage.getItem('fixture-preflights')||0)+1));},broadcastPreparedOperation:async(operation,onBroadcast)=>{localStorage.setItem("fixture-broadcasts",String(Number(localStorage.getItem("fixture-broadcasts")||0)+1));await onBroadcast("${hash}");return {txHash:"${hash}"};}});`}));
   await page.route("**/api/auth/me",r=>r.fulfill({json:{user:{id:role,email:null,roles:["buyer",role],loginMethod:"EVM_WALLET",activeWallet,sellerProfile:{bio:"Local fixture",verifiedSellerBadge:false,verifiedRightsBadge:false,displayName:"Fixture seller",payoutWallet:wallet}}}}));
   await page.route("**/api/auth/operator/enrollment",r=>r.fulfill({json:operatorFixtureStatus("operator",operatorFixtureWallet,true,true,Date.now())}));
   await page.route("**/api/notifications",r=>r.fulfill({json:{notifications:[],unread:0}}));
@@ -77,6 +77,7 @@ test("seller reviews product/license, stages a publish intent and recovers its b
   await page.getByRole("button",{name:"Ký và xuất bản trên Arc Testnet"}).click();await expect(page.getByRole("alert")).toContainText("Receipt chưa xác minh");
   await page.reload();await page.getByRole("button",{name:"Kiểm tra receipt và phục hồi"}).click();await expect(page.getByRole("heading",{name:/Đã ghép dữ liệu/})).toBeVisible();
   expect(await page.evaluate(()=>localStorage.getItem("fixture-broadcasts"))).toBe("1");
+  expect(await page.evaluate(()=>localStorage.getItem("fixture-preflights"))).toBe("1");
 });
 
 test("seller and operator API errors do not render empty-success or zero financial counters",async({page})=>{

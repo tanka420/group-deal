@@ -13,7 +13,7 @@ import {recoverProjectedOperation} from '../services/operationRecovery';
 type Intent={action:'CONFIRM'|'BREACH'|'SETTLE'}|{action:'DISPUTE';reason:string;evidenceUrls:string[]}|{action:'RESOLVE';buyerPercent:number;notes:string};
 export interface ManagedOrderActionHandle {begin:(orderId:string,principal:string,intent:Intent)=>Promise<boolean>}
 export const ManagedOrderAction=forwardRef<ManagedOrderActionHandle,{onRecovered:()=>void}>(function ManagedOrderAction({onRecovered},ref){
- const {user,token}=useAuth(),{account,broadcastPreparedOperation}=useWeb3(),{language,text}=useDealLanguage();
+ const {user,token}=useAuth(),{account,broadcastPreparedOperation,preflightPreparedOperation}=useWeb3(),{language,text}=useDealLanguage();
  const identity=JSON.stringify([user?.id,token,account?.toLowerCase()]),scope=useOperationScope(identity);
  const [open,setOpen]=useState(false),[operation,setOperation]=useState<TransactionOperation|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState<UiMessage|null>(null);
  useLayoutEffect(()=>{setOpen(false);setOperation(null);setBusy(false);setError(null);},[identity]);
@@ -39,6 +39,7 @@ export const ManagedOrderAction=forwardRef<ManagedOrderActionHandle,{onRecovered
   try{
    let hash=operation.txHash||localBroadcast(user.id,operation.id);
    if(sign&&!hash){
+    await preflightPreparedOperation(operation);if(!ticket.current())return;
     const response=await operationRequest<{operation:TransactionOperation}>(token,`/api/transactions/${operation.id}/ready`,{});if(!ticket.current())return;
     const ready=requireReadyOperation(response,operation);setOperation(ready);
     if(account?.toLowerCase()!==ready.principal.toLowerCase())throw new UiError(uiMessage('Kết nối đúng ví principal trước khi ký.','Connect the principal wallet before signing.'));

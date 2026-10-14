@@ -52,6 +52,7 @@ interface Web3ContextType {
   broadcastPreparedOperation: (operation: {id:string;action:string;resourceId:string;chainId:number;hubAddress:string;principal:string;calldata:string;purchaseQuote?:{lockedUnitPrice:string}},onBroadcast:(hash:string)=>void|Promise<void>) => Promise<{txHash:string}>;
   recoverCircleOperation: (operation:RecoveryOperation)=>Promise<CircleRecoveryStatus>;
   continueCircleOperation: (operation:TransactionOperation,onBroadcast:(hash:string)=>void|Promise<void>)=>Promise<{txHash:string}>;
+  preflightPreparedOperation: (operation:TransactionOperation)=>Promise<void>;
   recordDeliveryOnchain: (
     campaignId: number,
     orderId: number,
@@ -185,6 +186,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [external.address, external.chainId, walletMode]);
 
   const getReadProvider = getArcReadProvider;
+  const assertExternalForeground=()=>{if(document.visibilityState!=='visible')throw new UiError(uiMessage('Đưa tab GroupDeal ra trước để mở ví. Giữ intent hiện tại và kiểm tra lịch sử ví nếu đã gửi giao dịch.','Bring the GroupDeal tab to the foreground to open the wallet. Keep this intent and check wallet history if a transaction was sent.'));};
 
   const ensureArcExternalSigner = async (requireIdentity = true): Promise<ethers.Signer> => {
     const scope=captureWalletScope();
@@ -196,6 +198,10 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!browserProvider || typeof browserProvider.send !== "function") {
       throw new Error("Chưa kết nối ví EVM qua Reown AppKit");
     }
+    const currentChain=await browserProvider.send('eth_chainId',[]);
+    scope.assertCurrent();
+    if(typeof currentChain!=='string'||!/^0x[0-9a-f]+$/i.test(currentChain))throw new Error('Chưa xác minh được mạng của ví ngoài');
+    if(BigInt(currentChain)!==BigInt(ARC_CHAIN_ID)) {
     try {
       await browserProvider.send("wallet_switchEthereumChain", [{ chainId: ARC_CHAIN_HEX }]);
     } catch (error: any) {
@@ -210,6 +216,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
           blockExplorerUrls: ["https://testnet.arcscan.app"],
         },
       ]);
+    }
     }
     scope.assertCurrent();
     const signer = await external.getSigner();
@@ -227,6 +234,13 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const getExternalSigner = () => ensureArcExternalSigner();
+  const preflightPreparedOperation:Web3ContextType['preflightPreparedOperation']=async(operation)=>{
+    // Keep Circle's existing challenge/credential policy; this preflight is for external wallets.
+    if(walletMode!=='EXTERNAL_REOWN')return;
+    const scope=captureWalletScope();scope.assertCurrent();
+    if(!user||operation.phase!=='PREPARED'||operation.txHash||localBroadcast(user.id,operation.id)||operation.chainId!==ARC_CHAIN_ID||operation.hubAddress.toLowerCase()!==hubAddress.toLowerCase()||operation.principal.toLowerCase()!==account?.toLowerCase())throw externalStopped();
+    assertExternalForeground();await ensureArcExternalSigner();scope.assertCurrent();assertExternalForeground();
+  };
   const reconnectExternalWallet = async () => { await ensureArcExternalSigner(); };
   const externalSignerReady = Boolean(external.connected && external.provider && account &&
     external.address?.toLowerCase() === account.toLowerCase());
@@ -431,10 +445,11 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       const scope=captureWalletScope(),principal=account,owner=user?.id,expectedExternal=externalIdentityRef.current;
       const assertCurrent=()=>{scope.assertCurrent();const active=externalIdentityRef.current;if(!principal||!owner||walletOwnerRef.current!==owner||selectedAccountRef.current?.toLowerCase()!==principal.toLowerCase()||circleIdentityRef.current.walletMode!=='EXTERNAL_REOWN'||active.address&&active.address.toLowerCase()!==principal.toLowerCase()||expectedExternal.connected&&!active.connected)throw externalStopped();};
       const assertWallet=async()=>{assertCurrent();const provider=signer.provider as ethers.BrowserProvider|null;if(!provider||typeof provider.send!=='function')throw externalStopped();const [accounts,chain]=await Promise.all([provider.send('eth_accounts',[]),provider.send('eth_chainId',[])]);assertCurrent();if(!Array.isArray(accounts)||typeof accounts[0]!=='string'||accounts[0].toLowerCase()!==principal!.toLowerCase()||BigInt(chain)!==BigInt(ARC_CHAIN_ID))throw externalStopped();};
-      assertCurrent();await assertWallet();
+      assertCurrent();assertExternalForeground();await assertWallet();
       const request:ExternalFeeRequest={id:crypto.randomUUID(),account:principal!,to,data,intent,grossUsdc,assertCurrent};
       const budget=await new Promise<CallBudget>((resolve,reject)=>{externalFeePending.current={request,resolve,reject};setExternalFeeRequest(request);});
       await assertCurrentCallBudget(budget,request,assertCurrent);await assertWallet();assertCurrent();assertReviewedCallBudget(budget,request);
+      assertExternalForeground();
       return await send();
     }finally{externalTransactionFlight.current=false;}
   };
@@ -782,6 +797,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         commitToBuyOnchain,
         recoverCircleOperation,
         continueCircleOperation,
+        preflightPreparedOperation,
         claimBuyerFundsOnchain,
         claimSellerProceedsOnchain,
         confirmReceiptOnchain,

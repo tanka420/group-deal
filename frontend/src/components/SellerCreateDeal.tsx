@@ -41,7 +41,7 @@ function readCheckpoint(key:string,protocolVersion:1|2):EditorCheckpoint|null{
 export function SellerCreateDeal({onCreated,initialDraftId}:{onCreated:()=>void;initialDraftId?:string}) {
   const {language,text}=useDealLanguage();
   const steps=[text("Sản phẩm","Product"),text("Quyền phân phối","Distribution rights"),text("Giá và số lượng","Pricing and quantity"),text("Giao hàng","Delivery"),text("Kiểm tra và xuất bản","Review and publish")];
-  const {token,user}=useAuth(),{account,broadcastPreparedOperation}=useWeb3();
+  const {token,user}=useAuth(),{account,broadcastPreparedOperation,preflightPreparedOperation}=useWeb3();
   const [step,setStep]=useState(0),[product,setProduct]=useState<ProductItem|null>(null),[title,setTitle]=useState("");
   const [replacementFor,setReplacementFor]=useState<ReplacementFor|null>(null),initialOpened=useRef(false);
   const [previewMode,setPreviewMode]=useState<"desktop"|"mobile">("desktop");
@@ -207,6 +207,7 @@ export function SellerCreateDeal({onCreated,initialDraftId}:{onCreated:()=>void;
     if(saved) {const recovered=await request(`/api/transactions/${prepared.operation.id}/recover`,{txHash:saved});if(recovered.operation?.phase!=="PROJECTED")throw new UiError(uiMessage("Receipt chưa ghép vào projection; giữ intent để tiếp tục kiểm tra.","The receipt has not been projected yet. Keep this intent for further recovery."));localStorage.removeItem(key);sessionStorage.removeItem(checkpointStorageKey);onCreated();return;}
     if(prepared.operation.phase!=="PREPARED")throw new UiError(uiMessage("Intent đang chờ xác minh nhưng chưa có hash. Kiểm tra lịch sử ví và phục hồi intent; không ký lại.","The intent is awaiting verification without a transaction hash. Check wallet history and recover this intent; do not sign again."));
     if(!account||account.toLowerCase()!==prepared.operation.principal.toLowerCase())throw new UiError(uiMessage("Kết nối đúng ví nhận tiền của seller trước khi ký","Connect the seller payout wallet before signing"));
+    await preflightPreparedOperation(prepared.operation);if(!alive.current)return;
     const ready=await operationRequest<{operation:TransactionOperation}>(token,`/api/transactions/${prepared.operation.id}/ready`,{});
     setPrepared(old=>old?{...old,operation:ready.operation}:old);
     const chain=await broadcastPreparedOperation(ready.operation,async hash=>{

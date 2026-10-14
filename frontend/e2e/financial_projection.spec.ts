@@ -13,7 +13,7 @@ async function ordersFixture(page: Page, verified = true, unknownReceipt=false) 
   await page.route("**/src/context/Web3Context.tsx*", r=>r.fulfill({contentType:"application/javascript",body:`
     export const Web3Provider=({children})=>children;
     export const useWeb3=()=>({account:"${buyer}",usdcBalance:"10",balanceError:null,walletMode:"EXTERNAL_REOWN",externalSignerReady:true,
-      broadcastPreparedOperation:async(operation,onBroadcast)=>{window.fixtureClaims={campaignId:1,orderIds:[1]};localStorage.setItem("fixture-claim-broadcasts",String(Number(localStorage.getItem("fixture-claim-broadcasts")||0)+1));await onBroadcast("${claimHash}");return {txHash:"${claimHash}"}},refreshBalance:async()=>{}});`}));
+      preflightPreparedOperation:async()=>{},broadcastPreparedOperation:async(operation,onBroadcast)=>{window.fixtureClaims={campaignId:1,orderIds:[1]};localStorage.setItem("fixture-claim-broadcasts",String(Number(localStorage.getItem("fixture-claim-broadcasts")||0)+1));await onBroadcast("${claimHash}");return {txHash:"${claimHash}"}},refreshBalance:async()=>{}});`}));
   await page.route("**/api/auth/me", r=>r.fulfill({contentType:"application/json",body:JSON.stringify({user:{id:"buyer",email:null,roles:["buyer"],activeWallet:buyer,loginMethod:"EVM_WALLET"}})}));
   await page.route("**/api/notifications", r=>r.fulfill({contentType:"application/json",body:'{"notifications":[],"unread":0}'}));
   await page.route("**/api/transactions",r=>r.fulfill({json:{operations:started?[{...operation,phase,...(phase==="PREPARED"?{}:{txHash:claimHash})}]:[]}}));
