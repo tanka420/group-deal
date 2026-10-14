@@ -1,0 +1,12 @@
+[Unit]
+Description=GroupDeal encrypted backup hourly
+
+[Timer]
+OnActiveSec=1
+OnCalendar=hourly
+Persistent=true
+AccuracySec=1
+Unit=groupdeal-backup.service
+
+[Install]
+WantedBy=timers.target

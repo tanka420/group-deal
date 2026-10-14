@@ -1,5 +1,5 @@
 [Unit]
-Description=GroupDeal public HTTPS liveness probe
+Description=GroupDeal public HTTPS liveness and verified backup freshness probe
 After=network-online.target
 Wants=network-online.target
 
@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=oneshot
 User=ubuntu
 Group=ubuntu
-ExecStart=/home/ubuntu/groupdeal-runtime/node-v24.21.0-linux-x64/bin/node /home/ubuntu/groupdeal/operations/observe_hosted_health.cjs
+ExecStart=/home/ubuntu/groupdeal-runtime/node-v24.21.0-linux-x64/bin/node /home/ubuntu/groupdeal/operations/observe_hosted_health.cjs --backup-state-file /home/ubuntu/groupdeal/operations/backups/LATEST.json
 TimeoutStartSec=20
 NoNewPrivileges=true
 PrivateTmp=true
