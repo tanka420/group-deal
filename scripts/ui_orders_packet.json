@@ -1,0 +1,102 @@
+{
+  "baselineCommit": "e1968bafe0eaa766eacc67580997f217e7e6fab8",
+  "applicationCommit": "f3ae044ff121a569b8160946657876637992dda7",
+  "files": [
+    {
+      "path": "backend/test/support_browser_server.test.ts",
+      "sha256": "5a8b8b6b1b16c822cb6554ab0d5844d62ae40f8396a8acd3add2879e5048ce58"
+    },
+    {
+      "path": "config/nginx/groupdeal-app-routes.conf",
+      "sha256": "4a8e8b81f0ceb7882d0e095515e1742dec89894d2aced734cd7b357fc4ee80d2"
+    },
+    {
+      "path": "frontend/e2e/buyer_integration.spec.ts",
+      "sha256": "7c47e71e2ed1f63dc63594a7fe2d463bfb43ccde8a56777da15c5a38bf96dc8e"
+    },
+    {
+      "path": "frontend/e2e/buyer_order_view.spec.ts",
+      "sha256": "afc26fbacd26b4b6176d0ad022277b2e91a382693c993443187365dc9b74d1f4"
+    },
+    {
+      "path": "frontend/e2e/buyer_resources.spec.ts",
+      "sha256": "1b053fd23a69aa9b8b56808da5ca67f81c8887a4d7e2f9edb08dc42636e0861d"
+    },
+    {
+      "path": "frontend/e2e/operator_deal_sections.spec.ts",
+      "sha256": "17ab4076905e457b8d9911e87589611e8ddb63de012111022337cdbbb6688a09"
+    },
+    {
+      "path": "frontend/e2e/seller_follow.spec.ts",
+      "sha256": "5dc4e7f35d92ec9f733092906438c6f8a857ba414d90fcdb97bb72e99135f906"
+    },
+    {
+      "path": "frontend/src/App.tsx",
+      "sha256": "38b23339d8c264c186349fe7323e86c509599075536e68b019e7bd7be31d0026"
+    },
+    {
+      "path": "frontend/src/components/Header.tsx",
+      "sha256": "279ccf8d36541a10d65f13e1806513e74622d7caf58d0faaf216a49a377606ee"
+    },
+    {
+      "path": "frontend/src/components/OperatorDealDetail.tsx",
+      "sha256": "04c794bccea24e84469db89c4a264103033a57381c56e6e00add07d863758808"
+    },
+    {
+      "path": "frontend/src/components/OperatorDealDisputes.tsx",
+      "sha256": "d0b0cc586a6d2a2e41667fa503e0593ab0df177f961e914429282ff80e7c70be"
+    },
+    {
+      "path": "frontend/src/components/OrderConversation.tsx",
+      "sha256": "b9fb89d31ba5eeaffe6e8131d771aaed2d366bd8318245ac47ec77d36cdb1bc2"
+    },
+    {
+      "path": "frontend/src/components/OrderList.tsx",
+      "sha256": "1833795aa03ce6412cbfd7fb19cd3a198d3f9e2c4edfd5b8d629a0ab0d55ffe4"
+    },
+    {
+      "path": "frontend/src/components/OrderReference.tsx",
+      "sha256": "5e3de996f0f78886a2bab4765426b44bcb60a9a1eee12056884598cbc8a42d83"
+    },
+    {
+      "path": "frontend/src/pages/BuyerDashboard.tsx",
+      "sha256": "2590fca426d6b0c6ae7964ff3b753b45caca359526e8f8047e3305fd6b8c6f16"
+    },
+    {
+      "path": "frontend/src/pages/SellerDashboard.tsx",
+      "sha256": "55955dbdd858bdefca24c4a36b482fdd83a823efe0c6d9e2dccba6b0181431a2"
+    },
+    {
+      "path": "frontend/src/pages/SupportPage.tsx",
+      "sha256": "3c55b171a46b7a45c15bdc57f68165d7cdca425d81f2bf97361f0862ee1f09df"
+    },
+    {
+      "path": "frontend/src/services/notificationInbox.ts",
+      "sha256": "93e17fcd7fdf192765965f1de232b0580007f02fd1eedf3049b3fc77feedeafd"
+    },
+    {
+      "path": "frontend/src/services/orderList.ts",
+      "sha256": "ffd1888bda39d2294a4c08d3d65828c1cd52f84f14732aa82f52d988d52ef9f7"
+    },
+    {
+      "path": "frontend/src/styles/orders.css",
+      "sha256": "1551b039cf187bf634dace10696c9a17bf12fb18927ab373b18c208da63d05ed"
+    },
+    {
+      "path": "frontend/src/utils/appRoute.ts",
+      "sha256": "1bcd966749e128050f078abf89048941670a65092d2f2c3d3a15ae29a019189c"
+    },
+    {
+      "path": "frontend/test/app_route.test.ts",
+      "sha256": "1ea694fe94d83690057c67757423d5896d99c59460af46691cb75f7e1cc5e950"
+    },
+    {
+      "path": "frontend/test/order_list.test.ts",
+      "sha256": "243605fc7471c666baa69c9e38dec6abadf16c56393cfbfb7868723682de428c"
+    },
+    {
+      "path": "reports/ui-integration/2026-10-15/PACKAGE_03.md",
+      "sha256": "b02da87c028b56e33e7a4495f5af590e661c21bc787c05760d2d55fec8cbaad0"
+    }
+  ]
+}
