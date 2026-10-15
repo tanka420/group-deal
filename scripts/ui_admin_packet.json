@@ -1,0 +1,222 @@
+{
+  "baselineCommit": "79b0e6e7cc29bd859e799c2bea75a3261203441e",
+  "applicationCommit": "eef7e215fd2309e23fd3e2b5962adb3a0fa6d219",
+  "files": [
+    {
+      "path": "backend/src/db/operatorAccountRead.ts",
+      "sha256": "c0c9f6c83e608500c7bbc70b246a8df1febc23fda005cc6b9a274738d48d2694"
+    },
+    {
+      "path": "backend/src/db/rowPersistence.ts",
+      "sha256": "c23291cae50c375655a748f0a3968598fa20785a97920433468918c44533b931"
+    },
+    {
+      "path": "backend/src/db/store.ts",
+      "sha256": "6cd334934c5895174b868934a4925fdf5d6d91b3c57eecb9281c54957a7bb15c"
+    },
+    {
+      "path": "backend/src/domain/sessionRealm.ts",
+      "sha256": "0a8a80c34ae56c3117226a858771d3619c02ce9345fb53cadf6b968507760f44"
+    },
+    {
+      "path": "backend/src/domain/walletAuthentication.ts",
+      "sha256": "d9befc0e9fb54a81d0e288a341eb5e5e24002b4dc3986f2dc7ae44ffbc531b39"
+    },
+    {
+      "path": "backend/src/index.ts",
+      "sha256": "5ca3b264bac00f4787f508a30b5dcc934f3790e0ed1aed45e5aa46f28eb25e53"
+    },
+    {
+      "path": "backend/src/middleware/auth.ts",
+      "sha256": "df0b71928831446902cbb6e4a472cf0dfdc63c49c2c7f16dc9b937952a1188c0"
+    },
+    {
+      "path": "backend/src/routes/authRoutes.ts",
+      "sha256": "4377180614a96bfd7aea18392f9b1d989b5c36478b2ac7af4ff991c654aebd3b"
+    },
+    {
+      "path": "backend/src/routes/operationRoutes.ts",
+      "sha256": "6aced0c60d9ccd38a63e5ceecb085d4e380c8b828d3004e9c0301810db723d87"
+    },
+    {
+      "path": "backend/src/routes/operatorRoutes.ts",
+      "sha256": "09b2ee04cbf935695fcd8d627a985b030582dd498e761d08bbc28003819a70c4"
+    },
+    {
+      "path": "backend/src/services/authService.ts",
+      "sha256": "8a9d96ef159b77d4c9d96a3338e068bb657006c455c85f503bf784ac95951748"
+    },
+    {
+      "path": "backend/src/services/operationHistory.ts",
+      "sha256": "69dd35659dc4e64dd68a49e885a5ce9e710ec1f921268977e22e6487548a3e6d"
+    },
+    {
+      "path": "backend/src/services/operatorAdministrationService.ts",
+      "sha256": "f7e1922ec57083617d2cc31b6948058b674898f42898adfac2c13dbf9bd6f7ff"
+    },
+    {
+      "path": "backend/src/services/sessionService.ts",
+      "sha256": "abe390fdd7b90fb1057c6bfd23a81aadcc39d69664fbb5e2978098264a771278"
+    },
+    {
+      "path": "backend/test/admin_session.test.ts",
+      "sha256": "376db5b7bb7d304c42ba52d3aae760ca31b881a5816c032051ef772cfe5418ec"
+    },
+    {
+      "path": "backend/test/operator_administration.test.ts",
+      "sha256": "9637956cc41054b8904f8246f3156fc6e47fea82f1640817ce7b3fa569de1a9a"
+    },
+    {
+      "path": "backend/test/operator_audit.test.ts",
+      "sha256": "54719f8da97d3e8af83593aab5150e9c64cbcb46f1c138e88cfe9c4ec9faacdd"
+    },
+    {
+      "path": "backend/test/operator_badge.test.ts",
+      "sha256": "a8ac2716625af337e304099a88a979203a9c10c6986ff0cd934ad0c7711bc446"
+    },
+    {
+      "path": "backend/test/operator_badge_commands.test.ts",
+      "sha256": "ea6a92b0d46f64b0134ddcb67021a43419811d5f567b466237764a691276238a"
+    },
+    {
+      "path": "backend/test/operator_deal_sections.test.ts",
+      "sha256": "e4c57696531a3e01fc999293445d8414c72c6c4a4d82c14b61957a88fc375a93"
+    },
+    {
+      "path": "backend/test/operator_deal_view.test.ts",
+      "sha256": "072f88f54934e056efa49b169a2d650eac20687b4b9b0ad634a9fd567b067560"
+    },
+    {
+      "path": "backend/test/operator_mail_browser_server.test.ts",
+      "sha256": "fb2e21b0a7f1e5ce726a1cd10c2f7d7b62d51e1a8fcf5f30e577011e8f77f40d"
+    },
+    {
+      "path": "backend/test/operator_mixed_access.test.ts",
+      "sha256": "e7c726baf9d590982f23ecdfad8af1f22eac6eda5bf0b529df10d0afc4ad20d0"
+    },
+    {
+      "path": "backend/test/operator_resolve_access.test.ts",
+      "sha256": "8b3699ec4f9d8246eb368dc95d3346f4c363e188626fcc562ce07e1bf4730eed"
+    },
+    {
+      "path": "config/nginx/groupdeal-app-routes.conf",
+      "sha256": "cf9107e6cf024f12cc95d8f3f6e9579f14207c87be4b62d80973f36cf3a6ff5f"
+    },
+    {
+      "path": "frontend/e2e/admin_routes.spec.ts",
+      "sha256": "735240ccaaffc46788877fbcb384929e920151ea0dce5b3d7e7d4e26885a596e"
+    },
+    {
+      "path": "frontend/e2e/admin_session.spec.ts",
+      "sha256": "44943aff24d8648f54cd9521d9aeda35601da65104ceb9aace87521fdd1c2f81"
+    },
+    {
+      "path": "frontend/e2e/application_ui.spec.ts",
+      "sha256": "9c3c3e6bc6ba7f277e006c8bfb7c5dda065a0774100a480f41259f691cb912da"
+    },
+    {
+      "path": "frontend/e2e/auth_sessions.spec.ts",
+      "sha256": "34a3f0c4d8e2f3fac6d6d240a202f1459b6a1c176f2fb8f135580b18e3cfe3b1"
+    },
+    {
+      "path": "frontend/e2e/fixtures/operator-native.ts",
+      "sha256": "a47084bb887ad4712c9bf01d93d7554ead9d72a396274bc7b7261251cee76144"
+    },
+    {
+      "path": "frontend/e2e/operator_access.spec.ts",
+      "sha256": "9b61e64689ce1e9b5969e83a4b548f5a2784b170c2e8e3374c883844757bf183"
+    },
+    {
+      "path": "frontend/e2e/operator_deal_sections.spec.ts",
+      "sha256": "1d826b7d321d0ef68a7854066841dd02356f406bfd98162ade331f9f48fe723c"
+    },
+    {
+      "path": "frontend/e2e/operator_deep_links.spec.ts",
+      "sha256": "f2eaa8d9f02959dac9aa436738d413fbb0ef32b7e5127c7fb42e493d65b17859"
+    },
+    {
+      "path": "frontend/src/App.tsx",
+      "sha256": "dcc81107783d12332139d80b525451fa2177d2df559fc0162365199d5b0335e4"
+    },
+    {
+      "path": "frontend/src/components/AdminHeader.tsx",
+      "sha256": "d8ab061b61345e7692dfc5d4ad2034863767052e59db751dbbeeebd4a08a0799"
+    },
+    {
+      "path": "frontend/src/components/AdminWorkspace.tsx",
+      "sha256": "2e1a0da3495752627f211a9a08b51ac4b12de62989d52b5721e6b40f2cbbbb4b"
+    },
+    {
+      "path": "frontend/src/components/OperatorAccess.tsx",
+      "sha256": "7af12cfeca717b4e4475c6daf81d21234bc2eb2a64e79486f6e0473c78bfc7f7"
+    },
+    {
+      "path": "frontend/src/components/OperatorAccountProfile.tsx",
+      "sha256": "beeaf4f29d3fd4ea31d9822aa37b23361916eb0cfbf317550388d7c9b3dd3828"
+    },
+    {
+      "path": "frontend/src/components/OperatorAdministration.tsx",
+      "sha256": "69b2c38c934642b1f5d62dc492ce6bbaa668d1a79368fec17f226cce181fbf7b"
+    },
+    {
+      "path": "frontend/src/components/OperatorPermissions.tsx",
+      "sha256": "d4b057afdf22a6f3a62167758ce34f150f1a645c0527abb57f7303060ef42504"
+    },
+    {
+      "path": "frontend/src/components/OperatorSellerVerification.tsx",
+      "sha256": "ae47a1167f2ff74cca1cb18cf02a9574e796abb954649385f90389dac2943c58"
+    },
+    {
+      "path": "frontend/src/components/OperatorWorkspaceNavigation.tsx",
+      "sha256": "b48b81ffc2e01ebaefd4888607ff62aa1ac883f6f96555169ed51684a03486e6"
+    },
+    {
+      "path": "frontend/src/components/SessionManager.tsx",
+      "sha256": "6f8bf2cd4d5175db298329dd2b31010f9c73d58f4663bda6fb7d7a88d9b7ac6e"
+    },
+    {
+      "path": "frontend/src/context/AuthContext.tsx",
+      "sha256": "1e31bd038bfed1c78e8f2c31a3e17e9374ae3e93a39b8fd0933b6f79a52c8e20"
+    },
+    {
+      "path": "frontend/src/context/Web3Context.tsx",
+      "sha256": "59bf45298eff2a363106956402a5bf35bd6d467daa82472f669a90497f5782df"
+    },
+    {
+      "path": "frontend/src/index.css",
+      "sha256": "dbc2704e038b6a1bdc17ae811a19fc4e19186883ab4f03dca90bed8c80d7757c"
+    },
+    {
+      "path": "frontend/src/pages/OperatorPortal.tsx",
+      "sha256": "61cd77c4ebc03c8fb522beb7c1a5cdb343c0edaf0793c9e8a0c3f273efdc48a7"
+    },
+    {
+      "path": "frontend/src/pages/SupportPage.tsx",
+      "sha256": "9b98d76fd69588b55293af6cf21bfe0473fc839b54340263f669a9e1c5523c66"
+    },
+    {
+      "path": "frontend/src/services/adminLogin.ts",
+      "sha256": "31b55f4c04bc141b2de615c774ed79bde9552e8ed933b0912949ac604c4a6a3c"
+    },
+    {
+      "path": "frontend/src/services/operatorAdministration.ts",
+      "sha256": "65cdec4a2988b10b30ddcb7fec9b3be545430a186c233abaa4b09b3adae404e4"
+    },
+    {
+      "path": "frontend/src/services/operatorEnrollment.ts",
+      "sha256": "6e21ab28a184c5baee69701887f651a9dfbf44c2530f49356a9ba8d2932d706b"
+    },
+    {
+      "path": "frontend/src/services/operatorNavigation.ts",
+      "sha256": "4d4130a88e7b333c0dbc918201a0e0cb22471778e1498c9eb478abb4ac58e725"
+    },
+    {
+      "path": "frontend/src/utils/appRoute.ts",
+      "sha256": "d3e7d928433bf14d9074d986d581257fca3a9186535d27fbb9961d2fd2ff780d"
+    },
+    {
+      "path": "frontend/test/app_route.test.ts",
+      "sha256": "d38419ba034f2d854e927211e11bc16deec083c1630ba9df7d306904ba975ed7"
+    }
+  ]
+}
