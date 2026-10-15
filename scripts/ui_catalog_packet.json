@@ -1,0 +1,78 @@
+{
+  "baselineCommit": "c5531fff274985a8c441fdb95a41f7fb17325e3e",
+  "applicationCommit": "8d31d1691885238b0b0045335cc2aeccfadedac8",
+  "files": [
+    {
+      "path": "backend/src/services/publicPagination.ts",
+      "sha256": "1085b29f938afe0a8dcbcff48328a7210b5eb28a413466529509fbb8a8a78345"
+    },
+    {
+      "path": "backend/test/public_catalog.test.ts",
+      "sha256": "d984503c857c402f661ba49a05a11a49e07ea85ed796a0b642d70d0f96b21213"
+    },
+    {
+      "path": "frontend/e2e/catalog.spec.ts",
+      "sha256": "0b0e4a1a5b3176583adb6d16b5c387399c83bb6799f91e2ae170009e63f171ca"
+    },
+    {
+      "path": "frontend/e2e/fixtures/catalog.mjs",
+      "sha256": "fdf24f0f4ecc50333170f661e27f1c333db976cf787e1c788e44ca32b41aec49"
+    },
+    {
+      "path": "frontend/src/App.tsx",
+      "sha256": "9e12733a8456fb0db1c5d8fb709e655ad0a6e6f1b70a5123c8b4149bec82a01e"
+    },
+    {
+      "path": "frontend/src/components/Header.tsx",
+      "sha256": "826fa995ac114650e5abfc7198534297558b01210e97176ed6a644632bc3d165"
+    },
+    {
+      "path": "frontend/src/components/PrimaryNavigation.tsx",
+      "sha256": "305e4e9c8d37bce4f2a5bf143bdbf7f7fe8d5ce1aff9c155e273620920cd546e"
+    },
+    {
+      "path": "frontend/src/pages/ExplorePage.tsx",
+      "sha256": "a642322802a603968dc381d6ca3334acb167ec7fca6c4422e38da60837aa770b"
+    },
+    {
+      "path": "frontend/src/pages/HomePage.tsx",
+      "sha256": "65c068281a4b21d3075244c4f1c9c2b3215a3bd4a9606391f793bc8e2287c9fe"
+    },
+    {
+      "path": "frontend/src/services/catalog.ts",
+      "sha256": "b963488943c7d3d3dae7cf48e90de3ef1b67865e8418283c1dfbb13ba6420113"
+    },
+    {
+      "path": "frontend/src/styles/catalog.css",
+      "sha256": "e45b88348c0b480370d9e2ed1903b813285a5358fdfecd0d653afec45ac57c88"
+    },
+    {
+      "path": "frontend/src/styles/home.css",
+      "sha256": "aa9b3036cb40ee51b641466a741165580a75b3621e6daa7ea8c407fad0116d27"
+    },
+    {
+      "path": "frontend/src/utils/appRoute.ts",
+      "sha256": "534d1ef60a6f611d93dfe74baa477d1d0dd9bbd7b1edf5447ffb1fc1f7ae6e2d"
+    },
+    {
+      "path": "frontend/test/app_route.test.ts",
+      "sha256": "a7d967cb5b73b7f3d82b8b52d5ce06b0dcc6e46e6475f5b7a2c88c196a286e65"
+    },
+    {
+      "path": "reports/ui-integration/2026-10-15/PACKAGE_02.md",
+      "sha256": "bec486d420a9d552f81ca0a3cff8cd14bf6849c79e3c025b3c80d7bcd753c4fe"
+    },
+    {
+      "path": "scripts/run_catalog_checks.cjs",
+      "sha256": "c11222339dc72e8900e313d6edada33579b0ed74bb53e3fa542d051c7601258c"
+    },
+    {
+      "path": "shared/catalogQuery.d.mts",
+      "sha256": "0679885c78dc7c34dc42f516a97aa392f90d1b26ff22780cdacf447b932d1a16"
+    },
+    {
+      "path": "shared/catalogQuery.mjs",
+      "sha256": "26d1303c77dd24dbf1bb599938e20e86995c2ddbb94919f6c80165994368aafa"
+    }
+  ]
+}

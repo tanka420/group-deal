@@ -15,6 +15,7 @@ on:
           - full
           - current-arc-delta
           - ui-foundation
+          - ui-catalog
 
 permissions:
   contents: read
@@ -134,6 +135,43 @@ jobs:
           name: ui-foundation-${{ github.sha }}
           path: |
             .cache/ui-foundation-*.json
+            .cache/browser-run-*.json
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
+
+  ui-catalog:
+    if: github.event_name == 'workflow_dispatch' && inputs.scope == 'ui-catalog'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '24.21.0'
+          package-manager-cache: false
+      - name: Check exact source scope
+        run: node scripts/run_ui_catalog_checks.cjs --check-scope
+      - name: Locked affected dependencies
+        run: |
+          npm install --global npm@11.6.2 --no-audit --no-fund --registry=https://registry.npmjs.org
+          npm ci --prefix backend --no-audit --no-fund
+          npm ci --prefix frontend --no-audit --no-fund
+      - name: Fixture browser
+        working-directory: frontend
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Route, type, build and affected browser checks
+        run: node scripts/run_ui_catalog_checks.cjs
+      - name: Scoped records
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ui-catalog-${{ github.sha }}
+          path: |
+            .cache/ui-catalog-*.json
             .cache/browser-run-*.json
           include-hidden-files: true
           if-no-files-found: warn
