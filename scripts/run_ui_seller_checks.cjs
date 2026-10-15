@@ -17,8 +17,8 @@ const commands=[
  ['route-unit',process.execPath,['backend/node_modules/tsx/dist/cli.mjs','frontend/test/app_route.test.ts']],
  ['frontend-type',process.execPath,['frontend/node_modules/typescript/bin/tsc','--project','frontend/tsconfig.json']],
  ['frontend-bundle',process.execPath,[path.join(root,'frontend/node_modules/vite/bin/vite.js'),'build'],path.join(root,'frontend')],
- ['built-integration',process.execPath,['scripts/run_browser_checks.cjs','--preview','--port=4192','--','seller_integration.spec.ts','buyer_integration.spec.ts','--grep','^seller |^dispute summary','--workers=1']],
- ['dev-affected-existing',process.execPath,['scripts/run_browser_checks.cjs','--port=4192','--','seller_workspace.spec.ts','restored_subscription.spec.ts','seller_profile.spec.ts','product_studio_scope.spec.ts','--grep','^seller workspace|restored subscription|existing seller can edit|unconfirmed product creation|product create commits','--workers=1']],
+ ['built-integration',process.execPath,['scripts/run_browser_checks.cjs','--preview','--port=4192','--','seller_integration.spec.ts','buyer_integration.spec.ts','--grep','seller |dispute summary','--workers=1']],
+ ['dev-affected-existing',process.execPath,['scripts/run_browser_checks.cjs','--port=4192','--','seller_workspace.spec.ts','restored_subscription.spec.ts','seller_profile.spec.ts','product_studio_scope.spec.ts','--grep','seller workspace|restored subscription|existing seller can edit|unconfirmed product creation|product create commits','--workers=1']],
 ];
 const result={schemaVersion:1,recordedAt:new Date().toISOString(),sourceCommit:source,applicationCommit:packet.applicationCommit,scope:'UI_SELLER_ONLY',checks:[],result:'RUNNING',acceptanceEligible:false,isolatedBackendFixtureOnly:true,liveOrSnapshotDatabaseStarted:false};
 fs.mkdirSync(path.join(root,'.cache'),{recursive:true});const out=path.join(root,'.cache/ui-seller-'+Date.now()+'.json');
