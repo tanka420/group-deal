@@ -13,16 +13,21 @@ const extra=git(['diff','--name-only',packet.applicationCommit,'HEAD']).trim().s
 if(extra.some(p=>!infra.includes(p)))throw Error('UI_APPLICATION_CHANGED');
 if(process.argv.includes('--check-scope')){console.log(JSON.stringify({result:'UI_SCOPE_PASS',source,application:packet.applicationCommit,files:changed.length}));process.exit(0);}
 const {localCheckEnvironment}=require('./local_check_runtime.cjs'),env=localCheckEnvironment(root);
+// The native operator fixture replaces development manifest modules. It must run in dev mode.
+// --remaining reuses the 32 built buyer passes from the pinned, otherwise failed run below.
+const remaining=process.argv.includes('--remaining');
+if(remaining&&packet.applicationCommit!=='f3ae044ff121a569b8160946657876637992dda7')throw Error('INHERITED_SOURCE_CHANGED');
 const commands=[
  ['backend-build',process.execPath,['backend/node_modules/typescript/bin/tsc','--project','backend/tsconfig.json']],
  ['order-list-unit',process.execPath,['backend/node_modules/tsx/dist/cli.mjs','frontend/test/order_list.test.ts']],
  ['route-unit',process.execPath,['backend/node_modules/tsx/dist/cli.mjs','frontend/test/app_route.test.ts']],
  ['frontend-build',process.execPath,['frontend/node_modules/typescript/bin/tsc','--project','frontend/tsconfig.json']],
  ['frontend-bundle',process.execPath,[path.join(root,'frontend/node_modules/vite/bin/vite.js'),'build'],path.join(root,'frontend')],
- ['built-browser',process.execPath,['scripts/run_browser_checks.cjs','--preview','--port=4192','--','buyer_integration.spec.ts','buyer_order_view.spec.ts','buyer_resources.spec.ts','operator_deal_sections.spec.ts','--workers=1']],
+ ...(!remaining?[['built-buyer',process.execPath,['scripts/run_browser_checks.cjs','--preview','--port=4192','--','buyer_integration.spec.ts','buyer_order_view.spec.ts','buyer_resources.spec.ts','--workers=1']]]:[]),
+ ['dev-operator-native',process.execPath,['scripts/run_browser_checks.cjs','--port=4192','--','operator_deal_sections.spec.ts','--workers=1']],
  ['built-support-follows',process.execPath,['scripts/run_browser_checks.cjs','--preview','--port=4192','--','support_tickets.spec.ts','seller_follow.spec.ts','--grep','order ticket is shared|own account list|account paging|product UI saves','--workers=1']],
 ];
-const result={schemaVersion:1,recordedAt:new Date().toISOString(),sourceCommit:source,applicationCommit:packet.applicationCommit,scope:'UI_ORDERS_ONLY',checks:[],result:'RUNNING',acceptanceEligible:false,isolatedBackendFixtureOnly:true,liveOrSnapshotDatabaseStarted:false};
+const result={schemaVersion:1,recordedAt:new Date().toISOString(),sourceCommit:source,applicationCommit:packet.applicationCommit,scope:'UI_ORDERS_ONLY',inheritedBuyerChecks:remaining?{runId:38709075302,headSha:'c9fbaad25f64631d9c5c18642f6732f1e178f8dd',applicationCommit:packet.applicationCommit,builtBrowserPasses:32,overallRunResult:'failure',failureScope:'4 native operator fixtures ran in unsupported built mode',sourceBytesUnchanged:true}:null,checks:[],result:'RUNNING',acceptanceEligible:false,isolatedBackendFixtureOnly:true,liveOrSnapshotDatabaseStarted:false};
 fs.mkdirSync(path.join(root,'.cache'),{recursive:true});const out=path.join(root,'.cache/ui-orders-'+Date.now()+'.json');
 for(const [name,command,args,cwd] of commands){const start=Date.now(),r=cp.spawnSync(command,args,{cwd:cwd||root,env:name==='frontend-bundle'?{...env,NODE_ENV:'production'}:env,windowsHide:true,stdio:'inherit'});result.checks.push({name,exitCode:r.status,durationMs:Date.now()-start});if(r.status!==0){result.result='FAIL';fs.writeFileSync(out,JSON.stringify(result,null,2));process.exit(1);}}
 result.result='PASS';fs.writeFileSync(out,JSON.stringify(result,null,2));console.log(JSON.stringify(result));

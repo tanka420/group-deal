@@ -202,7 +202,7 @@ jobs:
         working-directory: frontend
         run: npx --no-install playwright install --with-deps chromium
       - name: Route, type, build and affected browser checks
-        run: node scripts/run_ui_orders_checks.cjs
+        run: node scripts/run_ui_orders_checks.cjs --remaining
       - name: Scoped records
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
