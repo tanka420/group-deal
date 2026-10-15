@@ -1,0 +1,74 @@
+{
+  "baselineCommit": "bd6d87a05caabd61d0dffbeb2616467181807f2e",
+  "applicationCommit": "2f9de3cc45db2dda0833ada2055b1eeaeb7becf4",
+  "files": [
+    {
+      "path": "config/nginx/groupdeal-app-routes.conf",
+      "sha256": "845b0c896bb4b29f76c06e6d7d568e0a4910c42db29dd7728f32f4b41c0809a9"
+    },
+    {
+      "path": "frontend/e2e/buyer_integration.spec.ts",
+      "sha256": "c2e20fc3ad8a22e4ffa6cb4f98a1e45f045bfe043eea44c419058eb0bd1eefe7"
+    },
+    {
+      "path": "frontend/e2e/seller_integration.spec.ts",
+      "sha256": "1b90337993f2d13ab048ae58488be208c3f647985f5d12af76b550c5d9fdc8b1"
+    },
+    {
+      "path": "frontend/e2e/seller_workspace.spec.ts",
+      "sha256": "9a36b882c4e1d66606c339d3d8c688dd35c03834edd8656ad17b64746909d0bd"
+    },
+    {
+      "path": "frontend/src/App.tsx",
+      "sha256": "3374ee1674e12d284287aa9d09808731a2fc100b8a5dd4de2ba644bd52dfcb93"
+    },
+    {
+      "path": "frontend/src/components/OrderDisputeSummary.tsx",
+      "sha256": "b3f5a43eaf3e85bcc7e110032e61f2efae15bec5b7c782d5175718cc37c54093"
+    },
+    {
+      "path": "frontend/src/components/ProductStudio.tsx",
+      "sha256": "878391f0972c65e9510f27eec28ffa8854b1a2092c2a0ba071b4fe54ee71510e"
+    },
+    {
+      "path": "frontend/src/components/SellerListFilters.tsx",
+      "sha256": "f71b00c6e12c6b711cbc9fda98a9eeb657d0c8821224537d304ab9e607c82dae"
+    },
+    {
+      "path": "frontend/src/components/SellerOrderReview.tsx",
+      "sha256": "58296d6010309e3456f9b509f4bd1d27b7b6b97a108196ba7360f7708b6001f3"
+    },
+    {
+      "path": "frontend/src/components/SellerWorkspaceNavigation.tsx",
+      "sha256": "43d76769dd6d8ce919076fc9ee9b2360bf77ef87be0508d928d3485c32799967"
+    },
+    {
+      "path": "frontend/src/pages/BuyerDashboard.tsx",
+      "sha256": "359d29d3d4a565db83bf21f85a3783e7949451e9abb7949127cd498e02528f32"
+    },
+    {
+      "path": "frontend/src/pages/SellerDashboard.tsx",
+      "sha256": "a7205eed6073f5378650bd56c5975e9a3c4398056cb2a4ed83fe456bfd0c113f"
+    },
+    {
+      "path": "frontend/src/services/sellerNavigation.ts",
+      "sha256": "533f108bc4685c478e80cd73d582cec047f6b84b89769c5d0113be38327fc0c5"
+    },
+    {
+      "path": "frontend/src/styles/seller-workspace.css",
+      "sha256": "ed4107bd3cf7c073376589bd90a98d0ea598da23d4ecee34df7a87efccc11a1a"
+    },
+    {
+      "path": "frontend/src/utils/appRoute.ts",
+      "sha256": "5767c6469e1da3a5473d0ce3aecd7c9b3269ce950e24358bc04c6f42cf93b058"
+    },
+    {
+      "path": "frontend/test/app_route.test.ts",
+      "sha256": "49631c36ca95bc7c8f9d51c89ea7f516df2d8a020547ad32ec231c90377eeadb"
+    },
+    {
+      "path": "reports/ui-integration/2026-10-15/PACKAGE_04.md",
+      "sha256": "02f2b31f3fedf118efa868a651441bb73d807f64c3082f8fce450910ebd3c86e"
+    }
+  ]
+}
