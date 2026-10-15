@@ -21,7 +21,7 @@ test.afterAll(async()=>{
  if(port)await waitForOwnedPorts([port]);if(httpRecord)writeFileSync(httpRecord,JSON.stringify({layer:'LOCAL_UI_NATIVE_HTTP_BRIDGE',acceptanceEligible:false,pid:child.pid,port,isolated:true,stopped:true,portFree:true}));
 });
 async function fixture(page:Page,language='en'){
- const errors:string[]=[],writes:string[]=[],queries:string[]=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(r.method()!=='GET'&&new URL(r.url()).pathname.startsWith('/api/')&&new URL(r.url()).pathname!=='/api/auth/session/activity')writes.push(new URL(r.url()).pathname);});
+ const errors:string[]=[],writes:string[]=[],queries:string[]=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(r.method()!=='GET'&&new URL(r.url()).pathname.startsWith('/api/')&&!['/api/auth/session/activity','/api/admin-auth/session/activity'].includes(new URL(r.url()).pathname))writes.push(new URL(r.url()).pathname);});
  await installNativeOperatorManifest(page,nativeFixture);
  await page.addInitScript(({lang,sessionToken})=>{localStorage.setItem('groupdeal_token',sessionToken);localStorage.setItem('groupdeal_lang',lang);},{lang:language,sessionToken:token});
  await page.route('**/api/**',async route=>{

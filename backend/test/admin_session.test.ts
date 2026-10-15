@@ -1,0 +1,50 @@
+import assert from 'node:assert/strict';
+import {ethers} from 'ethers';
+import jwt from 'jsonwebtoken';
+import crypto from 'node:crypto';
+import express from 'express';
+import {store} from '../src/db/store';
+import {config} from '../src/config';
+import {AuthService} from '../src/services/authService';
+import {SessionService} from '../src/services/sessionService';
+import {authRouter} from '../src/routes/authRoutes';
+import {operatorRouter} from '../src/routes/operatorRoutes';
+import {operationRouter} from '../src/routes/operationRoutes';
+import {authMiddleware} from '../src/middleware/auth';
+import {enrollFixtureOperator} from './helpers/operatorFixture';
+assert.equal(process.env.NODE_ENV,'test');assert.ok(store.isIsolated);
+async function main(){
+ const wallet=ethers.Wallet.createRandom(),other=ethers.Wallet.createRandom(),id='admin-fixture',origin='http://localhost:5173';
+ config.operatorAddress=wallet.address;
+ store.transaction(()=>{store.db.users[id]={id,email:'admin@fixture.invalid',roles:['buyer'],loginMethod:'EVM_WALLET',createdAt:Date.now(),activeWallet:wallet.address};store.db.userByWallet[wallet.address.toLowerCase()]=id;});
+ const publicToken=SessionService.issue(store.db.users[id],'EVM_WALLET'),hash=()=>crypto.createHash('sha256').update(JSON.stringify(store.snapshot())).digest('hex');
+ const publicChallenge=AuthService.issueWalletLoginChallenge(wallet.address,origin),publicSignature=await wallet.signMessage(publicChallenge.challengeMessage);
+ assert.throws(()=>AuthService.verifyWalletLogin(wallet.address,publicSignature,publicChallenge.challengeMessage,publicChallenge.nonce,[],'ADMIN'));
+ const c=AuthService.issueWalletLoginChallenge(wallet.address,origin,[],'ADMIN');assert.ok(c.challengeMessage.includes('Session: GroupDeal admin only'));
+ const signature=await wallet.signMessage(c.challengeMessage);assert.throws(()=>AuthService.verifyWalletLogin(wallet.address,signature,c.challengeMessage,c.nonce));
+ const activeBefore=store.db.users[id].activeWallet,result=AuthService.verifyWalletLogin(wallet.address,signature,c.challengeMessage,c.nonce,[],'ADMIN'),token=result.token;
+ assert.equal(store.db.users[id].activeWallet,activeBefore);assert.equal(SessionService.authenticate(token).record.realm,'ADMIN');assert.equal(SessionService.authenticate(publicToken).record.realm,undefined);
+ assert.throws(()=>AuthService.verifyWalletLogin(wallet.address,signature,c.challengeMessage,c.nonce,[],'ADMIN'));
+ const unbound=AuthService.issueWalletLoginChallenge(other.address,origin,[],'ADMIN');
+ const otherSignature=await other.signMessage(unbound.challengeMessage);assert.throws(()=>AuthService.verifyWalletLogin(other.address,otherSignature,unbound.challengeMessage,unbound.nonce,[],'ADMIN'));assert.equal(store.db.userByWallet[other.address.toLowerCase()],undefined);
+ const decoded=jwt.decode(token) as any,forged=jwt.sign({...decoded,realm:undefined,aud:'groupdeal:app'},config.jwtSecret,{algorithm:'HS256'});assert.throws(()=>SessionService.authenticate(forged));
+ const proof=SessionService.authenticate(token);await enrollFixtureOperator(id,proof,{wallet,chainId:config.arcChainId});
+ const app=express();app.use(express.json());app.use('/api/auth',authRouter);app.use('/api/admin-auth',authRouter);app.use('/api/operator',operatorRouter);app.use('/api/transactions',operationRouter);app.get('/api/seller/test',authMiddleware,(_q,r)=>r.json({unexpected:true}));
+ const server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));const base='http://127.0.0.1:'+(server.address() as {port:number}).port;
+ const request=async(path:string,bearer:string,body?:unknown)=>fetch(base+path,{method:body===undefined?'GET':'POST',headers:{Authorization:'Bearer '+bearer,'Content-Type':'application/json',Origin:origin},...(body===undefined?{}:{body:JSON.stringify(body)})});
+ try{
+  const before=hash();
+  assert.equal((await request('/api/operator/users',publicToken)).status,403);assert.equal((await request('/api/admin-auth/me',publicToken)).status,403);assert.equal((await request('/api/auth/me',token)).status,403);assert.equal((await request('/api/seller/test',token)).status,403);
+  assert.equal((await request('/api/Admin-Auth/me',publicToken)).status,403);assert.equal((await request('/api/Operator/users',publicToken)).status,403);assert.equal((await request('/api/Auth/me',token)).status,403);
+  assert.equal((await request('/api/admin-auth/me',token)).status,200);assert.equal((await request('/api/operator/users',token)).status,200);assert.equal((await request('/api/operator/permissions',token)).status,200);
+  assert.equal((await request('/api/auth/operator/enrollment',publicToken)).status,403);assert.equal((await request('/api/admin-auth/operator/enrollment',token)).status,200);
+  assert.equal((await request('/api/transactions/orders/prepare',token,{intent:{action:'CONFIRM'}})).status,403);assert.equal((await request('/api/transactions/claims/prepare',token,{})).status,403);assert.equal((await request('/api/auth/wallet/challenge',token,{action:'LINK_WALLET'})).status,403);
+  assert.equal((await request('/api/auth/logout',token,{idempotencyKey:crypto.randomUUID()})).status,403);assert.equal((await request('/api/admin-auth/logout',publicToken,{idempotencyKey:crypto.randomUUID()})).status,403);assert.equal(hash(),before);
+  const listed=SessionService.list(SessionService.authenticate(publicToken),{});assert.ok(!listed.sessions.some(s=>s.id===proof.record.id));
+  assert.throws(()=>SessionService.command(publicToken,'ONE',proof.record.id,{idempotencyKey:crypto.randomUUID()}));
+  SessionService.command(publicToken,'OTHERS',undefined,{idempotencyKey:crypto.randomUUID()});assert.equal(SessionService.authenticate(token).record.realm,'ADMIN');
+  assert.equal((await request('/api/admin-auth/logout',token,{idempotencyKey:crypto.randomUUID()})).status,200);assert.throws(()=>SessionService.authenticate(token));assert.equal(SessionService.authenticate(publicToken).account.id,id);
+  console.log(JSON.stringify({result:'PASS',scope:'ADMIN_SESSION_REALM_NATIVE_HTTP',crossRealmRejections:14,signatureDomainSeparation:true,singleUseNonce:true,publicSessionPreserved:true,principalUnchanged:true,fixtureOnly:true}));
+ }finally{await new Promise<void>(r=>server.close(()=>r()));store.close();}
+}
+void main().catch(e=>{console.error(e instanceof assert.AssertionError?{actual:e.actual,expected:e.expected,stack:e.stack}:String(e));try{store.close();}catch{}process.exitCode=1;});

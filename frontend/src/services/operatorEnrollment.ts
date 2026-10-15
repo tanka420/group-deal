@@ -45,7 +45,7 @@ export function enrollmentReadback(status:EnrollmentStatus,pending:EnrollmentChe
  return'UNCONFIRMED' as const;
 }
 export async function enrollmentRequest(token:string,path:string,body?:unknown){
- let response:Response;try{response=await fetch('/api/auth/operator/enrollment'+path,{method:body===undefined?'GET':'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},cache:'no-store',...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(15000)});}catch{throw new OperatorAccessError('NETWORK');}
+ let response:Response;try{response=await fetch('/api/admin-auth/operator/enrollment'+path,{method:body===undefined?'GET':'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},cache:'no-store',...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(15000)});}catch{throw new OperatorAccessError('NETWORK');}
  const data=await response.json().catch(()=>invalid());
  if(!response.ok){const kind=response.status===401?'SESSION':response.status===429?'LIMIT':response.status===403&&typeof data.error==='string'&&data.error.includes('WALLET')?'WALLET':response.status===403?'AUTHORITY':response.status===400?'INVALID':'NETWORK';throw new OperatorAccessError(kind);}
  return data;

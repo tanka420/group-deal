@@ -43,7 +43,7 @@ export function OperatorAccess({children,onBack}:{children:ReactNode;onBack:()=>
   if(current()&&submitted)void load();
  }
  const message=error instanceof OperatorAccessError?error.kind==='SESSION'?text('Phiên đăng nhập chưa được xác nhận. Đăng nhập lại để tiếp tục.','The session is unconfirmed. Sign in again to continue.'):error.kind==='LIMIT'?text('Đã đạt giới hạn yêu cầu. Chờ rồi kiểm tra lại quyền.','The request limit was reached. Wait, then check access again.'):error.kind==='WALLET'?text('Dùng đúng ví operator trên Arc Testnet trước khi ký.','Use the exact operator wallet on Arc Testnet before signing.'):error.kind==='AUTHORITY'?text('Quyền onchain đã đổi hoặc chưa xác minh được. Kiểm tra lại trước khi ký.','Onchain authority changed or is unverified. Check again before signing.'):error.kind==='STORAGE'?text('Chưa đọc hoặc lưu được mốc phục hồi trong trình duyệt. Giữ yêu cầu và kiểm tra lại; chưa được ký tiếp.','The browser recovery checkpoint could not be read or saved. Keep this request and check again before another signature.'):text('Chưa xác nhận được phản hồi. Kiểm tra lại quyền trước khi thử tiếp.','The response is unconfirmed. Check access before trying again.'):text('Chưa xác minh được ví hoặc chữ ký. Kiểm tra ví rồi thử lại.','The wallet or signature is unconfirmed. Check your wallet before retrying.');
- return <div className="operator-access-page">
+ const accessPanel=<>
   <section className="glass-card operator-access" aria-labelledby="operator-access-title" aria-busy={busy||isLoading}>
    <h2 id="operator-access-title">{text('Quyền operator','Operator access')}</h2>
    {!user||!token?<><p>{text('Đăng nhập bằng tài khoản đã liên kết ví operator để xác minh quyền vận hành.','Sign in with the account bound to the operator wallet to verify operational access.')}</p><button type="button" className="btn btn-secondary" onClick={onBack}>{text('Khám phá deal','Explore deals')}</button></>:<>
@@ -61,6 +61,8 @@ export function OperatorAccess({children,onBack}:{children:ReactNode;onBack:()=>
     {!authorized&&status?.eligible&&!connected&&!external.configured&&<p className="muted">{text('Kết nối ví ngoài chưa được cấu hình. Giữ tài khoản này; không cung cấp khóa ví.','External wallet connection is not configured. Keep this account; do not provide a private key.')}</p>}
    </>}
   </section>
+ </>;
+ return <div className="operator-access-page">{authorized?<details className="operator-access-details"><summary>{text('Quyền operator đã xác minh','Operator access verified')}</summary>{accessPanel}</details>:accessPanel}
   {authorized&&<Suspense fallback={<p role="status">{text('Đang tải workspace operator…','Loading the operator workspace…')}</p>}>{children}</Suspense>}
  </div>;
 }

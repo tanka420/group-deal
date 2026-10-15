@@ -4,6 +4,7 @@ import { ethers } from "ethers";
 import {readUser,readSession,AppSession} from "../services/appSession";
 import {circleDeviceId} from "../services/circleDevice";
 import {InitialCircleWallet,readInitialCircleWalletChoices,readInitialCircleWalletAck} from "../services/circleWalletChoice";
+import {readAdminLoginChallenge} from '../services/adminLogin';
 
 interface EmailLoginResult {
   userToken: string;
@@ -38,6 +39,7 @@ export interface CircleCredentials {
 }
 
 interface AuthContextType {
+  realm: "APP"|"ADMIN";
   user: User | null;
   token: string | null;
   isLoading: boolean;
@@ -74,19 +76,19 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
-async function circleFetch(input: RequestInfo | URL, init?: RequestInit) {
-  return fetch(input, { ...init, signal: AbortSignal.timeout(25_000) });
-}
-
 async function readJson(response: Response) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`);
   return data;
 }
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"ADMIN" }> = ({ children,realm='APP' }) => {
+  const storageKey=realm==='ADMIN'?'groupdeal_admin_token':'groupdeal_token';
+  const authUrl=(url:string)=>realm==='ADMIN'&&url.startsWith('/api/auth/')?url.replace('/api/auth/','/api/admin-auth/'):url;
+  const fetch:typeof globalThis.fetch=(input,init)=>globalThis.fetch(typeof input==='string'?authUrl(input):input,init);
+  const circleFetch=(input:RequestInfo|URL,init?:RequestInit)=>fetch(input,{...init,signal:AbortSignal.timeout(25000)});
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(()=>localStorage.getItem("groupdeal_token"));
+  const [token, setToken] = useState<string | null>(()=>localStorage.getItem(storageKey));
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [circleReady, setCircleReady] = useState(false);
   const [circleProgress, setCircleProgress] = useState<string | null>(null);
@@ -225,7 +227,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loginPromiseRef.current = null;
     setLoginAttemptId(null);
     setIsLoading(false);setCircleProgress(null);
-    if(localStorage.getItem("groupdeal_token")===previousToken)localStorage.removeItem("groupdeal_token");
+    if(localStorage.getItem(storageKey)===previousToken)localStorage.removeItem(storageKey);
   };
 
   const endConfirmedSession=()=>{clearLocal();setLogoutState("CONFIRMED");setSessionNotice(null);};
@@ -242,7 +244,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshUser = async () => {
     const generation = sessionGenerationRef.current,sessionToken=tokenRef.current,attempt=++refreshAttemptRef.current;
-    const valid=()=>generation===sessionGenerationRef.current&&sessionToken===tokenRef.current&&localStorage.getItem("groupdeal_token")===sessionToken&&attempt===refreshAttemptRef.current;
+    const valid=()=>generation===sessionGenerationRef.current&&sessionToken===tokenRef.current&&localStorage.getItem(storageKey)===sessionToken&&attempt===refreshAttemptRef.current;
     if (!sessionToken) {
       setUser(null);
       setIsLoading(false);
@@ -276,7 +278,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(()=>{
     const changed=(event:StorageEvent)=>{
-      if(event.storageArea!==localStorage||event.key!=="groupdeal_token"||event.newValue===tokenRef.current)return;
+      if(event.storageArea!==localStorage||event.key!==storageKey||event.newValue===tokenRef.current)return;
       // Storage events are emitted in other tabs only. Do not remove their new token.
       sessionGenerationRef.current++;circleSyncAttemptRef.current++;refreshAttemptRef.current++;
       loginPromiseRef.current?.reject(new Error("Phiên đăng nhập đã thay đổi"));loginPromiseRef.current=null;
@@ -289,7 +291,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(()=>{
     if(!token)return;const sessionToken=token,generation=sessionGenerationRef.current;let lastActivity=0,activityPending=false;
-    const valid=()=>tokenRef.current===sessionToken&&localStorage.getItem("groupdeal_token")===sessionToken&&generation===sessionGenerationRef.current;
+    const valid=()=>tokenRef.current===sessionToken&&localStorage.getItem(storageKey)===sessionToken&&generation===sessionGenerationRef.current;
     const poll=()=>{if(valid()&&appSessionRef.current&&document.visibilityState==="visible")void refreshUser();};
     const activity=()=>{
       if(!valid()||!appSessionRef.current||activityPending||Date.now()-lastActivity<60_000)return;
@@ -386,7 +388,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const syncCircleWalletInBackground = async (sessionToken:string,credentials:CircleCredentials):Promise<void> => {
     const syncAttempt=++circleSyncAttemptRef.current,generation=sessionGenerationRef.current,expectedId=userRef.current?.id;
-    const current=()=>circleLifecycle.current.active&&circleSyncAttemptRef.current===syncAttempt&&generation===sessionGenerationRef.current&&tokenRef.current===sessionToken&&localStorage.getItem("groupdeal_token")===sessionToken&&!!expectedId&&userRef.current?.id===expectedId;
+    const current=()=>circleLifecycle.current.active&&circleSyncAttemptRef.current===syncAttempt&&generation===sessionGenerationRef.current&&tokenRef.current===sessionToken&&localStorage.getItem(storageKey)===sessionToken&&!!expectedId&&userRef.current?.id===expectedId;
     if(!current())return;setCircleWalletSyncing(true);setCircleWalletError(null);
     try{
       let initialization:any;
@@ -415,7 +417,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const selected=circleWalletChoices.find(w=>w.walletId===walletId),credentials=circleCredentials,sessionToken=tokenRef.current,expectedId=userRef.current?.id,generation=sessionGenerationRef.current;
     if(!selected||!credentials||!sessionToken||!expectedId)throw new Error("CIRCLE_WALLET_SELECTION_UNAVAILABLE");
     const attempt=++circleSyncAttemptRef.current;circleChoiceFlightRef.current=attempt;
-    const current=()=>circleLifecycle.current.active&&attempt===circleSyncAttemptRef.current&&generation===sessionGenerationRef.current&&sessionToken===tokenRef.current&&localStorage.getItem("groupdeal_token")===sessionToken&&userRef.current?.id===expectedId;
+    const current=()=>circleLifecycle.current.active&&attempt===circleSyncAttemptRef.current&&generation===sessionGenerationRef.current&&sessionToken===tokenRef.current&&localStorage.getItem(storageKey)===sessionToken&&userRef.current?.id===expectedId;
     if(!current()){circleChoiceFlightRef.current=null;return;}
     setCircleWalletSyncing(true);setCircleWalletError(null);
     try{const response=await readJson(await circleFetch("/api/circle/wallet/select",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+sessionToken},body:JSON.stringify({userToken:credentials.userToken,walletId:selected.walletId})}));if(!current())return;const next=readInitialCircleWalletAck(response,expectedId,selected);acceptUser(next,expectedId);setCircleWalletChoices([]);setCircleWalletChoiceUnknown(false);}
@@ -468,7 +470,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const next=readUser(session.user);if(typeof session.token!=="string"||!session.token||session.token.length>8192)throw new Error("AUTH_RESPONSE_INVALID");
       tokenRef.current=session.token;
       setToken(session.token);
-      localStorage.setItem("groupdeal_token", session.token);
+      localStorage.setItem(storageKey, session.token);
       acceptUser(next);
       void syncCircleWalletInBackground(session.token, credentials);
       return session.user as User;
@@ -493,7 +495,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
     );
     if(generation!==sessionGenerationRef.current)throw new Error("Phiên đăng nhập đã bị hủy");
+    if(realm==='ADMIN'){
+      readAdminLoginChallenge(challenge,walletAddress,location.origin);
+      if(Number((await signer.provider?.getNetwork())?.chainId)!==5042002)throw Error('ADMIN_CHALLENGE_INVALID');
+      if(generation!==getSessionEpoch()||document.visibilityState!=='visible')throw Error('AUTH_SESSION_ENDED');
+    }
     const signature = await signer.signMessage(challenge.challengeMessage);
+    if(realm==='ADMIN'&&generation!==getSessionEpoch())throw Error('AUTH_SESSION_ENDED');
+    if(realm==='ADMIN'&&((await signer.getAddress()).toLowerCase()!==walletAddress.toLowerCase()||Number((await signer.provider?.getNetwork())?.chainId)!==5042002||ethers.verifyMessage(challenge.challengeMessage,signature).toLowerCase()!==walletAddress.toLowerCase()||challenge.expiresAt<=Date.now()/1000))throw Error('ADMIN_WALLET_CHANGED');
     if(generation!==sessionGenerationRef.current)throw new Error("Phiên đăng nhập đã bị hủy");
     const session = await readJson(
       await fetch("/api/auth/wallet/login/verify", {
@@ -515,7 +524,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCircleWalletError(null);
     setCircleWalletChoices([]);setCircleWalletChoiceUnknown(false);circleChoiceFlightRef.current=null;
     tokenRef.current=session.token;appSessionRef.current=null;setToken(session.token);
-    localStorage.setItem("groupdeal_token", session.token);
+    localStorage.setItem(storageKey, session.token);
     acceptUser(next);
     return session.user as User;
   };
@@ -556,7 +565,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <AuthContext.Provider
       value={{
-        user,
+        realm,user,
         token,
         isLoading,
         circleReady,circleInitState,prepareCircle,

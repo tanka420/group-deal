@@ -3,6 +3,7 @@ import {operatorEnrollmentService} from "../services/operatorEnrollment";
 import {OperatorEnrollmentError} from "../domain/operatorEnrollment";
 import {store} from "../db/store";
 import {SessionService,SessionError,SessionProof} from "../services/sessionService";
+import {adminSessionPath} from '../domain/sessionRealm';
 
 export interface AuthenticatedRequest extends Request {
   sessionProof?:SessionProof;
@@ -27,7 +28,10 @@ export function authMiddleware(
 
   const token = authHeader.split(" ")[1];
   try {
-    const proof=SessionService.authenticate(token),user=proof.account;req.sessionProof=proof;
+    const proof=SessionService.authenticate(token),user=proof.account;
+    const path=req.originalUrl.split('?')[0],admin=proof.record.realm==='ADMIN';
+    if(admin&&!adminSessionPath(path,req.method)||!admin&&/^\/api\/(?:operator|admin-auth)(?:\/|$)/i.test(path))throw new SessionError('AUTH_SESSION_REALM_REQUIRED',403);
+    req.sessionProof=proof;
 
     req.user = {
       userId: user.id,
@@ -51,7 +55,7 @@ export function requireRole(role: "seller" | "operator") {
     }
     if(role==='operator'){
       res.set({'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});
-      try{if(!req.sessionProof)throw new SessionError('AUTH_SESSION_INACTIVE');await operatorEnrollmentService.authorize(req.sessionProof);const auth=store.readAuthState(req.user.userId,req.sessionProof.key);SessionService.assertOperatorCommitted(req.sessionProof,auth);}
+      try{if(!req.sessionProof)throw new SessionError('AUTH_SESSION_INACTIVE');if(req.sessionProof.record.realm!=='ADMIN')throw new SessionError('ADMIN_SESSION_REQUIRED',403);await operatorEnrollmentService.authorize(req.sessionProof);const auth=store.readAuthState(req.user.userId,req.sessionProof.key);SessionService.assertOperatorCommitted(req.sessionProof,auth);}
       catch(error){const known=error instanceof SessionError||error instanceof OperatorEnrollmentError;res.status(known?error.status:503).json({error:known?error.code:'OPERATOR_ACCESS_UNAVAILABLE'});return;}
     }
     next();
@@ -62,7 +66,7 @@ export function requireRole(role: "seller" | "operator") {
 export async function optionalOperator(req:AuthenticatedRequest,res:Response,next:NextFunction):Promise<void>{
  try{
   const proof=req.sessionProof;if(!proof)throw new SessionError('AUTH_SESSION_INACTIVE',401);
-  if(req.user?.roles.includes('operator')){try{await operatorEnrollmentService.authorize(proof);}catch(error){if(!(error instanceof OperatorEnrollmentError))throw error;}}
+  if(proof.record.realm==='ADMIN')await operatorEnrollmentService.authorize(proof);
   SessionService.assertCommitted(proof,store.readAuthState(proof.account.id,proof.key));next();
- }catch(error){res.set({'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});res.status(error instanceof SessionError?error.status:503).json({error:error instanceof SessionError?error.code:'OPERATOR_ACCESS_UNAVAILABLE'});}
+ }catch(error){res.set({'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});res.status(error instanceof SessionError||error instanceof OperatorEnrollmentError?error.status:503).json({error:error instanceof SessionError||error instanceof OperatorEnrollmentError?error.code:'OPERATOR_ACCESS_UNAVAILABLE'});}
 }

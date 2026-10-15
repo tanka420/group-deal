@@ -94,7 +94,7 @@ async function readJson(response: Response) {
 
 export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const {
-    user,
+    user,realm,
     token,
     circleCredentials,
     executeCircleChallenge,
@@ -172,11 +172,11 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     if ((ownerChanged || walletMode === "DISCONNECTED" || user.activeWallet?.toLowerCase()!==selectedAccountRef.current?.toLowerCase()) && user.activeWallet) {
       setAccount(ethers.getAddress(user.activeWallet));
-      const circleSelected = user.circleWallet?.address.toLowerCase() === user.activeWallet.toLowerCase();
+      const circleSelected = realm!=='ADMIN' && user.circleWallet?.address.toLowerCase() === user.activeWallet.toLowerCase();
       setWalletMode(circleSelected ? "CIRCLE_EMBEDDED" : "EXTERNAL_REOWN");
       setChainId(circleSelected ? ARC_CHAIN_ID : null);
     }
-  }, [user, walletMode]);
+  }, [user, walletMode,realm]);
 
   useEffect(() => {
     if (walletMode === "EXTERNAL_REOWN" && external.address) {

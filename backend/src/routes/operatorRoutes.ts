@@ -18,7 +18,7 @@ import {operatorLegacyReview,OperatorLegacyReviewError,SessionError} from '../se
 
 import {SessionService} from '../services/sessionService';
 import {OrderThreadError} from '../services/orderThreadService';
-import {listOperatorUsers,operatorSettings,OperatorAdministrationError} from '../services/operatorAdministrationService';
+import {listOperatorUsers,operatorSettings,operatorAccount,operatorPermissions,OperatorAdministrationError} from '../services/operatorAdministrationService';
 import {listOperatorAudit,verifyOperatorAudit,OperatorAuditError} from '../services/operatorAuditService';
 
 export const operatorRouter = Router();
@@ -27,9 +27,13 @@ export const operatorRouter = Router();
 operatorRouter.use((_req,res,next)=>{res.set('Cache-Control','private, no-store');res.set('X-Content-Type-Options','nosniff');next();});
 operatorRouter.use(authMiddleware);
 operatorRouter.use(requireRole("operator"));
-for(const [path,read] of [['users',listOperatorUsers],['settings',operatorSettings]] as const)operatorRouter.get('/'+path,(req:AuthenticatedRequest,res)=>{
+for(const [path,read] of [['users',listOperatorUsers],['settings',operatorSettings],['permissions',operatorPermissions]] as const)operatorRouter.get('/'+path,(req:AuthenticatedRequest,res)=>{
   try{if(!req.sessionProof){res.status(401).json({error:'AUTH_SESSION_INACTIVE'});return;}res.json(read(req.sessionProof,req.query));}
   catch(error){res.status(error instanceof OperatorAdministrationError||error instanceof SessionError?error.status:503).json({error:error instanceof OperatorAdministrationError||error instanceof SessionError?error.code:'OPERATOR_ADMINISTRATION_UNAVAILABLE'});}
+});
+operatorRouter.get('/users/:id',(req:AuthenticatedRequest,res)=>{
+ try{if(!req.sessionProof)throw new SessionError('AUTH_SESSION_INACTIVE');res.json(operatorAccount(req.sessionProof,req.params.id,req.query));}
+ catch(error){res.status(error instanceof OperatorAdministrationError||error instanceof SessionError?error.status:503).json({error:error instanceof OperatorAdministrationError||error instanceof SessionError?error.code:'OPERATOR_ADMINISTRATION_UNAVAILABLE'});}
 });
 operatorRouter.get('/legacy-review',(req:AuthenticatedRequest,res)=>{
   try{if(!req.sessionProof){res.status(401).json({error:'AUTH_SESSION_INACTIVE'});return;}res.json(operatorLegacyReview.list(req.sessionProof,req.query));}

@@ -9,7 +9,7 @@ import {store} from '../src/db/store';
 import {config} from '../src/config';
 import {SessionService,SessionError} from '../src/services/sessionService';
 import {operatorRouter} from '../src/routes/operatorRoutes';
-import {listOperatorUsers,operatorSettings,OperatorAdministrationError} from '../src/services/operatorAdministrationService';
+import {listOperatorUsers,operatorSettings,operatorAccount,operatorPermissions,OperatorAdministrationError} from '../src/services/operatorAdministrationService';
 
 assert.equal(process.env.NODE_ENV,'test');assert.ok(store.isIsolated);
 const initial=store.snapshot(),dbPath=path.join(store.storageDirectory,'groupdeal.sqlite');
@@ -23,10 +23,10 @@ async function setup(count=4){
   for(let i=0;i<count;i++){const id='account-'+String(i).padStart(3,'0'),seller=i%2===1;store.db.users[id]={id,email:id+'@fixture.invalid',roles:seller?['buyer','seller']:['buyer'],createdAt:1700000000000+i,activeWallet:null,loginMethod:'EVM_WALLET',...(seller?{sellerProfile:{displayName:'Studio '+i,bio:'',payoutWallet:config.operatorAddress,verifiedSellerBadge:false,verifiedRightsBadge:false}}:{}),privateExtension:privateMarker,contact:{version:1,revision:0}} as any;}
   for(const id of ['fixture','other-operator'])store.db.users[id]={id,email:id+'@fixture.invalid',roles:['buyer','operator'],createdAt:1700000000099,activeWallet:id==='fixture'?config.operatorAddress:null,loginMethod:'EVM_WALLET'};
  });
- const token=SessionService.issue(store.db.users.fixture),other=SessionService.issue(store.db.users['other-operator']),buyer=SessionService.issue(store.db.users['account-000']),second=SessionService.issue(store.db.users.fixture);
+ const token=SessionService.issue(store.db.users.fixture,'EVM_WALLET','ADMIN'),other=SessionService.issue(store.db.users['other-operator'],'EVM_WALLET','ADMIN'),buyer=SessionService.issue(store.db.users['account-000']),second=SessionService.issue(store.db.users.fixture,'EVM_WALLET','ADMIN');
  const proof=SessionService.authenticate(token),enrollment=await enrollFixtureOperator('fixture',proof,{chainId:config.arcChainId}),secondProof=SessionService.authenticate(second);await enrollment.service.authorize(secondProof);return{token,other,buyer,second,proof,secondProof,enrollment,auditCount:get('auditLogs','state').length};
 }
-const app=express();app.use(express.json());app.use('/api/operator',operatorRouter);app.use('/api/auth',authRouter);
+const app=express();app.use(express.json());app.use('/api/operator',operatorRouter);app.use('/api/auth',authRouter);app.use('/api/admin-auth',authRouter);
 const browser=process.argv.includes('--browser-server');let current:Awaited<ReturnType<typeof setup>>;
 async function boot(){current=await setup(browser?42:4);
 if(browser){
@@ -80,6 +80,34 @@ async function main(){
   });
   await check('MALFORMED_DIRECTORY_ROWS_FAIL_WITHOUT_PRIVATE_DIAGNOSTICS',async()=>{
    const original=get('users','account-000');for(const change of [{id:'wrong-key'},{roles:['buyer','superadmin']},{roles:['buyer','buyer']},{roles:'buyer'},{activeWallet:'not-an-address'},{createdAt:-1}]){put('users','account-000',{...original,...change});const r=await request('users',current.token);assert.equal(r.response.status,503);assert.deepEqual(r.body,{error:'OPERATOR_ADMINISTRATION_UNAVAILABLE'});}put('users','account-000',original);
+  });
+  await check('DIRECTORY_SEARCH_IS_SERVER_WIDE_LITERAL_AND_CURSOR_BOUND',async()=>{
+   current=await setup(42);const before=all();
+   assert.deepEqual(listOperatorUsers(current.proof,{q:'account-041'}).users.map(u=>u.id),['account-041']);
+   assert.deepEqual(listOperatorUsers(current.proof,{q:'studio 41',role:'seller'}).users.map(u=>u.id),['account-041']);
+   assert.deepEqual(listOperatorUsers(current.proof,{q:'%'}).users,[]);
+   assert.deepEqual(listOperatorUsers(current.proof,{q:current.enrollment.wallet.address.toLowerCase()}).users.map(u=>u.id),['fixture']);
+   const page=listOperatorUsers(current.proof,{q:'account-',limit:'2'});assert.ok(page.pagination.nextCursor);
+   rejected(()=>listOperatorUsers(current.proof,{q:'studio',limit:'2',cursor:page.pagination.nextCursor!}),400);
+   assert.equal(all(),before);
+  });
+  await check('ACCOUNT_PROFILE_PRIVATE_FIELDS_RELATIONS_AND_COMMITTED_READ',async()=>{
+   store.transaction(()=>{
+    for(let i=0;i<25;i++){const id='related-'+String(i).padStart(3,'0');store.db.campaigns[id]={id,sellerId:'account-001',title:'Related '+i,status:'DRAFT',createdAt:1700000000000+i,privateExtension:privateMarker} as any;store.db.orders[id]={id,campaignId:id,buyerAccountId:'account-000',deliveryStatus:'DELIVERED',createdAt:1700000000000+i,privateExtension:privateMarker} as any;}
+    store.db.supportTickets['tkt_aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee']={id:'tkt_aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',accountId:'account-000',sellerId:'account-001',state:'OPEN',orderId:'related-000',createdAt:1700000000000,subjectEncrypted:privateMarker} as any;
+   });await current.enrollment.service.authorize(current.proof);const before=all();
+   const p=operatorAccount(current.proof,'account-000',{});assert.equal(p.counts.orders,25);assert.equal(p.counts.campaigns,0);assert.equal(p.counts.support,1);assert.equal(p.rows.length,20);assert.ok(p.pagination.nextCursor);
+   const next=operatorAccount(current.proof,'account-000',{cursor:p.pagination.nextCursor!});assert.equal(next.rows.length,5);assert.ok(next.rows.every(r=>!p.rows.some(v=>v.id===r.id)));
+   const seller=operatorAccount(current.proof,'account-001',{section:'campaigns'});assert.equal(seller.counts.orders,25);assert.equal(seller.counts.campaigns,25);
+   for(const section of ['orders','campaigns','support','audit']){const response=await request('users/account-001?section='+section,current.token);assert.equal(response.response.status,200);for(const secret of [privateMarker,'@fixture.invalid','subjectEncrypted','signatureEncrypted'])assert.ok(!JSON.stringify(response.body).includes(secret));}
+   store.db.users['account-001'].sellerProfile!.displayName='UNCOMMITTED';assert.equal(operatorAccount(current.proof,'account-001',{}).account.displayName,'Studio 1');assert.equal(all(),before);
+   rejected(()=>operatorAccount(current.proof,'account-001',{cursor:p.pagination.nextCursor!}),400);rejected(()=>operatorAccount(current.proof,'account-000',{section:'audit',cursor:p.pagination.nextCursor!}),400);
+   rejected(()=>operatorAccount(current.proof,'unknown',{}),404);assert.equal((await request('users/account-001',current.buyer)).response.status,403);
+  });
+  await check('PERMISSIONS_DESCRIBE_ENFORCED_CAPABILITIES_WITHOUT_MUTATION',async()=>{
+   const before=all(),p=operatorPermissions(current.proof,{});assert.equal(p.accountMutationsAvailable,false);assert.equal(p.capabilities.roleAssignment,false);assert.equal(p.capabilities.accountLock,false);assert.equal(p.capabilities.directoryRead,true);
+   assert.equal((await request('permissions',current.token)).response.status,200);assert.equal((await request('permissions',current.buyer)).response.status,403);assert.equal(all(),before);
+   rejected(()=>operatorPermissions(current.proof,{grant:'operator'}),400);
   });
   await check('SETTINGS_CONFIGURED_FLAGS_AND_SECRET_ALLOWLIST',async()=>{
    const saved={circleApiKey:config.circleApiKey,smtpConfigured:config.smtpConfigured,emailProviderUrl:config.emailProviderUrl,emailProviderToken:config.emailProviderToken,operatorAddress:config.operatorAddress};

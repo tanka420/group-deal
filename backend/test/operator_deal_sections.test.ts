@@ -37,10 +37,10 @@ async function setup(){
   for(const [action,details] of [['CAMPAIGN_DRAFT_SAVED',{campaignId:'deal'}],['DISPUTE_OPENED',{orderId:'order_001'}],['TRANSACTION_PREPARED',{operationId:'op_delivery',resourceId:'order_001'}],['CLAIM_VERIFIED',{operationId:'op_claim'}],['RESOURCE_LICENSE_REDEEMED',{grantId:'grant_local'}],['SUPPORT_REPLIED',{ticketId:'ticket_local'}],['EMAIL_NOTIFICATION_CANCELLED',{notificationId:'notice_local'}],['EMAIL_NOTIFICATION_DLQ',{outboxId:'mail_local'}],['OTHER_CAMPAIGN',{campaignId:'other'}],['OTHER_ORDER',{orderId:'other_order'}],['OTHER_OPERATION',{operationId:'op_other'}],['FOREIGN_OPERATION',{operationId:'op_foreign'}],['TEXT_MENTION',{message:'deal'}],['PRODUCT_VERSION_CREATED',{productId:'shared-product'}]] as [string,Record<string,unknown>][])store.addAuditLog('fixture','operator',action,{...details,privateExtension:privateMarker});
   for(let i=0;i<23;i++)store.addAuditLog('fixture','operator','DEAL_REVIEWED',{campaignId:'deal',index:i,privateExtension:privateMarker});
  });
- const token=SessionService.issue(store.db.users.fixture),other=SessionService.issue(store.db.users['other-operator']),buyer=SessionService.issue(store.db.users.buyer);
+ const token=SessionService.issue(store.db.users.fixture,'EVM_WALLET','ADMIN'),other=SessionService.issue(store.db.users['other-operator'],'EVM_WALLET','ADMIN'),buyer=SessionService.issue(store.db.users.buyer);
  const proof=SessionService.authenticate(token),enrollment=await enrollFixtureOperator('fixture',proof,{chainId:config.arcChainId});return{token,buyer,proof,otherProof:SessionService.authenticate(other),enrollment,auditCount:get('auditLogs','state').length};
 }
-let current:Awaited<ReturnType<typeof setup>>;const app=express();app.use(express.json());app.use('/api/operator',operatorRouter);app.use('/api/auth',authRouter);
+let current:Awaited<ReturnType<typeof setup>>;const app=express();app.use(express.json());app.use('/api/operator',operatorRouter);app.use('/api/auth',authRouter);app.use('/api/admin-auth',authRouter);
 const browser=process.argv.includes('--browser-server');
 async function boot(){current=await setup();
 if(browser){
@@ -77,7 +77,7 @@ async function main(){
    let disputes=listOperatorDealDisputes(current.proof,'deal',{limit:'1'}).pagination.nextCursor!,audit=listOperatorAudit(current.proof,{dealId:'deal',limit:'1'}).pagination.nextCursor!;
    rejected(()=>listOperatorDealDisputes(current.proof,'other',{limit:'1',cursor:disputes}),400);rejected(()=>listOperatorDealDisputes(current.otherProof,'deal',{limit:'1',cursor:disputes}),400);rejected(()=>listOperatorDealDisputes(current.proof,'deal',{limit:'1',status:'OPEN',cursor:disputes}),400);
    rejected(()=>listOperatorDealDisputes(current.proof,'deal',{limit:'1',cursor:audit}),400);rejected(()=>listOperatorAudit(current.proof,{dealId:'other',limit:'1',cursor:audit}),400);rejected(()=>listOperatorAudit(current.proof,{limit:'1',cursor:audit}),400);rejected(()=>listOperatorAudit(current.proof,{dealId:'deal',limit:'1',cursor:disputes}),400);
-   const second=SessionService.authenticate(SessionService.issue(store.db.users.fixture));await current.enrollment.service.authorize(second);rejected(()=>listOperatorDealDisputes(second,'deal',{limit:'1',cursor:disputes}),400);disputes=listOperatorDealDisputes(current.proof,'deal',{limit:'1'}).pagination.nextCursor!;audit=listOperatorAudit(current.proof,{dealId:'deal',limit:'1'}).pagination.nextCursor!;
+   const second=SessionService.authenticate(SessionService.issue(store.db.users.fixture,'EVM_WALLET','ADMIN'));await current.enrollment.service.authorize(second);rejected(()=>listOperatorDealDisputes(second,'deal',{limit:'1',cursor:disputes}),400);disputes=listOperatorDealDisputes(current.proof,'deal',{limit:'1'}).pagination.nextCursor!;audit=listOperatorAudit(current.proof,{dealId:'deal',limit:'1'}).pagination.nextCursor!;
    oldRevision=(sql.prepare('SELECT revision FROM storage_revision WHERE id=1').get() as {revision:number}).revision;sql.prepare('UPDATE storage_revision SET revision=revision+1 WHERE id=1').run();
    rejected(()=>listOperatorDealDisputes(current.proof,'deal',{limit:'1',cursor:disputes}),409);rejected(()=>listOperatorAudit(current.proof,{dealId:'deal',limit:'1',cursor:audit}),409);
   });

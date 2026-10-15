@@ -1133,6 +1133,36 @@ summary { cursor:pointer; min-height:44px; padding:.5rem 0; }
 .circle-fee-dialog p { margin: .75rem 0; }
 
 /* Operator access uses the existing light brand and form rhythm. */
+.admin-header .header-inner{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.admin-header .logo-text small{font-size:.7em;color:var(--text-secondary)}
+.admin-header nav{margin-left:auto;flex-wrap:wrap}
+.admin-session>section{padding:20px;overflow-wrap:anywhere}
+.admin-identity.is-signed-in{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.admin-identity.is-signed-in h1{font-size:1.4rem;margin:0}
+.admin-identity-detail{min-width:0;flex:1;font-size:.85rem}
+.admin-identity-detail p{margin:0}
+.operator-access-details{border:1px solid var(--border-subtle);border-radius:12px;background:var(--bg-secondary)}
+.operator-access-details>summary{cursor:pointer;padding:12px 16px;color:var(--text-secondary);font-size:.9rem}
+.operator-access-details .operator-access{border:0;margin:0}
+.operator-directory{gap:0;border:1px solid var(--border-subtle);border-radius:12px;overflow:hidden}
+.operator-directory .ui-record-card{border:0;border-radius:0;border-bottom:1px solid var(--border-subtle);padding:16px;box-shadow:none;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.65fr) minmax(0,2.4fr);gap:16px;align-items:start}
+.operator-directory .ui-record-card:last-child{border-bottom:0}
+.operator-directory .ui-record-card h3{font-size:1rem;margin:0 0 4px}
+.operator-directory .ui-record-card p{font-size:.8rem;color:var(--text-secondary);margin:0}
+.operator-directory .ui-record-card dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0;font-size:.85rem}
+.operator-directory .ui-record-card dt{color:var(--text-secondary);font-size:.75rem}
+.operator-directory .ui-record-card dd{margin:4px 0 0;overflow-wrap:anywhere}
+.operator-directory .ui-row{flex-wrap:wrap;gap:4px}
+.operator-administration form{align-items:end;gap:8px}
+.operator-administration form label{display:grid;gap:6px;min-width:0;flex:1}
+.operator-administration input{box-sizing:border-box;width:100%;min-height:44px;padding:10px 12px;font:inherit;color:var(--text-primary);background:var(--bg-primary);border:1px solid var(--border-subtle);border-radius:8px}
+.operator-directory a{color:var(--cyan);text-underline-offset:3px}
+.operator-account-profile dl,.operator-permissions dl{display:grid;gap:6px;margin:16px 0}
+.operator-account-profile dt,.operator-permissions dt{font-weight:600;margin-top:10px}
+.operator-account-profile dd,.operator-permissions dd{margin:0;overflow-wrap:anywhere}
+@media(max-width:1000px){.operator-directory .ui-record-card{grid-template-columns:minmax(0,1fr) auto}.operator-directory .ui-record-card dl{grid-column:1/-1}}
+@media(max-width:600px){.operator-directory .ui-record-card{display:block}.operator-directory .ui-record-card dl{grid-template-columns:1fr 1fr;margin-top:12px}.operator-directory .ui-record-card dl>div:last-child{grid-column:1/-1}.operator-directory .ui-row{margin-top:8px}.admin-identity.is-signed-in .admin-identity-detail{flex-basis:100%}}
+@media(max-width:600px){.admin-header .header-inner{padding-block:12px}.admin-header nav{margin-left:0;width:100%}.admin-session>section{padding:16px}}
 .operator-access-page { display: grid; gap: 24px; min-width: 0; }
 .operator-access { display: grid; gap: 16px; padding: 20px; min-width: 0; box-shadow: none; }
 .operator-access h2 { font-size: 1rem; font-weight: 600; }

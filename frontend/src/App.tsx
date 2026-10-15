@@ -1,4 +1,6 @@
-import {OperatorAccess} from "./components/OperatorAccess";
+import {AdminWorkspace} from './components/AdminWorkspace';
+import {AdminHeader} from './components/AdminHeader';
+
 import React, { lazy, useState, useEffect, useRef } from "react";
 import { LanguageProvider } from "./context/LanguageContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -18,7 +20,7 @@ import { focusPageElement, revealFocus } from "./utils/focus";
 const CampaignDetailPage = lazy(() => import("./pages/CampaignDetailPage").then(module => ({ default: module.CampaignDetailPage })));
 const BuyerDashboard = lazy(() => import("./pages/BuyerDashboard").then(module => ({ default: module.BuyerDashboard })));
 const SellerDashboard = lazy(() => import("./pages/SellerDashboard").then(module => ({ default: module.SellerDashboard })));
-const OperatorPortal = lazy(() => import("./pages/OperatorPortal").then(module => ({ default: module.OperatorPortal })));
+
 const DeveloperDocs = lazy(() => import("./pages/DeveloperDocs").then(module => ({ default: module.DeveloperDocs })));
 const PublicSellerProfile = lazy(() => import("./pages/PublicSellerProfile").then(module => ({ default: module.PublicSellerProfile })));
 const SupportPage = lazy(() => import("./pages/SupportPage").then(module => ({ default: module.SupportPage })));
@@ -44,7 +46,7 @@ const MainApp: React.FC = () => {
   const { language } = useLanguage();
   const [route, setRoute] = useState<AppRoute>(readAppRoute);
   const catalogReturn = useRef('/explore');
-  const currentTab = route.kind === "tab" ? route.tab : route.kind === "seller-section" ? "seller" : route.kind === "order" ? "orders" : route.kind === "support" ? route.path : route.kind === "operator-deal" ? "operator" : route.kind === "not-found" ? "not-found" : "explore";
+  const currentTab = route.kind === "tab" ? route.tab : route.kind === "seller-section" ? "seller" : route.kind === "order" ? "orders" : route.kind === "support" ? route.path : ['operator-deal','operator-section','operator-user','operator-support'].includes(route.kind) ? "operator" : route.kind === "not-found" ? "not-found" : "explore";
   const selectedCampaignId = route.kind === "campaign" ? route.id : null;
   const selectedSellerId = route.kind === "public-seller" ? route.id : null;
   const selectedOperatorDeal = route.kind === "operator-deal" ? { id: route.id, view: route.view } : null;
@@ -99,12 +101,12 @@ const MainApp: React.FC = () => {
     <div className="app-container">
       <a className="skip-link" href="#main-content" onClick={event=>{event.preventDefault();focusPageElement(document.getElementById("main-content"));}}>{language==="en"?"Skip to main content":"Đến nội dung chính"}</a>
       <AuthModal isOpen={isAuthOpen} onClose={closeAuth}/>
-      <Header
+      {currentTab==='operator'?<AdminHeader/>:<Header
         currentTab={currentTab}
         onTabChange={handleTabChange}
         onOpenSellerRegistration={() => setIsSellerModalOpen(true)}
         onOpenAuth={openAuth}
-      />
+      />}
 
       <main className="main-content" id="main-content" tabIndex={-1}>
         <DeferredPage route={selectedSellerId ? `public-seller:${selectedSellerId}` : selectedCampaignId ? `campaign:${selectedCampaignId}` : currentTab}>
@@ -179,7 +181,7 @@ const MainApp: React.FC = () => {
               )
             )}
 
-            {currentTab === "operator" && <OperatorAccess onBack={handleBackToExplore}><OperatorPortal key={user?.id} dealSelection={selectedOperatorDeal} onDealSelectionChange={selection => navigate(operatorDealHash(selection))}/></OperatorAccess>}
+            {currentTab === "operator" && <AuthProvider realm="ADMIN"><Web3Provider><AdminWorkspace onBack={handleBackToExplore} dealSelection={selectedOperatorDeal} onDealSelectionChange={selection=>navigate(operatorDealHash(selection))}/></Web3Provider></AuthProvider>}
 
             {currentTab === "docs" && <DeveloperDocs />}
           </>

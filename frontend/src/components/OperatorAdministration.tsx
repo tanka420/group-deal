@@ -1,48 +1,52 @@
+import {readDirectoryQuery,directoryPath} from '../services/operatorNavigation';
+import {navigateApp} from '../utils/appRoute';
+import {formatOrderDate} from '../services/orderList';
 import {useLayoutEffect,useRef,useState} from 'react';
 import {useLanguage} from '../context/LanguageContext';
 import {parseAccountDirectory,parseRuntimeSettings,type AccountDirectory,type RuntimeSettings,type AccountRole,type RoleFilter} from '../services/operatorAdministration';
 
 export function OperatorAdministration({token,userId,mode}:{token:string;userId:string;mode:'users'|'settings'}){
  const {language}=useLanguage(),en=language==='en';
- const [role,setRole]=useState<RoleFilter>('ALL'),[cursors,setCursors]=useState<(string|null)[]>([null]),[refresh,setRefresh]=useState(0);
+ const [role,setRole]=useState<RoleFilter>(()=>readDirectoryQuery().role),[q,setQ]=useState(()=>readDirectoryQuery().q),[draft,setDraft]=useState(()=>readDirectoryQuery().q),[cursors,setCursors]=useState<(string|null)[]>([null]),[refresh,setRefresh]=useState(0);
  const [view,setView]=useState<AccountDirectory|RuntimeSettings|null>(null),[pending,setPending]=useState(true),[error,setError]=useState<number|null>(null);
  const scope=useRef({token,userId,mode}),epoch=useRef(0),cursor=cursors[cursors.length-1]??null;
  useLayoutEffect(()=>{
-  if(scope.current.token!==token||scope.current.userId!==userId||scope.current.mode!==mode){scope.current={token,userId,mode};setCursors([null]);setRole('ALL');setView(null);setError(null);setPending(true);setRefresh(v=>v+1);return;}
+  if(scope.current.token!==token||scope.current.userId!==userId||scope.current.mode!==mode){scope.current={token,userId,mode};setCursors([null]);setRole('ALL');setQ('');setDraft('');setView(null);setError(null);setPending(true);setRefresh(v=>v+1);return;}
   const owned=++epoch.current,controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);let active=true;
   setView(null);setError(null);setPending(true);
-  const query=new URLSearchParams({role,limit:'20'});if(cursor)query.set('cursor',cursor);
+  const query=new URLSearchParams({q,role,limit:'20'});if(cursor)query.set('cursor',cursor);
   void (async()=>{
    try{
     const response=await fetch('/api/operator/'+mode+(mode==='users'?'?'+query.toString():''),{headers:{Authorization:'Bearer '+token},signal:controller.signal,cache:'no-store'});
     if(!response.ok)throw response.status;
-    const value=await response.json(),parsed=mode==='users'?parseAccountDirectory(value,userId,role):parseRuntimeSettings(value,userId);
+    const value=await response.json(),parsed=mode==='users'?parseAccountDirectory(value,userId,role,q):parseRuntimeSettings(value,userId);
     if(active&&epoch.current===owned)setView(parsed);
    }catch(e){if(active&&epoch.current===owned)setError(typeof e==='number'?e:503);}
    finally{clearTimeout(timer);if(active&&epoch.current===owned)setPending(false);}
   })();
   return()=>{active=false;epoch.current++;clearTimeout(timer);controller.abort();};
- },[token,userId,mode,role,cursor,refresh]);
+ },[token,userId,mode,role,q,cursor,refresh]);
+ useLayoutEffect(()=>{const sync=()=>{const p=readDirectoryQuery();setRole(p.role);setQ(p.q);setDraft(p.q);setCursors([null]);};window.addEventListener('popstate',sync);window.addEventListener('groupdeal:navigate',sync);return()=>{window.removeEventListener('popstate',sync);window.removeEventListener('groupdeal:navigate',sync);};},[]);
  const reload=()=>{setCursors([null]);setRefresh(v=>v+1);},labels:Record<AccountRole,string>={buyer:en?'Buyer':'Người mua',seller:en?'Seller':'Người bán',operator:en?'Operator':'Điều hành'};
  const directory=view?.scope==='OPERATOR_ACCOUNT_DIRECTORY'?view:null,settings=view?.scope==='OPERATOR_RUNTIME_CONFIGURATION'?view:null;
  const configured=(value:boolean)=>value?(en?'Configured':'Đã cấu hình'):(en?'Not configured':'Chưa cấu hình');
  return <section className="ui-stack operator-administration" aria-labelledby={'operator-'+mode+'-heading'} aria-busy={pending}>
   <div className="glass-card">
-   <div className="ui-row"><div><h2 id={'operator-'+mode+'-heading'}>{mode==='users'?(en?'Users and roles':'Người dùng và vai trò'):(en?'Runtime settings':'Cài đặt hệ thống')}</h2>
+   <div className="ui-row"><div><h2 id={'operator-'+mode+'-heading'}>{mode==='users'?(en?'Users':'Người dùng'):(en?'Runtime settings':'Cài đặt hệ thống')}</h2>
     <p className="muted">{mode==='users'?(en?'View assigned account roles. Wallet actions follow their own authorization checks.':'Xem vai trò đã gán cho tài khoản. Thao tác ví được kiểm tra quyền riêng.'):(en?'Configuration currently used by the backend. Integration status shows configuration only; see Operations for activity.':'Cấu hình backend đang sử dụng. Trạng thái tích hợp chỉ cho biết đã cấu hình; xem Vận hành để theo dõi hoạt động.')}</p></div>
     <button className="btn btn-secondary" type="button" disabled={pending} onClick={reload}>{en?'Reload':'Tải lại'}</button></div>
-   {mode==='users'&&<div className="operator-outbox-controls"><label>{en?'Filter by role':'Lọc theo vai trò'}<select value={role} disabled={pending} onChange={e=>{setRole(e.target.value as RoleFilter);setCursors([null]);}}><option value="ALL">{en?'All roles':'Tất cả vai trò'}</option>{(['buyer','seller','operator'] as const).map(r=><option key={r} value={r}>{labels[r]}</option>)}</select></label></div>}
+   {mode==='users'&&<div className="operator-outbox-controls"><form className="ui-row" onSubmit={e=>{e.preventDefault();navigateApp(directoryPath(draft,role));}}><label>{en?'Search account ID, name or wallet':'Tìm mã tài khoản, tên hoặc ví'}<input value={draft} maxLength={180} onChange={e=>setDraft(e.target.value)}/></label><button className="btn btn-primary" disabled={pending}>{en?'Search':'Tìm kiếm'}</button><button type="button" className="btn btn-secondary" disabled={pending} onClick={()=>navigateApp('/admin/users')}>{en?'Clear':'Xóa lọc'}</button></form><label>{en?'Filter by role':'Lọc theo vai trò'}<select value={role} disabled={pending} onChange={e=>navigateApp(directoryPath(q,e.target.value))}><option value="ALL">{en?'All roles':'Tất cả vai trò'}</option>{(['buyer','seller','operator'] as const).map(r=><option key={r} value={r}>{labels[r]}</option>)}</select></label></div>}
    {pending&&<p role="status">{en?'Loading…':'Đang tải…'}</p>}
    {error!==null&&<p role="alert" className="notice notice-error">{error===409?(en?'Accounts changed while browsing. Reload to start with current data.':'Danh sách tài khoản đã thay đổi. Tải lại để xem dữ liệu hiện hành.'):error===401||error===403?(en?'Your session no longer has access. Sign in with an authorized operator account.':'Phiên hiện tại không còn quyền truy cập. Đăng nhập bằng tài khoản điều hành được cấp quyền.'):(en?'Data is unavailable. Check your connection and try again.':'Chưa tải được dữ liệu. Kiểm tra kết nối và thử lại.')}</p>}
    {view&&<p className="muted">{en?'Updated':'Đọc lúc'}: <time dateTime={new Date(view.observedAt).toISOString()}>{new Date(view.observedAt).toLocaleString(en?'en-GB':'vi-VN')}</time></p>}
   </div>
-  {directory&&<><div className="ui-record-list" aria-label={en?'Accounts':'Tài khoản'}>{directory.users.length?directory.users.map(account=><article className="glass-card ui-record-card" key={account.id}>
-   <h3>{account.displayName||account.id}</h3><p>{en?'Account ID':'Mã tài khoản'}: <code>{account.id}</code></p>
+  {directory&&<><div className="ui-record-list operator-directory" aria-label={en?'Accounts':'Tài khoản'}>{directory.users.length?directory.users.map(account=><article className="glass-card ui-record-card" key={account.id}>
+   <div className="directory-identity"><h3><a href={'/admin/users/'+encodeURIComponent(account.id)+'?returnTo='+encodeURIComponent(directoryPath(q,role))}>{account.displayName||account.id}</a></h3><p>{en?'Account ID':'Mã tài khoản'}: <code>{account.id}</code></p></div>
    <div className="ui-row" aria-label={en?'Assigned roles':'Vai trò đã gán'}>{account.roles.length?account.roles.map(r=><span className="badge" key={r}>{labels[r]}</span>):<span className="muted">{en?'No assigned roles':'Chưa có vai trò'}</span>}</div>
-   <dl><dt>{en?'Created':'Ngày tạo'}</dt><dd><time dateTime={new Date(account.createdAt).toISOString()}>{new Date(account.createdAt).toLocaleDateString(en?'en-GB':'vi-VN')}</time></dd>
-    <dt>{en?'Sign-in method':'Cách đăng nhập'}</dt><dd>{account.loginMethod==='CIRCLE_EMAIL'?(en?'Circle email':'Email Circle'):account.loginMethod==='EVM_WALLET'?(en?'EVM wallet':'Ví EVM'):(en?'Not recorded':'Chưa ghi nhận')}</dd>
-    <dt>{en?'Selected wallet':'Ví đang chọn'}</dt><dd>{account.activeWallet?<code>{account.activeWallet}</code>:(en?'None selected':'Chưa chọn ví')}</dd></dl>
-  </article>):<div className="glass-card ui-state"><p>{en?'No accounts match this role.':'Không có tài khoản khớp vai trò này.'}</p></div>}</div>
+   <dl><div><dt>{en?'Created':'Ngày tạo'}</dt><dd><time dateTime={new Date(account.createdAt).toISOString()}>{formatOrderDate(account.createdAt,language)}</time></dd></div><div>
+    <dt>{en?'Sign-in method':'Cách đăng nhập'}</dt><dd>{account.loginMethod==='CIRCLE_EMAIL'?(en?'Circle email':'Email Circle'):account.loginMethod==='EVM_WALLET'?(en?'EVM wallet':'Ví EVM'):(en?'Not recorded':'Chưa ghi nhận')}</dd></div><div>
+    <dt>{en?'Selected wallet':'Ví đang chọn'}</dt><dd>{account.activeWallet?<code>{account.activeWallet}</code>:(en?'None selected':'Chưa chọn ví')}</dd></div></dl>
+  </article>):<div className="glass-card ui-state"><p>{en?'No accounts match these filters.':'Không có tài khoản khớp bộ lọc này.'}</p></div>}</div>
    <nav className="ui-row" aria-label={en?'Account pages':'Trang tài khoản'}><button type="button" className="btn btn-secondary" disabled={pending||cursors.length===1} onClick={()=>setCursors(v=>v.slice(0,-1))}>{en?'Previous page':'Trang trước'}</button><span>{en?'Page':'Trang'} {cursors.length}</span><button type="button" className="btn btn-secondary" disabled={pending||!directory.pagination.nextCursor} onClick={()=>setCursors(v=>[...v,directory.pagination.nextCursor])}>{en?'Next page':'Trang sau'}</button></nav>
   </>}
   {settings&&<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,260px),1fr))',gap:'1rem'}}>

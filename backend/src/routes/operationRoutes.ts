@@ -29,6 +29,15 @@ function trackingFailure(res:import('express').Response,error:unknown){if(error 
 export const operationRouter=Router();
 operationRouter.use((_req,res,next)=>{res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');next()});
 operationRouter.use(authMiddleware);
+operationRouter.use((req:AuthenticatedRequest,res,next)=>{
+ if(req.sessionProof?.record.realm!=='ADMIN'){next();return;}
+ try{
+  if(req.method==='POST'&&req.path==='/orders/prepare'){if(req.body?.intent?.action!=='RESOLVE')throw new SessionError('ADMIN_OPERATION_SCOPE_REQUIRED',403);}
+  else if(req.path==='/'&&req.method==='GET'){}
+  else {const match=/^\/([A-Za-z0-9_-]+)(?:\/(ready|submit|observe|replace|recover))?$/.exec(req.path);if(!match||req.method!==(match[2]?'POST':'GET'))throw new SessionError('ADMIN_OPERATION_SCOPE_REQUIRED',403);const operation=OperationService.publicOwned(req.user!.userId,match[1],req.sessionProof);if(operation.action!=='RESOLVE')throw new SessionError('ADMIN_OPERATION_SCOPE_REQUIRED',403);}
+  next();
+ }catch(e){res.status(e instanceof SessionError?e.status:403).json({error:'ADMIN_OPERATION_SCOPE_REQUIRED'});}
+});
 operationRouter.get("/",(req:AuthenticatedRequest,res)=>{
   try{res.json(operationHistory(req.user!.userId,req.query,req.sessionProof));}catch(error){if(error instanceof OperationTrackingError||error instanceof SessionError)trackingFailure(res,error);else res.status(400).json({error:"Invalid history query or cursor",code:"VALIDATION"});}
 });

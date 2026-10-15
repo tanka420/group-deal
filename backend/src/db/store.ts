@@ -88,6 +88,7 @@ export interface SanitizedUser {
 }
 
 export interface WalletChallengeRecord {
+  realm?:"ADMIN";
   userId: string;
   action: "WALLET_LOGIN" | "LINK_WALLET" | "SELLER_PAYOUT" | "OPERATOR_ACTION" | "OPERATOR_SELLER_BADGE" | "OPERATOR_ENROLLMENT";
   enrollmentAuthority?:import('../domain/operatorEnrollment').OperatorAuthority;
@@ -455,6 +456,7 @@ export interface EmailOutboxRecord {
 }
 
 export interface AuthSessionRecord {
+  realm?:"ADMIN";
   id:string; // Public management ID, separate from the JWT token ID and hashed storage key.
   userId:string;
   kind:"MANAGED"|"LEGACY";

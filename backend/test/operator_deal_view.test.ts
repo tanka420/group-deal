@@ -20,6 +20,7 @@ async function run(){
   }
   store.save();
   const tokens:Record<string,string>={};for(const id of ["operator","buyer"]){tokens[id]=jwt.sign({userId:id,roles:["operator"]},config.jwtSecret,{expiresIn:"2m"});SessionService.authenticate(tokens[id]);}
+  tokens.operator=SessionService.issue(store.db.users.operator,'EVM_WALLET','ADMIN');
   await enrollFixtureOperator('operator',SessionService.authenticate(tokens.operator),{chainId:config.arcChainId});
   const before=JSON.stringify(store.db);
   const app=express();app.use("/api/operator",operatorRouter);const server=app.listen(0,"127.0.0.1");await new Promise<void>(resolve=>server.once("listening",resolve));const base="http://127.0.0.1:"+(server.address() as any).port;

@@ -1,3 +1,8 @@
+import {OperatorAccountProfile} from '../components/OperatorAccountProfile';
+import {OperatorPermissions} from '../components/OperatorPermissions';
+import {SupportPage} from './SupportPage';
+import {operatorSection,operatorPath} from '../services/operatorNavigation';
+import {navigateApp,readAppRoute} from '../utils/appRoute';
 import {ReconciliationPanel} from "../components/ReconciliationPanel";
 import {DialogSurface} from "../components/DialogSurface";
 import {ManagedOrderAction,ManagedOrderActionHandle} from "../components/ManagedOrderAction";
@@ -39,10 +44,12 @@ export const OperatorPortal: React.FC<{dealSelection?:OperatorDealSelection|null
   const workspaceContent=useRef<HTMLDivElement>(null);
   const [navigationExpanded,setNavigationExpanded]=useState(false);
   const [activeTab, setActiveTab] = useState<OperatorSection>(
-    dealSelection ? "DEALS" : "DISPUTES"
+    dealSelection ? "DEALS" : operatorSection()
   );
   useEffect(()=>{if(dealSelection)setActiveTab("DEALS");},[dealSelection?.id,dealSelection?.view]);
-  const selectSection=(section:OperatorSection)=>{setActiveTab(section);if(section!=="DEALS"&&dealSelection)onDealSelectionChange?.(null);};
+  const [route,setRoute]=useState(readAppRoute);
+  useEffect(()=>{const sync=()=>{setRoute(readAppRoute());setActiveTab(operatorSection());};window.addEventListener('popstate',sync);window.addEventListener('groupdeal:navigate',sync);return()=>{window.removeEventListener('popstate',sync);window.removeEventListener('groupdeal:navigate',sync);};},[]);
+  const selectSection=(section:OperatorSection)=>navigateApp(operatorPath(section));
 
   const [disputes, setDisputes] = useState<any[]>([]);
   const [reconciliationReport, setReconciliationReport] = useState<any | null>(null);
@@ -59,7 +66,7 @@ export const OperatorPortal: React.FC<{dealSelection?:OperatorDealSelection|null
   const fetchOperatorData = () => {
     dataController.current?.abort();
     const controller=new AbortController();dataController.current=controller;setLoading(true);setLoadError(null);
-    const token = localStorage.getItem("groupdeal_token");
+    // Use the active context; admin authentication has a separate token.
     if (!token) {setLoading(false);setLoadError("Đăng nhập để tải dữ liệu operator.");return;}
 
     Promise.all([
@@ -108,7 +115,7 @@ export const OperatorPortal: React.FC<{dealSelection?:OperatorDealSelection|null
         </button>
       </div>
 
-      <a className="btn btn-sm btn-secondary" href="#support">{language==='en'?'Support tickets':'Ticket hỗ trợ'}</a>
+      <a className="btn btn-sm btn-secondary" href="/admin/support">{language==='en'?'Support tickets':'Ticket hỗ trợ'}</a>
       {loading&&<p role="status">{language==="en"?"Loading operator data…":"Đang tải dữ liệu operator…"}</p>}
       <div className={'operator-workspace'+(navigationExpanded?' is-navigation-expanded':'')}>
       <OperatorWorkspaceNavigation active={activeTab} disputeCount={!loading&&!loadError?disputes.length:'—'} expanded={navigationExpanded} onToggle={()=>setNavigationExpanded(value=>!value)} onChange={section=>{selectSection(section);requestAnimationFrame(()=>focusPageElement(workspaceContent.current));}}/>
@@ -119,7 +126,10 @@ export const OperatorPortal: React.FC<{dealSelection?:OperatorDealSelection|null
       {activeTab === "OUTBOX"&&token&&user&&<OperatorEmailOutbox key={'outbox:'+user.id} token={token} userId={user.id}/>}
       {activeTab==='OPERATIONS'&&token&&user&&<OperatorOperations key={'operations:'+user.id} token={token} userId={user.id}/>}
       {activeTab==='LEGACY'&&token&&user&&<OperatorLegacyReview key={'legacy:'+user.id} token={token} userId={user.id}/>}
-      {(activeTab==='USERS'||activeTab==='SETTINGS')&&token&&user&&<OperatorAdministration key={activeTab+':'+user.id} token={token} userId={user.id} mode={activeTab==='USERS'?'users':'settings'}/>}
+      {activeTab==='PERMISSIONS'&&token&&user&&<OperatorPermissions key={user.id} token={token} userId={user.id}/>}
+      {activeTab==='SUPPORT'&&<SupportPage key={JSON.stringify([user?.id,token,route])} route={route.kind==='operator-support'?'support-'+route.path.replace('tickets/','ticket-').replace('orders/','order-'):'support'}/>}
+      {activeTab==='USERS'&&route.kind==='operator-user'&&token&&user&&<OperatorAccountProfile key={JSON.stringify([user.id,token,route.id])} token={token} userId={user.id} target={route.id}/>}
+      {(activeTab==='USERS'&&route.kind!=='operator-user'||activeTab==='SETTINGS')&&token&&user&&<OperatorAdministration key={activeTab+':'+user.id} token={token} userId={user.id} mode={activeTab==='USERS'?'users':'settings'}/>}
       {!loading && !loadError && activeTab === "DISPUTES" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           {disputes.length === 0 ? (
@@ -198,7 +208,7 @@ export const OperatorPortal: React.FC<{dealSelection?:OperatorDealSelection|null
       {activeTab==='LOGS'&&token&&user&&<OperatorAuditLog key={'audit:'+user.id} token={token} userId={user.id}/> }
 
       <ManagedOrderAction ref={orderAction} onRecovered={fetchOperatorData}/>
-      <TransactionHistory key={'transaction-history:'+user?.id} onRecovered={fetchOperatorData}/>
+      {['DISPUTES','OPERATIONS'].includes(activeTab)&&<TransactionHistory key={'transaction-history:'+user?.id} onRecovered={fetchOperatorData}/>}
       {/* Dispute Arbitration Modal */}
       {selectedDispute && (
         <DialogSurface label={language==="en"?"Review dispute allocation":"Xem phân bổ tranh chấp"} onClose={() => setSelectedDispute(null)}>

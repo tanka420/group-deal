@@ -23,10 +23,10 @@ async function setup(count=55){
   for(const [id,roles] of [['fixture',['buyer','operator']],['other-operator',['buyer','operator']],['buyer',['buyer']]] as const)store.db.users[id]={id,email:id+'@fixture.invalid',roles:[...roles],createdAt:1700000000000,activeWallet:null,loginMethod:'EVM_WALLET'};
   for(let i=0;i<count;i++)store.addAuditLog(i%10===0?'private-actor@fixture.invalid':'fixture','operator','RESOURCE_REVIEWED',{index:i,email:'private@fixture.invalid',privateExtension:'LOCAL_AUDIT_PRIVATE_MARKER',licenseKey:'LOCAL_AUDIT_PRIVATE_CONTENT',nested:{value:'LOCAL_AUDIT_PRIVATE_MARKER'}});
  });
- const token=SessionService.issue(store.db.users.fixture),other=SessionService.issue(store.db.users['other-operator']),buyer=SessionService.issue(store.db.users.buyer);
+ const token=SessionService.issue(store.db.users.fixture,'EVM_WALLET','ADMIN'),other=SessionService.issue(store.db.users['other-operator'],'EVM_WALLET','ADMIN'),buyer=SessionService.issue(store.db.users.buyer);
  const proof=SessionService.authenticate(token),enrollment=await enrollFixtureOperator('fixture',proof,{chainId:config.arcChainId});return{token,other,buyer,proof,otherProof:SessionService.authenticate(other),enrollment,auditCount:get('auditLogs','state').length};
 }
-let current:Awaited<ReturnType<typeof setup>>;const app=express();app.use(express.json());app.use('/api/operator',operatorRouter);app.use('/api/auth',authRouter);
+let current:Awaited<ReturnType<typeof setup>>;const app=express();app.use(express.json());app.use('/api/operator',operatorRouter);app.use('/api/auth',authRouter);app.use('/api/admin-auth',authRouter);
 const browser=process.argv.includes('--browser-server');
 async function boot(){current=await setup();
 if(browser){
@@ -63,7 +63,7 @@ async function main(){
   });
   await check('audit cursor actor session deployment purpose and stale revision',async()=>{
    const page=listOperatorAudit(current.proof,{limit:'1'}),cursor=page.pagination.nextCursor!;assert.ok(cursor);rejected(()=>listOperatorAudit(current.otherProof,{limit:'1',cursor}),400);rejected(()=>listOperatorAudit(current.proof,{limit:'2',cursor}),400);rejected(()=>listOperatorAudit(current.proof,{limit:'1',action:'RESOURCE_REVIEWED',cursor}),400);rejected(()=>listOperatorAudit(current.proof,{limit:'1',actor:'fixture',cursor}),400);rejected(()=>listOperatorAudit(current.proof,{limit:'1',cursor:cursor.slice(0,-1)+(cursor.endsWith('a')?'b':'a')}),400);
-   const second=SessionService.authenticate(SessionService.issue(store.db.users.fixture));await current.enrollment.service.authorize(second);rejected(()=>listOperatorAudit(second,{limit:'1',cursor}),400);
+   const second=SessionService.authenticate(SessionService.issue(store.db.users.fixture,'EVM_WALLET','ADMIN'));await current.enrollment.service.authorize(second);rejected(()=>listOperatorAudit(second,{limit:'1',cursor}),400);
    const userCursor=listOperatorUsers(current.proof,{limit:'1'}).pagination.nextCursor!;assert.ok(userCursor);rejected(()=>listOperatorAudit(current.proof,{limit:'1',cursor:userCursor}),400);
    const revisionCursor=listOperatorAudit(current.proof,{limit:'1'}).pagination.nextCursor!;injectedRevision=(sql.prepare('SELECT revision FROM storage_revision WHERE id=1').get() as {revision:number}).revision;sql.prepare('UPDATE storage_revision SET revision=revision+1 WHERE id=1').run();rejected(()=>listOperatorAudit(current.proof,{limit:'1',cursor:revisionCursor}),409);
   });

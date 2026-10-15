@@ -142,28 +142,29 @@ export class AuthService {
    * The nonce is part of the storage key so a second requester cannot overwrite
    * another user's pending challenge for the same public address.
    */
-  public static issueWalletLoginChallenge(walletAddress:string,origin='groupdeal.app',budgets:WalletAuthBudget[]=[]):{challengeMessage:string;expiresAt:number;nonce:string}{
+  public static issueWalletLoginChallenge(walletAddress:string,origin='groupdeal.app',budgets:WalletAuthBudget[]=[],realm?:'ADMIN'):{challengeMessage:string;expiresAt:number;nonce:string}{
     const wallet=parseWallet(walletAddress),normalizedWallet=wallet.toLowerCase(),nonce=crypto.randomBytes(16).toString('hex'),now=Math.floor(Date.now()/1000),expiresAt=now+300,subject='wallet-login:'+normalizedWallet,key=subject+':WALLET_LOGIN:'+nonce;
     if(typeof origin!=='string'||!origin||origin.length>2000||/[\u0000-\u001f\u007f]/.test(origin))throw new WalletAuthError('WALLET_AUTH_INPUT_INVALID');
     const result=store.mutateWalletAuth<{challengeMessage:string;expiresAt:number;nonce:string}|{error:WalletAuthError}>({mode:'ISSUE_LOGIN',wallet:normalizedWallet,challengeKey:key,rateKeys:budgets.map(b=>b.key)},state=>{
       const admission=walletAuthAdmission(budgets,state.rates);if(admission.error)return{result:{error:admission.error},writes:admission.writes};
-      const context=walletAuthContext(state.auth.authRecovery),value:WalletChallengeRecord={userId:subject,action:'WALLET_LOGIN',walletAddress:normalizedWallet,message:'',expiresAt,nonce,chainId:config.arcChainId,origin,...(context?{authRecoveryContext:context}:{})};value.message=walletAuthMessage(value,now);
+      const context=walletAuthContext(state.auth.authRecovery),value:WalletChallengeRecord={...(realm?{realm}:{}),userId:subject,action:'WALLET_LOGIN',walletAddress:normalizedWallet,message:'',expiresAt,nonce,chainId:config.arcChainId,origin,...(context?{authRecoveryContext:context}:{})};value.message=walletAuthMessage(value,now);
       return{result:{challengeMessage:value.message,expiresAt,nonce},writes:[...admission.writes,{collection:'walletChallenges',key,value}],audit:[{actor:subject,role:'user',action:'WALLET_AUTH_CHALLENGE_ISSUED',details:{action:'WALLET_LOGIN',wallet}}]};
     });if('error' in result)throw result.error;return result;
   }
 
-  public static verifyWalletLogin(walletAddress:string,signature:string,message:string,nonce:string,budgets:WalletAuthBudget[]=[]):{token:string;user:SanitizedUser}{
+  public static verifyWalletLogin(walletAddress:string,signature:string,message:string,nonce:string,budgets:WalletAuthBudget[]=[],realm?:'ADMIN'):{token:string;user:SanitizedUser}{
     const wallet=parseWallet(walletAddress),normalizedWallet=wallet.toLowerCase(),subject='wallet-login:'+normalizedWallet;
     if(typeof nonce!=='string'||! /^[a-f0-9]{32}$/.test(nonce)||typeof message!=='string'||message.length>4096||typeof signature!=='string')throw new WalletAuthError('WALLET_AUTH_INPUT_INVALID');
     const key=subject+':WALLET_LOGIN:'+nonce,result=store.mutateWalletAuth<{token:string;user:SanitizedUser}|{error:WalletAuthError}>({mode:'LOGIN',wallet:normalizedWallet,challengeKey:key,rateKeys:budgets.map(b=>b.key)},state=>{
       const admission=walletAuthAdmission(budgets,state.rates);if(admission.error)return{result:{error:admission.error},writes:admission.writes};
-      try{assertWalletAuthChallenge(state.challenge,{action:'WALLET_LOGIN',userId:subject,wallet,chainId:config.arcChainId,nonce,context:walletAuthContext(state.auth.authRecovery)},message,signature);}catch(e){if(e instanceof WalletAuthError&&e.status===400)return{result:{error:e},writes:admission.writes};throw e;}
+      try{assertWalletAuthChallenge(state.challenge,{realm,action:'WALLET_LOGIN',userId:subject,wallet,chainId:config.arcChainId,nonce,context:walletAuthContext(state.auth.authRecovery)},message,signature);}catch(e){if(e instanceof WalletAuthError&&e.status===400)return{result:{error:e},writes:admission.writes};throw e;}
       let user=state.auth.user;const isNew=state.boundUserId===undefined,writes:WalletAuthWrite[]=[...admission.writes];
       if(!isNew&&(!user||user.id!==state.boundUserId))throw new WalletAuthError('WALLET_ACCOUNT_BINDING_UNAVAILABLE',409);
+      if(realm==='ADMIN'&&(isNew||!user||normalizedWallet!==config.operatorAddress.toLowerCase()||user.activeWallet?.toLowerCase()!==normalizedWallet))throw new WalletAuthError('ADMIN_WALLET_NOT_AUTHORIZED',403);
       if(isNew){if(state.emailOwner!==undefined)throw new WalletAuthError('WALLET_ACCOUNT_BINDING_UNAVAILABLE',409);const id='usr_wallet_'+crypto.randomUUID(),email='wallet+'+normalizedWallet.slice(2)+'@auth.groupdeal.invalid';user={id,email,loginMethod:'EVM_WALLET',createdAt:Date.now(),roles:['buyer'],activeWallet:wallet};writes.push({collection:'users',key:id,value:user},{collection:'userByEmail',key:email,value:id},{collection:'userByWallet',key:normalizedWallet,value:id},{collection:'notificationPreferences',key:id,value:{inApp:true,email:false}});
       }else user={...user!,activeWallet:wallet};
-      const prepared=SessionService.prepareIssuedSession(user!,state.auth.authRecovery,'EVM_WALLET');writes.push({collection:'authSessions',key:prepared.key,value:prepared.record});
-      return{result:{token:prepared.token,user:sanitizeUser(user!)},userId:user!.id,writes,consumeChallenge:true,...(!isNew?{activeWallet:wallet}:{}),audit:[{actor:user!.id,role:'buyer',action:isNew?'EVM_WALLET_USER_REGISTERED':'EVM_WALLET_LOGIN_VERIFIED',details:{wallet}},{actor:user!.id,role:'user',action:'APP_SESSION_CREATED',details:{sessionId:prepared.record.id,loginMethod:'EVM_WALLET'}}]};
+      const prepared=SessionService.prepareIssuedSession(user!,state.auth.authRecovery,'EVM_WALLET',realm);writes.push({collection:'authSessions',key:prepared.key,value:prepared.record});
+      return{result:{token:prepared.token,user:sanitizeUser(user!)},userId:user!.id,writes,consumeChallenge:true,...(!isNew&&realm!=='ADMIN'?{activeWallet:wallet}:{}),audit:[{actor:user!.id,role:'buyer',action:isNew?'EVM_WALLET_USER_REGISTERED':'EVM_WALLET_LOGIN_VERIFIED',details:{wallet}},{actor:user!.id,role:'user',action:'APP_SESSION_CREATED',details:{sessionId:prepared.record.id,loginMethod:'EVM_WALLET'}}]};
     });if('error' in result)throw result.error;return result;
   }
 

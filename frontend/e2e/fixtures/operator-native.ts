@@ -15,12 +15,14 @@ export async function installNativeOperatorManifest(page:Page,fixture:NativeOper
 
 /** Forward the browser's managed token and real session metadata to the owned fixture. */
 export async function installNativeOperatorAuth(page:Page,base:string){
- await page.route('**/api/auth/**',async route=>{
+ await page.addInitScript(()=>{const token=localStorage.getItem('groupdeal_token');if(token){localStorage.setItem('groupdeal_admin_token',token);localStorage.removeItem('groupdeal_token');}});
+ const handler=async (route:import('@playwright/test').Route)=>{
   const request=route.request(),url=new URL(request.url());
-  if(!['/api/auth/me','/api/auth/operator/enrollment','/api/auth/session/activity','/api/auth/wallets'].includes(url.pathname))return route.fallback();
+  if(!['/api/auth/me','/api/admin-auth/me','/api/admin-auth/operator/enrollment','/api/auth/session/activity','/api/admin-auth/session/activity','/api/auth/wallets'].includes(url.pathname))return route.fallback();
   const headers:Record<string,string>={'Authorization':request.headers().authorization??''};
   if(request.headers()['content-type'])headers['Content-Type']=request.headers()['content-type'];
   const response=await fetch(base+url.pathname+url.search,{method:request.method(),headers,...(request.method()==='GET'?{}:{body:request.postData()??undefined})});
   await route.fulfill({status:response.status,headers:{'cache-control':response.headers.get('cache-control')??'private, no-store'},json:await response.json()});
- });
+ };
+ await page.route('**/api/auth/**',handler);await page.route('**/api/admin-auth/**',handler);
 }

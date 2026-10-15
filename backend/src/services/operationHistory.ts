@@ -8,6 +8,7 @@ import {config} from "../config";
 const querySchema=z.object({limit:z.string().regex(/^\d{1,3}$/).transform(Number).refine(n=>n>=1&&n<=100).default("20"),cursor:z.string().max(2048).optional(),action:z.enum(["PUBLISH","DELIVER","BUY","BUYER_CLAIM","SELLER_CLAIM","DISPUTE","RESOLVE","CONFIRM","BREACH","SETTLE"]).optional(),phase:z.enum(["PREPARED","AWAITING_SIGNATURE","SUBMITTED","RECEIPT_VERIFIED","PROJECTED","UNKNOWN","REVERTED","SUPERSEDED","EXPIRED"]).optional(),resourceId:z.string().min(1).max(180).optional(),principal:z.string().refine(ethers.isAddress).transform(s=>s.toLowerCase()).optional()}).strict();
 export function operationHistory(userId:string,query:unknown,proof?:SessionProof){
   const {cursor,limit,...filters}=querySchema.parse(query);
+  if(proof?.record.realm==='ADMIN'){if(filters.action&&filters.action!=='RESOLVE')throw new Error('ADMIN_OPERATION_SCOPE_REQUIRED');filters.action='RESOLVE';}
   const scope=createHash("sha256").update(JSON.stringify({userId,chainId:config.arcChainId,hubAddress:config.hubAddress.toLowerCase(),filters})).digest("hex");
   let boundary:{createdAt:number;id:string}|undefined;
   if(cursor){

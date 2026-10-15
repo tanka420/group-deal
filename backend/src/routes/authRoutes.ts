@@ -15,6 +15,17 @@ import { SellerProfileService, SellerProfileError } from "../services/sellerProf
 
 import {WalletAuthError,walletAddress as parseWallet} from '../domain/walletAuthentication';
 export const authRouter = Router();
+const adminRealm=(req:import('express').Request)=>req.baseUrl.toLowerCase()==='/api/admin-auth'?'ADMIN' as const:undefined;
+authRouter.use((req,res,next)=>{
+ res.setHeader('Cache-Control','private, no-store');
+ const admin=adminRealm(req)==='ADMIN',login=/^\/wallet\/login\/(challenge|verify)$/.test(req.path);
+ if(admin&&!/^\/(?:wallet\/login\/(?:challenge|verify)|me|logout|session\/activity|operator\/enrollment(?:\/(?:challenge|verify))?|wallet\/challenge)$/.test(req.path)){res.status(404).json({error:'ADMIN_AUTH_ROUTE_UNAVAILABLE'});return;}
+ if(!login&&(admin||/^\/operator\/enrollment(?:\/|$)/.test(req.path)||/^\/(?:logout|sessions|session-actions)(?:\/|$)/.test(req.path))){
+  try{const h=req.headers.authorization;if(typeof h!=='string'||!/^Bearer [^\s]+$/.test(h))throw new SessionError('AUTH_SESSION_INVALID');const p=SessionService.authenticate(h.slice(7),{allowInactive:true,allowMissingLegacy:true});if((p.record.realm==='ADMIN')!==admin||!admin&&req.path.startsWith('/operator/enrollment'))throw new SessionError('AUTH_SESSION_REALM_REQUIRED',403);}
+  catch(e){res.status(e instanceof SessionError?e.status:401).json({error:e instanceof SessionError?e.code:'AUTH_SESSION_INVALID'});return;}
+ }
+ next();
+});
 
 const walletAuthHeaders=(res:import('express').Response)=>{res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');};
 const walletAuthError=(res:import('express').Response,error:unknown)=>{
@@ -45,18 +56,21 @@ authRouter.post('/operator/enrollment/verify',authMiddleware,async(req:Authentic
 // Wallet-first authentication: budget, committed nonce, credential and session are scoped writes.
 authRouter.post('/wallet/login/challenge',(req,res)=>{walletAuthHeaders(res);try{
  walletAuthInput(req);const input=z.object({walletAddress:z.string()}).strict().parse(req.body),wallet=parseWallet(input.walletAddress),origin=walletOrigin(req.get('origin'));
- res.json(AuthService.issueWalletLoginChallenge(wallet,origin,[{key:walletAuthRateKey('wallet-login-address',wallet.toLowerCase()),limit:10,minimumIntervalMs:2000},{key:walletAuthRateKey('wallet-login-ip',req.ip||req.socket.remoteAddress||'unknown'),limit:30}]));
+ if(adminRealm(req)&&wallet.toLowerCase()!==config.operatorAddress.toLowerCase())throw new WalletAuthError('ADMIN_WALLET_NOT_AUTHORIZED',403);
+ res.json(AuthService.issueWalletLoginChallenge(wallet,origin,[{key:walletAuthRateKey('wallet-login-address',wallet.toLowerCase()),limit:10,minimumIntervalMs:2000},{key:walletAuthRateKey('wallet-login-ip',req.ip||req.socket.remoteAddress||'unknown'),limit:30}],adminRealm(req)));
 }catch(e){walletAuthError(res,e);}});
 authRouter.post('/wallet/login/verify',(req,res)=>{walletAuthHeaders(res);try{
  walletAuthInput(req);walletOrigin(req.get('origin'));const input=z.object({walletAddress:z.string(),signature:z.string().max(132),message:z.string().min(1).max(4096),nonce:z.string().regex(/^[a-f0-9]{32}$/)}).strict().parse(req.body);
- res.json(AuthService.verifyWalletLogin(input.walletAddress,input.signature,input.message,input.nonce,[{key:walletAuthRateKey('wallet-login-verify-ip',req.ip||req.socket.remoteAddress||'unknown'),limit:60}]));
+ res.json(AuthService.verifyWalletLogin(input.walletAddress,input.signature,input.message,input.nonce,[{key:walletAuthRateKey('wallet-login-verify-ip',req.ip||req.socket.remoteAddress||'unknown'),limit:60}],adminRealm(req)));
 }catch(e){walletAuthError(res,e);}});
 
 // Request cryptographic time-bound challenge nonce to bind wallet or payout
 authRouter.post("/wallet/challenge", authMiddleware, async (req: AuthenticatedRequest, res) => {
   walletAuthHeaders(res);try {
     const { action, walletAddress } = req.body || {};
+    if(req.sessionProof?.record.realm==='ADMIN'&&action!=='OPERATOR_ACTION')throw new SessionError('ADMIN_OPERATION_SCOPE_REQUIRED',403);
     if(action==='OPERATOR_ACTION'){
+      if(req.sessionProof?.record.realm!=='ADMIN')throw new SessionError('ADMIN_SESSION_REQUIRED',403);
       res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');
       if(Object.keys(req.query).length)throw new SessionError('OPERATOR_CHALLENGE_INPUT_INVALID',400);
       const parsed=z.object({action:z.literal('OPERATOR_ACTION'),walletAddress:z.string().regex(/^0x[a-fA-F0-9]{40}$/)}).strict().parse(req.body);

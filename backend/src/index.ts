@@ -53,6 +53,7 @@ app.get("/api/health", publicHealth);
 
 // Mount Routes
 app.use("/api/auth", authRouter);
+app.use("/api/admin-auth", authRouter);
 app.use("/api/campaigns", campaignRouter);
 app.use("/api/orders", orderRouter);
 app.use("/api/seller", sellerRouter);

@@ -1,3 +1,4 @@
+import {operatorAccountRead} from './operatorAccountRead';
 import {captureOperatorFrame,hasOperatorCapability} from '../domain/operatorCapability';
 import type {SessionProof} from '../services/sessionService';
 import {isDeepStrictEqual} from 'node:util';
@@ -17,7 +18,7 @@ import type {CircleChallengeReceipt} from '../domain/circleChallenge';
 import type { DatabaseSchema,UserRecord,AuthSessionRecord,AuthSessionCommandRecord,CampaignRecord,NotificationPreferenceRecord } from "./store";
 import {sellerFollowId,sellerFollowSchema,sellerFollowCommandSchema,type SellerFollowRecord,type SellerFollowCommand} from '../domain/sellerFollow';
 export type SellerFollowState={auth:ProductMutationState['auth'];user?:UserRecord;seller?:{id:string;sellerProfile?:{displayName?:string}|null};follows:Record<string,SellerFollowRecord>;command?:SellerFollowCommand;commandAudited:boolean;preferences?:NotificationPreferenceRecord;campaigns:CampaignRecord[];products:Record<string,{status:string}>;budget?:DatabaseSchema['rateLimits'][string];activeCount:number};
-export type OperatorAdministrationState=OperatorDealRead&{auth:ProductMutationState['auth'];revision:number;page:(limit:number,role?:'buyer'|'seller'|'operator',after?:string)=>unknown[];auditPage:(limit:number,after:number,action?:string,actor?:string,dealId?:string)=>unknown[];auditIntegrityPage:(limit:number,after:number)=>{position:number;entry:unknown}[]};
+export type OperatorAdministrationState=OperatorDealRead&{auth:ProductMutationState['auth'];revision:number;page:(limit:number,role?:'buyer'|'seller'|'operator',after?:string,q?:string)=>unknown[];account:ReturnType<typeof operatorAccountRead>;auditPage:(limit:number,after:number,action?:string,actor?:string,dealId?:string)=>unknown[];auditIntegrityPage:(limit:number,after:number)=>{position:number;entry:unknown}[]};
 export type OperatorMailFrame={graph:DatabaseSchema;receipts:Record<string,DatabaseSchema['auditLogs']>};
 export type OperatorMailState=OperatorMailFrame&{auth:ProductMutationState['auth'];job?:DatabaseSchema['emailOutbox'][string]|null;page:(limit:number,status?:string,boundary?:{createdAt:number;id:string})=>{jobs:DatabaseSchema['emailOutbox'][string][];frame:OperatorMailFrame}};
 export type OperatorMailSelection={actorId:string;sessionKey:string;jobId:string;action:'REDRIVE'|'CANCEL';requestHash?:string};
@@ -100,7 +101,7 @@ export type SessionManagementSelection={actorId:string;sessionKey:string;mode:'A
 export type SessionManagementState={auth:ProductMutationState['auth'];command?:AuthSessionCommandRecord;budget?:DatabaseSchema['rateLimits'][string]};
 export type SessionManagementPatch=Partial<Pick<AuthSessionRecord,'lastActivityAt'|'state'|'revokedAt'|'revokeReason'|'revokeRequestId'|'legacyEpoch'>>;
 export type SessionManagementPlan<T>={result:T;patches?:{key:string;patch:SessionManagementPatch}[];insert?:AuthSessionRecord;legacyEpoch?:number;command?:AuthSessionCommandRecord;budget?:DatabaseSchema['rateLimits'][string];audit?:{action:'APP_SESSION_LOGOUT'|'APP_SESSIONS_REVOKED';details:Record<string,unknown>}[]};
-const sessionFields=['id','userId','kind','loginMethod','issuedAt','expiresAt','createdAt','lastActivityAt','legacyEpoch','authRecoveryContext','state','revokedAt','revokeReason','revokeRequestId'];
+const sessionFields=['realm','id','userId','kind','loginMethod','issuedAt','expiresAt','createdAt','lastActivityAt','legacyEpoch','authRecoveryContext','state','revokedAt','revokeReason','revokeRequestId'];
 const sessionCommandFields=['id','userId','initiatorId','scope','targetId','createdAt','affectedCount','currentRevoked'];
 export type CircleTransactionSelection={actorId:string;sessionKey?:string;chainId:number;hubAddress:string;calldata:string;draftId?:string;orderId?:string;chainOrderIds:string[];circleOperationId?:string};
 export type CircleTransactionState=ReturnType<RowPersistence['readCircleTransactionState']>;
@@ -1063,7 +1064,7 @@ export class RowPersistence {
   public readSessionPage(actorId:string,sessionKey:string,limit:number,before?:{createdAt:number;id:string}){
     if(!Number.isSafeInteger(limit)||limit<1||limit>100)throw Error('Session page limit invalid');
     this.sqlite.exec('BEGIN');try{const marker=this.sqlite.prepare('SELECT format_version FROM storage_revision WHERE id=1').get() as {format_version:number}|undefined;if(marker?.format_version!==2)throw Error('Session storage unavailable');this.checkLegacyWriter();
-      const auth=this.authSnapshot(actorId,sessionKey,undefined,walletUserProjection(),publicProjection(sessionFields)),rows=this.sqlite.prepare("SELECT "+publicProjection(sessionFields)+" AS record_json FROM domain_records WHERE collection='authSessions' AND json_extract(record_json,'$.userId')=? AND (? IS NULL OR json_extract(record_json,'$.createdAt')<? OR (json_extract(record_json,'$.createdAt')=? AND json_extract(record_json,'$.id')<?)) ORDER BY json_extract(record_json,'$.createdAt') DESC,json_extract(record_json,'$.id') DESC LIMIT ?").all(actorId,before?.createdAt??null,before?.createdAt??null,before?.createdAt??null,before?.id??null,limit+1) as {record_json:string}[];
+      const auth=this.authSnapshot(actorId,sessionKey,undefined,walletUserProjection(),publicProjection(sessionFields)),rows=this.sqlite.prepare("SELECT "+publicProjection(sessionFields)+" AS record_json FROM domain_records WHERE collection='authSessions' AND json_extract(record_json,'$.userId')=? AND coalesce(json_extract(record_json,'$.realm'),'APP')=? AND (? IS NULL OR json_extract(record_json,'$.createdAt')<? OR (json_extract(record_json,'$.createdAt')=? AND json_extract(record_json,'$.id')<?)) ORDER BY json_extract(record_json,'$.createdAt') DESC,json_extract(record_json,'$.id') DESC LIMIT ?").all(actorId,auth.sessions[sessionKey]?.realm??'APP',before?.createdAt??null,before?.createdAt??null,before?.createdAt??null,before?.id??null,limit+1) as {record_json:string}[];
       return{auth,rows:rows.map(r=>JSON.parse(r.record_json) as AuthSessionRecord)};
     }finally{this.sqlite.exec('COMMIT');}
   }
@@ -1102,7 +1103,7 @@ export class RowPersistence {
       assertClean('walletChallenges',selection.challengeKey);const operatorMode=['OPERATOR_STATUS','ISSUE_OPERATOR','ENROLL_OPERATOR'].includes(selection.mode);if(selection.mode==='LOGIN'||selection.mode==='SELECT'||operatorMode)assertClean('userByWallet',selection.wallet);
       const rates:WalletAuthState['rates']=Object.create(null);for(const key of selection.rateKeys){assertClean('rateLimits',key);rates[key]=one('rateLimits',key,publicProjection(['windowStartedAt','count','lastAttemptAt','blockedUntil']));}
       const userId=selection.actorId??boundUserId??'',auth=this.authSnapshot(userId,selection.sessionKey??'wallet-auth:no-session',undefined,walletUserProjection()),email='wallet+'+selection.wallet.slice(2)+'@auth.groupdeal.invalid';
-      const challenge=operatorMode?one('walletChallenges',selection.challengeKey):one('walletChallenges',selection.challengeKey,publicProjection(['userId','action','walletAddress','message','expiresAt','nonce','chainId','origin','authRecoveryContext']));
+      const challenge=operatorMode?one('walletChallenges',selection.challengeKey):one('walletChallenges',selection.challengeKey,publicProjection(['userId','action','walletAddress','message','expiresAt','nonce','chainId','origin','authRecoveryContext','realm']));
       const plan=verify({auth,boundUserId,challenge,rates,...(operatorMode?{operatorEnrollment:one('users',userId,"json_extract(record_json,'$.operatorEnrollment')")} :{}),emailOwner:one('userByEmail',email)});
       if(!plan||typeof (plan as any).then==='function'||plan.result&&typeof (plan.result as any).then==='function'||!Array.isArray(plan.writes))throw Error('CONFLICT: wallet authentication plan invalid');
       const changed:{collection:string;key:string;json:string}[]=[],deleted:{collection:string;key:string}[]=[],upsert=this.sqlite.prepare('INSERT INTO domain_records(collection,record_key,record_json) VALUES(?,?,?) ON CONFLICT(collection,record_key) DO UPDATE SET record_json=excluded.record_json');
@@ -1166,12 +1167,12 @@ export class RowPersistence {
       if(marker?.format_version!==2||!Number.isSafeInteger(marker.revision)||marker.revision<0)throw Error('OPERATOR_ADMINISTRATION_STORAGE_INVALID');
       this.checkLegacyWriter();
       const auth=this.authSnapshot(actorId,sessionKey,undefined,walletUserProjection(),publicProjection(sessionFields));
-      const page:OperatorAdministrationState['page']=(limit,role,after)=>{
+      const page:OperatorAdministrationState['page']=(limit,role,after,q)=>{
         if(!active||!Number.isSafeInteger(limit)||limit<1||limit>51||role!==undefined&&!['buyer','seller','operator'].includes(role))throw Error('OPERATOR_ADMINISTRATION_STORAGE_INVALID');
         const projection="json_set("+publicProjection(['id','createdAt','loginMethod','activeWallet'])+",'$.roles',json(CASE WHEN json_type(record_json,'$.roles')='array' AND NOT EXISTS(SELECT 1 FROM json_each(record_json,'$.roles') WHERE type<>'text') THEN json_extract(record_json,'$.roles') ELSE 'null' END),'$.displayName',CASE WHEN json_type(record_json,'$.sellerProfile.displayName')='text' THEN json_extract(record_json,'$.sellerProfile.displayName') ELSE NULL END)";
-        const filter=role?" AND EXISTS(SELECT 1 FROM json_each(record_json,'$.roles') WHERE type='text' AND value=?)":"";
-        const params:(string|number)[]=[after??''];if(role)params.push(role);params.push(limit);
-        const rows=this.sqlite.prepare('SELECT record_key,'+projection+" AS record_json FROM domain_records WHERE collection='users' AND record_key>?"+filter+' ORDER BY record_key LIMIT CAST(? AS INTEGER)').all(...params) as {record_key:string;record_json:string}[];
+        const filter=(role?" AND EXISTS(SELECT 1 FROM json_each(record_json,'$.roles') WHERE type='text' AND value=?)":"")+(q?" AND (instr(lower(record_key),lower(?))>0 OR instr(lower(coalesce(json_extract(record_json,'$.sellerProfile.displayName'),'')),lower(?))>0 OR instr(lower(coalesce(json_extract(record_json,'$.activeWallet'),'')),lower(?))>0 OR EXISTS(SELECT 1 FROM domain_records w WHERE w.collection='userByWallet' AND json_extract(w.record_json,'$')=u.record_key AND instr(lower(w.record_key),lower(?))>0))":"");
+        const params:(string|number)[]=[after??''];if(role)params.push(role);if(q)params.push(q,q,q,q);params.push(limit);
+        const rows=this.sqlite.prepare('SELECT record_key,'+projection+" AS record_json FROM domain_records u WHERE collection='users' AND record_key>?"+filter+' ORDER BY record_key LIMIT CAST(? AS INTEGER)').all(...params) as {record_key:string;record_json:string}[];
         return rows.map(r=>{const value=JSON.parse(r.record_json);if(value.id!==r.record_key)throw Error('OPERATOR_ADMINISTRATION_STORAGE_INVALID');return value;});
       };
 
@@ -1194,7 +1195,7 @@ export class RowPersistence {
         return rows.map(r=>({position:r.position,entry:JSON.parse(r.record_json)}));
       };
       const dealRead=operatorDealRead(this.sqlite,()=>{if(!active)throw Error('OPERATOR_DEAL_STORAGE_INVALID');});
-      const result=verify({auth,revision:marker.revision,page,auditPage,auditIntegrityPage,...dealRead});if(result&&typeof(result as any).then==='function')throw Error('OPERATOR_ADMINISTRATION_STORAGE_INVALID');return result;
+      const result=verify({auth,revision:marker.revision,page,account:operatorAccountRead(this.sqlite,()=>{if(!active)throw Error('OPERATOR_ACCOUNT_READ_ENDED');}),auditPage,auditIntegrityPage,...dealRead});if(result&&typeof(result as any).then==='function')throw Error('OPERATOR_ADMINISTRATION_STORAGE_INVALID');return result;
     }finally{active=false;this.sqlite.exec('COMMIT');}
   }
   public readSellerBadgeState(actorId:string,sessionKey:string,options:{sellerId?:string;commandKey?:string;limit?:number;after?:string}={}){
