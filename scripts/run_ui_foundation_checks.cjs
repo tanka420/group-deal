@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto');
 const root=path.resolve(__dirname,'..'),packet=require('./ui_foundation_packet.json');
-const infra=['.github/workflows/ui-foundation.yml','scripts/run_ui_foundation_checks.cjs','scripts/ui_foundation_packet.json'];
+const infra=['.github/workflows/local-candidate.yml','scripts/run_ui_foundation_checks.cjs','scripts/ui_foundation_packet.json'];
 const git=(args,bytes=false)=>cp.execFileSync('git',args,{cwd:root,encoding:bytes?undefined:'utf8',windowsHide:true});
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 const source=git(['rev-parse','HEAD']).trim();
