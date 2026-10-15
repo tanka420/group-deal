@@ -1,0 +1,178 @@
+{
+  "baselineCommit": "d6c3b8ce023bd9d9da605f6891351bcef7e6f9e9",
+  "applicationCommit": "ea3c003bedafcebcabe973944266198725c31b37",
+  "files": [
+    {
+      "path": "backend/src/db/rowPersistence.ts",
+      "sha256": "db43ff88de9e58595f47611ea4d82404d5644e740a6c796c8c7512d057553ab8"
+    },
+    {
+      "path": "backend/src/db/store.ts",
+      "sha256": "632417f68f416bd72e35655b8b2845858b9bd72595e3794b7a2b549fb6b4a26a"
+    },
+    {
+      "path": "backend/src/domain/signerReservation.ts",
+      "sha256": "42c8e547a37d31cd2ea5f89cab244265b8721fc84d01bc498edb2f1d49a90525"
+    },
+    {
+      "path": "backend/src/domain/walletFlow.ts",
+      "sha256": "3efbe8c2157aab680535c9672c55ccc9102ec0097c3b743a58442e44bbe45a38"
+    },
+    {
+      "path": "backend/src/domain/walletQuote.ts",
+      "sha256": "8d4d3438468577f0941be647889786586b5f9d51162557cfec33b68510d6f83f"
+    },
+    {
+      "path": "backend/src/domain/walletReceipt.ts",
+      "sha256": "8b98b59455a6cae86bd79026dab5ab4d05791d48dabe7cb81d6dbc136306e952"
+    },
+    {
+      "path": "backend/src/index.ts",
+      "sha256": "1623aa170c5eeae2e0089643b299ab54c6060c4fe9a3cecbde2ad860077c298d"
+    },
+    {
+      "path": "backend/src/routes/walletFlowRoutes.ts",
+      "sha256": "c20916cb63c242565d10105b9aed53568b22125073db1674827bf74b559a46a6"
+    },
+    {
+      "path": "backend/src/services/legacyReviewPreparation.ts",
+      "sha256": "4a7c451737209ff6c377249b5a449cb3046fa94262c5d87ba204bf6155e868e6"
+    },
+    {
+      "path": "backend/src/services/recoveryApplication.ts",
+      "sha256": "5df1cb7a05ee62b16c418c425287ae335c2857efe00e57e64d372b7220ac475c"
+    },
+    {
+      "path": "backend/src/services/recoveryDrillService.ts",
+      "sha256": "86ecd131b4c7cd0ba908a2caa64ae3af0583ff00c1a1a95fcbcce09c558ce8b0"
+    },
+    {
+      "path": "backend/src/services/restoredWorkPreparation.ts",
+      "sha256": "0a8001e46a5dd8f9b9520aa043cdaad5e8df769bde4e0ae910e317afe0c72b44"
+    },
+    {
+      "path": "backend/src/services/runtimeBackup.ts",
+      "sha256": "04298ba9952b5b4b5a550f904a21e0807282d5de60b8087ae914cd1c63772afa"
+    },
+    {
+      "path": "backend/src/services/shadowPreparation.ts",
+      "sha256": "05bf696bbe551c5d8cbea219cef676d1e95693bbb4c4606ac78905bc01cbe203"
+    },
+    {
+      "path": "backend/src/services/signerReservationRegistry.ts",
+      "sha256": "9aa92d6b8de2748cefadb163de488c193d7e3d1cf7264d28a08f1cfd9bb84a70"
+    },
+    {
+      "path": "backend/src/services/walletCircleProvider.ts",
+      "sha256": "fd5f070e864f032380011b417631bcfa713a7f06740447050dc0e05ef8cf4afa"
+    },
+    {
+      "path": "backend/src/services/walletFlowService.ts",
+      "sha256": "620c5417855ba00269e8d591a29e34b9fa8ce9f14e6679b1a121038bc11a3847"
+    },
+    {
+      "path": "backend/src/services/walletSwapService.ts",
+      "sha256": "def8877b1576a324b84738cf444273cf0117b9120c0cd921f0cf252b7619c377"
+    },
+    {
+      "path": "backend/test/recovery_dependency_freshness.test.ts",
+      "sha256": "36efc9dd949415aea0dca17365aafcf5b10bb84362372ad669503a9338c52076"
+    },
+    {
+      "path": "backend/test/wallet_api.test.ts",
+      "sha256": "8484ed1a6b1cae5ab84e5b1bddae15c49fe45c125b897e9c2bed6a8a60a11600"
+    },
+    {
+      "path": "backend/test/wallet_circle_provider.test.ts",
+      "sha256": "01b60d08d15aef174e9aaa8397019f4a850ca123a6e4865984f0e2fcc54e59d7"
+    },
+    {
+      "path": "backend/test/wallet_flow.test.ts",
+      "sha256": "b1d72bed5e66d2e21f4b659cd70a67fb261b47eca3bf6d49de4dc9426e13860f"
+    },
+    {
+      "path": "backend/test/wallet_quote.test.ts",
+      "sha256": "dac5e67679bcc504076b85a544f403a5e9ac312d90140cbdd342ba34d19c75ff"
+    },
+    {
+      "path": "backend/test/wallet_receipt.test.ts",
+      "sha256": "07089a2d8556b43a19ec4498f24ea04f5a38b6112a2449abea0227c1f529fe00"
+    },
+    {
+      "path": "backend/test/wallet_rows.test.ts",
+      "sha256": "ec12bc24b5385b84dc688e81c80518e40c747551abd19432e24e1c8292d761cd"
+    },
+    {
+      "path": "backend/test/wallet_service.test.ts",
+      "sha256": "9c0314a4e11deb1a3dafcfcc2b0554add657165d221518a0e36ac5f5ef22aa56"
+    },
+    {
+      "path": "backend/test/wallet_swap_service.test.ts",
+      "sha256": "30d5bccdbff1ae93b9112736213784148379bd160e59d7320a460157e6ef29b7"
+    },
+    {
+      "path": "frontend/e2e/bridge_mint_continuation.spec.ts",
+      "sha256": "7592294ae4f1ae3d2bb069122757d1d0125a029921239bd995e25299d96cbf25"
+    },
+    {
+      "path": "frontend/e2e/bridge_pending_hash.spec.ts",
+      "sha256": "05368d9aab58d9ae6d82f0ca8677fd48709109eec6c6ffe02464524cae5f25dc"
+    },
+    {
+      "path": "frontend/e2e/wallet_flow.spec.ts",
+      "sha256": "18fd889a194f28b79f99979246747ca1bbfb67a952ace50932a4f01b2864b37b"
+    },
+    {
+      "path": "frontend/e2e/wallet_routes.spec.ts",
+      "sha256": "3e22d4a6d842566140afab035296d382892cf749c2842b37c8724fc62b050506"
+    },
+    {
+      "path": "frontend/src/components/DialogSurface.tsx",
+      "sha256": "eb65e4caa8198a2eef11441c4da834c9fd9b5e9f1a30bb8e4a3d7602a2a30143"
+    },
+    {
+      "path": "frontend/src/components/FundingModal.tsx",
+      "sha256": "5c1c658e37fcbb700f6667565fada802c4c089408ff2efa740e2c4f6207da69f"
+    },
+    {
+      "path": "frontend/src/components/WalletFlowReview.tsx",
+      "sha256": "86859469a828dea91047571853fa14becde6acdfdfd87085608a934d05ff6c6b"
+    },
+    {
+      "path": "frontend/src/components/WalletReceive.tsx",
+      "sha256": "95c8e51ef29c9c6a9e49248a6ab4e461efa4ad7a4f3141660ed4a9e76c2266cd"
+    },
+    {
+      "path": "frontend/src/pages/WalletPage.tsx",
+      "sha256": "9ad7c428a0c1f11ad8e72d9f92076819996828b568c5b9340685de869cd0789b"
+    },
+    {
+      "path": "frontend/src/services/walletFlow.ts",
+      "sha256": "45ec55e56f48b242b9967175f666ec7418da5a93b822df01ec6ad86050a8d1f4"
+    },
+    {
+      "path": "frontend/src/styles/wallet.css",
+      "sha256": "c028328fee72e9764edf114338ee82c922a47b11784e7d253af293d389916940"
+    },
+    {
+      "path": "frontend/test/wallet_amount.test.ts",
+      "sha256": "fbd59cf2fac5e4b12ad229c587b2ad8bbfe733ac8c2833bc8130cba31eaebae3"
+    },
+    {
+      "path": "frontend/test/wallet_flow.test.ts",
+      "sha256": "369a7fe78093a50f1c2298a102fff5fc2ad52fc92437d0b7447f2cc342776969"
+    },
+    {
+      "path": "scripts/drill_recovery_api.cjs",
+      "sha256": "eb76ab7997ab5e5190f95010b39895f826a5a9ee6f37affc167e697bf029eb6c"
+    },
+    {
+      "path": "shared/arcWallet.d.mts",
+      "sha256": "2c48470fec866d8c8f85bc12917071066bd4c6d496966ca509395e86cc9efe7d"
+    },
+    {
+      "path": "shared/arcWallet.mjs",
+      "sha256": "e740fa4f05e7552c944fd11305a884f8c479f820ae7eb02b41ba2b941187cba0"
+    }
+  ]
+}
