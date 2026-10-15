@@ -9,7 +9,7 @@ import { useWeb3 } from "./context/Web3Context";
 import { SellerRegisterModal } from "./components/SellerRegisterModal";
 import { ExplorePage } from "./pages/ExplorePage";
 import { DeferredPage } from "./components/DeferredPage";
-import { parseAppHash, operatorDealHash, type AppRoute } from "./utils/appRoute";
+import { readAppRoute, navigateApp, migrateLegacyRoute, parseAppHash, parseAppPath, operatorDealHash, type AppRoute } from "./utils/appRoute";
 import { Store, Sparkles, Lock, ArrowRight } from "lucide-react";
 import { useLanguage } from "./context/LanguageContext";
 import { focusPageElement, revealFocus } from "./utils/focus";
@@ -21,6 +21,9 @@ const OperatorPortal = lazy(() => import("./pages/OperatorPortal").then(module =
 const DeveloperDocs = lazy(() => import("./pages/DeveloperDocs").then(module => ({ default: module.DeveloperDocs })));
 const PublicSellerProfile = lazy(() => import("./pages/PublicSellerProfile").then(module => ({ default: module.PublicSellerProfile })));
 const SupportPage = lazy(() => import("./pages/SupportPage").then(module => ({ default: module.SupportPage })));
+const AccountPage = lazy(() => import("./pages/AccountPage").then(module => ({ default: module.AccountPage })));
+const WalletPage = lazy(() => import("./pages/WalletPage").then(module => ({ default: module.WalletPage })));
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage").then(module => ({ default: module.NotificationsPage })));
 
 const MainApp: React.FC = () => {
   const { user, token } = useAuth();
@@ -38,7 +41,8 @@ const MainApp: React.FC = () => {
     if (purchaseAuth && user && token && account && user.activeWallet?.toLowerCase() === account.toLowerCase()) { setIsAuthOpen(false); setPurchaseAuth(false); }
   }, [purchaseAuth, user?.id, user?.activeWallet, token, account]);
   const { language } = useLanguage();
-  const [route, setRoute] = useState<AppRoute>(() => parseAppHash(window.location.hash));
+  const [route, setRoute] = useState<AppRoute>(readAppRoute);
+  const catalogReturn = useRef('/explore');
   const currentTab = route.kind === "tab" ? route.tab : route.kind === "support" ? route.path : route.kind === "operator-deal" ? "operator" : route.kind === "not-found" ? "not-found" : "explore";
   const selectedCampaignId = route.kind === "campaign" ? route.id : null;
   const selectedSellerId = route.kind === "public-seller" ? route.id : null;
@@ -59,11 +63,22 @@ const MainApp: React.FC = () => {
     return()=>{contentResize.disconnect();cancelAnimationFrame(frame);document.removeEventListener("keydown",keydown,true);document.removeEventListener("pointerdown",pointerdown,true);document.removeEventListener("focusin",focusin);window.removeEventListener("resize",resize);};
   },[]);
 
-  // Resolve the initial fragment and every navigation through the same route rules.
+  // History navigation and legacy links resolve through the same route rules.
   useEffect(() => {
-    const handleHash = () => setRoute(parseAppHash(window.location.hash));
-    window.addEventListener("hashchange", handleHash);
-    return () => window.removeEventListener("hashchange", handleHash);
+    const sync = () => { migrateLegacyRoute(); setRoute(readAppRoute()); };
+    const click = (event: MouseEvent) => {
+      if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+      const anchor=(event.target as Element)?.closest?.('a[href]') as HTMLAnchorElement|null;
+      if(!anchor||anchor.hasAttribute('download')||anchor.target&&anchor.target!=='_self')return;
+      const url=new URL(anchor.href);
+      if(url.origin!==window.location.origin)return;
+      if(url.hash&&parseAppHash(url.hash).kind==='not-found')return;
+      if(!url.hash&&parseAppPath(url.pathname).kind==='not-found')return;
+      event.preventDefault();navigateApp(url.hash||url.pathname+url.search);
+    };
+    sync();
+    window.addEventListener('popstate',sync);window.addEventListener('hashchange',sync);window.addEventListener('groupdeal:navigate',sync);document.addEventListener('click',click);
+    return () => {window.removeEventListener('popstate',sync);window.removeEventListener('hashchange',sync);window.removeEventListener('groupdeal:navigate',sync);document.removeEventListener('click',click);};
   }, []);
 
   useEffect(() => {
@@ -71,11 +86,10 @@ const MainApp: React.FC = () => {
   }, [route.kind]);
 
   const navigate = (hash: string) => {
-    setRoute(parseAppHash(hash));
-    window.location.hash = hash;
+    navigateApp(hash);
   };
-  const handleSelectCampaign = (id: string) => navigate("#campaign-" + id);
-  const handleBackToExplore = () => navigate("");
+  const handleSelectCampaign = (id: string) => { catalogReturn.current=window.location.pathname+window.location.search; navigate('/deals/'+id+'?returnTo='+encodeURIComponent(catalogReturn.current)); };
+  const handleBackToExplore = () => { const back=new URLSearchParams(window.location.search).get('returnTo'); navigate(back&&/^\/explore(?:\?|$)/.test(back)?back:catalogReturn.current); };
   const handleTabChange = (tab: string) => navigate("#" + tab);
 
   const isSeller = user?.roles?.includes("seller");
@@ -116,6 +130,9 @@ const MainApp: React.FC = () => {
             )}
 
             {currentTab === "orders" && <BuyerDashboard key={user?.id}/>}
+            {currentTab === "account" && <AccountPage key={user?.id} onOpenAuth={openAuth}/>}
+            {currentTab === "wallet" && <WalletPage key={user?.id} onOpenAuth={openAuth}/>}
+            {currentTab === "notifications" && <NotificationsPage key={user?.id} onOpenAuth={openAuth}/>}
             {(currentTab === 'support' || currentTab.startsWith('support-ticket-') || currentTab.startsWith('support-order-')) && <SupportPage key={JSON.stringify([user?.id,token,user?.activeWallet,user?.roles.includes('operator'),currentTab])} route={currentTab}/>}
 
             {/* SELLER STUDIO TAB WITH REGISTRATION GUARD */}

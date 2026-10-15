@@ -2,7 +2,8 @@ import {useEffect,useLayoutEffect,useRef,useState} from 'react';
 import {Search,SlidersHorizontal,Sparkles,ImageIcon,CheckCircle2,Clock,ArrowRight,RefreshCw,X,Store} from 'lucide-react';
 import {useLanguage} from '../context/LanguageContext';
 import {useWeb3} from '../context/Web3Context';
-import {catalogFilters,catalogUSDC,CatalogUnavailable,defaultCatalogFilters,getCatalog,readCatalogPreference,saveCatalogPreference,type CatalogDeal,type CatalogFilters,type CatalogPage} from '../services/catalog';
+import {catalogHref,catalogFilters,catalogUSDC,CatalogUnavailable,defaultCatalogFilters,getCatalog,readCatalogPreference,saveCatalogPreference,type CatalogDeal,type CatalogFilters,type CatalogPage} from '../services/catalog';
+import {navigateApp} from '../utils/appRoute';
 import {publicWidgetText} from '../../../shared/publicWidget.mjs';
 import {focusPageElement} from '../utils/focus';
 import '../styles/catalog.css';
@@ -14,6 +15,7 @@ export function ExplorePage({onSelectCampaign}:{onSelectCampaign:(id:string)=>vo
  const [filters,setFilters]=useState<CatalogFilters>(readCatalogPreference),[draft,setDraft]=useState<CatalogFilters>(filters),[view,setView]=useState<View>(initial),[revision,setRevision]=useState(0);
  const [compact,setCompact]=useState(()=>window.matchMedia('(max-width:768px)').matches),[drawerOpen,setDrawerOpen]=useState(false),[failedImages,setFailedImages]=useState<string[]>([]);
  const generation=useRef(0),request=useRef<AbortController|null>(null),busy=useRef(false),seenCursors=useRef(new Set<string>()),dialog=useRef<HTMLDialogElement>(null),filterHeading=useRef<HTMLHeadingElement>(null),alert=useRef<HTMLParagraphElement>(null);
+ useEffect(()=>{const sync=()=>{const next=readCatalogPreference();setFilters(current=>JSON.stringify(current)===JSON.stringify(next)?current:next);setDraft(next);setDrawerOpen(false);};window.addEventListener('popstate',sync);window.addEventListener('groupdeal:navigate',sync);return()=>{window.removeEventListener('popstate',sync);window.removeEventListener('groupdeal:navigate',sync);};},[]);
  useEffect(()=>{const media=window.matchMedia('(max-width:768px)'),change=()=>{setCompact(media.matches);setDrawerOpen(false);};media.addEventListener('change',change);return()=>media.removeEventListener('change',change);},[]);
  useLayoutEffect(()=>{
   const node=dialog.current;if(!drawerOpen||!compact||!node)return;
@@ -28,9 +30,9 @@ export function ExplorePage({onSelectCampaign}:{onSelectCampaign:(id:string)=>vo
   return()=>{generation.current++;controller.abort();request.current?.abort();busy.current=false;};
  },[filters,revision,hubAddress]);
  useEffect(()=>{if(view.phase==='ERROR')focusPageElement(alert.current);},[view.phase]);
- const apply=()=>{setFilters(catalogFilters(draft));setDrawerOpen(false);};
+ const apply=()=>{const next=catalogFilters(draft);setFilters(next);setDraft(next);setDrawerOpen(false);navigateApp(catalogHref(next));};
  const cancelFilters=()=>{setDraft(v=>({...filters,q:v.q}));setDrawerOpen(false);};
- const clear=()=>{setDraft({...defaultCatalogFilters});setFilters({...defaultCatalogFilters});setDrawerOpen(false);};
+ const clear=()=>{setDraft({...defaultCatalogFilters});setFilters({...defaultCatalogFilters});setDrawerOpen(false);navigateApp('/explore');};
  const more=async()=>{
   if(busy.current||view.phase!=='READY'||!view.page?.nextCursor)return;
   const cursor=view.page.nextCursor,current=generation.current,controller=new AbortController();busy.current=true;request.current=controller;setView(v=>({...v,more:true,moreError:false}));
@@ -75,7 +77,7 @@ function CatalogCard({deal,language,failedImage,onImageError,onSelect}:{deal:Cat
  const currentPrice=catalogUSDC(c.currentPriceBaseUnits,language),nextPrice=c.nextPriceBaseUnits?catalogUSDC(c.nextPriceBaseUnits,language):null;
  const end=new Date(c.endTime*1000),deadline=new Intl.DateTimeFormat(language==='vi'?'vi-VN':'en-US',{dateStyle:'medium',timeStyle:'short'}).format(end);
  const progress=c.nextThreshold?Math.min(100,Number(BigInt(c.currentMetric)*100n/BigInt(c.nextThreshold))):100;
- const href='#campaign-'+encodeURIComponent(c.id),title='catalog-deal-'+c.id;
+ const href='/deals/'+encodeURIComponent(c.id)+'?returnTo='+encodeURIComponent(window.location.pathname+window.location.search),title='catalog-deal-'+c.id;
  return <article className="glass-card catalog-deal" aria-labelledby={title}>
   <div className="catalog-deal-media">{deal.thumbnailUrl&&!failedImage?<img src={deal.thumbnailUrl} alt="" loading="lazy" decoding="async" onError={onImageError}/>:<div className="catalog-image-placeholder"><ImageIcon size={42} aria-hidden="true"/><span>{text('Chưa có ảnh sản phẩm','Product image unavailable')}</span></div>}<div className="catalog-deal-badges"><span className="badge">{labels.status}</span>{deal.rightsApproved&&<span className="badge badge-verified-rights"><CheckCircle2 size={13} aria-hidden="true"/>{text('Quyền phân phối đã duyệt','Distribution rights approved')}</span>}</div></div>
   <div className="catalog-deal-content"><p className="eyebrow">{deal.category}</p><h3 id={title}><a href={href} onClick={e=>{if(!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&!e.altKey){e.preventDefault();onSelect();}}}>{c.title}</a></h3><p className="catalog-deal-description">{deal.description}</p>

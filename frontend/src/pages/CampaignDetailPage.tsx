@@ -1,3 +1,4 @@
+import { readAppRoute } from "../utils/appRoute";
 import React, { useState, useEffect, useRef } from "react";
 import confetti from "canvas-confetti";
 import { ethers } from "ethers";
@@ -97,7 +98,7 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
   }, [campaignId]);
 
   useEffect(() => {
-    const currentRoute = () => window.location.hash === '#campaign-' + campaignId;
+    const currentRoute = () => { const route=readAppRoute(); return route.kind==='campaign'&&route.id===campaignId; };
     if (!currentRoute() || !resumeAfterAuth || isAuthOpen || !user || !token || !account || user.activeWallet?.toLowerCase() !== account.toLowerCase()) return;
     const controller = new AbortController();
     void fetchCampaign(controller.signal).then(fresh => {

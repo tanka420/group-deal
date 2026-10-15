@@ -1,0 +1,44 @@
+/* Approved light palette and typography are inherited from index.css. */
+.header { background:var(--bg-secondary); backdrop-filter:none; transition:none; }
+.header-inner { gap:1rem; }
+.primary-navigation { display:flex; align-items:center; gap:.25rem; }
+.primary-navigation a { display:flex; align-items:center; gap:.5rem; min-height:44px; padding:.65rem .75rem; border-radius:var(--radius-md); color:var(--text-secondary); text-decoration:none; font-size:.875rem; font-weight:600; }
+.primary-navigation a:hover { background:var(--bg-tertiary); }
+.primary-navigation a[aria-current] { color:var(--primary); background:var(--bg-tertiary); }
+.mobile-menu-button { display:none; }
+.account-dropdown-menu { overflow:hidden; padding:.5rem; animation:none; backdrop-filter:none; }
+.popover-scroll { max-height:calc(100dvh - var(--app-header-height,96px) - 40px); overflow:auto; overscroll-behavior:contain; scrollbar-gutter:stable; padding:.25rem; }
+.notification-popover { width:380px; }
+.popover-scroll .btn { white-space:normal; }
+.popover-scroll::-webkit-scrollbar { width:4px; }
+.popover-scroll::-webkit-scrollbar-thumb { background:var(--border-medium); border-radius:999px; }
+.navigation-dialog { width:min(420px,calc(100vw - 2rem)); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); animation:none; }
+.navigation-dialog h2 { margin-bottom:1rem; font-size:1.25rem; }
+.navigation-dialog .primary-navigation { display:grid; clear:both; }
+.account-page { display:grid; gap:1.5rem; max-width:900px; margin:auto; }
+.account-page h1 { font-size:1.75rem; }
+.account-page > .btn { justify-self:start; }
+.account-sections { display:grid; gap:1.5rem; min-width:0; }
+.wallet-overview { display:grid; gap:1rem; padding:1.5rem; }
+.wallet-overview .btn { justify-self:start; }
+.wallet-address { overflow-wrap:anywhere; }
+@media(max-width:1199px) {
+ .desktop-navigation { display:none; }
+ .mobile-menu-button { display:inline-flex; margin-left:auto; }
+ .header-actions { flex-shrink:0; }
+}
+@media(min-width:1200px) { .header .account-summary { display:none!important; } }
+@media(max-width:767px) {
+ .header-inner { display:flex; flex-wrap:nowrap; gap:.5rem; }
+ .header .logo-group { gap:.4rem; }
+ .header .logo-text { font-size:1.1rem; }
+ .header .logo-text > span, .header .account-summary, .header-funding { display:none!important; }
+ .header .header-actions { gap:.35rem; flex-wrap:nowrap; }
+ .header .account-pill-btn { padding:.25rem; gap:.25rem; }
+ .header .account-pill-btn > svg { display:none; }
+ .header .mobile-menu-button { padding:.6rem; }
+ .header .account-dropdown-wrapper { display:flex; gap:.35rem; }
+ .header .header-login { padding:.6rem; }
+ .header .header-auth-label { font-size:.8rem; }
+ .wallet-overview { padding:1rem; }
+}

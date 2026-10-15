@@ -37,6 +37,11 @@ async function requestSignIn(page:Page,dialog:ReturnType<Page['locator']>,en=fal
  await expect(page.getByRole('dialog',{name:en?'Sign in to GroupDeal':'Đăng nhập GroupDeal',exact:true})).toBeVisible();await expect(page.getByRole('dialog')).toHaveCount(1);
 }
 
+test('direct deal reload keeps the filtered catalog return context',async({page})=>{
+ const {state}=await fixture(page,'en');await page.goto('/deals/master?returnTo=%2Fexplore%3Fq%3Dtoolkit%26sort%3Doldest');await page.reload();
+ await page.getByRole('button',{name:'Back to deals',exact:true}).click();await expect(page).toHaveURL(/\/explore\?q=toolkit&sort=oldest$/);await expect(page.locator('#catalog-search')).toHaveValue('toolkit');expect(state.writes).toEqual([]);expect(state.errors).toEqual([]);
+});
+
 for(const language of ['vi','en'])for(const width of [320,1440])test(`guest handoff ${language} ${width}: fresh deal, bounded choices and new consent without signing`,async({page,context},info)=>{
  await page.setViewportSize({width,height:850});const {data,state}=await fixture(page,language),dialog=await review(page),en=language==='en';
  await dialog.getByRole('button',{name:en?'Increase quantity':'Tăng số lượng',exact:true}).click();
@@ -94,7 +99,7 @@ test('navigating away during sign-in cannot reopen or purchase the previous deal
  const {state}=await fixture(page),dialog=await review(page);await requestSignIn(page,dialog);
  const initialReads=state.reads; // StrictMode can make two initial reads in dev.
  await page.evaluate(()=>location.hash='#docs');await session(context,page);await expect(page.getByRole('dialog')).toHaveCount(0);
- await expect(page.locator('.developer-docs')).toBeVisible();expect(new URL(page.url()).hash).toBe('#docs');expect(state.reads).toBe(initialReads);expect(state.writes).toEqual([]);expect(state.errors).toEqual([]);
+ await expect(page.locator('.developer-docs')).toBeVisible();expect(new URL(page.url()).pathname).toBe('/docs');expect(state.reads).toBe(initialReads);expect(state.writes).toEqual([]);expect(state.errors).toEqual([]);
 });
 
 

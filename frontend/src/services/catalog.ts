@@ -16,7 +16,15 @@ export function catalogFilters(value:unknown):CatalogFilters {
  if(!validText(v.q,120)||!validText(v.category,80)||/[\u0000-\u001f\u007f]/.test(v.q+v.category)||!['','PUBLISHED','ACTIVE','FINALIZED','CANCELLED'].includes(v.status)||!['','BUYER_COUNT','UNITS_COUNT'].includes(v.metric)||!['newest','oldest'].includes(v.sort))return {...defaultCatalogFilters};
  return {q:v.q.trim(),category:v.category.trim(),status:v.status,metric:v.metric,sort:v.sort};
 }
-export function readCatalogPreference():CatalogFilters {try{return catalogFilters(JSON.parse(sessionStorage.getItem(preferenceKey)||'null'));}catch{return {...defaultCatalogFilters};}}
+export function readCatalogPreference():CatalogFilters {
+ const query=new URLSearchParams(window.location.search);
+ if(window.location.pathname==='/explore')return catalogFilters(Object.fromEntries(Object.entries(defaultCatalogFilters).map(([key,value])=>[key,query.get(key)??value])));
+ try{return catalogFilters(JSON.parse(sessionStorage.getItem(preferenceKey)||'null'));}catch{return {...defaultCatalogFilters};}
+}
+export function catalogHref(value:CatalogFilters):string {
+ const query=new URLSearchParams();for(const [key,item] of Object.entries(value))if(item&&item!==defaultCatalogFilters[key as keyof CatalogFilters])query.set(key,item);
+ return '/explore'+(query.size?'?'+query.toString():'');
+}
 export function saveCatalogPreference(value:CatalogFilters){try{sessionStorage.setItem(preferenceKey,JSON.stringify(value));}catch{/* Filters remain usable when storage is unavailable. */}}
 function imageUrl(value:unknown):string|null {
  if(!validText(value,2048)||!value)return null;

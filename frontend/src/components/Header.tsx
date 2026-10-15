@@ -1,21 +1,17 @@
+import { PrimaryNavigation } from "./PrimaryNavigation";
+import { DialogSurface } from "./DialogSurface";
+import { Menu } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
 import { useWeb3 } from "../context/Web3Context";
 import { useExternalWallet } from "../context/ExternalWalletContext";
-import { SellerRegisterModal } from "./SellerRegisterModal";
-import { NotificationPreferences } from "./NotificationPreferences";
 import {NotificationInbox} from "./NotificationInbox";
-import {SessionManager} from "./SessionManager";
-import {WalletManager} from "./WalletManager";
-import {SellerFollowsPanel} from "./SellerFollowsPanel";
 import {useNotificationInbox,InboxItem} from "../services/notificationInbox";
 import {
-  Compass,
   ShoppingBag,
   Store,
   ShieldAlert,
-  Code2,
   Coins,
   Globe,
   User as UserIcon,
@@ -54,6 +50,8 @@ export const Header: React.FC<HeaderProps> = ({
 
   const [isFundingModalOpen, setIsFundingModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [copiedWallet, setCopiedWallet] = useState(false);
   const inbox=useNotificationInbox(token,user?.id),unreadNotifications=inbox.unread;
 
@@ -76,17 +74,19 @@ export const Header: React.FC<HeaderProps> = ({
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setIsDropdownOpen(false);
+        setIsDropdownOpen(false); setNotificationsOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(()=>{setIsDropdownOpen(false);setNotificationsOpen(false);setMobileOpen(false);},[currentTab,user?.id]);
+  const go=(tab:string)=>{setIsDropdownOpen(false);setNotificationsOpen(false);setMobileOpen(false);onTabChange(tab);};
   const openNotification = async (notification:InboxItem) => {
     if(!await inbox.markRead(notification))return;
     if(notification.link&&(["#orders","#seller","#operator"].includes(notification.link)||/^#campaign-[A-Za-z0-9_-]{1,180}$/.test(notification.link)||/^#support-ticket-tkt_[a-f0-9-]{36}$/.test(notification.link))){
-      onTabChange(notification.link.slice(1));setIsDropdownOpen(false);
+      go(notification.link.slice(1));
     }
   };
 
@@ -116,7 +116,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Brand & Arc Testnet Badge */}
         <div className="header-brand" style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
           <a
-            href="#explore"
+            href="/explore"
             className="logo-group"
             onClick={(e) => {
               e.preventDefault();
@@ -126,31 +126,13 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="logo-mark"><Users size={23} aria-hidden="true"/></div>
             <span className="logo-text">
               GroupDeal
-              <span style={{ fontSize: "0.85rem", color: "var(--cyan)", fontWeight: 500 }}>Arc</span>
             </span>
           </a>
-          <span className="network-badge">{t("arcNetwork")}</span>
+
         </div>
 
-        {/* Clean Primary Navigation (Uncluttered) */}
-        <nav className="nav-links">
-          <button
-            className={`nav-item ${currentTab === "explore" ? "active" : ""}`}
-            onClick={() => onTabChange("explore")}
-          >
-            <Compass size={17} />
-            {t("explore")}
-          </button>
-
-          <button
-            className={`nav-item ${currentTab === "docs" ? "active" : ""}`}
-            onClick={() => onTabChange("docs")}
-          >
-            <Code2 size={17} />
-            {t("devDocs")}
-          </button>
-        </nav>
-
+        <div className="desktop-navigation"><PrimaryNavigation currentTab={currentTab} seller={Boolean(isSeller)} admin={currentTab==='operator'} onNavigate={go}/></div>
+        <button className="btn btn-secondary mobile-menu-button" type="button" aria-label={language==='en'?'Open navigation':'Mở điều hướng'} aria-expanded={mobileOpen} aria-controls="mobile-navigation" onClick={()=>{setIsDropdownOpen(false);setNotificationsOpen(false);setMobileOpen(true);}}><Menu size={20} aria-hidden="true"/></button>
         {/* Right Actions & Account Dropdown */}
         <div className="header-actions">
           {/* Funding & Testnet Faucet */}
@@ -171,16 +153,16 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           ) : (
             <div className="account-dropdown-wrapper" ref={dropdownRef} onKeyDown={event=>{
-              if(event.key==="Escape"){event.stopPropagation();setIsDropdownOpen(false);notificationButtonRef.current?.focus();}
+              if(event.key==="Escape"){event.stopPropagation();if(notificationsOpen){setNotificationsOpen(false);notificationButtonRef.current?.focus();}else{setIsDropdownOpen(false);accountButtonRef.current?.focus();}}
             }}>
               <button
                 ref={notificationButtonRef}
                 className="btn btn-sm btn-secondary"
-                aria-expanded={isDropdownOpen}
-                aria-controls="account-notifications"
+                aria-expanded={notificationsOpen}
+                aria-controls="header-notifications"
                 aria-label={language==="en"?`Notifications${unreadNotifications?`, ${unreadNotifications} unread`:""}`:`Thông báo${unreadNotifications ? `, ${unreadNotifications} chưa đọc` : ""}`}
                 onClick={() => {
-                  setIsDropdownOpen((prev) => !prev);
+                  setIsDropdownOpen(false);setNotificationsOpen(prev=>!prev);
                   void inbox.reload();
                 }}
                 style={{ position: "relative", paddingInline: "0.65rem" }}
@@ -206,13 +188,14 @@ export const Header: React.FC<HeaderProps> = ({
                   </span>
                 )}
               </button>
+              {notificationsOpen&&<div className="account-dropdown-menu notification-popover" id="header-notifications" role="region" aria-label={language==='en'?'Notifications':'Thông báo'}><div className="popover-scroll"><NotificationInbox rows={inbox.rows} pending={inbox.pending} error={inbox.error} cursor={inbox.cursor} onReload={()=>void inbox.reload()} onMore={()=>void inbox.more()} onOpen={notification=>void openNotification(notification)}/><button className="btn btn-secondary" onClick={()=>go('notifications')}>{language==='en'?'All notifications':'Tất cả thông báo'}</button></div></div>}
               {/* Account Pill Trigger */}
               <button
                 className="account-pill-btn"
                 ref={accountButtonRef}
                 aria-expanded={isDropdownOpen}
-                aria-controls="account-notifications"
-                onClick={() => setIsDropdownOpen((prev) => !prev)}
+                aria-controls="header-account"
+                onClick={() => {setNotificationsOpen(false);setIsDropdownOpen(prev=>!prev);}}
               >
                 <div className="avatar-circle">
                   {user.email
@@ -238,7 +221,7 @@ export const Header: React.FC<HeaderProps> = ({
 
               {/* Floating Dropdown Menu */}
               {isDropdownOpen && (
-                <div className="account-dropdown-menu" id="account-notifications" role="region" aria-label={language==="en"?"Notifications and account":"Thông báo và tài khoản"}>
+                <div className="account-dropdown-menu" id="header-account" role="region" aria-label={language==="en"?"Account menu":"Menu tài khoản"}><div className="popover-scroll">
                   {/* User Profile Header */}
                   <div className="dropdown-user-header">
                     <div className="dropdown-email">
@@ -293,14 +276,11 @@ export const Header: React.FC<HeaderProps> = ({
                     )}
                   </div>
 
-                  <NotificationInbox rows={inbox.rows} pending={inbox.pending} error={inbox.error} cursor={inbox.cursor} onReload={()=>void inbox.reload()} onMore={()=>void inbox.more()} onOpen={notification=>void openNotification(notification)}/>
-
-                  {/* Menu Items */}
-                  {token&&<NotificationPreferences key={user.id} token={token} userId={user.id}/>}
-                  <button className="btn btn-secondary" onClick={()=>{setIsDropdownOpen(false);onTabChange('support');}}>{language==='en'?'Support tickets':'Ticket hỗ trợ'}</button>
-                  {token&&<SellerFollowsPanel key={JSON.stringify([user.id,token])} token={token} userId={user.id}/>}
-                  {token&&<SessionManager key={"sessions-"+user.id} token={token} userId={user.id}/>}
-                  {token&&<WalletManager key={"wallets-"+user.id} token={token} userId={user.id}/>}
+                  <div className="dropdown-menu-list">
+                    <button className="dropdown-menu-item" onClick={()=>go('account')}>{language==='en'?'Account settings':'Cài đặt tài khoản'}</button>
+                    <button className="dropdown-menu-item" onClick={()=>go('wallet')}>{language==='en'?'Wallet':'Ví'}</button>
+                    <button className="dropdown-menu-item" onClick={()=>go('support')}>{language==='en'?'Support':'Hỗ trợ'}</button>
+                  </div>
                   <div className="dropdown-menu-list">
                     {/* Buyer Orders */}
                     <button
@@ -384,7 +364,7 @@ export const Header: React.FC<HeaderProps> = ({
                       <span>{t("logout")}</span>
                     </button>
                   </div>
-                </div>
+                </div></div>
               )}
             </div>
           )}
@@ -396,6 +376,7 @@ export const Header: React.FC<HeaderProps> = ({
         {sessionNotice==="UNAVAILABLE"&&<button className="btn btn-sm btn-secondary" onClick={()=>void refreshUser()}>{language==="en"?"Retry session check":"Kiểm tra lại phiên"}</button>}
       </div>}
 
+      {mobileOpen&&<DialogSurface label={language==='en'?'Navigation':'Điều hướng'} id="mobile-navigation" className="navigation-dialog" onClose={()=>setMobileOpen(false)}><h2>{language==='en'?'Navigation':'Điều hướng'}</h2><PrimaryNavigation currentTab={currentTab} seller={Boolean(isSeller)} admin={currentTab==='operator'} onNavigate={go}/></DialogSurface>}
       <FundingModal isOpen={isFundingModalOpen} onClose={() => setIsFundingModalOpen(false)} />
     </header>
   );

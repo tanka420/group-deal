@@ -6,6 +6,7 @@ import "@fontsource-variable/jetbrains-mono/wght.css";
 import "./index.css";
 import "./styles/masterScreens.css";
 import "./styles/application.css";
+import "./styles/navigation.css";
 import { ExternalWalletProvider } from "./context/ExternalWalletContext";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
