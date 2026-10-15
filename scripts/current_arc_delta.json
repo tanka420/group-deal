@@ -1,0 +1,208 @@
+{
+  "schemaVersion": 1,
+  "purpose": "PINNED_POST_CI_ARC_APPLICATION_DELTA_ONLY",
+  "baselineCommit": "47d853f79ff5c2b1c8ac7f0f8163ca613fb82d9a",
+  "baselineCiRun": "38354629984",
+  "applicationCommit": "9825db3a0b5c505d0fb40599b51dad562252143a",
+  "changedFiles": [
+    {
+      "path": "backend/src/domain/circleWalletAuthority.ts",
+      "sha256": "19c6d07bfd27f351e4c76ef1ae6ac62d19b7a20086b67a5102f3a7d97825af24"
+    },
+    {
+      "path": "backend/src/services/circleWalletService.ts",
+      "sha256": "8a0781a95740f54c180e1176179254cbc231fced276861f6844cbcee42ca5da4"
+    },
+    {
+      "path": "backend/test/circle_wallet_authority.test.ts",
+      "sha256": "4ba905d72ee10aa47d195d945fcc2395444bde8cfb4e5dd2bd111d7cb72022b4"
+    },
+    {
+      "path": "frontend/e2e/buy_expiry.spec.ts",
+      "sha256": "a2908205028bfd49e00b5a9de16b3e9cbc3f0f89b7f7d5452828a016dae06016"
+    },
+    {
+      "path": "frontend/e2e/campaign_amendment.spec.ts",
+      "sha256": "757d73a75a501e873b839f80f735824a73048e31245f739a27cba09698a442d0"
+    },
+    {
+      "path": "frontend/e2e/campaign_draft_recovery.spec.ts",
+      "sha256": "3ece7ef97a8e15830bd9cbd61755289a9eebf65fbfca22e263bf54e2c2778deb"
+    },
+    {
+      "path": "frontend/e2e/campaign_percentage.spec.ts",
+      "sha256": "a1d97ae402ccfebec251ba7fbbafa226c6aec9c5973d9fec3c49907a16c61834"
+    },
+    {
+      "path": "frontend/e2e/campaign_replacement.spec.ts",
+      "sha256": "dfc33f5abe80c99b905cc03ed82dcd201c9c623522712f449941436a26e2af23"
+    },
+    {
+      "path": "frontend/e2e/circle_fee_review.spec.ts",
+      "sha256": "845b53f9fe560aa557c9e78ecc32715dc82b87ca8a5500c6a44671b02cc1e893"
+    },
+    {
+      "path": "frontend/e2e/delivery_retry.spec.ts",
+      "sha256": "b0dabcb2815af6b1963a8c934f0ace48ae58aa1e290f093cc0941573b824f4f6"
+    },
+    {
+      "path": "frontend/e2e/external_fee_review.spec.ts",
+      "sha256": "1f69dd8c48d5af6319a6c13ccaa6082251969655723f86abf138aa447600493a"
+    },
+    {
+      "path": "frontend/e2e/external_receipt_discovery.spec.ts",
+      "sha256": "059a6ee03c7a23c5cf7852cfea0dc848d5331357453aa5a92677f104376ab385"
+    },
+    {
+      "path": "frontend/e2e/financial_projection.spec.ts",
+      "sha256": "44fb9d7ec2aac3bb7813b9ac97f4f0045b81f6ad933bc2a7f206dd205344d7e4"
+    },
+    {
+      "path": "frontend/e2e/guest_checkout.spec.ts",
+      "sha256": "65b9203b324ca5ce602e3836bca5983a9b54b75944ba63cf9a2cb1266fc514ba"
+    },
+    {
+      "path": "frontend/e2e/history_session_scope.spec.ts",
+      "sha256": "44d5244188dc23ba8fb15d2e7f682d828f8152f9166fdab1b40b283ae1882f6d"
+    },
+    {
+      "path": "frontend/e2e/managed_dialogs.spec.ts",
+      "sha256": "1d0c526f0b13a25ead48d2d1fb9f889745c3535d28f308147ecc9c7d0692fa70"
+    },
+    {
+      "path": "frontend/e2e/product_operations.spec.ts",
+      "sha256": "ba0a8792032e875b4f471b7d8c2b53d447114c4cb447336027f3b8c6845f0e41"
+    },
+    {
+      "path": "frontend/e2e/transaction_history_locale.spec.ts",
+      "sha256": "88ceef0b128d89b3fb6e2ee89b5891efb0377ffb3efe39c3c6cacb2dac580d38"
+    },
+    {
+      "path": "frontend/e2e/transaction_replacement.spec.ts",
+      "sha256": "d8e44b9d60301e0e8a76b2fbaa1b05efd3aff62a2e44d665094289e07ca3bd0f"
+    },
+    {
+      "path": "frontend/public/logo.svg",
+      "sha256": "de23c5091a8c11e22b5c09996a0014b33e3579969034ea33747cf5c439ed5cb1"
+    },
+    {
+      "path": "frontend/src/components/ManagedClaim.tsx",
+      "sha256": "04b6e95d4fa2a6f83b63c70380310a5967f110b16203f8ee2051060d3cf2d8ea"
+    },
+    {
+      "path": "frontend/src/components/ManagedFulfillment.tsx",
+      "sha256": "f071a1197bf849d8ebdca42f23ed3e8e22e75350c8e95122f5dc55d9c07159c7"
+    },
+    {
+      "path": "frontend/src/components/ManagedOrderAction.tsx",
+      "sha256": "45f4ef2c8fe69e45678f6f643a08a33e5bd5b9d05ef6e5d82d16f5f74c52cefa"
+    },
+    {
+      "path": "frontend/src/components/SellerCreateDeal.tsx",
+      "sha256": "9eaab8cceb12e7f5e0df22048611e3b73c1a3dd713e705af1a81ba531216e20c"
+    },
+    {
+      "path": "frontend/src/components/TransactionHistory.tsx",
+      "sha256": "3000de1f0b271007129d7b601ee733c5095c3308be7b4459062ee9a048f67e28"
+    },
+    {
+      "path": "frontend/src/context/Web3Context.tsx",
+      "sha256": "b6936eb2560cd3725ea171f6f8dfa7c70718e3f03f617bfab0b285dd11f92f27"
+    },
+    {
+      "path": "frontend/src/pages/CampaignDetailPage.tsx",
+      "sha256": "9ae3ffc5db418fa226fc91ef181589496015e8b423d233ea6787b4288ab345f2"
+    },
+    {
+      "path": "frontend/src/services/arcRpc.ts",
+      "sha256": "ba7f1196ae571a7378c315e0c673b53f91326bd0669669de2272f119dc2e64b4"
+    },
+    {
+      "path": "frontend/src/services/externalReceiptDiscovery.ts",
+      "sha256": "a25b3237e2745f56c7da64e5fe952647824c9da0731afccae3a608c00d24a7fa"
+    },
+    {
+      "path": "frontend/test/external_receipt_discovery.test.ts",
+      "sha256": "be9be5a14907d88588ef41d9a878ffc7a3be79d41d126e5bde015c2be4d3d246"
+    },
+    {
+      "path": "frontend/test/fixtures/externalReceiptFixture.ts",
+      "sha256": "fb383d2eb372687f2d5d18da950f6e76c917333abe0c4909c37ab340c15fc07a"
+    },
+    {
+      "path": "scripts/hosted_alerts.cjs",
+      "sha256": "765f6c36e43f2ab4c7bd8b902c7f1b38de79611e858865b66e5f93d83d855aa2"
+    },
+    {
+      "path": "scripts/hosted_alerts.test.cjs",
+      "sha256": "bc0a7e6382dc7898e8ea7c311afe5b4ebb4ac40a7fd187c4e0d56e7710d34e82"
+    },
+    {
+      "path": "scripts/hosted_backup.cjs",
+      "sha256": "6a9c6980402166da7a996cc151b88e0a2e9683d350f365772fda870e006e09f7"
+    },
+    {
+      "path": "scripts/hosted_backup.test.cjs",
+      "sha256": "efaa9724183fba894e8f1331a3c2059a7fd3640fca0460d45e62cb41d12f3251"
+    },
+    {
+      "path": "scripts/observe_hosted_health.cjs",
+      "sha256": "4df857ce3dc9cf10e5397b8420f8e71ee9cf1c01d500bd69f217942fc8e19b1a"
+    },
+    {
+      "path": "scripts/observe_hosted_health.test.cjs",
+      "sha256": "13147e6f99fb4b31c468d867078f9340a16d733b306f74f5d80ff4f612eb1f9d"
+    },
+    {
+      "path": "scripts/systemd/groupdeal-alert.service",
+      "sha256": "29aac76974f7eb882558f74ac612aaa95e3bac5fc64a88ed59a6a53ecf2add30"
+    },
+    {
+      "path": "scripts/systemd/groupdeal-alert.timer",
+      "sha256": "5e0c6286f6f480660578ab0e1b9bc16a612d7ce1292bc0d02d8ae3f7acddec9c"
+    },
+    {
+      "path": "scripts/systemd/groupdeal-backup.service",
+      "sha256": "49849d40a601fe347667f191b59aed817002ef0ff7afda0aafe371870e748773"
+    },
+    {
+      "path": "scripts/systemd/groupdeal-backup.timer",
+      "sha256": "f5032af7eeb4ba49972ac2c87e2cce55934b2383a6cd187a7feb4e6dbe06844d"
+    },
+    {
+      "path": "scripts/systemd/groupdeal-health-probe.service",
+      "sha256": "46664477e2ab3c684cf4011a80af16273a27e78d9300579b7cabe6b3cbcabb73"
+    },
+    {
+      "path": "scripts/systemd/groupdeal-health-probe.timer",
+      "sha256": "45a8981179b2c71097062086170ba98433cd8301300a35814ad3ce1c6caa98ec"
+    }
+  ],
+  "browserSpecs": [
+    "frontend/e2e/buy_expiry.spec.ts",
+    "frontend/e2e/campaign_amendment.spec.ts",
+    "frontend/e2e/campaign_draft_recovery.spec.ts",
+    "frontend/e2e/campaign_percentage.spec.ts",
+    "frontend/e2e/campaign_replacement.spec.ts",
+    "frontend/e2e/circle_fee_review.spec.ts",
+    "frontend/e2e/delivery_retry.spec.ts",
+    "frontend/e2e/external_fee_review.spec.ts",
+    "frontend/e2e/external_receipt_discovery.spec.ts",
+    "frontend/e2e/financial_projection.spec.ts",
+    "frontend/e2e/guest_checkout.spec.ts",
+    "frontend/e2e/history_session_scope.spec.ts",
+    "frontend/e2e/managed_dialogs.spec.ts",
+    "frontend/e2e/product_operations.spec.ts",
+    "frontend/e2e/transaction_history_locale.spec.ts",
+    "frontend/e2e/transaction_replacement.spec.ts"
+  ],
+  "scope": {
+    "fullPipeline": false,
+    "contractsOrSdkChanged": false,
+    "liveProviderOrDatabaseAllowed": false
+  },
+  "limitations": [
+    "Application equality to the pinned commit is checked against Git; only the four declared CI infrastructure files may differ at workflow HEAD.",
+    "Scoped fixture CI is not a new full-suite CI or live G5/G6 acceptance."
+  ]
+}

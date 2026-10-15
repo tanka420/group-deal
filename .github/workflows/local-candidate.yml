@@ -5,16 +5,26 @@ on:
   push:
     branches: [main, master, 'codex/**']
   workflow_dispatch:
+    inputs:
+      scope:
+        description: Checks to run
+        type: choice
+        required: true
+        default: full
+        options:
+          - full
+          - current-arc-delta
 
 permissions:
   contents: read
 
 concurrency:
-  group: local-candidate-${{ github.workflow }}-${{ github.ref }}
+  group: local-candidate-${{ github.workflow }}-${{ github.ref }}-${{ inputs.scope || 'full' }}
   cancel-in-progress: true
 
 jobs:
   local:
+    if: github.event_name != 'workflow_dispatch' || inputs.scope != 'current-arc-delta'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -52,6 +62,41 @@ jobs:
             .cache/local-pipeline-*.json
             .cache/secret-scan-*.json
             .cache/fallback-http-*.json
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
+
+  current-arc-delta:
+    if: github.event_name == 'workflow_dispatch' && inputs.scope == 'current-arc-delta'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24.21.0'
+          package-manager-cache: false
+      - name: Verify pinned application delta before installing dependencies
+        run: node scripts/run_current_arc_delta.cjs --check-scope
+      - name: Locked package manager and affected workspaces
+        run: |
+          npm install --global npm@11.6.2 --no-audit --no-fund --registry=https://registry.npmjs.org
+          npm ci --prefix backend --no-audit --no-fund
+          npm ci --prefix frontend --no-audit --no-fund
+      - name: Chromium for affected browser fixtures
+        working-directory: frontend
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Affected checks only; no live provider or database
+        run: node scripts/run_current_arc_delta.cjs
+      - name: Redacted scoped result
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: current-arc-delta-${{ github.sha }}
+          path: .cache/current-arc-delta-*.json
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 14
