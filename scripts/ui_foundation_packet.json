@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "baselineCommit": "d560ce95ce5ed6de2a9478781608361e4da1ca0d",
+  "applicationCommit": "a149a132e2860c733ba010b2a3a1161981ffb2b0",
+  "files": [
+    {
+      "path": "config/nginx/groupdeal-app-routes.conf",
+      "sha256": "9f92ea123471c59bb412e308bafbeec15344490d1e154e4972926206689fb672"
+    },
+    {
+      "path": "frontend/e2e/guest_checkout.spec.ts",
+      "sha256": "a5358ed61d12c59b213e619acb93ad41b2bbd8a46121367871308169abbca4d0"
+    },
+    {
+      "path": "frontend/e2e/navigation_foundation.spec.ts",
+      "sha256": "8c64ffb0f362d423facc3e447305217ee2a8ae3bc499399afd02f72037066a42"
+    },
+    {
+      "path": "frontend/src/App.tsx",
+      "sha256": "8c77231f1275a8eb10d89c02f91e174ff8e4f03b0d21ee82a0b0dca7b28508ee"
+    },
+    {
+      "path": "frontend/src/components/Header.tsx",
+      "sha256": "90bba1dfc111ae12a0c3053457457c6505f559ff1f373ac17b0a03be32d9be9d"
+    },
+    {
+      "path": "frontend/src/components/PrimaryNavigation.tsx",
+      "sha256": "603952d93b9e7dee62ada7fe6d9f55459b1fbcdab80c2005d18022a151ecc840"
+    },
+    {
+      "path": "frontend/src/main.tsx",
+      "sha256": "cb65f685c7b7774470b409c7b8b5d6ede96e7c93ef54b9c1b7b1248ed41e263d"
+    },
+    {
+      "path": "frontend/src/pages/AccountPage.tsx",
+      "sha256": "7dabe65de1406c38711509019d17fbfdb383044520b4f51596b48885bc08e7fb"
+    },
+    {
+      "path": "frontend/src/pages/CampaignDetailPage.tsx",
+      "sha256": "de0e7e148c4a64c75851a6e60b4fabf651e01a47996b856825eb1d870e7bc31b"
+    },
+    {
+      "path": "frontend/src/pages/ExplorePage.tsx",
+      "sha256": "061145f18f59347bfcd81ffeb03d8de5b8817cd684169a6ce166f4ca28aa2232"
+    },
+    {
+      "path": "frontend/src/pages/NotificationsPage.tsx",
+      "sha256": "cf068351cf197f8fb9ebe8d98d40c2229d08303dfd96796179d235007dc58c1f"
+    },
+    {
+      "path": "frontend/src/pages/WalletPage.tsx",
+      "sha256": "624c3a1284ba27a33c4879d08caf2335e727729f505682dca22a3e26552fb064"
+    },
+    {
+      "path": "frontend/src/services/catalog.ts",
+      "sha256": "7532147aceaa75557369ff823a7b8aaf9f897c1ee1c163701a81d7cd2aa8666f"
+    },
+    {
+      "path": "frontend/src/styles/navigation.css",
+      "sha256": "40c48a44784dcaf6ec2192439b0d75984a6c571d32f547065e4e4416da7e9924"
+    },
+    {
+      "path": "frontend/src/utils/appRoute.ts",
+      "sha256": "452c80cafd805a84a71db838d0284486cf4a502b49ec474cf37faa7ed9f96abe"
+    },
+    {
+      "path": "frontend/test/app_route.test.ts",
+      "sha256": "26c77186afe14b1689241cef878ce021bebf38573a9e8bf6ba2def0a5b56a7ce"
+    },
+    {
+      "path": "reports/ui-integration/2026-10-15/PACKAGE_01.md",
+      "sha256": "fbf6b99bebab9a715d4595b4eebdaf28979019d35766ac29c8ba90da64aaef72"
+    }
+  ],
+  "scope": "Navigation, URL, relocated existing account surfaces; no backend/DB or full acceptance"
+}
