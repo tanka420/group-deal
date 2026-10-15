@@ -15,6 +15,10 @@ import { SellerProfileEditor } from "../components/SellerProfileEditor";
 import { ManagedFulfillment } from "../components/ManagedFulfillment";
 import { TransactionHistory } from "../components/TransactionHistory";
 import {WebhookRecoveryReview} from '../components/WebhookRecoveryReview';
+import {OrderReference} from '../components/OrderReference';
+import {OrderConversation} from '../components/OrderConversation';
+import {formatOrderDate} from '../services/orderList';
+import '../styles/orders.css';
 import {
   Store,
   PlusCircle,
@@ -276,8 +280,9 @@ export const SellerDashboard: React.FC = () => {
                   <div className="ui-row" style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.75rem" }}>
                     <div>
                       <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                        {text('Đơn #','Order #')}{o.id} • {typeof o.campaignTitle==='string'?o.campaignTitle:text('Chưa có tiêu đề ghi nhận','No recorded title')}
+                        <OrderReference id={o.id}/> • {typeof o.campaignTitle==='string'?o.campaignTitle:text('Chưa có tiêu đề ghi nhận','No recorded title')}
                       </span>
+                      <p className="muted">{text('Ngày ghi nhận đơn: ','Order recorded: ')}{formatOrderDate(o.createdAt,language)}</p>
                       <div style={{ fontWeight: 600, fontSize: "1rem" }}>
                         {text("Ví buyer", "Buyer wallet")}: <span className="font-mono" style={{ color: "var(--cyan)" }}>{o.buyerPrincipal??text('Chưa xác minh','Unverified')}</span>
                       </div>
@@ -300,7 +305,8 @@ export const SellerDashboard: React.FC = () => {
                     </div>
 
                     <div className="ui-row" style={{ display: "flex", gap: "0.5rem" }}>
-                      <a className="btn btn-sm btn-secondary" href={'#support-order-'+encodeURIComponent(o.id)}>{text('Hỗ trợ theo đơn','Order support')}</a>
+                      <a className="btn btn-sm btn-secondary" href={'#support-order-'+encodeURIComponent(o.id)}>{text('Ticket hỗ trợ đơn','Order support ticket')}</a>
+                      <OrderConversation key={o.id+':'+getSessionEpoch()} orderId={o.id}/>
                       {o.deliveryStatus === "PENDING" && (
                         <button className="btn btn-sm btn-primary" onClick={() => setFulfillOrderObj(o)}>
                           <KeyRound size={14} /> {text('Giao tài nguyên','Deliver resource')}

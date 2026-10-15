@@ -4,6 +4,11 @@ import {DialogSurface} from "../components/DialogSurface";
 import {ManagedClaim} from "../components/ManagedClaim";
 import {cleanHttpsEvidenceUrl} from "../../../shared/evidence.mjs";
 import {TransactionHistory} from "../components/TransactionHistory";
+import {OrderReference} from '../components/OrderReference';
+import {OrderList} from '../components/OrderList';
+import {formatOrderDate} from '../services/orderList';
+import {OrderConversation} from '../components/OrderConversation';
+import '../styles/orders.css';
 import React, { useState, useEffect, useRef } from "react";
 import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
@@ -26,7 +31,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-export const BuyerDashboard: React.FC = () => {
+export const BuyerDashboard: React.FC<{selectedOrderId?:string}> = ({selectedOrderId}) => {
   const { t, language } = useLanguage();
   const text=(vi:string,en:string)=>language==="en"?en:vi;
   const { user,token,getSessionEpoch } = useAuth();
@@ -43,6 +48,9 @@ export const BuyerDashboard: React.FC = () => {
   const [ordersOwner,setOrdersOwner]=useState({userId:user?.id,token});
   const ordersVisible=ordersOwner.userId===user?.id&&ordersOwner.token===token;
   const visibleOrders=ordersVisible?orders:[];
+  const detailOrders=selectedOrderId?visibleOrders.filter(o=>o.id===selectedOrderId):[];
+  const returnTo=new URLSearchParams(window.location.search).get('returnTo');
+  const backHref=returnTo&&/^\/orders(?:\?|$)/.test(returnTo)?returnTo:'/orders';
 
   // Entitlement Reveal State
   const [revealedEntitlements, setRevealedEntitlements] = useState<Record<string, string>>({});
@@ -67,12 +75,10 @@ export const BuyerDashboard: React.FC = () => {
   const reviewRequest=useRef<AbortController|null>(null);
   useEffect(()=>()=>reviewRequest.current?.abort(),[user?.id,token]);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-  const closeReview=()=>{reviewRequest.current?.abort();reviewRequest.current=null;setIsSubmittingReview(false);setReviewModalOrder(null);setReviewComment('');setReviewError(false);};
-
-  // Support thread state
-  const [activeThreadOrder, setActiveThreadOrder] = useState<any | null>(null);
-  const [threadMessages, setThreadMessages] = useState<any[]>([]);
-  const [newMsgText, setNewMsgText] = useState("");
+  const reviewDrafts=useRef(new Map<string,{score:number;comment:string;uncertain:boolean}>());
+  const disputeDrafts=useRef(new Map<string,{reason:string;evidence:string}>());
+  const closeReview=()=>{if(reviewModalOrder)reviewDrafts.current.set(reviewModalOrder.id,{score:reviewScore,comment:reviewComment,uncertain:isSubmittingReview||reviewError});reviewRequest.current?.abort();reviewRequest.current=null;setIsSubmittingReview(false);setReviewModalOrder(null);};
+  const closeDispute=()=>{if(disputeModalOrder)disputeDrafts.current.set(disputeModalOrder.id,{reason:disputeReason,evidence:disputeEvidence});setDisputeModalOrder(null);};
 
   const fetchOrders = () => {
     dataController.current?.abort();const controller=new AbortController();dataController.current=controller;
@@ -81,12 +87,12 @@ export const BuyerDashboard: React.FC = () => {
     const epoch=getSessionEpoch(),timer=setTimeout(()=>controller.abort(),15000),current=()=>dataController.current===controller&&scopeRef.current.userId===owner.userId&&scopeRef.current.token===owner.token&&getSessionEpoch()===epoch;
     fetch('/api/orders/buyer',{signal:controller.signal,headers:{Authorization:'Bearer '+token},redirect:'error',cache:'no-store'})
       .then(async r=>{if(!r.ok)throw Error('ORDER_VIEW_UNAVAILABLE');return r.json();})
-      .then(data=>{if(controller.signal.aborted||!current())return;if(!Array.isArray(data.orders)||data.buyerAccountId!==undefined&&data.buyerAccountId!==owner.userId||data.orders.some((o:any)=>!o||typeof o.id!=='string'||!/^[-A-Za-z0-9_]{1,128}$/.test(o.id)||['constructor','__proto__','prototype'].includes(o.id)||o.buyerAccountId!==undefined&&o.buyerAccountId!==owner.userId)||new Set(data.orders.map((o:any)=>o.id)).size!==data.orders.length)throw Error('ORDER_VIEW_INVALID');setOrders(data.orders);})
+      .then(data=>{if(controller.signal.aborted||!current())return;if(!Array.isArray(data.orders)||data.buyerAccountId!==undefined&&data.buyerAccountId!==owner.userId||data.orders.some((o:any)=>!o||typeof o.id!=='string'||!/^[-A-Za-z0-9_]{1,128}$/.test(o.id)||['constructor','__proto__','prototype'].includes(o.id)||o.buyerAccountId!==undefined&&o.buyerAccountId!==owner.userId)||new Set(data.orders.map((o:any)=>o.id)).size!==data.orders.length)throw Error('ORDER_VIEW_INVALID');setOrders(data.orders);for(const o of data.orders){const saved=reviewDrafts.current.get(o.id);if(o.review)reviewDrafts.current.delete(o.id);else if(saved)saved.uncertain=false;}})
       .catch(()=>{if(current())setLoadError('ORDER_VIEW_UNAVAILABLE');})
       .finally(()=>{clearTimeout(timer);if(current())setLoading(false);});
   };
   useEffect(()=>{fetchOrders();return()=>{dataController.current?.abort();dataController.current=null;};},[user?.id,token,account]);
-  useEffect(()=>{setDisputeModalOrder(null);setDisputeError(false);setReviewError(false);setDisputeReason('');setDisputeEvidence('');setReviewModalOrder(null);setIsSubmittingReview(false);setIsSubmittingDispute(false);setReviewComment('');setActiveThreadOrder(null);setThreadMessages([]);setNewMsgText('');},[user?.id,token]);
+  useEffect(()=>{setDisputeModalOrder(null);setDisputeError(false);setReviewError(false);setDisputeReason('');setDisputeEvidence('');setReviewModalOrder(null);setIsSubmittingReview(false);setIsSubmittingDispute(false);setReviewComment('');reviewDrafts.current.clear();disputeDrafts.current.clear();},[user?.id,token]);
 
   // Decrypt entitlement secret
   const handleReveal = async (orderId: string) => {
@@ -120,68 +126,36 @@ export const BuyerDashboard: React.FC = () => {
     setIsSubmittingDispute(true);
     try{
       const prepared=await orderAction.current?.begin(disputeModalOrder.id,disputeModalOrder.buyerPrincipal,{action:"DISPUTE",reason:disputeReason,evidenceUrls:disputeEvidence?[disputeEvidence]:[]});
-      if(prepared&&current()){setDisputeModalOrder(null);setDisputeReason("");setDisputeEvidence("");}
+      if(prepared&&current()){disputeDrafts.current.delete(disputeModalOrder.id);setDisputeModalOrder(null);setDisputeReason("");setDisputeEvidence("");}
     }finally{if(current())setIsSubmittingDispute(false);}
   };
 
   // Submit Review
   const handleSubmitReview=async(e:React.FormEvent)=>{
-    e.preventDefault();if(!reviewModalOrder||!user?.id||!token||isSubmittingReview)return;
+    e.preventDefault();if(!reviewModalOrder||!user?.id||!token||isSubmittingReview||reviewRequest.current)return;
     const owner={userId:user.id,token},epoch=getSessionEpoch(),controller=new AbortController();reviewRequest.current=controller;const timer=setTimeout(()=>controller.abort(),15000);
     const current=()=>reviewRequest.current===controller&&scopeRef.current.userId===owner.userId&&scopeRef.current.token===owner.token&&getSessionEpoch()===epoch;
     setIsSubmittingReview(true);setReviewError(false);
     try{
       const res=await fetch('/api/orders/'+encodeURIComponent(reviewModalOrder.id)+'/review',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({score:reviewScore,comment:reviewComment}),signal:controller.signal,redirect:'error',cache:'no-store'});
       const data=await res.json();if(!res.ok||data?.success!==true)throw Error('REVIEW_UNAVAILABLE');if(controller.signal.aborted||!current())return;
-      setReviewModalOrder(null);setReviewComment('');fetchOrders();
+      reviewDrafts.current.delete(reviewModalOrder.id);setReviewModalOrder(null);setReviewComment('');fetchOrders();
     }catch{if(current())setReviewError(true);}finally{clearTimeout(timer);if(reviewRequest.current===controller){const stillCurrent=current();reviewRequest.current=null;if(stillCurrent)setIsSubmittingReview(false);}}
-  };
-
-  // Support thread opener
-  const handleOpenThread = async (order: any) => {
-    setActiveThreadOrder(order);
-    try {
-      const res = await fetch(`/api/orders/${order.id}/messages`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("groupdeal_token") || ""}` },
-      });
-      const data = await res.json();
-      setThreadMessages(data.messages || []);
-    } catch (e) {
-      console.warn("Could not fetch messages", e);
-    }
-  };
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeThreadOrder || !newMsgText) return;
-    try {
-      const res = await fetch(`/api/orders/${activeThreadOrder.id}/messages`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("groupdeal_token") || ""}`,
-        },
-        body: JSON.stringify({ text: newMsgText }),
-      });
-      const data = await res.json();
-      setThreadMessages((prev) => [...prev, data.message]);
-      setNewMsgText("");
-    } catch (e: any) {
-      alert("Lỗi gửi tin nhắn: " + e.message);
-    }
   };
 
   // Calculate total claimables
   let totalClaimableRebates = 0n;
   let totalClaimableRefunds = 0n;
   let amountsKnown=!!user?.id&&!!token&&ordersVisible&&!loading&&!loadError;
-  visibleOrders.forEach(o=>{const amounts=buyerOrderAmounts(o);if(amounts.remaining===null){amountsKnown=false;return;}totalClaimableRebates+=amounts.unpaidRebate;totalClaimableRefunds+=amounts.unpaidRefund;});
+  (selectedOrderId?detailOrders:visibleOrders).forEach(o=>{const amounts=buyerOrderAmounts(o);if(amounts.remaining===null){amountsKnown=false;return;}totalClaimableRebates+=amounts.unpaidRebate;totalClaimableRefunds+=amounts.unpaidRefund;});
+  if(selectedOrderId&&!detailOrders.length)amountsKnown=false;
   return (
     <div className="app-page buyer-dashboard">
+      {selectedOrderId&&<a className="btn btn-secondary" href={backHref}>{text('Quay lại danh sách đơn','Back to orders')}</a>}
       {loadError&&<div role="alert" className="notice notice-error">{text("Không tải được dữ liệu. Thử lại khi kết nối ổn định.","Unable to load orders. Retry when your connection is stable.")}<button className="btn btn-secondary" onClick={fetchOrders}>{text("Thử lại","Retry")}</button></div>}
       <div className="workspace-heading">
         <div>
-          <h1 style={{ fontSize: "1.85rem", marginBottom: "0.25rem" }}>{t("buyerDashboardTitle")}</h1>
+          <h1 style={{ fontSize: "1.85rem", marginBottom: "0.25rem" }}>{selectedOrderId?text('Chi tiết đơn hàng','Order details'):text('Đơn hàng','Orders')}</h1>
           <p style={{ color: "var(--text-secondary)", fontSize: "0.92rem" }}>
             {text("Theo dõi đơn, nhận tài nguyên số và kiểm tra rebate, hoàn tiền đã phân bổ.","Track orders, access digital resources and check allocated rebates and refunds.")}
           </p>
@@ -190,6 +164,7 @@ export const BuyerDashboard: React.FC = () => {
       </div>
 
       {/* Overview Balance Cards */}
+      <p className="muted">{selectedOrderId?text('Khoản được phân bổ cho đơn đang xem.','Allocations for the selected order.'):text('Tổng khoản được phân bổ của tất cả đơn trong tài khoản; không đổi theo bộ lọc danh sách.','Total allocations across your account orders; list filters do not change these totals.')}</p>
       <div className="ui-stat-grid">
         <div className="glass-card" style={{ padding: "1.25rem 1.5rem" }}>
           <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "0.4rem" }}>
@@ -227,9 +202,9 @@ export const BuyerDashboard: React.FC = () => {
             {text("Bạn chưa có đơn cam kết mua nào. Khám phá các deal đang mở để bắt đầu.","You have no purchase commitments yet. Explore open deals to get started.")}
           </p>
         </div>
-      ) : (
+      ) : !selectedOrderId ? <OrderList orders={visibleOrders}/> : !detailOrders.length ? <p role="status">{text('Không tìm thấy đơn trong tài khoản này. Kiểm tra mã đơn và tài khoản đăng nhập.','This order was not found in your account. Check the order ID and signed-in account.')}</p> : (
         <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-          {visibleOrders.map((o) => {
+          {detailOrders.map((o) => {
             const lockedPrice=orderMoney(o.lockedUnitPrice)??text("Chưa xác minh","Unverified");
             const gross=orderMoney(o.committedGross)??text("Chưa xác minh","Unverified");
             const {rebate,refund,remaining:buyerClaimable}=buyerOrderAmounts(o);
@@ -240,11 +215,12 @@ export const BuyerDashboard: React.FC = () => {
                 <div className="ui-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1rem", flexWrap: "wrap", gap: "1rem" }}>
                   <div>
                     <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "0.2rem" }}>
-                      {text('Đơn hàng #','Order #')}{o.id} • {text('Chiến dịch #','Campaign #')}{o.campaignId}
+                      <OrderReference id={o.id}/> • <a href={'/deals/'+encodeURIComponent(o.campaignId)}>{text('Chiến dịch #','Campaign #')}{o.campaignId}</a>
                     </div>
                     <h3 style={{ fontSize: "1.2rem", marginBottom: "0.3rem" }}>
                       {o.campaignTitle}
                     </h3>
+                    <p className="muted">{text('Ngày ghi nhận đơn: ','Order recorded: ')}{formatOrderDate(o.createdAt,language)}</p>
                     <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
                       {text('Số lượng: ','Quantity: ')}<strong>{Number.isSafeInteger(o.quantity)&&o.quantity>0?o.quantity:text('Chưa xác minh','Unverified')} {text('đơn vị','units')}</strong> | {text('Đơn giá khóa: ','Locked unit price: ')}<strong>{lockedPrice} USDC</strong> | {text('Tổng cam kết: ','Gross committed: ')}<strong>{gross} USDC</strong>
                     </div>
@@ -277,7 +253,7 @@ export const BuyerDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {o.deliveryStatus==='DELIVERED'&&<p className="notice">{recordedDeadline(o.disputeDeadline)!==null?text('Hạn tranh chấp ghi nhận: ','Recorded dispute deadline: ')+new Date(o.disputeDeadline*1000).toLocaleString(language==='en'?'en-GB':'vi-VN'):text('Chưa có thời hạn tranh chấp đã ghi nhận.','No recorded dispute deadline is available.')} {text('Khi chuẩn bị thao tác, hệ thống kiểm tra lại trạng thái và cửa sổ trên chain.','Preparing an action rechecks its current chain state and window.')}</p>}
+                {o.deliveryStatus==='DELIVERED'&&<p className="notice">{recordedDeadline(o.disputeDeadline)!==null?text('Hạn tranh chấp ghi nhận: ','Recorded dispute deadline: ')+formatOrderDate(o.disputeDeadline*1000,language):text('Chưa có thời hạn tranh chấp đã ghi nhận.','No recorded dispute deadline is available.')} {text('Khi chuẩn bị thao tác, hệ thống kiểm tra lại trạng thái và cửa sổ trên chain.','Preparing an action rechecks its current chain state and window.')}</p>}
                 {/* Delivered Entitlement Box */}
                 {o.managedResourceDelivery && <BuyerResources orderId={o.id}/>}
                 {o.hasEntitlement && !o.managedResourceDelivery && (
@@ -387,7 +363,7 @@ export const BuyerDashboard: React.FC = () => {
                     {o.deliveryStatus === "DELIVERED" && (
                       <button
                         className="btn btn-sm btn-secondary"
-                        onClick={() => {setDisputeModalOrder(o);setDisputeReason('');setDisputeEvidence('');setDisputeError(false);}}
+                        onClick={() => {const saved=disputeDrafts.current.get(o.id);setDisputeModalOrder(o);setDisputeReason(saved?.reason||'');setDisputeEvidence(saved?.evidence||'');setDisputeError(false);}}
                         style={{ borderColor: "rgba(244, 63, 94, 0.4)", color: "var(--danger)" }}
                       >
                         <AlertTriangle size={14} /> {t("openDispute")}
@@ -395,18 +371,19 @@ export const BuyerDashboard: React.FC = () => {
                     )}
 
                     {/* Support Messages thread */}
-                    <button className="btn btn-sm btn-secondary" onClick={() => {window.location.hash='#support-order-'+encodeURIComponent(o.id);}}>
-                      <MessageSquare size={14} /> {language==='en'?'Order support':'Hỗ trợ theo đơn'}
-                    </button>
+                    <a className="btn btn-sm btn-secondary" href={'/support/orders/'+encodeURIComponent(o.id)}><MessageSquare size={14}/>{text('Ticket hỗ trợ đơn','Order support ticket')}</a>
 
                     {/* Leave Review */}
                     {(o.deliveryStatus === "DELIVERED" || o.deliveryStatus === "CONFIRMED") && !o.review && (
-                      <button className="btn btn-sm btn-secondary" onClick={() => {closeReview();setReviewModalOrder(o);setReviewScore(5);}}>
+                      <button className="btn btn-sm btn-secondary" onClick={() => {const saved=reviewDrafts.current.get(o.id);setReviewModalOrder(o);setReviewScore(saved?.score||5);setReviewComment(saved?.comment||'');setReviewError(saved?.uncertain||false);}}>
                         <Star size={14} color="var(--warning)" /> {t("rateSeller")}
                       </button>
                     )}
                   </div>
                 </div>
+
+                {o.review&&<section className="order-review" aria-label={text('Đánh giá đã gửi','Submitted review')}><h4>{text('Đánh giá của bạn','Your review')} · {Number.isInteger(o.review.score)&&o.review.score>=1&&o.review.score<=5?o.review.score:'—'}/5</h4><p>{typeof o.review.comment==='string'?o.review.comment:text('Chưa tải được nội dung đánh giá.','Review content is unavailable.')}</p>{typeof o.review.sellerResponse==='string'&&o.review.sellerResponse&&<><strong>{text('Người bán phản hồi','Seller response')}</strong><p>{o.review.sellerResponse}</p></>}</section>}
+                <OrderConversation key={o.id+':'+getSessionEpoch()} orderId={o.id}/>
 
                 {/* Direct Onchain Dispute Fallback Notice */}
                 {o.deliveryStatus === "DELIVERED" && (
@@ -436,7 +413,7 @@ export const BuyerDashboard: React.FC = () => {
 
       {/* Dispute Modal */}
       {ordersVisible&&disputeModalOrder && (
-        <DialogSurface label={language==="en"?"Open order dispute":"Mở tranh chấp đơn"} onClose={() => setDisputeModalOrder(null)}>
+        <DialogSurface label={language==="en"?"Open order dispute":"Mở tranh chấp đơn"} onClose={closeDispute}>
           <div  >
             <div className="modal-header">
               <h3 className="ui-row" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -478,7 +455,7 @@ export const BuyerDashboard: React.FC = () => {
                   type="button"
                   className="btn btn-secondary"
                   style={{ flex: 1 }}
-                  onClick={() => setDisputeModalOrder(null)}
+                  onClick={closeDispute}
                 >
                   {text('Hủy','Cancel')}
                 </button>
@@ -503,7 +480,7 @@ export const BuyerDashboard: React.FC = () => {
             <div className="modal-header">
               <h3>{text('Đánh giá người bán cho đơn #','Review seller for order #')}{reviewModalOrder.id}</h3>
             </div>
-            <form onSubmit={handleSubmitReview}>{reviewError&&<p role="alert">{text('Chưa xác nhận đánh giá. Tải lại đơn để kiểm tra trước khi gửi lại.','Review acknowledgement is unavailable. Reload the order to check before resubmitting.')}</p>}
+            <form onSubmit={handleSubmitReview}>{reviewError&&<p role="alert">{text('Chưa xác nhận đánh giá. Tải lại đơn để kiểm tra trước khi gửi lại.','Review acknowledgement is unavailable. Reload the order to check before resubmitting.')} <button type="button" className="btn btn-secondary" onClick={()=>{closeReview();fetchOrders();}}>{text('Tải lại đơn','Reload order')}</button></p>}
               <div className="form-group">
                 <label className="form-label">{text("Số sao đánh giá (1-5)","Rating (1–5 stars)")}</label>
                 <div className="ui-row" style={{ display: "flex", gap: "0.5rem" }}>
@@ -554,7 +531,7 @@ export const BuyerDashboard: React.FC = () => {
                   type="submit"
                   className="btn btn-primary"
                   style={{ flex: 2 }}
-                  disabled={isSubmittingReview}
+                  disabled={isSubmittingReview||reviewError}
                 >
                   {isSubmittingReview?text('Đang gửi…','Sending…'):text('Gửi đánh giá','Submit review')}
                 </button>
@@ -564,76 +541,6 @@ export const BuyerDashboard: React.FC = () => {
         </DialogSurface>
       )}
 
-      {/* Support Thread Modal */}
-      {activeThreadOrder && (
-        <DialogSurface label={language==="en"?"Order support history":"Lịch sử hỗ trợ đơn"} onClose={() => setActiveThreadOrder(null)}>
-          <div   style={{ maxWidth: "600px" }}>
-            <div className="modal-header">
-              <h3>Hộp thoại hỗ trợ đơn #{activeThreadOrder.id}</h3>
-            </div>
-
-            <div
-              style={{
-                height: "320px",
-                overflowY: "auto",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-md)",
-                padding: "1rem",
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.75rem",
-                marginBottom: "1rem",
-                background: "var(--bg-tertiary)",
-              }}
-            >
-              {threadMessages.length === 0 ? (
-                <div style={{ textAlign: "center", color: "var(--text-muted)", margin: "auto" }}>
-                  Chưa có tin nhắn nào trong thread này.
-                </div>
-              ) : (
-                threadMessages.map((m) => (
-                  <div
-                    key={m.id}
-                    style={{
-                      alignSelf: m.senderRole === "buyer" ? "flex-end" : "flex-start",
-                      maxWidth: "80%",
-                      padding: "0.6rem 0.85rem",
-                      borderRadius: "var(--radius-md)",
-                      background:
-                        m.senderRole === "buyer"
-                          ? "rgba(99, 102, 241, 0.2)"
-                          : m.senderRole === "operator"
-                          ? "rgba(245, 158, 11, 0.2)"
-                          : "var(--bg-tertiary)",
-                      border: "1px solid var(--border-subtle)",
-                      fontSize: "0.85rem",
-                    }}
-                  >
-                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginBottom: "0.2rem" }}>
-                      {m.senderRole.toUpperCase()} • {new Date(m.timestamp).toLocaleTimeString()}
-                    </div>
-                    <div>{m.text}</div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <form className="ui-row" onSubmit={handleSendMessage} style={{ display: "flex", gap: "0.5rem" }}>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Nhập tin nhắn hỗ trợ..."
-                value={newMsgText}
-                onChange={(e) => setNewMsgText(e.target.value)}
-                required
-              />
-              <button type="submit" className="btn btn-primary">
-                Gửi
-              </button>
-            </form>
-          </div>
-        </DialogSurface>
-      )}
     </div>
   );
 };

@@ -85,7 +85,7 @@ export const Header: React.FC<HeaderProps> = ({
   const go=(tab:string)=>{setIsDropdownOpen(false);setNotificationsOpen(false);setMobileOpen(false);onTabChange(tab);};
   const openNotification = async (notification:InboxItem) => {
     if(!await inbox.markRead(notification))return;
-    if(notification.link&&(["#orders","#seller","#operator"].includes(notification.link)||/^#campaign-[A-Za-z0-9_-]{1,180}$/.test(notification.link)||/^#support-ticket-tkt_[a-f0-9-]{36}$/.test(notification.link))){
+    if(notification.link&&(["#orders","#seller","#operator"].includes(notification.link)||/^#(?:campaign|order)-[A-Za-z0-9_-]{1,180}$/.test(notification.link)||/^#support-ticket-tkt_[a-f0-9-]{36}$/.test(notification.link))){
       go(notification.link.slice(1));
     }
   };

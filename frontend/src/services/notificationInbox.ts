@@ -14,7 +14,8 @@ function item(value:unknown,userId:string):InboxItem {
     source={kind:s.kind,eventId:s.eventId,occurredAt:s.occurredAt,...(["CHAIN_EVENT","SELLER_FOLLOW_EVENT"].includes(s.kind)?{eventName:s.eventName,blockNumber:s.blockNumber}:{})};
   }
   const en=n.translations?.en,translations=en&&typeof en.title==="string"&&en.title.length<=500&&typeof en.message==="string"&&en.message.length<=64000?{en:{title:en.title,message:en.message}}:undefined;
-  const link=typeof n.link==="string"&&(/^(?:#orders|#seller|#operator)$/.test(n.link)||/^#campaign-[A-Za-z0-9_-]{1,180}$/.test(n.link)||/^#support-ticket-tkt_[a-f0-9-]{36}$/.test(n.link))?n.link:undefined;
+  const orderId=(n.source as any)?.orderId;
+  const link=n.link==='#orders'&&source&&typeof orderId==='string'&&idPattern.test(orderId)?'#order-'+orderId:typeof n.link==="string"&&(/^(?:#orders|#seller|#operator)$/.test(n.link)||/^#(?:campaign|order)-[A-Za-z0-9_-]{1,180}$/.test(n.link)||/^#support-ticket-tkt_[a-f0-9-]{36}$/.test(n.link))?n.link:undefined;
   return {id:n.id,userId:n.userId,type:n.type,title:n.title,message:n.message,createdAt:n.createdAt,...(n.readAt!==undefined?{readAt:n.readAt}:{}),...(source?{source}:{}),...(translations?{translations}:{}),...(link?{link}:{})};
 }
 export function useNotificationInbox(token:string|null,userId:string|undefined){

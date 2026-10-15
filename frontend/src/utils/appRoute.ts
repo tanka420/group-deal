@@ -3,7 +3,7 @@ export type OperatorDealView = "OVERVIEW" | "ORDERS" | "TRANSACTIONS" | "SETTLEM
 export type OperatorDealSelection = { id: string; view: OperatorDealView };
 export type AppRoute =
   | { kind: "tab"; tab: "home" | "explore" | "orders" | "seller" | "operator" | "docs" | "wallet" | "account" | "notifications" }
-  | { kind: "campaign" | "public-seller"; id: string }
+  | { kind: "campaign" | "public-seller" | "order"; id: string }
   | { kind: "support"; path: string }
   | ({ kind: "operator-deal" } & OperatorDealSelection)
   | { kind: "not-found" };
@@ -21,6 +21,7 @@ export function parseAppHash(hash: string): AppRoute {
     case "#notifications": return { kind: "tab", tab: "notifications" };
   }
   const operatorDeal = /^#operator\/deals\/([A-Za-z0-9_-]{1,180})(?:\/(overview|orders|transactions|settlement|refunds|disputes|audit))?$/.exec(hash);
+  if(/^#order-[A-Za-z0-9_-]{1,180}$/.test(hash))return {kind:'order',id:hash.slice(7)};
   if (operatorDeal) return { kind: "operator-deal", id: operatorDeal[1], view: (operatorDeal[2] || "overview").toUpperCase() as OperatorDealView };
   if (/^#campaign-[A-Za-z0-9_-]{1,180}$/.test(hash)) return { kind: "campaign", id: hash.slice("#campaign-".length) };
   if (/^#seller-profile-[A-Za-z0-9_-]{1,128}$/.test(hash)) return { kind: "public-seller", id: hash.slice("#seller-profile-".length) };
@@ -35,6 +36,7 @@ export function operatorDealHash(selection: OperatorDealSelection | null): strin
 export function routePath(route: AppRoute): string {
   if (route.kind === "tab") return route.tab === "operator" ? "/admin" : route.tab==='home'?'/':"/" + route.tab;
   if (route.kind === "campaign") return "/deals/" + route.id;
+  if (route.kind === "order") return "/orders/" + route.id;
   if (route.kind === "public-seller") return "/sellers/" + route.id;
   if (route.kind === "operator-deal") return "/admin/deals/" + route.id + "/" + route.view.toLowerCase();
   if (route.kind === "support") return route.path === "support" ? "/support" : route.path.startsWith("support-ticket-") ? "/support/tickets/" + route.path.slice(15) : "/support/orders/" + route.path.slice(14);
@@ -47,6 +49,7 @@ export function parseAppPath(path: string): AppRoute {
   if (normalized === "/admin") return parseAppHash("#operator");
   if (normalized.startsWith("/admin/deals/")) return parseAppHash("#operator/deals/" + normalized.slice(13));
   if (normalized.startsWith("/deals/")) return parseAppHash("#campaign-" + normalized.slice(7));
+  if (normalized.startsWith("/orders/")) return parseAppHash("#order-" + normalized.slice(8));
   if (normalized.startsWith("/sellers/")) return parseAppHash("#seller-profile-" + normalized.slice(9));
   if (normalized.startsWith("/support/tickets/")) return parseAppHash("#support-ticket-" + normalized.slice(17));
   if (normalized.startsWith("/support/orders/")) return parseAppHash("#support-order-" + normalized.slice(16));

@@ -44,7 +44,7 @@ const MainApp: React.FC = () => {
   const { language } = useLanguage();
   const [route, setRoute] = useState<AppRoute>(readAppRoute);
   const catalogReturn = useRef('/explore');
-  const currentTab = route.kind === "tab" ? route.tab : route.kind === "support" ? route.path : route.kind === "operator-deal" ? "operator" : route.kind === "not-found" ? "not-found" : "explore";
+  const currentTab = route.kind === "tab" ? route.tab : route.kind === "order" ? "orders" : route.kind === "support" ? route.path : route.kind === "operator-deal" ? "operator" : route.kind === "not-found" ? "not-found" : "explore";
   const selectedCampaignId = route.kind === "campaign" ? route.id : null;
   const selectedSellerId = route.kind === "public-seller" ? route.id : null;
   const selectedOperatorDeal = route.kind === "operator-deal" ? { id: route.id, view: route.view } : null;
@@ -131,7 +131,7 @@ const MainApp: React.FC = () => {
               <ExplorePage onSelectCampaign={handleSelectCampaign} />
             )}
 
-            {currentTab === "orders" && <BuyerDashboard key={user?.id}/>}
+            {currentTab === "orders" && <BuyerDashboard key={user?.id} selectedOrderId={route.kind==='order'?route.id:undefined}/>}
             {currentTab === "account" && <AccountPage key={user?.id} onOpenAuth={openAuth}/>}
             {currentTab === "wallet" && <WalletPage key={user?.id} onOpenAuth={openAuth}/>}
             {currentTab === "notifications" && <NotificationsPage key={user?.id} onOpenAuth={openAuth}/>}
