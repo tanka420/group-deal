@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto');
 const root=path.resolve(__dirname,'..'),packet=require('./ui_wallet_packet.json');
-const infra=['.github/workflows/local-candidate.yml','scripts/run_ui_wallet_checks.cjs','scripts/ui_wallet_packet.json','scripts/hosted_backup.cjs'];
+const infra=['.github/workflows/local-candidate.yml','scripts/run_ui_wallet_checks.cjs','scripts/ui_wallet_packet.json','scripts/hosted_backup.cjs',...((packet.browserContinuation?.fixtureFiles??[]).map(f=>f.path))];
 const git=(args,bytes=false)=>cp.execFileSync('git',args,{cwd:root,encoding:bytes?undefined:'utf8',windowsHide:true});
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 const source=git(['rev-parse','HEAD']).trim();
@@ -11,6 +11,8 @@ if(JSON.stringify(changed)!==JSON.stringify(packet.files.map(f=>f.path).sort()))
 for(const f of packet.files)if(sha(git(['show',packet.applicationCommit+':'+f.path],true))!==f.sha256)throw Error('UI_DELTA_BYTES_MISMATCH');
 const extra=git(['diff','--name-only',packet.applicationCommit,'HEAD']).trim().split('\n').filter(Boolean);
 if(extra.some(p=>!infra.includes(p)))throw Error('UI_APPLICATION_CHANGED');
+for(const f of packet.browserContinuation?.fixtureFiles??[]){if(!/^frontend\/e2e\/[-a-z_]+\.spec\.ts$/.test(f.path)||sha(git(['show','HEAD:'+f.path],true))!==f.sha256)throw Error('UI_FIXTURE_BYTES_MISMATCH');}
+if(process.argv.slice(2).some(a=>!['--check-scope','--remaining-browser'].includes(a)))throw Error('UI_INVALID_CHECK_STAGE');
 if(process.argv.includes('--check-scope')){console.log(JSON.stringify({result:'UI_SCOPE_PASS',source,application:packet.applicationCommit,files:changed.length}));process.exit(0);}
 const {localCheckEnvironment}=require('./local_check_runtime.cjs'),env=localCheckEnvironment(root);
 const commands=[
@@ -26,7 +28,7 @@ const commands=[
  ['wallet-interactions',process.execPath,['scripts/run_browser_checks.cjs','--port=4193','--','wallet_flow.spec.ts','--workers=1']],
  ['retained-bridge-recovery',process.execPath,['scripts/run_browser_checks.cjs','--port=4193','--','bridge_pending_hash.spec.ts','bridge_mint_continuation.spec.ts','--workers=1']],
 ];
-const result={schemaVersion:1,recordedAt:new Date().toISOString(),sourceCommit:source,applicationCommit:packet.applicationCommit,scope:'UI_WALLET_ONLY',checks:[],result:'RUNNING',acceptanceEligible:false,isolatedBackendFixtureOnly:true,liveOrSnapshotDatabaseStarted:false};
+const result={schemaVersion:1,recordedAt:new Date().toISOString(),sourceCommit:source,applicationCommit:packet.applicationCommit,scope:process.argv.includes('--remaining-browser')?'UI_WALLET_REMAINING_BROWSER':'UI_WALLET_ONLY',inheritsRun:process.argv.includes('--remaining-browser')?packet.browserContinuation.inheritsRun:null,checks:[],result:'RUNNING',acceptanceEligible:false,isolatedBackendFixtureOnly:true,liveOrSnapshotDatabaseStarted:false};
 fs.mkdirSync(path.join(root,'.cache'),{recursive:true});const out=path.join(root,'.cache/ui-wallet-'+Date.now()+'.json');
-for(const [name,command,args,cwd] of commands){const start=Date.now(),r=cp.spawnSync(command,args,{cwd:cwd||root,env:name==='frontend-bundle'?{...env,NODE_ENV:'production'}:env,windowsHide:true,stdio:'inherit'});result.checks.push({name,exitCode:r.status,durationMs:Date.now()-start});if(r.status!==0){result.result='FAIL';fs.writeFileSync(out,JSON.stringify(result,null,2));process.exit(1);}}
+for(const [name,command,args,cwd] of commands.filter(c=>!process.argv.includes('--remaining-browser')||packet.browserContinuation.checks.includes(c[0]))){const start=Date.now(),r=cp.spawnSync(command,args,{cwd:cwd||root,env:name==='frontend-bundle'?{...env,NODE_ENV:'production'}:env,windowsHide:true,stdio:'inherit'});result.checks.push({name,exitCode:r.status,durationMs:Date.now()-start});if(r.status!==0){result.result='FAIL';fs.writeFileSync(out,JSON.stringify(result,null,2));process.exit(1);}}
 result.result='PASS';fs.writeFileSync(out,JSON.stringify(result,null,2));console.log(JSON.stringify(result));

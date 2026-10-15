@@ -174,5 +174,20 @@
       "path": "shared/arcWallet.mjs",
       "sha256": "e740fa4f05e7552c944fd11305a884f8c479f820ae7eb02b41ba2b941187cba0"
     }
-  ]
+  ],
+  "browserContinuation": {
+    "inheritsRun": 38772883267,
+    "inheritsHead": "48192e306694631758912df05d41d8c64b70e40f",
+    "applicationBytesChanged": false,
+    "fixtureFiles": [
+      {
+        "path": "frontend/e2e/wallet_flow.spec.ts",
+        "sha256": "9efb94d6d3ff906fd972ef8182d0e89498bcccf9b67a09a38b9214fc948e6e37"
+      }
+    ],
+    "checks": [
+      "wallet-interactions",
+      "retained-bridge-recovery"
+    ]
+  }
 }

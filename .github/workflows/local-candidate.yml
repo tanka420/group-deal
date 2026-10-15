@@ -20,6 +20,7 @@ on:
           - ui-seller
           - ui-admin
           - ui-wallet
+          - ui-wallet-browser
 
 permissions:
   contents: read
@@ -293,7 +294,7 @@ jobs:
           retention-days: 14
 
   ui-wallet:
-    if: github.event_name == 'workflow_dispatch' && inputs.scope == 'ui-wallet'
+    if: github.event_name == 'workflow_dispatch' && (inputs.scope == 'ui-wallet' || inputs.scope == 'ui-wallet-browser')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -316,7 +317,7 @@ jobs:
         working-directory: frontend
         run: npx --no-install playwright install --with-deps chromium
       - name: Route, type, build and affected browser checks
-        run: node scripts/run_ui_wallet_checks.cjs
+        run: node scripts/run_ui_wallet_checks.cjs ${{ inputs.scope == 'ui-wallet-browser' && '--remaining-browser' || '' }}
       - name: Scoped records
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
