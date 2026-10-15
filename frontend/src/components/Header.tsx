@@ -116,11 +116,11 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Brand & Arc Testnet Badge */}
         <div className="header-brand" style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
           <a
-            href="/explore"
+            href="/"
             className="logo-group"
             onClick={(e) => {
               e.preventDefault();
-              onTabChange("explore");
+              onTabChange("home");
             }}
           >
             <div className="logo-mark"><Users size={23} aria-hidden="true"/></div>

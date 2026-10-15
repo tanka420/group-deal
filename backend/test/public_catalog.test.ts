@@ -21,6 +21,31 @@ async function run(){
   const filtered=await body('?category=Courses&metric=UNITS_COUNT&status=ACTIVE');assert.equal(filtered.summary.campaignCount,1);assert.equal(filtered.campaigns[0].id,'catalog_14');assert.equal(filtered.categories.length,2);
   const empty=await body('?q=absent');assert.equal(empty.summary.campaignCount,0);assert.equal(empty.summary.totalGrossCommitted,'0');assert.equal(empty.pagination.hasMore,false);
   const expansion=await get('?q='+encodeURIComponent('ﬃ'.repeat(100)));assert.equal(expansion.status,200,'Valid raw Unicode input was rejected after normalization');
+  const open=await body('?purchasable=1');assert.equal(open.summary.campaignCount,13);assert.ok(open.campaigns.every((c:any)=>!c.card.purchaseHeld));
+  // Availability uses time, capacity and rights, not merely ACTIVE status.
+  const original=structuredClone(store.db.campaigns);
+  const now=Math.floor(Date.now()/1000);
+  Object.assign(store.db.campaigns.catalog_02,{endTime:now-1});
+  Object.assign(store.db.campaigns.catalog_03,{startTime:now+100});
+  Object.assign(store.db.campaigns.catalog_04,{totalUnitsCommitted:100});
+  assert.equal((await body('?purchasable=1')).summary.campaignCount,10);
+  store.db.campaigns=structuredClone(original);
+  // Current tier 105, not the possible next tier 89. Both bounds are inclusive.
+  assert.equal((await body('?minPrice=105&maxPrice=105.000000&purchasable=1')).summary.campaignCount,13);
+  assert.equal((await body('?maxPrice=89')).summary.campaignCount,0);
+  assert.equal((await body('?minPrice=900719925474099312.345678&maxPrice=900719925474099312.345678')).campaigns[0].id,'catalog_00');
+  for(const sort of ['price-asc','price-desc','ending']){
+   const all=await body('?sort='+sort),ids:string[]=[];let cursor:string|null=null;
+   do{const page=await body('?sort='+sort+'&limit=4'+(cursor?'&cursor='+cursor:''));ids.push(...page.campaigns.map((c:any)=>c.id));cursor=page.pagination.nextCursor;}while(cursor);
+   assert.deepEqual(ids,all.campaigns.map((c:any)=>c.id));assert.equal(new Set(ids).size,15);
+   if(sort==='price-desc')assert.equal(ids[0],'catalog_00');
+   if(sort==='price-asc')assert.equal(ids.at(-1),'catalog_00');
+  }
+  const rangePage=await body('?limit=2&sort=price-asc&minPrice=100&purchasable=1');
+  assert.equal((await get('?limit=2&sort=price-asc&minPrice=101&purchasable=1&cursor='+rangePage.pagination.nextCursor)).status,400);
+  assert.equal((await get('?limit=2&sort=price-asc&minPrice=100&cursor='+rangePage.pagination.nextCursor)).status,400);
+  assert.equal((await get('?limit=2&sort=price-asc&minPrice=100.000000&purchasable=1&cursor='+rangePage.pagination.nextCursor)).status,200);
+  for(const query of ['?minPrice=-1','?minPrice=1e3','?maxPrice=1.1234567','?minPrice=2&maxPrice=1','?minPrice=','?purchasable=true','?minPrice='+('9'.repeat(79))])assert.equal((await get(query)).status,400,query);
   for(const query of ['?q='+('x'.repeat(121)),'?category='+('x'.repeat(81)),'?q=x&q=y','?category[x]=y','?q=%00','?category=%7f','?unknown=x'])assert.equal((await get(query)).status,400);
   store.db.campaigns.catalog_01.totalGrossCommitted='-1';const corrupt=await get();assert.equal(corrupt.status,503);assert.equal((await corrupt.json() as any).code,'SERVICE_UNAVAILABLE');store.db.campaigns.catalog_01.totalGrossCommitted='1000000';
   store.db.products[fixture.productId].status='ARCHIVED';const archived=await body();assert.equal(archived.summary.campaignCount,0);assert.deepEqual(archived.categories,[]);

@@ -2,7 +2,7 @@
 export type OperatorDealView = "OVERVIEW" | "ORDERS" | "TRANSACTIONS" | "SETTLEMENT" | "REFUNDS" | "DISPUTES" | "AUDIT";
 export type OperatorDealSelection = { id: string; view: OperatorDealView };
 export type AppRoute =
-  | { kind: "tab"; tab: "explore" | "orders" | "seller" | "operator" | "docs" | "wallet" | "account" | "notifications" }
+  | { kind: "tab"; tab: "home" | "explore" | "orders" | "seller" | "operator" | "docs" | "wallet" | "account" | "notifications" }
   | { kind: "campaign" | "public-seller"; id: string }
   | { kind: "support"; path: string }
   | ({ kind: "operator-deal" } & OperatorDealSelection)
@@ -11,6 +11,7 @@ export type AppRoute =
 export function parseAppHash(hash: string): AppRoute {
   switch (hash) {
     case "": case "#": case "#explore": return { kind: "tab", tab: "explore" };
+    case "#home": return {kind:"tab",tab:"home"};
     case "#orders": return { kind: "tab", tab: "orders" };
     case "#seller": return { kind: "tab", tab: "seller" };
     case "#operator": return { kind: "tab", tab: "operator" };
@@ -32,7 +33,7 @@ export function operatorDealHash(selection: OperatorDealSelection | null): strin
 }
 
 export function routePath(route: AppRoute): string {
-  if (route.kind === "tab") return route.tab === "operator" ? "/admin" : "/" + route.tab;
+  if (route.kind === "tab") return route.tab === "operator" ? "/admin" : route.tab==='home'?'/':"/" + route.tab;
   if (route.kind === "campaign") return "/deals/" + route.id;
   if (route.kind === "public-seller") return "/sellers/" + route.id;
   if (route.kind === "operator-deal") return "/admin/deals/" + route.id + "/" + route.view.toLowerCase();
@@ -41,7 +42,7 @@ export function routePath(route: AppRoute): string {
 }
 
 export function parseAppPath(path: string): AppRoute {
-  if (path === "/") return parseAppHash("");
+  if (path === "/") return parseAppHash("#home");
   const normalized = path.replace(/\/$/, "");
   if (normalized === "/admin") return parseAppHash("#operator");
   if (normalized.startsWith("/admin/deals/")) return parseAppHash("#operator/deals/" + normalized.slice(13));

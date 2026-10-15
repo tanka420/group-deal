@@ -8,6 +8,7 @@ import { AuthModal } from "./components/AuthModal";
 import { useWeb3 } from "./context/Web3Context";
 import { SellerRegisterModal } from "./components/SellerRegisterModal";
 import { ExplorePage } from "./pages/ExplorePage";
+import { HomePage } from "./pages/HomePage";
 import { DeferredPage } from "./components/DeferredPage";
 import { readAppRoute, navigateApp, migrateLegacyRoute, parseAppHash, parseAppPath, operatorDealHash, type AppRoute } from "./utils/appRoute";
 import { Store, Sparkles, Lock, ArrowRight } from "lucide-react";
@@ -89,7 +90,7 @@ const MainApp: React.FC = () => {
     navigateApp(hash);
   };
   const handleSelectCampaign = (id: string) => { catalogReturn.current=window.location.pathname+window.location.search; navigate('/deals/'+id+'?returnTo='+encodeURIComponent(catalogReturn.current)); };
-  const handleBackToExplore = () => { const back=new URLSearchParams(window.location.search).get('returnTo'); navigate(back&&/^\/explore(?:\?|$)/.test(back)?back:catalogReturn.current); };
+  const handleBackToExplore = () => { const back=new URLSearchParams(window.location.search).get('returnTo'); navigate(back&&(back==='/'||/^\/explore(?:\?|$)/.test(back))?back:catalogReturn.current); };
   const handleTabChange = (tab: string) => navigate("#" + tab);
 
   const isSeller = user?.roles?.includes("seller");
@@ -125,6 +126,7 @@ const MainApp: React.FC = () => {
           />
         ) : (
           <>
+            {currentTab === "home" && <HomePage onSelectCampaign={handleSelectCampaign}/>}
             {currentTab === "explore" && (
               <ExplorePage onSelectCampaign={handleSelectCampaign} />
             )}
