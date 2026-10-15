@@ -20,7 +20,7 @@ export function DialogSurface({label,onClose,children,transaction=false,busy=fal
    if(providerWindowOpen()||!node.contains(event.target as Node))return;
    if(event.key==='Escape'){event.preventDefault();event.stopPropagation();if(!closeState.current.busy)closeState.current.onClose();return;}
    if(event.key!=='Tab')return;
-   const controls=Array.from(node.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],summary,[tabindex]:not([tabindex="-1"])')).filter(el=>el.getClientRects().length>0&&!el.closest('[hidden],[inert]')),first=controls[0],last=controls[controls.length-1];
+   const controls=Array.from(node.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],summary,[tabindex]:not([tabindex="-1"])')).filter(el=>el.getClientRects().length>0&&!el.closest('[hidden],[inert]')),first=controls[0],last=controls[controls.length-1];
    if(!first||!last){event.preventDefault();focusHeading();return;}
    if(event.shiftKey&&(document.activeElement===first||!controls.includes(document.activeElement as HTMLElement))){event.preventDefault();last.focus();}else if(!event.shiftKey&&(document.activeElement===last||!controls.includes(document.activeElement as HTMLElement))){event.preventDefault();first.focus();}
   };

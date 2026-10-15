@@ -1,0 +1,4 @@
+import assert from 'node:assert/strict';
+import {parseWalletAmount,formatWalletAmount,arcWalletToken} from '../../shared/arcWallet.mjs';
+for(const [symbol,decimal]of [['USDC',6],['EURC',6],['cirBTC',8]] as const){assert.equal(parseWalletAmount('1',symbol),10n**BigInt(decimal));assert.equal(formatWalletAmount(parseWalletAmount('9007199254740993.123456',symbol),symbol),'9007199254740993.123456');assert.throws(()=>parseWalletAmount('0.'+'0'.repeat(decimal)+'1',symbol));for(const value of ['0','-1','+1','1e6','01','1.',' 1','NaN','Infinity'])assert.throws(()=>parseWalletAmount(value,symbol));}
+assert.throws(()=>arcWalletToken('USDT'));assert.throws(()=>arcWalletToken('__proto__'));assert.equal(parseWalletAmount('0.00000001','cirBTC'),1n);assert.equal(formatWalletAmount(0n,'USDC'),'0');console.log('PASS wallet amount precision and three-token scope');

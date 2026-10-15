@@ -8,10 +8,12 @@ import {readBridgeTransferRecord,type BridgeTransferRecord} from './bridgeTransf
 import {verifyServerBridgeReceipt,type ServerBridgeRead,type ServerBridgeChain} from './bridgeReceipt';
 import {operationVerificationFields,verifiedOperation} from './operationVerification';
 import {replacementSchema} from './operationReplacement';
+import {readWalletFlow,walletFlowBinding,type WalletFlowRecord} from './walletFlow';
+import {encryptionKey} from '../utils/crypto';
 export class SignerReservationError extends Error {constructor(public code:string,public status=409){super(code)}}
 const id=z.string().min(1).max(180).refine(s=>!['__proto__','prototype','constructor'].includes(s)),hash=z.string().regex(/^0x[0-9a-f]{64}$/),address=z.string().regex(/^0x[0-9a-f]{40}$/).refine(v=>ethers.isAddress(v)&&v!==ethers.ZeroAddress),time=z.number().int().nonnegative().safe(),counter=z.string().regex(/^(0|[1-9][0-9]{0,19})$/).refine(v=>BigInt(v)<2n**64n),quantity=z.string().regex(/^0x[0-9a-f]{1,16}$/);
 const chains=[5042002,11155111,84532,421614],chain=z.number().int().refine(v=>chains.includes(v));
-export const signerPurposeSchema=z.discriminatedUnion('kind',[z.object({kind:z.literal('HUB_OPERATION'),operationId:z.string().regex(/^op_[a-f0-9-]{36}$/)}).strict(),z.object({kind:z.literal('BRIDGE_WRITE'),transferId:z.string().uuid(),writeId:z.string().uuid()}).strict()]);
+export const signerPurposeSchema=z.discriminatedUnion('kind',[z.object({kind:z.literal('HUB_OPERATION'),operationId:z.string().regex(/^op_[a-f0-9-]{36}$/)}).strict(),z.object({kind:z.literal('BRIDGE_WRITE'),transferId:z.string().uuid(),writeId:z.string().uuid()}).strict(),z.object({kind:z.literal('WALLET_WRITE'),operationId:z.string().regex(/^wop_[a-f0-9]{64}$/),writeId:z.string().regex(/^wrt_[a-f0-9]{64}$/)}).strict()]);
 export type SignerPurpose=z.infer<typeof signerPurposeSchema>;
 const originalWitnessSchema=z.object({hash,nonce:counter,source:z.enum(['SIGNED_TRANSACTION','RPC_TRANSACTION']),observedAt:time}).strict();
 const completionSchema=z.object({hash,nonce:counter,blockNumber:quantity,blockHash:hash,finalizedBlock:z.object({number:quantity,hash}).strict(),receiptStatus:z.union([z.literal(0),z.literal(1)]),checkedAt:time,originalWitness:originalWitnessSchema.optional()}).strict();
@@ -21,10 +23,10 @@ export type SignerExpiryDeployment={chainId:number;hubAddress:string;bytecodeHas
 const expiryQuoteSchema=z.object({blockNumber:time,blockHash:hash,authorizationNonce:time,termsHash:hash});
 const schema=z.object({version:z.literal(1),id:z.string().regex(/^sr_[a-f0-9]{64}$/),accountId:id,chainId:chain,principal:address,purpose:signerPurposeSchema,bindingHash:hash,authRecoveryContext:z.string().regex(/^[A-Za-z0-9_-]{43}$/).optional(),createdAt:time,revision:z.number().int().min(0).max(65),phase:z.enum(['ACTIVE','OBSERVED','RELEASED']),witnesses:z.array(originalWitnessSchema).min(1).max(64).optional(),completion:completionSchema.optional(),authorizationExpiryCompletion:expiredAuthorizationSchema.optional()}).strict();
 export type SignerReservation=z.infer<typeof schema>;export type SignerNonceCompletion=z.infer<typeof completionSchema>;
-export type SignerOwner={purpose:SignerPurpose;accountId:string;chainId:number;principal:string;bindingHash:string;phase:string;txHash?:string;hub?:{to:string;calldata:string;replacements:z.infer<typeof replacementSchema>[]};buy?:{resourceId:string;event:{campaignId:string;campaignIdentity:string;buyerPrincipal:string;quantity:string};quote:z.infer<typeof expiryQuoteSchema>;hasBroadcastEvidence:boolean};bridge?:BridgeTransferRecord};
+export type SignerOwner={purpose:SignerPurpose;accountId:string;chainId:number;principal:string;bindingHash:string;phase:string;txHash?:string;hub?:{to:string;calldata:string;replacements:z.infer<typeof replacementSchema>[]};call?:{to:string;calldata:string;replacements:[]};wallet?:WalletFlowRecord;buy?:{resourceId:string;event:{campaignId:string;campaignIdentity:string;buyerPrincipal:string;quantity:string};quote:z.infer<typeof expiryQuoteSchema>;hasBroadcastEvidence:boolean};bridge?:BridgeTransferRecord};
 export type SignerState={target?:SignerOwner;entries:Array<{record:SignerReservation;owner?:SignerOwner}>;unreserved?:SignerOwner[]};
 const fail=(code='SIGNER_RESERVATION_UNRESOLVED',status=409):never=>{throw new SignerReservationError(code,status)};
-const purposeKey=(p:SignerPurpose)=>p.kind==='HUB_OPERATION'?[p.kind,p.operationId]:[p.kind,p.transferId,p.writeId];
+const purposeKey=(p:SignerPurpose)=>p.kind==='HUB_OPERATION'?[p.kind,p.operationId]:p.kind==='WALLET_WRITE'?[p.kind,p.operationId,p.writeId]:[p.kind,p.transferId,p.writeId];
 export const signerReservationId=(owner:Pick<SignerOwner,'accountId'|'chainId'|'principal'|'purpose'|'bindingHash'>)=>'sr_'+ethers.id(JSON.stringify([owner.accountId,owner.chainId,owner.principal,purposeKey(owner.purpose),owner.bindingHash])).slice(2);
 export function readSignerReservation(input:unknown):SignerReservation {
  const p=schema.safeParse(input);if(!p.success)return fail('SIGNER_RESERVATION_INVALID',503);const r=p.data,w=r.witnesses??[],count=w.length;
@@ -40,6 +42,9 @@ export function readSignerReservation(input:unknown):SignerReservation {
 /** Committed owner resolution; state and hashes remain observations, never a release proof. */
 export function resolveSignerOwner(purpose:SignerPurpose,input:unknown):SignerOwner|undefined {
  if(input===undefined)return undefined;
+ if(purpose.kind==='WALLET_WRITE'){
+  const r=readWalletFlow(input,encryptionKey),step=r.steps.find(s=>s.id===purpose.writeId);if(r.id!==purpose.operationId||!step)return fail('SIGNER_OWNER_UNAVAILABLE',503);const call=r.quote.calls[step.index];return{purpose,accountId:r.accountId,chainId:r.chainId,principal:r.principal,bindingHash:'0x'+walletFlowBinding(r,step.index),phase:step.state==='PLANNED'?'PREPARED':step.state==='SIGNING'?'AWAITING_SIGNATURE':step.state,...(step.txHash?{txHash:step.txHash}:{}),call:{to:call.to,calldata:call.data.toLowerCase(),replacements:[]},wallet:r};
+ }
  if(purpose.kind==='HUB_OPERATION'){
   if(!input||typeof input!=='object')return fail('SIGNER_OWNER_UNAVAILABLE',503);const value=input as Record<string,any>,fields=[...operationVerificationFields,'expectedEventArgs'],core=Object.fromEntries(fields.filter(k=>value[k]!==undefined).map(k=>[k,value[k]])),verified=verifiedOperation(core,value.userId),op=verified.operation;if(op.id!==purpose.operationId)return fail('SIGNER_OWNER_UNAVAILABLE',503);
   const bindingHash=verifiedOperation({...core,txHash:undefined},op.userId).fingerprint;return{purpose,accountId:op.userId,chainId:op.chainId,principal:op.principal.toLowerCase(),bindingHash,phase:op.phase,...(op.txHash?{txHash:op.txHash.toLowerCase()}:{}),...(op.action==='BUY'&&value.purchaseQuote?{buy:{resourceId:op.resourceId,event:{campaignId:String(op.expectedEventArgs.campaignId),campaignIdentity:String(op.expectedEventArgs.campaignIdentity).toLowerCase(),buyerPrincipal:String(op.expectedEventArgs.buyerPrincipal).toLowerCase(),quantity:String(op.expectedEventArgs.quantity)},quote:expiryQuoteSchema.parse(value.purchaseQuote),hasBroadcastEvidence:Boolean(value.broadcastWitnesses?.length||value.replacements?.length)}}:{}),hub:{to:op.hubAddress.toLowerCase(),calldata:op.calldata.toLowerCase(),replacements:z.array(replacementSchema).max(1000).parse(value.replacements??[])}};
@@ -68,7 +73,7 @@ function uint(v:unknown):bigint {if(typeof v!=='string'||!/^0x[0-9a-f]{1,16}$/i.
 function bounded(read:ServerBridgeRead,callLimit=128):ServerBridgeRead{const start=Date.now();let calls=0;return async<T>(chain:ServerBridgeChain,method:string,args:unknown[])=>{if(Date.now()<start||Date.now()-start>25000||++calls>callLimit)return fail('SIGNER_READ_BUDGET_EXHAUSTED',503);return read<T>(chain,method,args)}}
 
 async function hubNonceCompletion(r:SignerReservation,owner:SignerOwner,read:ServerBridgeRead):Promise<Omit<SignerNonceCompletion,'checkedAt'>>{
- const hub=owner.hub!,chain=chainNames[r.chainId],originalHash=owner.txHash!,started=Date.now();
+ const hub=(owner.hub??owner.call)!,chain=chainNames[r.chainId],originalHash=owner.txHash!,started=Date.now();
  const [rawOriginal,originalReceipt]=await Promise.all([read<any>(chain,'eth_getTransactionByHash',[originalHash]),read<any>(chain,'eth_getTransactionReceipt',[originalHash])]);
  let targetHash=originalHash,tx=rawOriginal?structuredClone(rawOriginal):null,receipt=originalReceipt?structuredClone(originalReceipt):null,originalWitness:SignerNonceCompletion['originalWitness'];
  const exactOriginal=(v:any)=>v&&same(v.hash,originalHash)&&same(v.from,r.principal)&&same(v.to,hub.to)&&same(v.input??v.data,hub.calldata)&&uint(v.value??'0x0')===0n&&uint(v.chainId)===BigInt(r.chainId);
@@ -103,8 +108,9 @@ async function nonceCompletion(entry:SignerState['entries'][number],read:ServerB
   const writeId=owner.purpose.writeId,write=owner.bridge.writes.find(w=>w.id===writeId)!;let burn:Awaited<ReturnType<typeof verifyServerBridgeReceipt>>|undefined;if(write.kind==='mint'){const b=owner.bridge.writes.find(w=>w.kind==='burn'&&w.hash);if(!b)return fail();burn=await verifyServerBridgeReceipt(owner.bridge.scope,'burn',b.hash!,read);if(burn.reverted||!burn.message)return fail()}
   const p=await verifyServerBridgeReceipt(owner.bridge.scope,write.kind,owner.txHash,read,burn?.message);if(p.caller!==r.principal||p.nonce!==write.nonce||p.calldataHash!==write.calldataHash||BigInt(p.blockNumber)<BigInt(write.afterBlock))return fail();proof={hash:p.hash,nonce:p.nonce,blockNumber:p.blockNumber,blockHash:p.blockHash,finalizedBlock:p.finalizedBlock,receiptStatus:p.reverted?0:1};
  }else{
-  if(!owner.hub)return fail();proof=await hubNonceCompletion(r,owner,read);
+  if(!owner.hub&&!owner.call)return fail();proof=await hubNonceCompletion(r,owner,read);
  }
+ if(owner.wallet&&proof.nonce!==owner.wallet.steps.find(s=>owner.purpose.kind==='WALLET_WRITE'&&s.id===owner.purpose.writeId)?.nonce)return fail('SIGNER_RECEIPT_INVALID');
  const consumed=uint(await read<string>(chain,'eth_getTransactionCount',[r.principal,proof.finalizedBlock.number]));if(consumed<=BigInt(proof.nonce))return fail('SIGNER_NONCE_NOT_CONSUMED');const final=await read<any>(chain,'eth_getBlockByNumber',[proof.finalizedBlock.number,false]);if(!final||!same(final.hash,proof.finalizedBlock.hash)||uint(final.number)!==uint(proof.finalizedBlock.number))return fail('SIGNER_RECEIPT_REORG');return{...proof,checkedAt:Date.now()};
 }
 function configuredExpiryDeployment():SignerExpiryDeployment {
@@ -150,7 +156,7 @@ async function completionFields(entry:SignerState['entries'][number],read:Server
 }
 export async function prepareSignerAcquisition(state:SignerState,context:string|undefined,read:ServerBridgeRead,forReady=false,expiryDeployment?:SignerExpiryDeployment):Promise<PreparedSignerMutation>{
  const readAt=Date.now(),owner=state.target;if(!owner)return fail('SIGNER_OWNER_UNAVAILABLE',404);const existing=state.entries.find(e=>e.record.id===signerReservationId(owner));if(existing){if(existing.record.authRecoveryContext!==context)return fail('SIGNER_RESERVATION_FORBIDDEN',403);if(!forReady)return sealed(state,[],existing.record,false,readAt);if(existing.record.phase!=='ACTIVE')return fail()}
- if(owner.hub?(owner.txHash!==undefined||!['PREPARED','AWAITING_SIGNATURE'].includes(owner.phase)):owner.phase!=='RESERVED:REQUESTED')return fail();if(state.entries.length+(state.unreserved?.length??0)>64)return fail('SIGNER_HISTORY_REVIEW_REQUIRED');// Each expired authorization adds its own canonical code, signature and nonce reads; retain the time limit and a hard RPC cap.
+ if(owner.hub||owner.call?(owner.txHash!==undefined||!['PREPARED','AWAITING_SIGNATURE'].includes(owner.phase)):owner.phase!=='RESERVED:REQUESTED')return fail();if(state.entries.length+(state.unreserved?.length??0)>64)return fail('SIGNER_HISTORY_REVIEW_REQUIRED');// Each expired authorization adds its own canonical code, signature and nonce reads; retain the time limit and a hard RPC cap.
  const expiredCount=[...state.entries.map(e=>e.owner),...(state.unreserved??[])].filter(o=>o?.buy&&o.phase==='EXPIRED'&&!o.txHash).length;
  const reader=bounded(read,Math.min(256,128+20*expiredCount)),records:SignerReservation[]=[];
  for(const entry of state.entries){if(entry===existing)continue;const fields=await completionFields(entry,reader,expiryDeployment);if(entry.record.phase!=='RELEASED')records.push(readSignerReservation({...entry.record,phase:'RELEASED',revision:entry.record.revision+1,...fields}));else if(fields.completion){const old=entry.record.completion;if(!old||['hash','nonce','blockNumber','blockHash','receiptStatus'].some(k=>String((old as any)[k]).toLowerCase()!==String((fields.completion as any)[k]).toLowerCase()))return fail('SIGNER_HISTORY_CHANGED')}}

@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {WalletCircleProvider} from '../src/services/walletCircleProvider';
+import {store} from '../src/db/store';
+assert.equal(process.env.NODE_ENV,'test');assert.ok(store.isIsolated);
+void(async()=>{
+ const provider=new WalletCircleProvider(),requests:any[]=[];(provider as any).client={createUserTransactionContractExecutionChallenge:async(input:any)=>{requests.push(input);return{data:{challengeId:'fixture-challenge'}};},getUserChallenge:async()=>({data:{challenge:{id:'fixture-challenge',type:'CONTRACT_EXECUTION',status:'PENDING'}}}),getTransaction:async()=>({data:{transaction:{id:'fixture-transaction'}}})};
+ const scope={walletId:'fixture-wallet',circleUserId:'fixture-circle-owner',principal:'0x1111111111111111111111111111111111111111'},call={kind:'SEND' as const,to:'0x3600000000000000000000000000000000000000',data:'0x12345678',value:'0' as const},fee={gasLimit:'65000',maxFeePerGas:'123456789012',maxNetworkFee:'8024691285780000'},id='11111111-1111-4111-8111-111111111111';
+ assert.equal(await provider.create('fixture-token-only',scope,call,fee,id,'wrt_'+'ab'.repeat(32)),'fixture-challenge');assert.deepEqual(requests[0].fee,{type:'gas',config:{gasLimit:'65000',gasPrice:'123.456789012'}});assert.equal(requests[0].idempotencyKey,id);assert.equal(requests[0].walletId,scope.walletId);assert.equal(requests[0].callData,call.data);assert.equal('amount'in requests[0],false);assert.equal('feeLevel'in requests[0],false);console.log('PASS Circle EOA exact calldata, stable request and absolute gwei gas cap');
+ assert.equal((await provider.challenge('fixture-token-only','fixture-challenge')).status,'PENDING');assert.deepEqual(await provider.transaction('fixture-token-only','fixture-transaction'),{id:'fixture-transaction'});console.log('PASS Circle EOA bounded status transport');
+ (provider as any).client.createUserTransactionContractExecutionChallenge=async()=>{requests.push('failed');throw Error('Provider fixture timeout');};await assert.rejects(provider.create('fixture-token-only',scope,call,fee,id,'fixture-ref'));assert.equal(requests.length,2);console.log('PASS Circle EOA provider write has no automatic retry');
+})().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>store.close());

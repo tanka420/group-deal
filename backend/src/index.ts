@@ -15,6 +15,7 @@ import {bridgeRouter} from "./routes/bridgeRoutes";
 import { publicRouter } from "./routes/publicRoutes";
 import { faucetRouter } from "./routes/faucetRoutes";
 import { walletRouter } from "./routes/walletRoutes";
+import {walletFlowRouter} from './routes/walletFlowRoutes';
 import { circleRouter } from "./routes/circleRoutes";
 import { notificationRouter } from "./routes/notificationRoutes";
 import {followRouter} from './routes/followRoutes';
@@ -43,6 +44,7 @@ app.use(
 );
 app.use('/api/support',supportRouter);
 app.use('/api/bridge',bridgeRouter);
+app.use('/api/wallet/flows',walletFlowRouter);
 app.use(express.json());
 app.use(productJsonErrorHandler);
 app.use(resourceJsonErrorHandler);

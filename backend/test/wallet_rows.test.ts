@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
+import {ethers} from 'ethers';
+import {store,TransactionalStore} from '../src/db/store';
+import {SessionService} from '../src/services/sessionService';
+import {config} from '../src/config';
+import {encryptionKey} from '../src/utils/crypto';
+import {readWalletIntent,walletSendCall} from '../src/domain/walletQuote';
+import {createWalletFlow,readWalletFlow,type PreparedWalletQuote} from '../src/domain/walletFlow';
+import {prepareSignerAcquisition} from '../src/domain/signerReservation';
+assert.equal(process.env.NODE_ENV,'test');assert.ok(store.isIsolated);
+void(async()=>{
+ const principal=ethers.Wallet.createRandom().address.toLowerCase(),recipient=ethers.Wallet.createRandom().address.toLowerCase();store.transaction(()=>{store.db.users.fixture={id:'fixture',email:'wallet@fixture.invalid',roles:['buyer'],activeWallet:principal,createdAt:Date.now()};store.db.userByWallet[principal]='fixture';});
+ const proof=SessionService.authenticate(SessionService.issue(store.db.users.fixture)),intent=readWalletIntent({kind:'SEND',recipient,amount:'1'});if(intent.kind!=='SEND')throw Error();
+ const create=()=>{const now=Date.now(),quote:PreparedWalletQuote={version:1,kind:'SEND',chainId:5042002,principal,tokenIn:'USDC',tokenOut:'USDC',recipient,amount:'1000000',minimumOut:'1000000',estimatedOut:'1000000',slippageBps:0,requestedAt:now,expiresAt:now+60000,fees:[],calls:[{...walletSendCall(intent,principal),fee:{gasLimit:'60000',maxFeePerGas:'100',maxNetworkFee:'6000000'}}]};return createWalletFlow('fixture',crypto.randomUUID(),intent,quote,proof.claims.authRecoveryContext,encryptionKey(config.masterEncryptionKeyId),config.masterEncryptionKeyId);};
+ const first=create(),second=create(),selection=(r:typeof first)=>({actorId:'fixture',sessionKey:proof.key,id:r.id});
+ for(const record of [first,second])store.mutateWalletFlow(selection(record),s=>{SessionService.assertCommitted(proof,s.auth);assert.equal(s.boundUserId,'fixture');assert.equal(s.record,undefined);return{result:true,record,audit:{action:'WALLET_QUOTED',details:{operationId:record.id}}};});
+ const peer=new TransactionalStore(store.storageDirectory);assert.equal(readWalletFlow(peer.db.walletFlows?.[first.id],encryptionKey).quote.amount,'1000000');assert.equal(peer.verifyAuditLogIntegrity().valid,true);peer.close();
+ const inspect=(record:typeof first)=>store.mutateWalletFlow({...selection(record),writeId:record.steps[0].id},s=>{SessionService.assertCommitted(proof,s.auth);return{result:s};}),frame1=inspect(first),frame2=inspect(second),read=async()=>{throw Error('No chain read required for a first reservation');};
+ const plan1=await prepareSignerAcquisition(frame1.signer!,proof.claims.authRecoveryContext,read,true),plan2=await prepareSignerAcquisition(frame2.signer!,proof.claims.authRecoveryContext,read,true);
+ const ready=(record:typeof first,plan:typeof plan1)=>store.mutateWalletFlow({...selection(record),writeId:record.steps[0].id},s=>{SessionService.assertCommitted(proof,s.auth);const current=readWalletFlow(s.record,encryptionKey);assert.equal(current.revision,0);const next=structuredClone(current);Object.assign(next.steps[0],{state:'SIGNING',nonce:'0',readyAt:Date.now()});next.revision++;next.updatedAt=Date.now();return{result:next,record:next,signerPlan:plan};});
+ assert.throws(()=>ready(first,{...plan1}),/SIGNER_PROOF_REQUIRED/);assert.equal(store.db.walletFlows![first.id].steps[0].state,'PLANNED');ready(first,plan1);assert.equal(store.db.walletFlows![first.id].steps[0].state,'SIGNING');assert.throws(()=>ready(second,plan2),/SIGNER_PROOF_REQUIRED/);assert.equal(store.db.walletFlows![second.id].steps[0].state,'PLANNED');
+ await assert.rejects(prepareSignerAcquisition(inspect(second).signer!,proof.claims.authRecoveryContext,read,true),/SIGNER_RESERVATION_UNRESOLVED/);
+ const stored=structuredClone(store.db.walletFlows![first.id]);store.db.walletFlows![first.id].steps[0].state='PLANNED';assert.throws(()=>store.save(),/wallet ledger requires scoped mutation/);store.db.walletFlows![first.id]=stored;
+ assert.equal(store.mutateWalletFlow({actorId:'fixture',sessionKey:proof.key},s=>({result:s.records.length})),2);console.log('PASS wallet SQL persistence/restart, atomic shared signer race, unknown hold and generic-save rejection');
+})().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>store.close());

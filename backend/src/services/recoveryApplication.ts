@@ -34,7 +34,7 @@ export function recoveryApplicationInputs(){
  const paths:string[]=[];
  const walk=(directory:string,extension:string)=>{for(const entry of fs.readdirSync(path.join(root,directory),{withFileTypes:true})){const file=directory+'/'+entry.name;if(entry.isDirectory())walk(file,extension);else if(entry.isFile()&&file.endsWith(extension))paths.push(file);}};
  walk('backend/src','.ts');walk('backend/dist','.js');
- paths.push('backend/scripts/prepareRuntimeUpgradeInput.ts','backend/scripts/prepareRuntimeUpgradeApplication.ts','backend/scripts/prepareRecoveryApplication.ts','backend/scripts/prepareInternalTestArchive.ts','backend/package-lock.json','shared/contracts.json','shared/manifests/arc-testnet.json','shared/domain.cjs','shared/catalogQuery.mjs','shared/evidence.mjs','shared/publicSeller.mjs','shared/publicWidget.mjs','shared/sellerProfileIntent.mjs','shared/operatorBadge.mjs');
+ paths.push('backend/scripts/prepareRuntimeUpgradeInput.ts','backend/scripts/prepareRuntimeUpgradeApplication.ts','backend/scripts/prepareRecoveryApplication.ts','backend/scripts/prepareInternalTestArchive.ts','backend/package-lock.json','shared/contracts.json','shared/manifests/arc-testnet.json','shared/domain.cjs','shared/catalogQuery.mjs','shared/evidence.mjs','shared/publicSeller.mjs','shared/publicWidget.mjs','shared/sellerProfileIntent.mjs','shared/operatorBadge.mjs','shared/arcWallet.mjs');
  for(const file of ['backend/dist/index.js','backend/dist/services/recoveryApplication.js'])if(!paths.includes(file))fail('RECOVERY_APPLICATION_BUILD_REQUIRED');
  return paths.sort().map(file=>({path:file,sha256:sha(fs.readFileSync(path.join(root,file)))}));
 }
