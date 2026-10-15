@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {ethers} from 'ethers';
 import {walletErc20} from '../src/domain/walletQuote';
-import {verifyWalletReceipt} from '../src/domain/walletReceipt';
+import {assertWalletTransaction,verifyWalletReceipt} from '../src/domain/walletReceipt';
 import type {WalletFlowRecord} from '../src/domain/walletFlow';
 import type {ServerBridgeRead} from '../src/domain/bridgeReceipt';
 import {ARC_WALLET_TOKENS,ARC_SWAP_ADAPTER} from '../../shared/arcWallet.mjs';
@@ -25,4 +25,11 @@ void(async()=>{
  {const f=fixture('SWAP');f.reorg=true;await assert.rejects(verifyWalletReceipt(f.record,0,f.read),/WALLET_RECEIPT_REORG/);}console.log('PASS wallet receipt rejects noncanonical block');
  {const f=fixture('SWAP');f.changed=true;await assert.rejects(verifyWalletReceipt(f.record,0,f.read),/WALLET_RECEIPT_REORG/);}console.log('PASS wallet receipt rejects a changed reread');
  {const f=fixture('SWAP');f.tx.gasPrice='0xc9';await assert.rejects(verifyWalletReceipt(f.record,0,f.read),/WALLET_TRANSACTION_FEE_MISMATCH/);}console.log('PASS wallet transaction respects reviewed network fee cap');
+ // Regression: the external wallet changed the live approval's gas allocation
+ // while retaining a smaller total ceiling (84,362 * 39 gwei < 73,114 * 50 gwei).
+ {const f=fixture('APPROVE');Object.assign(f.record.quote.calls[0].fee,{gasLimit:'73114',maxFeePerGas:'50000000000',maxNetworkFee:'3655700000000000'});Object.assign(f.tx,{gas:'0x1498a',gasPrice:'0x826299e00',maxFeePerGas:'0x91494c600',maxPriorityFeePerGas:'0x37e11d600'});assertWalletTransaction(f.record,0,f.tx,hash);assert.equal((await verifyWalletReceipt(f.record,0,f.read)).receiptStatus,1);}console.log('PASS live approval gas allocation remains within reviewed total fee');
+ {const f=fixture('APPROVE');Object.assign(f.tx,{gas:'0xc350',maxFeePerGas:'0xf0',maxPriorityFeePerGas:'0x1'});assertWalletTransaction(f.record,0,f.tx,hash);assert.equal((await verifyWalletReceipt(f.record,0,f.read)).receiptStatus,1);}console.log('PASS higher gas price with lower limit accepts exact total cap');
+ {const f=fixture('APPROVE');Object.assign(f.tx,{gas:'0xc350',gasPrice:'0x1',maxFeePerGas:'0xf1'});await assert.rejects(verifyWalletReceipt(f.record,0,f.read),/WALLET_TRANSACTION_FEE_MISMATCH/);}console.log('PASS type2 maximum liability cannot hide behind low effective gas price');
+ {const f=fixture('APPROVE');Object.assign(f.tx,{maxFeePerGas:'0xc8',maxPriorityFeePerGas:'0xc9'});assert.throws(()=>assertWalletTransaction(f.record,0,f.tx,hash),/WALLET_TRANSACTION_FEE_MISMATCH/);}console.log('PASS priority fee above maximum remains rejected');
+ for(const gas of ['0x0','0x2710','0x989681']){const f=fixture('APPROVE');Object.assign(f.tx,{gas,gasPrice:'0x1'});assert.throws(()=>assertWalletTransaction(f.record,0,f.tx,hash),/WALLET_TRANSACTION_FEE_MISMATCH/);}console.log('PASS invalid gas allocation remains rejected');
 })().catch(e=>{console.error(e);process.exitCode=1;});

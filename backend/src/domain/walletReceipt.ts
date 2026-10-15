@@ -11,7 +11,11 @@ const uint=(v:unknown):bigint=>{if(typeof v!=='string'||!/^0x[\da-f]{1,64}$/i.te
 export function assertWalletTransaction(record:WalletFlowRecord,index:number,tx:any,txHash:string){
  const step=record.steps[index],call=record.quote.calls[index];
  if(!step||!call||!tx||!same(tx.hash,txHash)||!same(tx.from,record.principal)||!same(tx.to,call.to)||!same(tx.input??tx.data,call.data)||uint(tx.chainId)!==5042002n||uint(tx.nonce).toString()!==step.nonce||uint(tx.value)!==0n)return fail('WALLET_TRANSACTION_MISMATCH');
- if(uint(tx.gas)>BigInt(call.fee.gasLimit)||uint(tx.maxFeePerGas??tx.gasPrice)>BigInt(call.fee.maxFeePerGas)||tx.maxPriorityFeePerGas!==undefined&&uint(tx.maxPriorityFeePerGas)>uint(tx.maxFeePerGas??tx.gasPrice))return fail('WALLET_TRANSACTION_FEE_MISMATCH');
+ // Wallets may adjust the gas limit and price together. Bind their maximum
+ // liability to the reviewed total, using maxFeePerGas rather than a mined
+ // transaction's effective gasPrice. Call, amount and nonce remain exact.
+ const gas=uint(tx.gas),price=uint(tx.maxFeePerGas??tx.gasPrice);
+ if(gas<21000n||gas>10000000n||price<=0n||gas*price>BigInt(call.fee.maxNetworkFee)||tx.maxPriorityFeePerGas!==undefined&&uint(tx.maxPriorityFeePerGas)>price)return fail('WALLET_TRANSACTION_FEE_MISMATCH');
 }
 export type WalletReceiptProof={hash:string;nonce:string;blockNumber:string;blockHash:string;receiptStatus:0|1;digest:string};
 const digest=(r:any)=>ethers.id(JSON.stringify({hash:r.transactionHash,from:r.from,to:r.to,blockNumber:r.blockNumber,blockHash:r.blockHash,status:r.status,transactionIndex:r.transactionIndex,logs:r.logs}));
