@@ -1,3 +1,10 @@
+import {SellerWorkspaceNavigation} from '../components/SellerWorkspaceNavigation';
+import {SellerListFilters} from '../components/SellerListFilters';
+import {SellerOrderReview} from '../components/SellerOrderReview';
+import {OrderDisputeSummary} from '../components/OrderDisputeSummary';
+import {sellerSection,sellerPath,type SellerSection} from '../services/sellerNavigation';
+import {navigateApp} from '../utils/appRoute';
+import {filterOrders,type OrderFilters} from '../services/orderList';
 import {ManagedOrderAction,ManagedOrderActionHandle} from "../components/ManagedOrderAction";
 import {ManagedClaim} from "../components/ManagedClaim";
 import React, { useState, useEffect, useRef } from "react";
@@ -44,10 +51,14 @@ export const SellerDashboard: React.FC = () => {
   } = useWeb3();
 
   const orderAction=useRef<ManagedOrderActionHandle>(null);
-  const [activeTab, setActiveTab] = useState<"CAMPAIGNS" | "FULFILLMENT" | "WEBHOOKS" | "CREATE" | "PROFILE" | "PRODUCTS">(
-    "CAMPAIGNS"
-  );
-  const [initialDraftId,setInitialDraftId]=useState<string|undefined>();
+  const [activeTab,setActiveTabState]=useState<SellerSection>(sellerSection),[visited,setVisited]=useState<Set<SellerSection>>(()=>new Set([sellerSection()]));
+  const readFilters=():OrderFilters=>{const q=new URLSearchParams(location.search);return {q:(q.get('q')??'').slice(0,180),status:q.get('status')??'',from:q.get('from')??'',to:q.get('to')??''};};
+  const [filters,setFilters]=useState(readFilters),[limit,setLimit]=useState(20);
+  const setActiveTab=(next:SellerSection)=>navigateApp(sellerPath(next));
+  const openDraft=(id:string)=>navigateApp(sellerPath('CREATE')+'?draft='+encodeURIComponent(id));
+  const applyFilters=(f:OrderFilters)=>{const q=new URLSearchParams();for(const [k,v]of Object.entries(f))if(v)q.set(k,v);navigateApp(sellerPath(activeTab)+(q.size?'?'+q:''));};
+  useEffect(()=>{const sync=()=>{const section=sellerSection();setActiveTabState(section);setVisited(v=>new Set([...v,section]));setFilters(readFilters());setLimit(20);const id=new URLSearchParams(location.search).get('draft');setInitialDraftId(id&&/^[A-Za-z0-9_-]{1,180}$/.test(id)?id:undefined);};sync();window.addEventListener('groupdeal:navigate',sync);window.addEventListener('popstate',sync);return()=>{window.removeEventListener('groupdeal:navigate',sync);window.removeEventListener('popstate',sync);};},[]);
+  const [initialDraftId,setInitialDraftId]=useState<string|undefined>(()=>{const id=new URLSearchParams(location.search).get('draft');return id&&/^[A-Za-z0-9_-]{1,180}$/.test(id)?id:undefined;});
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [webhookData, setWebhookData] = useState<any | null>(null);
@@ -91,7 +102,7 @@ export const SellerDashboard: React.FC = () => {
     fetchSellerData();
     return()=>{dataController.current?.abort();dataController.current=null;};
   }, [user?.id,token]);
-  useEffect(()=>{setFulfillOrderObj(null);setWebhookData(null);setWebhookUrl('');setActiveTab('CAMPAIGNS');setInitialDraftId(undefined);},[user?.id,token]);
+  useEffect(()=>{setFulfillOrderObj(null);setWebhookData(null);setWebhookUrl('');setActiveTabState(sellerSection());setVisited(new Set([sellerSection()]));},[user?.id,token]);
 
   // Save webhook
   const handleSaveWebhook = async (e: React.FormEvent) => {
@@ -129,14 +140,17 @@ export const SellerDashboard: React.FC = () => {
   let totalSellerClaimable = 0n;
   if(dataVisible)orders.forEach((o) => {totalSellerClaimable += sellerOrderAmounts(o).remaining??0n;});
 
-  if(activeTab==="CREATE")return <div><div className="action-row" style={{marginBottom:"1.25rem"}}><button className="btn btn-secondary" onClick={()=>setActiveTab("CAMPAIGNS")}>{text("← Quay lại quản lý deal","← Back to deal management")}</button></div><SellerCreateDeal key={(user?.id??'')+':'+(initialDraftId??'new')} initialDraftId={initialDraftId} onCreated={()=>{setActiveTab("CAMPAIGNS");fetchSellerData();}}/></div>;
+
   const dataReady=dataVisible&&!loading&&!loadError&&!!user?.id&&!!token,allSellerAmountsVerified=orders.every(order=>sellerOrderAmounts(order).remaining!==null);
+  const orderView=['FULFILLMENT','REVENUE','DISPUTES'].includes(activeTab);
+  const matchingOrders=filterOrders(activeTab==='DISPUTES'?orders.filter(o=>['DISPUTED','RESOLVED'].includes(o.deliveryStatus)):orders,filters),shownOrders=matchingOrders.slice(0,limit);
+  const matchingCampaigns=filterOrders(campaigns.map(c=>({...c,campaignTitle:c.title,deliveryStatus:c.status})),filters),shownCampaigns=matchingCampaigns.slice(0,limit);
   return (
     <div className="app-page seller-dashboard">
       {loadError&&<div role="alert" className="notice notice-error">{loadError==='SELLER_SIGN_IN_REQUIRED'?text('Đăng nhập để tải dữ liệu seller.','Sign in to load seller data.'):text('Không tải được dữ liệu. Thử lại khi kết nối ổn định.','Unable to load seller data. Retry when your connection is stable.')}<button className="btn btn-secondary" onClick={fetchSellerData}>{text('Thử lại','Retry')}</button></div>}
       <div className="workspace-heading">
         <div>
-          <h1 style={{ fontSize: "1.85rem", marginBottom: "0.25rem" }}>{t("sellerDashboardTitle")}</h1>
+          <h1 style={{ fontSize: "1.85rem", marginBottom: "0.25rem" }}>{text("Kênh người bán","Seller studio")}</h1>
           <p style={{ color: "var(--text-secondary)", fontSize: "0.92rem" }}>
             {text("Quản lý sản phẩm, deal, giao quyền truy cập và khoản được claim.","Manage products, deals, access delivery and claimable allocations.")}
           </p>
@@ -149,7 +163,9 @@ export const SellerDashboard: React.FC = () => {
       </div>
 
       {(loading||!dataVisible)&&<p role="status">{text("Đang tải dữ liệu seller…","Loading seller data…")}</p>}
+      <div className="seller-workspace-frame"><SellerWorkspaceNavigation active={activeTab} onChange={setActiveTab}/><div className="seller-workspace-content">
       {/* Overview Cards */}
+      {dataReady&&<p className="muted">{text('Tổng dữ liệu của kênh người bán; không đổi theo bộ lọc bên dưới.','Seller studio totals; filters below do not change these figures.')}</p>}
       {dataReady&&<div
         style={{
           display: "grid",
@@ -186,49 +202,27 @@ export const SellerDashboard: React.FC = () => {
         </div>
       </div>}
 
-      {/* Tabs */}
-      <nav className="workspace-tabs" aria-label={language==="en"?"Workspace sections":"Các mục workspace"}>
-        <button
-          className={`btn btn-sm ${activeTab === "CAMPAIGNS" ? "btn-primary" : "btn-secondary"}`}
-          onClick={() => setActiveTab("CAMPAIGNS")}
-        >
-          {text("Chiến dịch của tôi","My campaigns")} ({dataReady?campaigns.length:"—"})
-        </button>
-        <button
-          className={`btn btn-sm ${activeTab === "FULFILLMENT" ? "btn-primary" : "btn-secondary"}`}
-          onClick={() => setActiveTab("FULFILLMENT")}
-        >
-          {text("Đơn hàng & Giao quyền truy cập","Orders & access delivery")} ({dataReady?orders.length:"—"})
-        </button>
-        <button
-          className={`btn btn-sm ${activeTab === "WEBHOOKS" ? "btn-primary" : "btn-secondary"}`}
-          onClick={() => setActiveTab("WEBHOOKS")}
-        >
-          {text("Tích hợp Webhook HMAC","HMAC webhook integration")}
-        </button>
-        <button className={`btn btn-sm ${activeTab === "PROFILE" ? "btn-primary" : "btn-secondary"}`} onClick={() => setActiveTab("PROFILE")}>
-          {text("Hồ sơ & Ví nhận tiền", "Profile & Payout")}
-        </button>
-        <button className={`btn btn-sm ${activeTab==="PRODUCTS"?"btn-primary":"btn-secondary"}`} onClick={()=>setActiveTab("PRODUCTS")}>{text("Sản phẩm & license","Products & licenses")}</button>
-      </nav>
 
-      {activeTab === "PRODUCTS" && <ProductStudio/>}
-      {activeTab === "PROFILE" && <div className="glass-card"><SellerProfileEditor key={user?.id}/></div>}
-
+      {activeTab==='CREATE'&&(<div><div className="action-row" style={{marginBottom:"1.25rem"}}><button className="btn btn-secondary" onClick={()=>setActiveTab("CAMPAIGNS")}>{text("← Quay lại quản lý deal","← Back to deal management")}</button></div><SellerCreateDeal key={(user?.id??'')+':'+(initialDraftId??'new')} initialDraftId={initialDraftId} onCreated={()=>{setActiveTab("CAMPAIGNS");fetchSellerData();}}/></div>)}
+      {visited.has('PRODUCTS')&&<div hidden={activeTab!=='PRODUCTS'}><ProductStudio active={activeTab==='PRODUCTS'}/></div>}
+      {visited.has('PROFILE')&&<div hidden={activeTab!=='PROFILE'} className="glass-card"><SellerProfileEditor key={user?.id}/></div>}
+      {dataReady&&(activeTab==='CAMPAIGNS'||orderView)&&<><SellerListFilters value={filters} campaigns={activeTab==='CAMPAIGNS'} disputes={activeTab==='DISPUTES'} onApply={applyFilters}/><p role="status">{activeTab==='CAMPAIGNS'?matchingCampaigns.length:matchingOrders.length} {text('kết quả · Mới nhất trước','results · Newest first')}</p></>}
+      {activeTab==='REVENUE'&&<p className="notice seller-section-note">{text('Tiền buyer cam kết khác khoản được phân bổ cho seller. Chỉ rút phần còn lại đã xác minh; ví nhận của đơn cũ được giữ nguyên.','Buyer commitments are separate from seller allocations. Claim only the verified remainder; existing order payout wallets are retained.')}</p>}
+      {activeTab==='DISPUTES'&&<p className="notice seller-section-note">{text('Trao đổi theo đơn để cung cấp thông tin; seller không tự quyết định kết quả phân xử hoặc hoàn tiền.','Use the order conversation to provide information; sellers do not decide arbitration or refunds.')}</p>}
       {/* Tab Content: CAMPAIGNS */}
       {dataReady && activeTab === "CAMPAIGNS" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          {campaigns.length === 0 ? (
+          {matchingCampaigns.length === 0 ? (
             <div className="glass-card" style={{ textAlign: "center", padding: "3rem" }}>
               <p style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>
-                {text("Bạn chưa có chiến dịch nào. Hãy bắt đầu bằng cách tạo chiến dịch mua chung đầu tiên!","No campaigns yet. Start by creating your first group-buy campaign.")}
+                {text("Không có chiến dịch phù hợp. Xóa bộ lọc hoặc tạo chiến dịch mới.","No campaigns match this list. Clear filters or create a campaign.")}
               </p>
               <button className="btn btn-primary" onClick={() => {setInitialDraftId(undefined);setActiveTab("CREATE");}}>
                 {text("Tạo chiến dịch mới","Create new campaign")}
               </button>
             </div>
           ) : (
-            campaigns.map((c) => (
+            shownCampaigns.map((c,i) => (
               <div
                 key={c.id}
                 className="glass-card ui-record-card ui-row"
@@ -236,7 +230,7 @@ export const SellerDashboard: React.FC = () => {
               >
                 <div>
                   <div className="ui-row" style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.3rem" }}>
-                    <span className="badge badge-verified-seller">#{c.id}</span>
+                    <span className="muted">{text("STT ","No. ")}{i+1}</span><span className="badge">{c.id}</span>
                     <strong style={{ fontSize: "1.1rem" }}>{c.title??text('Chưa có tiêu đề ghi nhận','No recorded title')}</strong>
                     <span className="badge" style={{ background: "var(--bg-tertiary)" }}>
                       {sellerCampaignStatus(c.status,language)}
@@ -244,8 +238,8 @@ export const SellerDashboard: React.FC = () => {
                   </div>
                   <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
                     {c.replacementFor?.campaignId&&<p>{text('Thay thế campaign: ','Replaces campaign: ')}<a href={'#campaign-'+encodeURIComponent(c.replacementFor.campaignId)}>{c.replacementFor.campaignId}</a></p>}
-                    {text('Đơn vị đã cam kết: ','Units committed: ')}<strong>{Number.isSafeInteger(c.totalUnitsCommitted)&&c.totalUnitsCommitted>=0?c.totalUnitsCommitted:text('Chưa xác minh','Unverified')}</strong> | {text('Tier ghi nhận: ','Recorded tier: ')}
-                    <strong>{Number.isSafeInteger(c.currentUnlockedTier)&&c.currentUnlockedTier>=0&&Array.isArray(c.tiers)&&c.currentUnlockedTier<c.tiers.length?`Tier ${c.currentUnlockedTier+1}/${c.tiers.length}`:text('Chưa xác minh','Unverified')}</strong> | SLA: 
+                    {c.metric==='BUYER_COUNT'?text('Người mua đã cam kết: ','Committed buyers: '):c.metric==='UNITS_COUNT'?text('Đơn vị đã cam kết: ','Units committed: '):text('Metric chưa xác minh: ','Unverified metric: ')}<strong>{c.metric==='BUYER_COUNT'&&Number.isSafeInteger(c.totalBuyerCount)&&c.totalBuyerCount>=0?c.totalBuyerCount:c.metric==='UNITS_COUNT'&&Number.isSafeInteger(c.totalUnitsCommitted)&&c.totalUnitsCommitted>=0?c.totalUnitsCommitted:text('Chưa xác minh','Unverified')}</strong> | {text('Tier ghi nhận: ','Recorded tier: ')}
+                    <strong>{Number.isSafeInteger(c.currentUnlockedTier)&&c.currentUnlockedTier>=0&&Array.isArray(c.tiers)&&c.currentUnlockedTier<c.tiers.length?`Tier ${c.currentUnlockedTier+1}/${c.tiers.length}`:text('Chưa xác minh','Unverified')}</strong> | SLA:
                     <strong>{Number.isSafeInteger(c.deliverySlaSeconds)&&c.deliverySlaSeconds>0?c.deliverySlaSeconds%3600===0?`${c.deliverySlaSeconds/3600}h`:`${c.deliverySlaSeconds} ${text('giây','seconds')}`:text('Chưa xác minh','Unverified')}</strong>
                   </div>
                   {c.status!=="DRAFT"&&c.projectionOrigin==="VERIFIED_PUBLISH"&&<CampaignAmendmentControl campaignId={c.id}/> }
@@ -255,7 +249,7 @@ export const SellerDashboard: React.FC = () => {
                   <a href={`#campaign-${c.id}`} className="btn btn-sm btn-secondary">
                     {text('Xem trang deal','View deal')}
                   </a>
-                  {c.status!=="DRAFT"&&c.projectionOrigin==="VERIFIED_PUBLISH"&&<CampaignReplacementControl sourceId={c.id} onReady={id=>{setInitialDraftId(id);setActiveTab("CREATE");}}/>}
+                  {c.status==='DRAFT'&&<button className="btn btn-sm btn-primary" onClick={()=>openDraft(c.id)}>{text('Tiếp tục bản nháp','Continue draft')}</button>}{c.status!=="DRAFT"&&c.projectionOrigin==="VERIFIED_PUBLISH"&&<CampaignReplacementControl sourceId={c.id} onReady={openDraft}/>}
                 </div>
               </div>
             ))
@@ -264,14 +258,14 @@ export const SellerDashboard: React.FC = () => {
       )}
 
       {/* Tab Content: FULFILLMENT */}
-      {dataReady && activeTab === "FULFILLMENT" && (
+      {dataReady && orderView && (
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          {orders.length === 0 ? (
+          {matchingOrders.length === 0 ? (
             <div className="glass-card" style={{ textAlign: "center", padding: "3rem" }}>
-              {text('Chưa có đơn hàng nào phát sinh.','No orders recorded yet.')}
+              {text('Không có đơn phù hợp với danh sách này.','No orders match this list.')}
             </div>
           ) : (
-            orders.map((o) => {
+            shownOrders.map((o,i) => {
               const gross=orderMoney(o.committedGross)??text('Chưa xác minh','Unverified'),amounts=sellerOrderAmounts(o),sellerAllocated=orderMoney(o.sellerAllocated)??text('Chưa xác minh','Unverified'),sellerClaimable=amounts.remaining;
               const payout=o.sellerPayoutWallet??campaigns.find(c=>c.id===o.campaignId)?.sellerPayoutWallet??'';
 
@@ -280,7 +274,7 @@ export const SellerDashboard: React.FC = () => {
                   <div className="ui-row" style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.75rem" }}>
                     <div>
                       <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                        <OrderReference id={o.id}/> • {typeof o.campaignTitle==='string'?o.campaignTitle:text('Chưa có tiêu đề ghi nhận','No recorded title')}
+                        <span>{text('STT ','No. ')}{i+1} · </span><OrderReference id={o.id}/> • {typeof o.campaignTitle==='string'?o.campaignTitle:text('Chưa có tiêu đề ghi nhận','No recorded title')}
                       </span>
                       <p className="muted">{text('Ngày ghi nhận đơn: ','Order recorded: ')}{formatOrderDate(o.createdAt,language)}</p>
                       <div style={{ fontWeight: 600, fontSize: "1rem" }}>
@@ -307,7 +301,7 @@ export const SellerDashboard: React.FC = () => {
                     <div className="ui-row" style={{ display: "flex", gap: "0.5rem" }}>
                       <a className="btn btn-sm btn-secondary" href={'#support-order-'+encodeURIComponent(o.id)}>{text('Ticket hỗ trợ đơn','Order support ticket')}</a>
                       <OrderConversation key={o.id+':'+getSessionEpoch()} orderId={o.id}/>
-                      {o.deliveryStatus === "PENDING" && (
+                      {activeTab==='FULFILLMENT'&&o.deliveryStatus === "PENDING" && (
                         <button className="btn btn-sm btn-primary" onClick={() => setFulfillOrderObj(o)}>
                           <KeyRound size={14} /> {text('Giao tài nguyên','Deliver resource')}
                         </button>
@@ -329,7 +323,7 @@ export const SellerDashboard: React.FC = () => {
                         )}
                     </div>
                   </div>
-                {o.deliveryStatus==='DELIVERED'&&<p className="notice">{recordedDeadline(o.disputeDeadline)!==null?text('Hạn tranh chấp ghi nhận: ','Recorded dispute deadline: ')+new Date(o.disputeDeadline*1000).toLocaleString(language==='en'?'en-GB':'vi-VN'):text('Chưa có thời hạn tranh chấp đã ghi nhận.','No recorded dispute deadline is available.')} {text('Chuẩn bị quyết toán sẽ kiểm tra lại trạng thái và cửa sổ trên chain.','Settlement preparation rechecks the current chain state and window.')}</p>}
+                <OrderDisputeSummary order={o}/><SellerOrderReview key={o.id+':'+getSessionEpoch()} order={o}/>{o.deliveryStatus==='DELIVERED'&&<p className="notice">{recordedDeadline(o.disputeDeadline)!==null?text('Hạn tranh chấp ghi nhận: ','Recorded dispute deadline: ')+formatOrderDate(o.disputeDeadline*1000,language):text('Chưa có thời hạn tranh chấp đã ghi nhận.','No recorded dispute deadline is available.')} {text('Chuẩn bị quyết toán sẽ kiểm tra lại trạng thái và cửa sổ trên chain.','Settlement preparation rechecks the current chain state and window.')}</p>}
                 </div>
               );
             })
@@ -337,6 +331,7 @@ export const SellerDashboard: React.FC = () => {
         </div>
       )}
 
+      {dataReady&&(activeTab==='CAMPAIGNS'||orderView)&&((activeTab==='CAMPAIGNS'?matchingCampaigns:matchingOrders).length>limit?<button className="btn btn-secondary" onClick={()=>setLimit(v=>v+20)}>{text('Xem thêm','Load more')}</button>:<p className="muted">{text('Đã xem hết kết quả.','You have reached the end of the results.')}</p>)}
       {/* Tab Content: WEBHOOKS */}
       {dataReady && activeTab === "WEBHOOKS" && (
         <div className="glass-card" style={{ maxWidth: "700px" }}>
@@ -415,6 +410,7 @@ export const SellerDashboard: React.FC = () => {
         </div>
       )}
 
+      </div></div>
       <ManagedOrderAction key={(user?.id??'')+':'+(token?getSessionEpoch():'signed-out')} ref={orderAction} onRecovered={fetchSellerData}/>
       <TransactionHistory key={user?.id} onRecovered={fetchSellerData}/>
       {dataVisible&&fulfillOrderObj && <ManagedFulfillment key={(user?.id??'')+':'+getSessionEpoch()} order={fulfillOrderObj} onClose={()=>setFulfillOrderObj(null)} onDelivered={()=>{setFulfillOrderObj(null);fetchSellerData();}}/>}

@@ -44,7 +44,7 @@ const MainApp: React.FC = () => {
   const { language } = useLanguage();
   const [route, setRoute] = useState<AppRoute>(readAppRoute);
   const catalogReturn = useRef('/explore');
-  const currentTab = route.kind === "tab" ? route.tab : route.kind === "order" ? "orders" : route.kind === "support" ? route.path : route.kind === "operator-deal" ? "operator" : route.kind === "not-found" ? "not-found" : "explore";
+  const currentTab = route.kind === "tab" ? route.tab : route.kind === "seller-section" ? "seller" : route.kind === "order" ? "orders" : route.kind === "support" ? route.path : route.kind === "operator-deal" ? "operator" : route.kind === "not-found" ? "not-found" : "explore";
   const selectedCampaignId = route.kind === "campaign" ? route.id : null;
   const selectedSellerId = route.kind === "public-seller" ? route.id : null;
   const selectedOperatorDeal = route.kind === "operator-deal" ? { id: route.id, view: route.view } : null;

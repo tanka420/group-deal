@@ -8,6 +8,7 @@ import {OrderReference} from '../components/OrderReference';
 import {OrderList} from '../components/OrderList';
 import {formatOrderDate} from '../services/orderList';
 import {OrderConversation} from '../components/OrderConversation';
+import {OrderDisputeSummary} from '../components/OrderDisputeSummary';
 import '../styles/orders.css';
 import React, { useState, useEffect, useRef } from "react";
 import { useLanguage } from "../context/LanguageContext";
@@ -383,7 +384,7 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string}> = ({selectedOrd
                 </div>
 
                 {o.review&&<section className="order-review" aria-label={text('Đánh giá đã gửi','Submitted review')}><h4>{text('Đánh giá của bạn','Your review')} · {Number.isInteger(o.review.score)&&o.review.score>=1&&o.review.score<=5?o.review.score:'—'}/5</h4><p>{typeof o.review.comment==='string'?o.review.comment:text('Chưa tải được nội dung đánh giá.','Review content is unavailable.')}</p>{typeof o.review.sellerResponse==='string'&&o.review.sellerResponse&&<><strong>{text('Người bán phản hồi','Seller response')}</strong><p>{o.review.sellerResponse}</p></>}</section>}
-                <OrderConversation key={o.id+':'+getSessionEpoch()} orderId={o.id}/>
+                <OrderDisputeSummary order={o}/><OrderConversation key={o.id+':'+getSessionEpoch()} orderId={o.id}/>
 
                 {/* Direct Onchain Dispute Fallback Notice */}
                 {o.deliveryStatus === "DELIVERED" && (

@@ -12,7 +12,7 @@ export type {ProductItem} from '../services/productStudio';
 type Ticket=NonNullable<ReturnType<ReturnType<typeof useOperationScope>['start']>>;
 type Action={ticket:Ticket;send:(pending:ProductPending,path:string,options:RequestInit)=>Promise<unknown>;confirmed:(metadata?:{receipt:ProductMetadataTerminalReceipt;pending:ProductPending})=>void};
 const initial={title:"",description:"",category:"Software",vendor:"",thumbnailUrl:"",requirements:"",supportPolicy:"",edition:"",seats:"1",scope:"PERSONAL",duration:"",activation:"30",regions:"Worldwide",transferable:false,supportDays:"30",usageTerms:""};
-export function ProductStudio({onSelect}:{onSelect?:(product:ProductItem)=>void}) {
+export function ProductStudio({onSelect,active=true}:{onSelect?:(product:ProductItem)=>void;active?:boolean}) {
   const {language,text}=useDealLanguage();
   const {token,user}=useAuth(),seller=!!user?.roles.includes('seller');
   const identity=JSON.stringify([user?.id,token,seller]),scope=useOperationScope(identity),identityRef=useRef(identity);identityRef.current=identity;
@@ -23,6 +23,7 @@ export function ProductStudio({onSelect}:{onSelect?:(product:ProductItem)=>void}
   const [pending,setPending]=useState<ProductPending|null>(null),pendingRef=useRef<ProductPending|null>(null),selectedRef=useRef(selected),fileInput=useRef<HTMLInputElement>(null),[resourcesLoading,setResourcesLoading]=useState(false);
   const [terminalNotice,setTerminalNotice]=useState<UiMessage|null>(null);
   const [archiveTarget,setArchiveTarget]=useState<ProductItem|null>(null);
+  useEffect(()=>{if(!active)setArchiveTarget(null);},[active]);
   selectedRef.current=selected;
   const blocked=!user||!token||!seller||busy||loading||!!pending;
   const selectedReady=!!selected&&selected.status!=='ARCHIVED'&&items.some(p=>p.id===selected.id&&p.version.id===selected.version.id&&p.status!=='ARCHIVED');

@@ -1,5 +1,8 @@
 import {test,expect,type Page} from '@playwright/test';
 const order=(i:number,extra:any={})=>({id:'order_'+i,campaignId:'campaign',campaignTitle:'Toolkit '+i,buyerAccountId:'buyer',buyerPrincipal:'0x70997970C51812dc3A010C7d01b50e0d17dc79C8',createdAt:Date.UTC(2026,9,i,10),quantity:1,lockedUnitPrice:'1000000',committedGross:'1000000',rebateAllocated:'100000',buyerRefundAllocated:'0',buyerClaimedAmount:'0',buyerClaimable:'100000',accountingVerified:true,deliveryStatus:'DELIVERED',...extra});
+test('dispute summary keeps recorded context and rejects unsafe evidence links',async({page})=>{
+ const f=await fixture(page,[order(1,{deliveryStatus:'RESOLVED',disputeReason:'Resource was unavailable',disputeEvidence:['javascript:alert(1)','https://example.test/evidence'],disputeResolution:{notes:'Recorded resolution'}})]);await page.goto('/orders/order_1');const panel=page.getByRole('region',{name:'Dispute details',exact:true});await expect(panel).toContainText('Resource was unavailable');await expect(panel).toContainText('Recorded resolution');await expect(panel).toContainText('do not mean funds have reached a wallet');await expect(panel.getByRole('link')).toHaveCount(1);await expect(panel.getByRole('link')).toHaveAttribute('href','https://example.test/evidence');expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
+});
 async function fixture(page:Page,rows=Array.from({length:26},(_,i)=>order(i+1))){
  await page.addInitScript(()=>{localStorage.setItem('groupdeal_token','buyer-ui03-fixture');localStorage.setItem('groupdeal_lang','en');});
  const errors:string[]=[],writes:string[]=[];page.on('pageerror',e=>errors.push(e.message));
