@@ -42,7 +42,8 @@
  .header .account-pill-btn > svg { display:none; }
  .header .mobile-menu-button { padding:.6rem; }
  .header .account-dropdown-wrapper { display:flex; gap:.35rem; }
- .header .header-login { padding:.6rem; }
+ .header .header-login { padding:0; }
+ .header .header-login > svg { flex-shrink:0; }
  .header .header-auth-label { font-size:.8rem; }
  .wallet-overview { padding:1rem; }
 }

@@ -535,6 +535,8 @@ h1, h2, h3, h4, h5, h6 {
 .auth-title h2 { font-size: 1.25rem; }
 .auth-dialog .modal-close { flex-shrink: 0; min-width: 44px; min-height: 44px; }
 .auth-dialog p { line-height: 1.55; overflow-wrap: anywhere; }
+.auth-dialog :is(.form-input,.btn) { transition-property: color,background-color,border-color,box-shadow; }
+.auth-dialog :focus { scroll-margin-block:.5rem; }
 .auth-dialog #auth-description { margin-bottom: 1rem; }
 .auth-method { padding: 1rem; border: 1px solid var(--border-medium); border-radius: var(--radius-lg); min-width: 0; margin-bottom: 1rem; }
 .auth-method h3 { font-size: 1rem; margin-bottom: .6rem; }
@@ -854,7 +856,7 @@ img { max-width: 100%; }
 .preview-price { color:var(--primary); font-size:2rem; font-weight:800; margin:1rem 0; overflow-wrap:anywhere; }
 .preview-price small { font-size:1rem; }
 @media (max-width:1100px) { .seller-create-layout { grid-template-columns:150px minmax(0,1fr); } .deal-preview { grid-column:2; position:static; } }
-@media (max-width:767px) { .seller-create-layout { grid-template-columns:minmax(0,1fr); } .workspace-sidebar { position:static; } .wizard-steps { display:flex; gap:.4rem; overflow:auto; padding-bottom:.4rem; } .wizard-steps li { flex:0 0 150px; } .workspace-sidebar h2, .workspace-sidebar > p { display:none; } .deal-preview { grid-column:1; } .form-grid { grid-template-columns:minmax(0,1fr); } .tier-editor-row { grid-template-columns:minmax(0,1fr) minmax(0,1fr); } .tier-editor-row button { grid-column:1/-1; } }
+@media (max-width:767px) { .seller-create-layout { grid-template-columns:minmax(0,1fr); } .workspace-sidebar { position:static; } .wizard-steps { display:flex; gap:.4rem; overflow:auto; padding-bottom:.4rem; } .wizard-steps li { flex:0 0 150px; } .workspace-sidebar h2, .workspace-sidebar > p { display:none; } .deal-preview { grid-column:1; } .form-grid { grid-template-columns:minmax(0,1fr); } .tier-editor-row { grid-template-columns:minmax(0,1fr); } .tier-editor-row button { grid-column:1/-1; } }
 
 /* Resource and durable transaction views. */
 .resource-dialog { width: min(640px, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; margin: auto; padding: 1.5rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--bg-card); color: var(--text-primary); }
@@ -1080,7 +1082,7 @@ summary { cursor:pointer; min-height:44px; padding:.5rem 0; }
 .public-seller-intro > div:last-child { min-width:0; }
 .public-seller-bio { white-space:pre-wrap; margin-top:1rem; }
 .public-seller-metrics { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:1rem; margin:1.25rem 0; }
-.public-seller-metrics dt { color:var(--text-secondary); font-size:.85rem; }
+.public-seller-metrics dt { color:var(--text-secondary); font-size:.85rem; overflow-wrap:anywhere; }
 .public-seller-metrics dd { margin:.5rem 0 0; font-size:1.8rem; font-weight:800; color:var(--primary); }
 .public-seller-wallet { overflow-wrap:anywhere; }
 .public-seller-deals { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; margin-top:1rem; }
@@ -1094,7 +1096,7 @@ summary { cursor:pointer; min-height:44px; padding:.5rem 0; }
 .public-seller-price { font-size:1.5rem; font-weight:800; color:var(--primary); overflow-wrap:anywhere; }
 .public-seller-more { margin-top:1rem; }
 .public-seller-page .badge-verified-seller { color:#0758c9; background:#eef4ff; border-color:#c3d8f6; }
-@media(max-width:767px) { .public-seller-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); } .public-seller-deals { grid-template-columns:1fr; } }
+@media(max-width:767px) { .public-seller-page > .glass-card { padding:1rem; } .public-seller-intro { flex-direction:column; } .public-seller-intro > div:last-child { width:100%; } .public-seller-metrics { grid-template-columns:repeat(auto-fit,minmax(min(100%,7.5rem),1fr)); } .public-seller-deals { grid-template-columns:1fr; } }
 .seller-follow-control { min-width:0; overflow-wrap:anywhere; }
 .seller-follow-control fieldset { border:0; padding:0; margin:0 0 1rem; display:grid; gap:.7rem; }
 .seller-follow-control label { display:flex; align-items:flex-start; gap:.6rem; line-height:1.6; cursor:pointer; }

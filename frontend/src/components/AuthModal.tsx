@@ -18,11 +18,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const { language } = useLanguage();
   const text = (vi: string, en: string) => language === "en" ? en : vi;
   const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState<"REQUIRED" | "INVALID" | null>(null);
   const [step, setStep] = useState<"EMAIL" | "OTP">("EMAIL");
   const [action, setAction] = useState<Action>(null);
   const [error, setError] = useState<UiMessage | null>(null);
   const [walletReloadRequired, setWalletReloadRequired] = useState(false);
-  const panel = useRef<HTMLDivElement>(null), heading = useRef<HTMLHeadingElement>(null), errorElement = useRef<HTMLParagraphElement>(null);
+  const panel = useRef<HTMLDivElement>(null), heading = useRef<HTMLHeadingElement>(null), errorElement = useRef<HTMLParagraphElement>(null), emailInput = useRef<HTMLInputElement>(null);
   const epoch = useRef(0), actionRef = useRef<Action>(null), closeRef = useRef(onClose);
   closeRef.current = onClose;
   const emailReauthentication = Boolean(user?.loginMethod === "CIRCLE_EMAIL" && !circleCredentials);
@@ -33,7 +34,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   // A late request from a closed dialog or a different account cannot change this view.
   useLayoutEffect(() => {
     epoch.current++; actionRef.current = null;
-    setAction(null); setError(null); setStep("EMAIL"); setEmail(""); setWalletReloadRequired(false);
+    setAction(null); setError(null); setStep("EMAIL"); setEmail(""); setEmailError(null); setWalletReloadRequired(false);
     return () => { epoch.current++; actionRef.current = null; };
   }, [isOpen, user?.id]);
 
@@ -53,6 +54,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       const reown = document.querySelector("w3m-modal") as (HTMLElement & { open?: boolean }) | null;
       return Boolean(reown?.open || reown?.hasAttribute("open"));
     };
+    let focusFrame = 0;
+    const revealControl = (event: FocusEvent) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement) || !panel.current?.contains(target) || providerOpen()) return;
+      cancelAnimationFrame(focusFrame);
+      focusFrame = requestAnimationFrame(() => {
+        if (document.activeElement === target && panel.current?.contains(target) && !providerOpen()) target.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" });
+      });
+    };
     const keydown = (event: KeyboardEvent) => {
       if (providerOpen() || !panel.current?.contains(event.target as Node)) return;
       if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); closeRef.current(); return; }
@@ -65,8 +75,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     };
     document.addEventListener("keydown", keydown, true);
+    document.addEventListener("focusin", revealControl);
     return () => {
       document.removeEventListener("keydown", keydown, true);
+      document.removeEventListener("focusin", revealControl);
+      cancelAnimationFrame(focusFrame);
       if (app) app.inert = Boolean(wasInert);
       document.body.style.overflow = overflow;
       if (previous?.isConnected) focusPageElement(previous);
@@ -78,6 +91,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
   const run = async (next: Exclude<Action, null>) => {
     if (actionRef.current || !isOpen) return;
+    if (next === "SEND") {
+      const invalid = !email.trim() ? "REQUIRED" : !emailInput.current?.validity.valid ? "INVALID" : null;
+      setEmailError(invalid);
+      if (invalid) { setError(null); emailInput.current?.focus(); return; }
+    }
     const current = epoch.current;
     actionRef.current = next; setAction(next); setError(null);
     const valid = () => epoch.current === current;
@@ -111,10 +129,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               {walletReloadRequired && <button type="button" className="btn btn-secondary" disabled={!!action} onClick={() => window.location.reload()}>{text("Tải lại trang để kết nối ví", "Reload page to connect wallet")}</button>}
             </section>
             <p className="auth-divider">{text("HOẶC", "OR")}</p>
-            <form onSubmit={event => { event.preventDefault(); void run("SEND"); }} className="auth-method" aria-labelledby="auth-email-title">
+            <form noValidate onSubmit={event => { event.preventDefault(); void run("SEND"); }} className="auth-method" aria-labelledby="auth-email-title">
               <h3 id="auth-email-title"><Mail size={20} aria-hidden="true"/>{text("Đăng nhập email qua Circle", "Sign in by email with Circle")}</h3>
               <p id="circle-email-help" className="muted">{text("Circle gửi OTP và quản lý ví trên Arc Testnet. Bạn nhập OTP trong cửa sổ của Circle.", "Circle sends the OTP and manages your wallet on Arc Testnet. Enter the OTP in Circle’s window.")}</p>
-              <div className="form-group"><label className="form-label" htmlFor="circle-login-email">{text("Địa chỉ email", "Email address")}</label><input id="circle-login-email" type="email" className="form-input" value={email} onChange={event => setEmail(event.target.value)} required autoComplete="email" autoCapitalize="none" spellCheck={false} maxLength={254} disabled={!!action} aria-describedby="circle-email-help"/></div>
+              <div className="form-group"><label className="form-label" htmlFor="circle-login-email">{text("Địa chỉ email", "Email address")}</label><input ref={emailInput} id="circle-login-email" type="email" className="form-input" value={email} onChange={event => { setEmail(event.target.value); setEmailError(null); }} required autoComplete="email" autoCapitalize="none" spellCheck={false} maxLength={254} disabled={!!action} aria-invalid={Boolean(emailError)} aria-describedby={emailError ? "circle-email-help circle-email-error" : "circle-email-help"}/>{emailError&&<p id="circle-email-error" className="field-error" role="alert">{emailError==="REQUIRED"?text("Nhập địa chỉ email.","Enter your email address."):text("Nhập địa chỉ email hợp lệ.","Enter a valid email address.")}</p>}</div>
               {circleInitState==='INITIALIZING'&&<p role="status">{text('Đang khởi tạo kết nối Circle…','Initializing the Circle connection…')}</p>}
               {circleInitState==='UNAVAILABLE'&&prepareCircle&&<button type="button" className="btn btn-secondary" disabled={!!action} onClick={()=>{document.getElementById("circle-login-email")?.focus();void prepareCircle().catch(()=>{});}}>{text('Thử lại kết nối Circle','Retry Circle connection')}</button>}
               <button type="submit" className="btn btn-secondary" disabled={!!action || !circleReady}>{action === "SEND" ? text("Đang gửi OTP…", "Sending OTP…") : circleReady ? text("Gửi mã OTP qua Circle", "Send OTP with Circle") : text("Đăng nhập email hiện chưa sẵn sàng", "Email sign-in is currently unavailable")}</button>
