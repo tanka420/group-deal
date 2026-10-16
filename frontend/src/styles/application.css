@@ -13,6 +13,7 @@
 .ui-row > * { min-width:0; max-width:100%; }
 .ui-row > svg { flex:none; }
 .ui-row .btn { max-width:100%; white-space:normal; }
+.operator-account-profile .btn { max-width:100%; white-space:normal; }
 .ui-stat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:1rem; margin:1.5rem 0; }
 .ui-stat-grid > * { min-width:0; }
 .ui-stat-grid dt,.ui-stat-label { color:var(--text-secondary); font-size:.875rem; }
