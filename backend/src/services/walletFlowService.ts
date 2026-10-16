@@ -9,9 +9,9 @@ import {encryptionKey} from '../utils/crypto';
 import {ArcReadProvider} from './arcReadProvider';
 import {walletSwapService,WalletSwapService} from './walletSwapService';
 import {WalletFlowError,readWalletIntent,walletSendCall,walletErc20,type WalletIntent,type WalletCall} from '../domain/walletQuote';
-import {createWalletFlow,readWalletFlow,walletFlowId,type WalletFlowRecord,type PreparedWalletQuote,type WalletFeeBudget} from '../domain/walletFlow';
+import {createWalletFlow,readWalletFlow,walletFlowId,walletFlowBinding,type WalletFlowRecord,type PreparedWalletQuote,type WalletFeeBudget} from '../domain/walletFlow';
 import {ARC_WALLET_TOKENS,ARC_SWAP_ADAPTER,arcWalletToken,parseWalletAmount,type ArcWalletToken} from '../../../shared/arcWallet.mjs';
-import {prepareSignerAcquisition,prepareSignerRelease,signerReservationId} from '../domain/signerReservation';
+import {prepareSignerAcquisition,prepareSignerRelease,readSignerReservation,signerReservationId} from '../domain/signerReservation';
 import {assertWalletTransaction,verifyWalletReceipt} from '../domain/walletReceipt';
 import {readServerBridgeRpc} from './bridgeReadRpc';
 import type {ServerBridgeRead} from '../domain/bridgeReceipt';
@@ -74,7 +74,7 @@ export class WalletFlowService{
   let tx:any;try{tx=await this.rpc.send('eth_getTransactionByHash',[hash]);}catch{throw new WalletFlowError('WALLET_CHAIN_READ_UNAVAILABLE',503);}if(!tx)throw new WalletFlowError('WALLET_HASH_NOT_OBSERVED');assertWalletTransaction(initial.record,initial.step.index,tx,hash);
   return this.mutate(proof,{id,writeId:stepId},state=>{const user=this.access(proof,state,true),current=readWalletFlow(state.record,encryptionKey),step=current.steps.find(s=>s.id===stepId)!;if(current.principal!==user.activeWallet?.toLowerCase())throw new WalletFlowError('WALLET_SCOPE_CHANGED');if(step.txHash){if(step.txHash!==hash)throw new WalletFlowError('WALLET_HASH_ALREADY_BOUND');return{result:walletFlowDto(current)};}if(current.quoteMac!==initial.record.quoteMac||step.state!=='SIGNING'||step.nonce!==initial.step.nonce)throw new WalletFlowError('WALLET_REVISION_CHANGED');const next=structuredClone(current);Object.assign(next.steps[step.index],{state:'SUBMITTED',txHash:hash});next.revision++;next.updatedAt=Date.now();return{result:walletFlowDto(next),record:next,audit:{action:'WALLET_BROADCAST_OBSERVED',details:{operationId:id,stepId,txHash:hash}}};});
  }
- private assertCircleState(proof:SessionProof,state:WalletFlowState,scope:WalletCircleScope){const user=this.access(proof,state,true),record=readWalletFlow(state.record,encryptionKey);if(record.principal!==user.activeWallet?.toLowerCase()||record.authRecoveryContext!==proof.claims.authRecoveryContext||user.circleWallet?.walletId!==scope.walletId||user.circleWallet?.address.toLowerCase()!==scope.principal||user.circleUserId!==scope.circleUserId)throw new WalletFlowError('WALLET_SCOPE_CHANGED');return record;}
+ private assertCircleState(proof:SessionProof,state:WalletFlowState,scope:WalletCircleScope,mode:'SIGN'|'RESUME'='SIGN'){const user=this.access(proof,state,true),record=readWalletFlow(state.record,encryptionKey);if(record.principal!==user.activeWallet?.toLowerCase()||mode==='SIGN'&&record.authRecoveryContext!==proof.claims.authRecoveryContext||user.circleWallet?.walletId!==scope.walletId||user.circleWallet?.address.toLowerCase()!==scope.principal||user.circleUserId!==scope.circleUserId)throw new WalletFlowError('WALLET_SCOPE_CHANGED');return record;}
  private circleFrame(proof:SessionProof,id:string,stepId:string,mode:'SIGN'|'RECOVER'='SIGN'){const frame=this.signingFrame(proof,id,stepId,mode),wallet=frame.user.circleWallet;if(!wallet||!frame.user.circleUserId||wallet.address.toLowerCase()!==frame.record.principal||wallet.blockchain!=='ARC-TESTNET')throw new WalletFlowError('WALLET_CIRCLE_BINDING_REQUIRED',403);const scope:WalletCircleScope={walletId:wallet.walletId,circleUserId:frame.user.circleUserId,principal:frame.record.principal};if(frame.step.circleRequestId&&(frame.step.circleWalletId!==scope.walletId||frame.step.circleUserId!==scope.circleUserId))throw new WalletFlowError('WALLET_CIRCLE_BINDING_CHANGED',403);return{...frame,scope};}
  async circleChallenge(proof:SessionProof,id:string,stepId:string,raw:unknown){
   const parsed=circleWalletInput.safeParse(raw);if(!parsed.success)throw new WalletFlowError('WALLET_REQUEST_INVALID',400);const {userToken}=parsed.data,initial=this.circleFrame(proof,id,stepId);if(initial.step.state!=='SIGNING')throw new WalletFlowError('WALLET_STEP_NOT_READY');await this.circle.verify(proof,userToken,initial.scope);const verified=this.circleFrame(proof,id,stepId);if(JSON.stringify(initial.scope)!==JSON.stringify(verified.scope))throw new WalletFlowError('WALLET_SCOPE_CHANGED');if(verified.step.challengeId)return walletFlowDto(verified.record);
@@ -83,6 +83,36 @@ export class WalletFlowService{
   const flight=(async()=>{const before=this.circleFrame(proof,id,stepId),step=before.step;if(step.circleRequestId!==reserved.steps[step.index].circleRequestId||step.state!=='SIGNING')throw new WalletFlowError('WALLET_REVISION_CHANGED');let challengeId:string;
    try{challengeId=await this.circle.create(userToken,before.scope,before.record.quote.calls[step.index],before.record.quote.calls[step.index].fee,step.circleRequestId!,stepId,step.circleFeeMode);}catch(error){if(error instanceof WalletFlowError)throw error;throw new WalletFlowError('WALLET_CIRCLE_RESULT_UNKNOWN',503);}
    this.circleFrame(proof,id,stepId);return this.mutate(proof,{id,writeId:stepId},state=>{const current=this.assertCircleState(proof,state,initial.scope),old=current.steps[step.index];if(old.circleRequestId!==step.circleRequestId||old.state!=='SIGNING')throw new WalletFlowError('WALLET_CIRCLE_RESULT_UNKNOWN',503);if(old.challengeId){if(old.challengeId!==challengeId)throw new WalletFlowError('WALLET_CIRCLE_RESULT_UNKNOWN',503);return{result:walletFlowDto(current)};}const next=structuredClone(current);Object.assign(next.steps[step.index],{challengeId,circleStatus:'ISSUED'});next.revision++;next.updatedAt=Date.now();return{result:walletFlowDto(next),record:next,audit:{action:'WALLET_CIRCLE_ISSUED',details:{operationId:id,stepId,challengeId}}};});
+  })();this.circleFlights.set(stepId,flight);try{return await flight;}finally{if(this.circleFlights.get(stepId)===flight)this.circleFlights.delete(stepId);}
+ }
+ private circleResumeReservation(record:WalletFlowRecord,stepId:string,signer:NonNullable<WalletFlowState['signer']>){
+  const owner=signer.target,entry=owner&&signer.entries.find(e=>e.record.id===signerReservationId(owner));
+  if(!owner||!entry||owner.accountId!==record.accountId||owner.chainId!==record.chainId||owner.principal!==record.principal||owner.phase!=='AWAITING_SIGNATURE'||owner.txHash||owner.purpose.kind!=='WALLET_WRITE'||owner.purpose.operationId!==record.id||owner.purpose.writeId!==stepId||owner.bindingHash!=='0x'+walletFlowBinding(record,record.steps.findIndex(s=>s.id===stepId)))throw new WalletFlowError('WALLET_SIGNER_PROOF_REQUIRED');
+  const held=readSignerReservation(entry.record);
+  if(held.phase!=='ACTIVE'||held.authRecoveryContext!==record.authRecoveryContext||held.witnesses?.length||held.completion||held.authorizationExpiryCompletion||held.bindingHash!==owner.bindingHash||signer.entries.some(e=>e!==entry&&e.record.phase!=='RELEASED'))throw new WalletFlowError('WALLET_SIGNER_PROOF_REQUIRED');
+  return JSON.stringify(held);
+ }
+ /** Explicit fresh authentication may retry only an already-reserved Circle
+  * request. Preserve its old quote MAC, nonce, fee mode, hold and idempotency key;
+  * this path cannot grant READY or allocate a new Circle request. */
+ async resumeCircleChallenge(proof:SessionProof,id:string,stepId:string,raw:unknown){
+  const parsed=z.object({userToken:circleWalletInput.shape.userToken,revision:z.number().int().nonnegative().safe()}).strict().safeParse(raw);if(!parsed.success)throw new WalletFlowError('WALLET_REQUEST_INVALID',400);
+  const {userToken,revision}=parsed.data,initial=this.circleFrame(proof,id,stepId,'RECOVER');
+  if(initial.step.state!=='SIGNING'||initial.step.txHash)throw new WalletFlowError('WALLET_CIRCLE_RESUME_UNAVAILABLE');
+  if(initial.record.revision!==revision)throw new WalletFlowError('WALLET_REVISION_CHANGED');
+  if(!initial.step.circleRequestId){if(initial.record.authRecoveryContext!==proof.claims.authRecoveryContext)throw new WalletFlowError('WALLET_CIRCLE_RESUME_UNAVAILABLE');return this.circleChallenge(proof,id,stepId,{userToken});}
+  const held=this.circleResumeReservation(initial.record,stepId,initial.signer);
+  const current=()=>{const frame=this.circleFrame(proof,id,stepId,'RECOVER');if(frame.record.revision!==revision||frame.record.quoteMac!==initial.record.quoteMac||JSON.stringify(frame.scope)!==JSON.stringify(initial.scope)||JSON.stringify(frame.step)!==JSON.stringify(initial.step)||this.circleResumeReservation(frame.record,stepId,frame.signer)!==held)throw new WalletFlowError('WALLET_REVISION_CHANGED');return frame;};
+  await this.circle.verify(proof,userToken,initial.scope);current();
+  if(initial.record.quote.providerDeadline!==undefined&&initial.record.quote.providerDeadline*1000<=Date.now()+5000)throw new WalletFlowError('WALLET_QUOTE_EXPIRED');
+  const [chain,nonce,pending]=await Promise.all([this.rpc.send('eth_chainId',[]),this.rpc.send('eth_getTransactionCount',[initial.record.principal,'latest']),this.rpc.send('eth_getTransactionCount',[initial.record.principal,'pending'])]);current();
+  if(integer(chain)!==5042002n)throw new WalletFlowError('WALLET_CHAIN_UNSUPPORTED',503);
+  if(integer(nonce)!==BigInt(initial.step.nonce!)||integer(pending)!==BigInt(initial.step.nonce!))throw new WalletFlowError('WALLET_PENDING_NONCE_UNRESOLVED');
+  if(initial.step.challengeId)return walletFlowDto(current().record);
+  const existing=this.circleFlights.get(stepId);if(existing){await existing;return walletFlowDto(this.circleFrame(proof,id,stepId,'RECOVER').record);}
+  const flight=(async()=>{const before=current(),step=before.step,call=before.record.quote.calls[step.index];
+   let challengeId:string;try{challengeId=await this.circle.create(userToken,before.scope,call,call.fee,step.circleRequestId!,stepId,step.circleFeeMode);}catch(error){if(error instanceof WalletFlowError)throw error;throw new WalletFlowError('WALLET_CIRCLE_RESULT_UNKNOWN',503);}current();
+   return this.mutate(proof,{id,writeId:stepId},state=>{const record=this.assertCircleState(proof,state,initial.scope,'RESUME'),old=record.steps[step.index];if(record.revision!==revision||record.quoteMac!==initial.record.quoteMac||JSON.stringify(old)!==JSON.stringify(initial.step)||!state.signer||this.circleResumeReservation(record,stepId,state.signer)!==held)throw new WalletFlowError('WALLET_REVISION_CHANGED');const next=structuredClone(record);Object.assign(next.steps[step.index],{challengeId,circleStatus:'ISSUED'});next.revision++;next.updatedAt=Date.now();return{result:walletFlowDto(next),record:next,audit:{action:'WALLET_CIRCLE_RESUMED',details:{operationId:id,stepId,challengeId,afterRecovery:record.authRecoveryContext!==proof.claims.authRecoveryContext}}};});
   })();this.circleFlights.set(stepId,flight);try{return await flight;}finally{if(this.circleFlights.get(stepId)===flight)this.circleFlights.delete(stepId);}
  }
  async circleStatus(proof:SessionProof,id:string,stepId:string,raw:unknown){
