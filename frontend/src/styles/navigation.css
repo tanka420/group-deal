@@ -15,7 +15,7 @@
 .navigation-dialog { width:min(420px,calc(100vw - 2rem)); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); animation:none; }
 .navigation-dialog h2 { margin-bottom:1rem; font-size:1.25rem; }
 .navigation-dialog .primary-navigation { display:grid; clear:both; }
-.account-page { display:grid; gap:1.5rem; max-width:900px; margin:auto; }
+.account-page { display:grid; gap:1.5rem; width:100%; min-width:0; margin:auto; }
 .account-page h1 { font-size:1.75rem; }
 .account-page > .btn { justify-self:start; }
 .account-sections { display:grid; gap:1.5rem; min-width:0; }

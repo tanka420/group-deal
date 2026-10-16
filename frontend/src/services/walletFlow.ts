@@ -38,6 +38,7 @@ export async function sendExternalWalletStep(r:WalletOperation,s:WalletStep,prov
  if(typeof result!=='string'||!/^0x[\da-f]{64}$/i.test(result))throw new WalletUiError('WALLET_BROADCAST_UNKNOWN');saveWalletHash(valid,step,result);onHash(result);assertCurrent();await identity();return result.toLowerCase();
 }
 export function walletError(error:unknown,en:boolean){const code=error instanceof WalletUiError?error.code:'';const hold=signerHoldMessage(code);if(hold)return messageText(hold,en?'en':'vi');const messages:Record<string,[string,string]>={
+ WALLET_QUOTE_RATE_LIMITED:['Bạn đã cập nhật báo giá nhiều lần. Đợi một phút rồi thử lại.','Quotes were refreshed too often. Wait a minute and retry.'],WALLET_QUOTE_UNAVAILABLE:['Chưa lấy được số nhận và phí. Thử lại báo giá.','Amount and fees are unavailable. Retry the quote.'],
  WALLET_CIRCLE_STATUS_UNAVAILABLE:['Chưa đọc được trạng thái từ Circle. Yêu cầu vẫn được giữ; bấm Kiểm tra kết quả để đọc lại, chưa ký lại.','Circle status is unavailable. Keep this request and check its result again; do not sign again.'],
  WALLET_SERVICE_UNAVAILABLE:['Chưa đọc được dữ liệu ví. Thử lại sau; nếu đã ký, giữ nguyên yêu cầu để đối chiếu.','Wallet data is unavailable. Try again later; keep any signed request for review.'],
  WALLET_CIRCLE_REAUTH_REQUIRED:['Phiên ký Circle cần xác thực lại qua email ngay tại đây.','Authenticate your Circle signing session by email here.'],
