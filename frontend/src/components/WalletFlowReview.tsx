@@ -9,7 +9,7 @@ import {useLanguage} from '../context/LanguageContext';
 import {ARC_SWAP_ADAPTER,formatWalletAmount} from '../../../shared/arcWallet.mjs';
 import {WalletUiError,readWalletOperation,walletRequest,walletStepPath,walletSavedHash,sendExternalWalletStep,walletError,walletState,type WalletOperation} from '../services/walletFlow';
 
-export function WalletFlowReview({initial,onChange,onClose,preview=false,inline=false,onView,onBusy,onNewSwap}:{initial:WalletOperation;onChange:(r:WalletOperation)=>void;onClose:()=>void;onOpenAuth?:()=>void;preview?:boolean;inline?:boolean;onView?:(r:WalletOperation,persisted:boolean)=>void;onBusy?:(busy:boolean)=>void;onNewSwap?:()=>void}){
+export function WalletFlowReview({initial,onChange,onClose,preview=false,inline=false,onView,onBusy,onNewSwap,returnFocus}:{initial:WalletOperation;onChange:(r:WalletOperation)=>void;onClose:()=>void;onOpenAuth?:()=>void;preview?:boolean;inline?:boolean;onView?:(r:WalletOperation,persisted:boolean)=>void;onBusy?:(busy:boolean)=>void;onNewSwap?:()=>void;returnFocus?:()=>HTMLElement|null}){
  const {user,token,circleCredentials,executeCircleChallenge,getSessionEpoch}=useAuth(),{account,walletMode,getExternalSigner,refreshBalance}=useWeb3(),external=useExternalWallet(),{language}=useLanguage(),en=language==='en',text=(vi:string,eng:string)=>en?eng:vi;
  const persisted=useRef(!preview);
  const [feeReview,setFeeReview]=useState(false),feeReviewHeading=useRef<HTMLHeadingElement>(null);
@@ -60,7 +60,7 @@ export function WalletFlowReview({initial,onChange,onClose,preview=false,inline=
  const successHeading=useRef<HTMLHeadingElement>(null);useLayoutEffect(()=>{if(state==='CONFIRMED')successHeading.current?.focus();},[state]);
  const maxFee=quote.calls.reduce((n,c)=>n+BigInt(c.fee.maxNetworkFee),0n),formattedFee=ethers.formatUnits(maxFee,18);
  useEffect(()=>{onBusy?.(busy||authBusy);return()=>onBusy?.(false);},[busy,authBusy,onBusy]);
- const surface=(children:ReactNode)=>inline?<>{children}</>:<DialogSurface label={text('Kiểm tra giao dịch ví','Review wallet transaction')} transaction className="wallet-flow-review" busy={busy||authBusy} onClose={onClose}>{children}</DialogSurface>;
+ const surface=(children:ReactNode)=>inline?<>{children}</>:<DialogSurface label={text('Kiểm tra giao dịch ví','Review wallet transaction')} transaction className="wallet-flow-review" busy={busy||authBusy} returnFocus={returnFocus} onClose={onClose}>{children}</DialogSurface>;
  if(state==='CONFIRMED')return surface(<>
   <h2 ref={successHeading} tabIndex={-1}>{quote.kind==='SEND'?text('Chuyển USDC thành công','USDC transfer complete'):text('Hoán đổi thành công','Swap complete')}</h2>
   <p role="status">{text('Đã xác minh giao dịch hoàn tất.','Transaction completion verified.')}</p>
