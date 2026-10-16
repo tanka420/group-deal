@@ -38,6 +38,8 @@ export async function sendExternalWalletStep(r:WalletOperation,s:WalletStep,prov
  if(typeof result!=='string'||!/^0x[\da-f]{64}$/i.test(result))throw new WalletUiError('WALLET_BROADCAST_UNKNOWN');saveWalletHash(valid,step,result);onHash(result);assertCurrent();await identity();return result.toLowerCase();
 }
 export function walletError(error:unknown,en:boolean){const code=error instanceof WalletUiError?error.code:'';const hold=signerHoldMessage(code);if(hold)return messageText(hold,en?'en':'vi');const messages:Record<string,[string,string]>={
+ WALLET_CIRCLE_STATUS_UNAVAILABLE:['Chưa đọc được trạng thái từ Circle. Yêu cầu vẫn được giữ; bấm Kiểm tra kết quả để đọc lại, chưa ký lại.','Circle status is unavailable. Keep this request and check its result again; do not sign again.'],
+ WALLET_SERVICE_UNAVAILABLE:['Chưa đọc được dữ liệu ví. Thử lại sau; nếu đã ký, giữ nguyên yêu cầu để đối chiếu.','Wallet data is unavailable. Try again later; keep any signed request for review.'],
  WALLET_CIRCLE_REAUTH_REQUIRED:['Phiên ký Circle cần xác thực lại qua email ngay tại đây.','Authenticate your Circle signing session by email here.'],
  WALLET_CIRCLE_REQUEST_REJECTED:['Circle từ chối thông số yêu cầu. Yêu cầu được giữ để đối chiếu; chưa tạo lượt gửi khác.','Circle rejected the request parameters. Keep this request for review before creating another transfer.'],
  WALLET_INTENT_INVALID:['Kiểm tra địa chỉ và số lượng. USDC/EURC tối đa 6 số lẻ, cirBTC tối đa 8.','Check the address and amount. USDC/EURC allow 6 decimals; cirBTC allows 8.'],
