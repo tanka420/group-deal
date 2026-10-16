@@ -13,3 +13,5 @@ Các lỗi xác định và sửa:
 Thêm variant --restricted-existing cho2kịch bản backend claim_operation/order_action: dùng SQLite fixture riêng, guard BUY/SELLER mới từ chối nhưng buyer/seller claim và dispute/confirm/breach/settle/resolve của nghĩa vụ cũ vẫn prepare/ready/recover theo receipt. Claim giữ historical seller role với sellerEnabled=false. Không thay runtime backend. Sửa fixture operator dùng ADMIN realm, không nới guard; fixture built dùng URL chi tiết đơn thay route danh sách cũ.
 
 Chỉ scoped evidence, không live financial/provider/admin acceptance. Không app/DB local từ snapshot, full test/CI, replay đơn1–5, release95held, gửi email, ký hoặc broadcast. Candidate NOT_FROZEN/G5G6 OPEN. Các nhánh human/provider/offhost giữ chờ như bàn giao hiện hành.
+
+Đã triển khai frontend0dce624, backend324bca2 giữ. Proof reports/evidence/r567-orders/2026-10-16T12-07-35-691Z/CHECKS.json; SHA256 80d29b24e31dbba6e914621a7e75cf511e7459280509c3022860aaf901bab11e.
