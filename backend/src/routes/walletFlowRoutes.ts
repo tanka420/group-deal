@@ -29,6 +29,7 @@ export function createWalletFlowRouter(options:{database:TransactionalStore;orig
  router.post('/:id/steps/:stepId/recover',run(req=>{empty.parse(req.body);return service.recover(...reference(req));}));
  router.post('/:id/steps/:stepId/circle/challenge',run(req=>service.circleChallenge(...reference(req),req.body)));
  router.post('/:id/steps/:stepId/circle/resume',run(req=>service.resumeCircleChallenge(...reference(req),req.body)));
+ router.post('/:id/steps/:stepId/circle/repair',run(req=>service.repairCircleFee(...reference(req),req.body)));
  router.post('/:id/steps/:stepId/circle/status',run(req=>service.circleStatus(...reference(req),req.body)));
  router.use((error:any,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{if(error?.type==='entity.too.large')res.status(413).json({code:'WALLET_REQUEST_TOO_LARGE'});else if(error?.type==='entity.parse.failed')res.status(400).json({code:'WALLET_REQUEST_INVALID'});else failure(res,error);});return router;
 }
