@@ -835,6 +835,9 @@ img { max-width: 100%; }
 .product-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr)); gap:1rem; margin:1.5rem 0; }
 .product-studio > .glass-card { margin:1.5rem 0; }
 .product-studio h2, .product-studio h3 { margin-bottom:.75rem; }
+.product-studio input[type="file"] { width:100%; max-width:100%; min-width:0; }
+.product-studio input[type="file"]:focus { outline:3px solid var(--primary); outline-offset:3px; }
+.product-studio .resource-file-name { overflow-wrap:anywhere; }
 .seller-create-layout { display:grid; grid-template-columns:180px minmax(0,1fr) 260px; gap:1.25rem; align-items:start; }
 .seller-create-layout:has(.wizard-main:only-child) { grid-template-columns:minmax(0,1fr); }
 .workspace-sidebar { min-width:0; position:sticky; top:calc(var(--app-header-height, 84px) + 16px); }
