@@ -56,7 +56,7 @@ interface AuthContextType {
   circleCredentials: CircleCredentials | null;
   requestOtp: (email: string) => Promise<{ success: boolean; message: string }>;
   verifyOtp: (email: string, code?: string) => Promise<User>;
-  reauthenticateCircle: () => Promise<void>;
+  reauthenticateCircle: (email?: string) => Promise<void>;
   executeCircleChallenge: (challengeId: string) => Promise<void>;
   executeCircleMessageChallenge: (challengeId:string) => Promise<string>;
   getSessionEpoch: () => number;
@@ -441,15 +441,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
     try{sdk.verifyOtp();}catch{loginPromiseRef.current?.reject(new Error("Không thể mở Circle OTP"));loginPromiseRef.current=null;}
   });
   const reauthFlight=useRef(false);
-  const reauthenticateCircle=async()=>{
+  const reauthenticateCircle=async(email?:string)=>{
     if(reauthFlight.current||loginPromiseRef.current)throw new Error('CIRCLE_AUTH_BUSY');
     const expected=userRef.current,sessionToken=tokenRef.current,generation=sessionGenerationRef.current;
-    if(realm!=='APP'||!expected?.email||!expected.circleWallet||!sessionToken)throw new Error('CIRCLE_WALLET_NOT_BOUND');
+    if(realm!=='APP'||!expected?.circleWallet||!sessionToken)throw new Error('CIRCLE_WALLET_NOT_BOUND');
+    // A Circle identity may not expose a verified email claim. The entered
+    // address only starts OTP; the backend still checks the bound Circle user
+    // and wallet before accepting credentials. It does not update the profile.
+    const loginEmail=(expected.email||email||'').trim().toLowerCase();
+    if(loginEmail.length>254||!/^\S+@\S+\.\S+$/.test(loginEmail))throw new Error('CIRCLE_EMAIL_REQUIRED');
     const wallet=expected.circleWallet;
     const check=()=>{const current=userRef.current;if(!circleLifecycle.current.active||generation!==sessionGenerationRef.current||sessionToken!==tokenRef.current||localStorage.getItem(storageKey)!==sessionToken||current?.id!==expected.id||current.activeWallet?.toLowerCase()!==expected.activeWallet?.toLowerCase()||current.circleWallet?.walletId!==wallet.walletId||current.circleWallet.address.toLowerCase()!==wallet.address.toLowerCase())throw new Error('AUTH_SESSION_CHANGED');};
     reauthFlight.current=true;
     try{
-      check();const attempt=await requestOtp(expected.email);check();
+      check();const attempt=await requestOtp(loginEmail);check();
       const credentials=await collectCircleOtp(circleSdkRef.current!);check();
       const ack=await readJson(await circleFetch('/api/circle/reauth',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+sessionToken},body:JSON.stringify({userToken:credentials.userToken,loginAttemptId:attempt.loginAttemptId})}));check();
       if(ack.userId!==expected.id||ack.walletId!==wallet.walletId||typeof ack.address!=='string'||ack.address.toLowerCase()!==wallet.address.toLowerCase())throw new Error('AUTH_RESPONSE_INVALID');
