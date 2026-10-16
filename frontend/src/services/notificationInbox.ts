@@ -48,7 +48,7 @@ export function useNotificationInbox(token:string|null,userId:string|undefined){
       const value=await request("/api/notifications/"+encodeURIComponent(n.id)+"/read",{method:"POST"}),confirmed=item(value.notification,userId);
       if(confirmed.id!==n.id||!confirmed.readAt)throw new Error("READ_UNCONFIRMED");
       if(current(ownEpoch)){revision.current++;setState(previous=>{if(previous.token!==token||previous.userId!==userId)return previous;const wasUnread=previous.rows.some(p=>p.id===n.id&&!p.readAt);return {...previous,rows:previous.rows.map(p=>p.id===n.id?confirmed:p),unread:Math.max(0,previous.unread-(wasUnread?1:0))};});setError(false);}
-    }catch{if(current(ownEpoch))setError(true);}
+    }catch{if(current(ownEpoch))setError(true);return false;}
     finally{if(current(ownEpoch))reads.current.delete(n.id);}
     return current(ownEpoch);
   };

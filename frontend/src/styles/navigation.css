@@ -9,16 +9,20 @@
 .account-dropdown-menu { overflow:hidden; padding:.5rem; animation:none; backdrop-filter:none; }
 .popover-scroll { max-height:calc(100dvh - var(--app-header-height,96px) - 40px); overflow:auto; overscroll-behavior:contain; scrollbar-gutter:stable; padding:.25rem; }
 .notification-popover { width:380px; }
+@media(max-width:768px) { .notification-popover { width:auto; } }
 .popover-scroll .btn { white-space:normal; }
 .popover-scroll::-webkit-scrollbar { width:4px; }
 .popover-scroll::-webkit-scrollbar-thumb { background:var(--border-medium); border-radius:999px; }
 .navigation-dialog { width:min(420px,calc(100vw - 2rem)); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); animation:none; }
 .navigation-dialog h2 { margin-bottom:1rem; font-size:1.25rem; }
 .navigation-dialog .primary-navigation { display:grid; clear:both; }
-.account-page { display:grid; gap:1.5rem; width:100%; min-width:0; margin:auto; }
+.account-page { display:grid; grid-template-columns:minmax(0,1fr); gap:1.5rem; width:100%; min-width:0; margin:auto; }
 .account-page h1 { font-size:1.75rem; }
 .account-page > .btn { justify-self:start; }
-.account-sections { display:grid; gap:1.5rem; min-width:0; }
+.account-page .btn { max-width:100%; white-space:normal; }
+.account-page :is(p,code,legend,strong) { overflow-wrap:anywhere; }
+.account-sections { display:grid; grid-template-columns:minmax(0,1fr); gap:1.5rem; min-width:0; }
+.notification-preferences fieldset { min-inline-size:0; }
 .wallet-overview { display:grid; gap:1rem; padding:1.5rem; }
 .wallet-overview .btn { justify-self:start; }
 .wallet-address { overflow-wrap:anywhere; }
@@ -29,11 +33,11 @@
 }
 @media(min-width:1200px) { .header .account-summary { display:none!important; } }
 @media(max-width:767px) {
- .header-inner { display:flex; flex-wrap:nowrap; gap:.5rem; }
+ .header-inner { display:flex; flex-wrap:wrap; gap:.5rem; }
  .header .logo-group { gap:.4rem; }
  .header .logo-text { font-size:1.1rem; }
  .header .logo-text > span, .header .account-summary, .header-funding { display:none!important; }
- .header .header-actions { gap:.35rem; flex-wrap:nowrap; }
+ .header .header-actions { gap:.35rem; flex-wrap:nowrap; margin-left:auto; }
  .header .account-pill-btn { padding:.25rem; gap:.25rem; }
  .header .account-pill-btn > svg { display:none; }
  .header .mobile-menu-button { padding:.6rem; }
