@@ -5,6 +5,7 @@ import {readUser,readSession,AppSession} from "../services/appSession";
 import {circleDeviceId} from "../services/circleDevice";
 import {InitialCircleWallet,readInitialCircleWalletChoices,readInitialCircleWalletAck} from "../services/circleWalletChoice";
 import {readAdminLoginChallenge} from '../services/adminLogin';
+import {readCircleLoginEmail,rememberCircleLoginEmail,forgetCircleLoginEmail} from '../services/circleLoginEmail';
 
 interface EmailLoginResult {
   userToken: string;
@@ -54,6 +55,7 @@ interface AuthContextType {
   selectInitialCircleWallet: (walletId:string) => Promise<void>;
   retryCircleWallet: () => Promise<void>;
   circleCredentials: CircleCredentials | null;
+  circleLoginEmail: string;
   requestOtp: (email: string) => Promise<{ success: boolean; message: string }>;
   verifyOtp: (email: string, code?: string) => Promise<User>;
   reauthenticateCircle: (email?: string) => Promise<void>;
@@ -99,6 +101,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
   const [circleWalletChoiceUnknown,setCircleWalletChoiceUnknown]=useState(false);
   const circleChoiceFlightRef=useRef<number|null>(null);
   const [circleCredentials, setCircleCredentials] = useState<CircleCredentials | null>(null);
+  const [circleLoginEmail,setCircleLoginEmail]=useState('');
+  const circleRequestedEmailRef=useRef(''),circleLoginHintRef=useRef<{userId:string;email:string}|null>(null);
   const circleDeviceRef=useRef<string|null>(null);
   const [circleInitState,setCircleInitState]=useState<AuthContextType["circleInitState"]>("IDLE");
   const circleLifecycle=useRef({active:true,epoch:0});
@@ -120,6 +124,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
 
   const acceptUser=(value:unknown,expectedId?:string)=>{
     const next=readUser(value);if(expectedId&&next.id!==expectedId)throw new Error("AUTH_RESPONSE_INVALID");
+    const hint=realm==='APP'&&next.loginMethod==='CIRCLE_EMAIL'?(next.email||(circleLoginHintRef.current?.userId===next.id?circleLoginHintRef.current.email:'')||readCircleLoginEmail(next)):'';
+    setCircleLoginEmail(hint);if(hint)rememberCircleLoginEmail(next,hint);
     userRef.current=next;setUser(next);return next;
   };
   const discardIssuedSession=(sessionToken:unknown)=>{
@@ -213,6 +219,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
   const prepareCircle = useCallback(async () => { await ensureCircle(); }, [ensureCircle]);
 
   const clearLocal = () => {
+    if(realm==='APP')forgetCircleLoginEmail(userRef.current);
+    circleRequestedEmailRef.current='';circleLoginHintRef.current=null;setCircleLoginEmail('');
     const previousToken=tokenRef.current;
     sessionGenerationRef.current += 1;
     circleSyncAttemptRef.current += 1;
@@ -330,6 +338,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
       },
     });
     setLoginAttemptId(data.loginAttemptId);
+    circleRequestedEmailRef.current=email.trim().toLowerCase();
     return { success: true, message: "OTP đã được Circle gửi qua email.",loginAttemptId:data.loginAttemptId as string };
   };
 
@@ -448,7 +457,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
     // A Circle identity may not expose a verified email claim. The entered
     // address only starts OTP; the backend still checks the bound Circle user
     // and wallet before accepting credentials. It does not update the profile.
-    const loginEmail=(expected.email||email||'').trim().toLowerCase();
+    const loginEmail=(expected.email||readCircleLoginEmail(expected)||email||'').trim().toLowerCase();
     if(loginEmail.length>254||!/^\S+@\S+\.\S+$/.test(loginEmail))throw new Error('CIRCLE_EMAIL_REQUIRED');
     const wallet=expected.circleWallet;
     const check=()=>{const current=userRef.current;if(!circleLifecycle.current.active||generation!==sessionGenerationRef.current||sessionToken!==tokenRef.current||localStorage.getItem(storageKey)!==sessionToken||current?.id!==expected.id||current.activeWallet?.toLowerCase()!==expected.activeWallet?.toLowerCase()||current.circleWallet?.walletId!==wallet.walletId||current.circleWallet.address.toLowerCase()!==wallet.address.toLowerCase())throw new Error('AUTH_SESSION_CHANGED');};
@@ -458,10 +467,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
       const credentials=await collectCircleOtp(circleSdkRef.current!);check();
       const ack=await readJson(await circleFetch('/api/circle/reauth',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+sessionToken},body:JSON.stringify({userToken:credentials.userToken,loginAttemptId:attempt.loginAttemptId})}));check();
       if(ack.userId!==expected.id||ack.walletId!==wallet.walletId||typeof ack.address!=='string'||ack.address.toLowerCase()!==wallet.address.toLowerCase())throw new Error('AUTH_RESPONSE_INVALID');
+      circleLoginHintRef.current={userId:expected.id,email:loginEmail};rememberCircleLoginEmail(expected,loginEmail);setCircleLoginEmail(loginEmail);
       circleSdkRef.current!.setAuthentication({userToken:credentials.userToken,encryptionKey:credentials.encryptionKey});setCircleCredentials(credentials);
     }finally{reauthFlight.current=false;}
   };
   const verifyOtp = async (_email: string, _code?: string) => {
+    const hintEmail=circleRequestedEmailRef.current;
     const generation = ++sessionGenerationRef.current;
     circleSyncAttemptRef.current++;circleChoiceFlightRef.current=null;setCircleWalletChoices([]);setCircleWalletChoiceUnknown(false);setCircleWalletSyncing(false);
     setLogoutState("NONE");setSessionNotice(null);
@@ -485,6 +496,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
       tokenRef.current=session.token;
       setToken(session.token);
       localStorage.setItem(storageKey, session.token);
+      if(hintEmail)circleLoginHintRef.current={userId:next.id,email:hintEmail};
       acceptUser(next);
       void syncCircleWalletInBackground(session.token, credentials);
       return session.user as User;
@@ -589,6 +601,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
         circleWalletChoices,circleWalletChoiceUnknown,selectInitialCircleWallet,
         retryCircleWallet,
         circleCredentials,
+        circleLoginEmail,
         requestOtp,
         verifyOtp,
         reauthenticateCircle,

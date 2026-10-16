@@ -3,7 +3,7 @@ import {useAuth} from '../context/AuthContext';
 
 /** OTP stays in Circle's UI; the transaction and APP session stay in place. */
 export function WalletCircleAuth({en,onBusy,onReady}:{en:boolean;onBusy:(busy:boolean)=>void;onReady:()=>void}){
- const {user,reauthenticateCircle}=useAuth(),[email,setEmail]=useState(user?.email||''),[busy,setBusy]=useState(false),[error,setError]=useState(false),alive=useRef(true),flight=useRef(false);
+ const {user,circleLoginEmail,reauthenticateCircle}=useAuth(),[email,setEmail]=useState(user?.email||circleLoginEmail||''),[busy,setBusy]=useState(false),[error,setError]=useState(false),alive=useRef(true),flight=useRef(false);
  useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
  const run=async()=>{if(flight.current)return;flight.current=true;setBusy(true);setError(false);onBusy(true);try{await reauthenticateCircle(email);if(alive.current)onReady();}catch{if(alive.current)setError(true);}finally{flight.current=false;if(alive.current){setBusy(false);onBusy(false);}}};
  return <section className="notice wallet-inline-auth" aria-label={en?'Authenticate Circle wallet':'Xác thực ví Circle'}>
