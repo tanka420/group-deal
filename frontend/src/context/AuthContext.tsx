@@ -445,9 +445,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
 
   const collectCircleOtp = async (sdk:W3SSdk):Promise<CircleCredentials> => new Promise((resolve,reject)=>{
     if(loginPromiseRef.current){reject(new Error("Một lần xác thực Circle đang chạy"));return;}
-    const timeout=window.setTimeout(()=>{loginPromiseRef.current=null;reject(new Error("Hết thời gian xác thực Circle. Mở lại để tiếp tục."));},120_000);
-    loginPromiseRef.current={resolve:result=>{clearTimeout(timeout);resolve(result);},reject:error=>{clearTimeout(timeout);reject(error);}};
-    try{sdk.verifyOtp();}catch{loginPromiseRef.current?.reject(new Error("Không thể mở Circle OTP"));loginPromiseRef.current=null;}
+    let frame:HTMLIFrameElement|null=null,settled=false;
+    const ownedFrame=()=>frame&&document.getElementById('sdkIframe')===frame&&frame.src.startsWith('https://pw-auth.circle.com/social/verify-email?');
+    const cleanup=()=>{
+      window.clearTimeout(openTimeout);window.clearTimeout(timeout);window.removeEventListener('message',onMessage);
+      // An expired OTP iframe must not keep intercepting the retry button. Never
+      // remove a newer provider window or a financial challenge iframe.
+      if(ownedFrame())frame!.remove();
+      if(loginPromiseRef.current===pending)loginPromiseRef.current=null;
+    };
+    const pending={
+      resolve:(result:EmailLoginResult)=>{if(settled)return;settled=true;cleanup();resolve(result);},
+      reject:(error:Error)=>{if(settled)return;settled=true;cleanup();reject(error);},
+    };
+    const onMessage=(event:MessageEvent)=>{
+      if(!ownedFrame()||event.origin!=='https://pw-auth.circle.com'||event.source!==frame!.contentWindow)return;
+      if(event.data?.onFrameReady)window.clearTimeout(openTimeout);
+    };
+    const openTimeout=window.setTimeout(()=>pending.reject(new Error('CIRCLE_OTP_WINDOW_UNAVAILABLE')),15_000);
+    const timeout=window.setTimeout(()=>pending.reject(new Error("Hết thời gian xác thực Circle. Mở lại để tiếp tục.")),120_000);
+    loginPromiseRef.current=pending;
+    window.addEventListener('message',onMessage);
+    try{sdk.verifyOtp();frame=document.getElementById('sdkIframe') as HTMLIFrameElement|null;}
+    catch{pending.reject(new Error('CIRCLE_OTP_WINDOW_UNAVAILABLE'));}
   });
   const reauthFlight=useRef(false);
   const reauthenticateCircle=async(email?:string)=>{

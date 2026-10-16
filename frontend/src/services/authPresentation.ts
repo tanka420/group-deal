@@ -13,6 +13,8 @@ export function authErrorMessage(error: unknown, action: "SEND" | "VERIFY" | "WA
   const code = typeof error === "object" && error ? (error as { code?: unknown }).code : undefined;
   if (requiresWalletReload(error))
     return walletReloadError().displayMessage;
+  if (message === "CIRCLE_OTP_WINDOW_UNAVAILABLE")
+    return uiMessage("Cửa sổ xác thực Circle chưa tải được và đã đóng. Bấm mở xác thực lại với mã đã nhận; chưa cần gửi mã mới.", "Circle’s authentication window did not load and was closed. Reopen authentication with the code you received; no new code is needed yet.");
   if (code === 4001 || code === "ACTION_REJECTED" || /user rejected|user denied|Bạn đã đóng (?:xác thực Circle|kết nối ví)/i.test(message))
     return uiMessage("Bạn đã từ chối hoặc đóng xác thực. Có thể mở lại khi sẵn sàng.", "You declined or closed authentication. You can reopen it when ready.");
   if (/Quá nhiều yêu cầu|Vui lòng đợi|RATE_LIMIT|TOO_MANY_REQUESTS/.test(message))
