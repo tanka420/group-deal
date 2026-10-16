@@ -18,6 +18,7 @@ export const authRouter = Router();
 const adminRealm=(req:import('express').Request)=>req.baseUrl.toLowerCase()==='/api/admin-auth'?'ADMIN' as const:undefined;
 authRouter.use((req,res,next)=>{
  res.setHeader('Cache-Control','private, no-store');
+ res.setHeader('X-Content-Type-Options','nosniff');
  const admin=adminRealm(req)==='ADMIN',login=/^\/wallet\/login\/(challenge|verify)$/.test(req.path);
  if(admin&&!/^\/(?:wallet\/login\/(?:challenge|verify)|me|logout|session\/activity|operator\/enrollment(?:\/(?:challenge|verify))?|wallet\/challenge)$/.test(req.path)){res.status(404).json({error:'ADMIN_AUTH_ROUTE_UNAVAILABLE'});return;}
  if(!login&&(admin||/^\/operator\/enrollment(?:\/|$)/.test(req.path)||/^\/(?:logout|sessions|session-actions)(?:\/|$)/.test(req.path))){

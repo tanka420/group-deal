@@ -5,13 +5,14 @@ import {store,type TransactionalStore} from '../db/store';
 import {SessionRegistry,SessionError} from '../services/sessionService';
 import {WalletFlowService} from '../services/walletFlowService';
 import {WalletFlowError} from '../domain/walletQuote';
+import {WalletCircleRejectedError} from '../domain/walletCircleRejection';
 import {CircleAuthError} from '../domain/circleAuthentication';
 import {SignerReservationError} from '../domain/signerReservation';
 import {publicRateLimit} from '../middleware/publicRateLimit';
 import type {AuthenticatedRequest} from '../middleware/auth';
 
 const id=z.string().regex(/^wop_[a-f0-9]{64}$/),stepId=z.string().regex(/^wrt_[a-f0-9]{64}$/),empty=z.object({}).strict();
-function failure(res:express.Response,error:unknown){const e=error instanceof WalletFlowError||error instanceof SessionError||error instanceof CircleAuthError||error instanceof SignerReservationError?error:undefined;const status=error instanceof z.ZodError?400:e?.status??503;if(status===429)res.setHeader('Retry-After','60');res.status(status).json({code:e?.code??(status===400?'WALLET_REQUEST_INVALID':'WALLET_SERVICE_UNAVAILABLE')});}
+function failure(res:express.Response,error:unknown){const e=error instanceof WalletFlowError||error instanceof SessionError||error instanceof CircleAuthError||error instanceof SignerReservationError?error:undefined;const status=error instanceof z.ZodError?400:e?.status??503;if(status===429)res.setHeader('Retry-After','60');res.status(status).json({code:e?.code??(status===400?'WALLET_REQUEST_INVALID':'WALLET_SERVICE_UNAVAILABLE'),...(error instanceof WalletCircleRejectedError?{diagnosticId:error.rejection.diagnosticId}:{})});}
 export function createWalletFlowRouter(options:{database:TransactionalStore;origins:string[];service?:WalletFlowService}){
  const router=Router(),sessions=new SessionRegistry(options.database),service=options.service??new WalletFlowService(options.database),origins=new Set(options.origins),buckets=new Map<string,{expiresAt:number;count:number}>(),busy=new Set<string>();
  router.use((_req,res,next)=>{res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');next();});router.use(publicRateLimit(240));

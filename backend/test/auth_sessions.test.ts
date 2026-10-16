@@ -33,7 +33,7 @@ async function main(){
  }
  {
   const {s,db}=fixture(),now=Date.now,base=now();Date.now=()=>base;
-  try{const token=s.issue(db.db.users.a),start=s.authenticate(token).record.lastActivityAt;Date.now=()=>base+29*60_000;assert.equal(s.authenticate(token).record.lastActivityAt,start);s.current(s.authenticate(token));assert.equal(s.authenticate(token).record.lastActivityAt,start,"Reads must not extend idle expiry");s.activity(token);Date.now=()=>base+31*60_000;assert.equal(s.authenticate(token).record.state,"ACTIVE");Date.now=()=>base+59*60_000;rejected(()=>s.activity(token),"AUTH_SESSION_INACTIVE");
+  try{const token=s.issue(db.db.users.a),start=s.authenticate(token).record.lastActivityAt;Date.now=()=>base+31*60_000;assert.equal(s.authenticate(token).record.state,"ACTIVE","Thirty minutes must no longer end a session");Date.now=()=>base+24*60*60_000-1;assert.equal(s.authenticate(token).record.lastActivityAt,start);assert.equal(s.current(s.authenticate(token)).session.idleExpiresAt,start+24*60*60_000);assert.equal(s.authenticate(token).record.lastActivityAt,start,"Reads must not extend idle expiry");Date.now=()=>base+24*60*60_000;rejected(()=>s.authenticate(token),"AUTH_SESSION_INACTIVE");Date.now=()=>base+23*60*60_000;s.activity(token);Date.now=()=>base+46*60*60_000;assert.equal(s.authenticate(token).record.state,"ACTIVE");Date.now=()=>base+47*60*60_000;rejected(()=>s.activity(token),"AUTH_SESSION_INACTIVE");
    Date.now=()=>base;const abs=s.issue(db.db.users.a);Date.now=()=>base+7*24*60*60_000;rejected(()=>s.authenticate(abs),"AUTH_SESSION_INVALID");
   }finally{Date.now=now;}checks++;
  }

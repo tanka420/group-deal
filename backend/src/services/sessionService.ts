@@ -9,7 +9,7 @@ import {StorageConflict} from "../db/rowPersistence";
 import type {SessionManagementSelection,SessionManagementState,SessionManagementPlan,SessionManagementPatch} from '../db/rowPersistence';
 import {readAuthRecoveryBarrier} from '../domain/authRecovery';
 
-const absoluteSeconds=7*24*60*60,idleMs=30*60*1000,issuer="groupdeal",audience="groupdeal:app";
+const absoluteSeconds=7*24*60*60,idleMs=24*60*60*1000,issuer="groupdeal",audience="groupdeal:app";
 const publicId=/^ses_[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 const time=z.number().int().nonnegative().max(8640000000000000),uuid=z.string().uuid();
 const recordSchema=z.object({realm:z.literal("ADMIN").optional(),id:z.string().regex(publicId),userId:z.string().min(1).max(128),kind:z.enum(["MANAGED","LEGACY"]),loginMethod:z.enum(["CIRCLE_EMAIL","EVM_WALLET","UNKNOWN"]),issuedAt:time,expiresAt:time,createdAt:time,lastActivityAt:time,legacyEpoch:z.number().int().nonnegative().optional(),authRecoveryContext:z.string().regex(/^[A-Za-z0-9_-]{43}$/).optional(),state:z.enum(["ACTIVE","REVOKED"]),revokedAt:time.optional(),revokeReason:z.enum(["LOGOUT","USER_REVOKED","OTHER_SESSIONS","ALL_SESSIONS"]).optional(),revokeRequestId:uuid.optional()}).refine(r=>r.expiresAt>r.issuedAt&&r.expiresAt-r.issuedAt<=absoluteSeconds&&r.createdAt>=r.issuedAt*1000-30000&&r.createdAt<r.expiresAt*1000&&r.lastActivityAt>=r.createdAt);

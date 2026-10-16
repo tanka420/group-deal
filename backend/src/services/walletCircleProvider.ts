@@ -9,6 +9,7 @@ import {WalletFlowError} from '../domain/walletQuote';
 import {CircleWalletService} from './circleWalletService';
 import {circleProviderChallengeId} from '../domain/circleChallenge';
 import {circleProviderStatusChallenge} from '../domain/circleStatus';
+import {readWalletCircleRejection,WalletCircleRejectedError} from '../domain/walletCircleRejection';
 
 export type WalletCircleScope={walletId:string;circleUserId:string;principal:string};
 export interface WalletCircleTransport{
@@ -46,12 +47,13 @@ export class WalletCircleProvider implements WalletCircleTransport{
   const feeConfig:FeeConfiguration<FeeLevel>=feeMode==='EIP1559'?{type:'absolute',config:{gasLimit:fee.gasLimit,maxFee:ethers.formatUnits(fee.maxFeePerGas,9),priorityFee:ethers.formatUnits(BigInt(fee.maxFeePerGas)/2n,9)}}:{type:'gas',config:{gasLimit:fee.gasLimit,gasPrice:ethers.formatUnits(fee.maxFeePerGas,9)}};
   try{const response=await bounded(()=>this.required().createUserTransactionContractExecutionChallenge({userToken,walletId:scope.walletId,contractAddress:ethers.getAddress(call.to),callData:call.data as `0x${string}`,fee:feeConfig,idempotencyKey:requestId,refId,xRequestId}));return circleProviderChallengeId(response.data?.challengeId);}
   catch(error){
-   const e=error as {status?:unknown;code?:unknown;response?:{status?:unknown;data?:{code?:unknown}}},status=e?.status??e?.response?.status,rawCode=e?.code??e?.response?.data?.code;
+   const rejection=readWalletCircleRejection(error,requestId,xRequestId,feeMode!=='EIP1559');
+   const e=error as {status?:unknown;code?:unknown;response?:{status?:unknown;data?:{code?:unknown}};error?:{response?:{status?:unknown;data?:{code?:unknown}}}},status=e?.status??e?.response?.status??e?.error?.response?.status,rawCode=rejection?.providerCode??e?.response?.data?.code??e?.error?.response?.data?.code??e?.code;
    const providerCode=typeof rawCode==='number'&&Number.isSafeInteger(rawCode)?String(rawCode):typeof rawCode==='string'&&/^[A-Z0-9_\-]{1,48}$/i.test(rawCode)?rawCode:undefined;
    // Never log the SDK error object: it can contain API keys and user tokens.
-   console.warn(JSON.stringify({event:'WALLET_CIRCLE_CREATE_RESULT',requestId:xRequestId,stepId:refId,...(Number.isInteger(status)?{httpStatus:status}:{}),...(providerCode?{providerCode}:{}),outcome:status===400||status===422?'REJECTED':'UNKNOWN'}));
+   console.warn(JSON.stringify({event:'WALLET_CIRCLE_CREATE_RESULT',requestId:xRequestId,stepId:refId,...(Number.isInteger(status)?{httpStatus:status}:{}),...(providerCode?{providerCode}:{}),...(rejection?{validationFields:rejection.validationFields,validationCategory:rejection.category}:{}),outcome:status===400||status===422?'REJECTED':'UNKNOWN'}));
    if(status===401||status===403)throw new WalletFlowError('WALLET_CIRCLE_REAUTH_REQUIRED',401);
-   if(status===400||status===422)throw new WalletFlowError('WALLET_CIRCLE_REQUEST_REJECTED',409);
+   if(rejection)throw new WalletCircleRejectedError(rejection);
    if(error instanceof WalletFlowError)throw error;
    throw new WalletFlowError('WALLET_CIRCLE_RESULT_UNKNOWN',503);
   }
