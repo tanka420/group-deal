@@ -15,6 +15,7 @@ on:
           - full
           - tooling
           - r7-forms
+          - r7-profile
           - current-arc-delta
           - ui-foundation
           - ui-catalog
@@ -32,6 +33,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  r7-profile:
+    if: github.event_name == 'workflow_dispatch' && inputs.scope == 'r7-profile'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '24.21.0'
+          package-manager-cache: false
+      - name: Verify R7 seller profile source scope
+        run: node scripts/run_r7_profile_checks.cjs --check-scope
+      - name: Locked affected dependencies
+        run: |
+          npm install --global npm@11.6.2 --no-audit --no-fund --registry=https://registry.npmjs.org
+          npm ci --prefix backend --no-audit --no-fund
+          npm ci --prefix frontend --no-audit --no-fund
+      - name: Chromium for isolated UI fixtures
+        working-directory: frontend
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Tooling, type, build and scoped seller profile checks
+        run: node scripts/run_r7_profile_checks.cjs
+      - name: Redacted R7 seller profile results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: r7-profile-${{ github.sha }}
+          path: |
+            .cache/r7-profile-ci-*.json
+            .cache/browser-run-*.json
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
+
   r7-forms:
     if: github.event_name == 'workflow_dispatch' && inputs.scope == 'r7-forms'
     runs-on: ubuntu-24.04
