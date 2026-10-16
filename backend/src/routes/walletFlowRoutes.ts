@@ -22,6 +22,8 @@ export function createWalletFlowRouter(options:{database:TransactionalStore;orig
  router.get('/balances',run(req=>service.balances(req.sessionProof!)));
  router.get('/',run(req=>service.list(req.sessionProof!,req.query),true));
  router.post('/quote',run(req=>service.quote(req.sessionProof!,req.body)));
+ router.post('/preview',run(req=>service.preview(req.sessionProof!,req.body)));
+ router.post('/start',run(req=>service.start(req.sessionProof!,req.body)));
  router.get('/:id',run(req=>service.read(req.sessionProof!,id.parse(req.params.id))));
  const reference=(req:AuthenticatedRequest)=>[req.sessionProof!,id.parse(req.params.id),stepId.parse(req.params.stepId)] as const;
  router.post('/:id/steps/:stepId/ready',run(req=>service.ready(...reference(req),req.body)));
