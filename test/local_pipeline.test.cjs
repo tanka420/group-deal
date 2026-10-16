@@ -1,6 +1,10 @@
 const assert=require('node:assert/strict'),path=require('node:path'),fs=require('node:fs'),crypto=require('node:crypto'),net=require('node:net'),{spawnSync}=require('node:child_process');
 const {localCheckEnvironment}=require('../scripts/local_check_runtime.cjs'),{steps}=require('../scripts/pipeline_verification.cjs'),{scanText}=require('../scripts/scan_candidate_secrets.cjs');
 const root=path.resolve(__dirname,'..');
+function immutableActionReferences(workflow){
+ const references=[...workflow.matchAll(/^\s*(?:-\s*)?uses:\s*(\S+)/gm)].map(match=>match[1]);
+ return references.length>=3&&references.every(ref=>/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_./-]+@[a-f0-9]{40}$/.test(ref))&&['actions/checkout','actions/setup-node','actions/upload-artifact'].every(action=>references.some(ref=>ref.startsWith(action+'@')));
+}
 async function main(){
  const sentinel='GROUPDEAL_TOOLING_SENTINEL_TOKEN',previous=process.env[sentinel];process.env[sentinel]=crypto.randomBytes(32).toString('hex');
  const inheritedProject=process.env.VITE_REOWN_PROJECT_ID;process.env.VITE_REOWN_PROJECT_ID=crypto.randomBytes(16).toString('hex');
@@ -31,7 +35,11 @@ async function main(){
  const blocked=spawnSync(process.execPath,['-e','fetch("https://rpc.drpc.testnet.arc.io").then(()=>process.exitCode=2).catch(e=>{process.exitCode=e.message.startsWith("LOCAL_CHECK_NETWORK_GUARD:")?0:3;});'],{cwd:root,env:first,encoding:'utf8'});assert.ok(blocked.status===0,'Hardcoded Arc fallback must also be blocked before network access');
  const probe=net.createServer();await new Promise((resolve,reject)=>{probe.once('error',reject);probe.listen(0,'127.0.0.1',resolve);});
  try{const port=probe.address().port,result=spawnSync(process.execPath,['scripts/run_browser_checks.cjs','--port='+port],{cwd:root,encoding:'utf8',timeout:10000});assert.ok(result.status===1&&/already occupied/.test(result.stderr),'Occupied server must fail before reuse');assert.ok(probe.listening,'Runner must not stop an existing server');}finally{await new Promise(resolve=>probe.close(resolve));}
- const workflow=fs.readFileSync(path.join(root,'.github/workflows/local-candidate.yml'),'utf8');assert.ok(!/pull_request_target|secrets\.|deploy:|arc-live/.test(workflow),'PR checks must have no privileged/live step');assert.ok(/persist-credentials: false/.test(workflow)&&/contents: read/.test(workflow));assert.ok((workflow.match(/uses: actions\/[a-z-]+@[a-f0-9]{40}/g)||[]).length===3,'All actions must use immutable commit refs');
+ const workflow=fs.readFileSync(path.join(root,'.github/workflows/local-candidate.yml'),'utf8');assert.ok(!/pull_request_target|secrets\.|deploy:|arc-live/.test(workflow),'PR checks must have no privileged/live step');assert.ok(/persist-credentials: false/.test(workflow)&&/contents: read/.test(workflow));assert.ok(immutableActionReferences(workflow),'Every action use must have an immutable commit ref, across every job');
+ const pinned=['actions/checkout','actions/setup-node','actions/upload-artifact'].map(action=>'      - uses: '+action+'@'+'a'.repeat(40)).join('\n');
+ assert.ok(immutableActionReferences(Array(8).fill(pinned).join('\n')),'Multiple jobs may reuse correctly pinned actions');
+ for(const floating of ['actions/checkout@main','actions/setup-node@v7','actions/upload-artifact@'+'a'.repeat(39),'${{ inputs.action }}'])assert.equal(immutableActionReferences(pinned+'\n      - uses: '+floating),false,'An extra unpinned use must fail even when the required three uses are pinned');
+ assert.equal(immutableActionReferences(pinned.replace(/actions\/setup-node/g,'actions/checkout')),false,'Required action coverage must remain present');
  console.log('PASS LOCAL_TOOLING: fresh purpose credentials pass actual runtime guard, no live RPC/provider/deploy/cleanup steps, exact redacted secret exceptions, immutable workflow refs and occupied-server refusal. No clean-checkout/GitHub/G5 proof.');
 }
-main().catch(()=>{console.error('FAIL LOCAL_TOOLING: isolation/redaction/workflow invariant failed; values withheld');process.exitCode=1;});
+main().catch(error=>{const location=/local_pipeline\.test\.cjs:\d+(?::\d+)?/.exec(error?.stack??'')?.[0]??'location unavailable';console.error('FAIL LOCAL_TOOLING: isolation/redaction/workflow invariant failed at '+location+'; values withheld');process.exitCode=1;});
