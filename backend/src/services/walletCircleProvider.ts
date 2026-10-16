@@ -60,7 +60,9 @@ export class WalletCircleProvider implements WalletCircleTransport{
  async transaction(userToken:string,id:string){return this.read('TRANSACTION',async()=>{const response=await this.required().getTransaction({userToken,id,xRequestId:crypto.randomUUID()});return response.data?.transaction;});}
  async findTransaction(userToken:string,scope:WalletCircleScope,refId:string){
   return this.read('FIND_TRANSACTION',async()=>{
-  const response=await this.required().listTransactions({userToken,walletIds:[scope.walletId],blockchain:'ARC-TESTNET',pageSize:50,xRequestId:crypto.randomUUID()});
+  // Circle rejects combining walletIds and blockchain. verify() already pins
+  // this exact wallet to Arc; the service validates ownership and chain data.
+  const response=await this.required().listTransactions({userToken,walletIds:[scope.walletId],pageSize:50,xRequestId:crypto.randomUUID()});
   const rows=response.data?.transactions;if(!Array.isArray(rows))throw new WalletFlowError('WALLET_CIRCLE_RESULT_UNKNOWN',503);
   const matches=rows.filter(t=>t.refId===refId);if(matches.length>1)throw new WalletFlowError('WALLET_CIRCLE_RESULT_UNKNOWN',503);
   // No match in a bounded page is never proof that a request was not submitted.
