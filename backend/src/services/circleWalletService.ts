@@ -124,6 +124,16 @@ export class CircleWalletService {
     if(response.data?.status!=='ENABLED'||response.data?.id!==current.circleUserId)throw new CircleAuthError('CIRCLE_WALLET_NOT_BOUND',403,'Circle session is not bound to this GroupDeal account');return current;
   }
   public static async assertBoundIdentity(userId:string,userToken:string,proof?:SessionProof):Promise<{circleUserId:string}>{const current=await this.authenticatedWalletAuthority(userId,userToken,proof);return{circleUserId:current.circleUserId}}
+  /** Refresh signing credentials without issuing an APP session or changing a wallet. */
+  public static async reauthenticate(userToken:string,loginAttemptId:string,proof:SessionProof){
+    if(proof.record.realm==='ADMIN')throw new CircleAuthError('CIRCLE_WALLET_NOT_BOUND',403);
+    const initial=AuthService.circleWalletAuthority(proof.account.id,proof);
+    await this.assertBoundIdentity(proof.account.id,userToken,proof);
+    const identity=await this.verifyIdentity(userToken,loginAttemptId);
+    const current=AuthService.circleWalletAuthority(proof.account.id,proof);sameCircleAuthority(initial,current);
+    if(identity.circleUserId!==current.circleUserId||!current.wallet)throw new CircleAuthError('CIRCLE_WALLET_NOT_BOUND',403);
+    return{userId:proof.account.id,walletId:current.wallet.walletId,address:current.wallet.address};
+  }
   public static async listArcWallets(userToken:string,authorize?:()=>CircleWalletAuthority):Promise<ArcWallet[]>{
     const p=circleWalletInput.safeParse({userToken});if(!p.success)throw new CircleAuthError('CIRCLE_WALLET_INVALID_INPUT');const initial=authorize?.(),response=await this.requireClient().listWallets({userToken:p.data.userToken,blockchain:ARC_BLOCKCHAIN,pageSize:CIRCLE_WALLET_PAGE_SIZE,xRequestId:crypto.randomUUID()}),current=authorize?.();if(initial&&current)sameCircleAuthority(initial,current);return circleProviderWallets(response.data?.wallets,current?.circleUserId);
   }

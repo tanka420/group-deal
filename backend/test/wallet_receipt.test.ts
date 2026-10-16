@@ -16,6 +16,8 @@ function fixture(kind:'APPROVE'|'SWAP'){
  return{record,tx,receipt,read,event,set finality(v:boolean){finality=v;},set reorg(v:boolean){reorg=v;},set changed(v:boolean){changed=v;}};
 }
 void(async()=>{
+ {const f=fixture('SWAP');Object.assign(f.receipt,{gasUsed:'0x5208',effectiveGasPrice:'0xc8'});const p=await verifyWalletReceipt(f.record,0,f.read);assert.equal(p.networkFee,'4200000');assert.equal(p.receivedAmount,'990000');Object.assign(f.receipt,{effectiveGasPrice:'0xc9'});await assert.rejects(verifyWalletReceipt(f.record,0,f.read));}console.log('PASS receipt records actual fee and output; rejects effective price above transaction cap');
+
  for(const kind of ['APPROVE','SWAP'] as const){const f=fixture(kind);assert.equal((await verifyWalletReceipt(f.record,0,f.read)).receiptStatus,1);}console.log('PASS wallet approval and swap finalized token semantics');
  {const f=fixture('APPROVE');f.receipt.logs=[f.event(ARC_WALLET_TOKENS.USDC.address,'Approval',[principal,recipient,1000000n],0)];await assert.rejects(verifyWalletReceipt(f.record,0,f.read),/WALLET_APPROVAL_NOT_CONFIRMED/);}console.log('PASS wallet approval rejects another spender');
  {const f=fixture('SWAP');f.receipt.logs[1]=f.event(ARC_WALLET_TOKENS.EURC.address,'Transfer',[recipient,principal,989999n],1);await assert.rejects(verifyWalletReceipt(f.record,0,f.read),/WALLET_SWAP_NOT_CONFIRMED/);}console.log('PASS wallet swap enforces minimum received');

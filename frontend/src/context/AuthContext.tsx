@@ -56,6 +56,7 @@ interface AuthContextType {
   circleCredentials: CircleCredentials | null;
   requestOtp: (email: string) => Promise<{ success: boolean; message: string }>;
   verifyOtp: (email: string, code?: string) => Promise<User>;
+  reauthenticateCircle: () => Promise<void>;
   executeCircleChallenge: (challengeId: string) => Promise<void>;
   executeCircleMessageChallenge: (challengeId:string) => Promise<string>;
   getSessionEpoch: () => number;
@@ -329,7 +330,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
       },
     });
     setLoginAttemptId(data.loginAttemptId);
-    return { success: true, message: "OTP đã được Circle gửi qua email." };
+    return { success: true, message: "OTP đã được Circle gửi qua email.",loginAttemptId:data.loginAttemptId as string };
   };
 
   const executeCircleChallenge = async (challengeId: string): Promise<void> => {
@@ -433,6 +434,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
     if (!circleWalletSyncing) await syncCircleWalletInBackground(token, circleCredentials);
   };
 
+  const collectCircleOtp = async (sdk:W3SSdk):Promise<CircleCredentials> => new Promise((resolve,reject)=>{
+    if(loginPromiseRef.current){reject(new Error("Một lần xác thực Circle đang chạy"));return;}
+    const timeout=window.setTimeout(()=>{loginPromiseRef.current=null;reject(new Error("Hết thời gian xác thực Circle. Mở lại để tiếp tục."));},120_000);
+    loginPromiseRef.current={resolve:result=>{clearTimeout(timeout);resolve(result);},reject:error=>{clearTimeout(timeout);reject(error);}};
+    try{sdk.verifyOtp();}catch{loginPromiseRef.current?.reject(new Error("Không thể mở Circle OTP"));loginPromiseRef.current=null;}
+  });
+  const reauthFlight=useRef(false);
+  const reauthenticateCircle=async()=>{
+    if(reauthFlight.current||loginPromiseRef.current)throw new Error('CIRCLE_AUTH_BUSY');
+    const expected=userRef.current,sessionToken=tokenRef.current,generation=sessionGenerationRef.current;
+    if(realm!=='APP'||!expected?.email||!expected.circleWallet||!sessionToken)throw new Error('CIRCLE_WALLET_NOT_BOUND');
+    const wallet=expected.circleWallet;
+    const check=()=>{const current=userRef.current;if(!circleLifecycle.current.active||generation!==sessionGenerationRef.current||sessionToken!==tokenRef.current||localStorage.getItem(storageKey)!==sessionToken||current?.id!==expected.id||current.activeWallet?.toLowerCase()!==expected.activeWallet?.toLowerCase()||current.circleWallet?.walletId!==wallet.walletId||current.circleWallet.address.toLowerCase()!==wallet.address.toLowerCase())throw new Error('AUTH_SESSION_CHANGED');};
+    reauthFlight.current=true;
+    try{
+      check();const attempt=await requestOtp(expected.email);check();
+      const credentials=await collectCircleOtp(circleSdkRef.current!);check();
+      const ack=await readJson(await circleFetch('/api/circle/reauth',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+sessionToken},body:JSON.stringify({userToken:credentials.userToken,loginAttemptId:attempt.loginAttemptId})}));check();
+      if(ack.userId!==expected.id||ack.walletId!==wallet.walletId||typeof ack.address!=='string'||ack.address.toLowerCase()!==wallet.address.toLowerCase())throw new Error('AUTH_RESPONSE_INVALID');
+      circleSdkRef.current!.setAuthentication({userToken:credentials.userToken,encryptionKey:credentials.encryptionKey});setCircleCredentials(credentials);
+    }finally{reauthFlight.current=false;}
+  };
   const verifyOtp = async (_email: string, _code?: string) => {
     const generation = ++sessionGenerationRef.current;
     circleSyncAttemptRef.current++;circleChoiceFlightRef.current=null;setCircleWalletChoices([]);setCircleWalletChoiceUnknown(false);setCircleWalletSyncing(false);
@@ -441,21 +464,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
     if (!sdk) throw new Error("Circle Web SDK chưa sẵn sàng");
     try {
       setCircleProgress("Đang xác thực OTP với Circle...");
-      const credentials = await new Promise<CircleCredentials>((resolve, reject) => {
-        if (loginPromiseRef.current) { reject(new Error("Một lần xác thực Circle đang chạy")); return; }
-        const timeout = window.setTimeout(() => {
-          loginPromiseRef.current = null;
-          reject(new Error("Hết thời gian xác thực Circle. Kiểm tra cửa sổ OTP và thử lại."));
-        }, 120_000);
-        loginPromiseRef.current = {
-          resolve: (result) => { window.clearTimeout(timeout); resolve(result); },
-          reject: (error) => { window.clearTimeout(timeout); reject(error); },
-        };
-        try { sdk.verifyOtp(); } catch (error) {
-          loginPromiseRef.current?.reject(error instanceof Error ? error : new Error("Không thể mở Circle OTP"));
-          loginPromiseRef.current = null;
-        }
-      });
+      const credentials = await collectCircleOtp(sdk);
       if(generation!==sessionGenerationRef.current)throw new Error("Phiên đăng nhập đã bị hủy");
       setCircleCredentials(credentials);
       sdk.setAuthentication({
@@ -577,6 +586,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
         circleCredentials,
         requestOtp,
         verifyOtp,
+        reauthenticateCircle,
         executeCircleChallenge,
         executeCircleMessageChallenge,
         getSessionEpoch,loginWithWallet,
