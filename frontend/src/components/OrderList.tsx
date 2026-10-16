@@ -1,24 +1,26 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {useLanguage} from '../context/LanguageContext';
 import {OrderReference} from './OrderReference';
-import {filterOrders,formatOrderDate,orderFilterError,readOrderFilters,orderListHref,emptyOrderFilters,orderStates,type OrderFilters} from '../services/orderList';
+import {filterOrders,formatOrderDate,orderDateBound,orderFilterError,readOrderFilters,orderListHref,emptyOrderFilters,orderStates,type OrderFilters} from '../services/orderList';
 import {buyerOrderAmounts,orderMoney,deliveryStatusText} from '../services/buyerOrderPresentation';
 import {displayUSDC} from '../services/orderAccounting';
 import {navigateApp} from '../utils/appRoute';
+import {focusPageElement} from '../utils/focus';
 import '../styles/orders.css';
 
 export function OrderList({orders}:{orders:any[]}){
  const {language}=useLanguage(),text=(vi:string,en:string)=>language==='en'?en:vi;
  const [filters,setFilters]=useState(readOrderFilters),[draft,setDraft]=useState<OrderFilters>(filters),[limit,setLimit]=useState(20),[error,setError]=useState<string|null>(null);
+ const fromInput=useRef<HTMLInputElement>(null),toInput=useRef<HTMLInputElement>(null);
  useEffect(()=>{const sync=()=>{const next=readOrderFilters();setFilters(next);setDraft(next);setLimit(20);setError(null);};window.addEventListener('popstate',sync);window.addEventListener('groupdeal:navigate',sync);return()=>{window.removeEventListener('popstate',sync);window.removeEventListener('groupdeal:navigate',sync);};},[]);
- const apply=(next:OrderFilters)=>{const invalid=orderFilterError(next);setError(invalid);if(invalid)return;setFilters(next);setDraft(next);setLimit(20);navigateApp(orderListHref(next));};
+ const apply=(next:OrderFilters)=>{const invalid=orderFilterError(next);setError(invalid);if(invalid){focusPageElement(next.from&&orderDateBound(next.from)===null||invalid==='RANGE'?fromInput.current:toInput.current);return;}setFilters(next);setDraft(next);setLimit(20);navigateApp(orderListHref(next));};
  const matching=filterOrders(orders,filters),shown=matching.slice(0,limit),href=(id:string)=>'/orders/'+encodeURIComponent(id)+'?returnTo='+encodeURIComponent(orderListHref(filters));
  return <section className="order-list-section" aria-label={text('Danh sách đơn mua','Purchase order list')}>
   <form className="glass-card order-filter-form" onSubmit={e=>{e.preventDefault();apply({...draft,q:draft.q.trim()});}}>
    <div><label htmlFor="order-search">{text('Tìm mã đơn hoặc sản phẩm','Search order ID or product')}</label><input id="order-search" type="search" maxLength={180} value={draft.q} onChange={e=>setDraft(v=>({...v,q:e.target.value}))}/></div>
    <div><label htmlFor="order-state">{text('Trạng thái đơn','Order status')}</label><select id="order-state" value={draft.status} onChange={e=>setDraft(v=>({...v,status:e.target.value}))}><option value="">{text('Tất cả trạng thái','All statuses')}</option>{orderStates.map(s=><option key={s} value={s}>{deliveryStatusText(s,language)}</option>)}</select></div>
-   <div><label htmlFor="order-from">{text('Từ ngày ghi nhận (UTC+7)','Recorded from (UTC+7)')}</label><input id="order-from" type="date" value={draft.from} aria-invalid={!!error} aria-describedby={error?'order-filter-error':undefined} onChange={e=>setDraft(v=>({...v,from:e.target.value}))}/></div>
-   <div><label htmlFor="order-to">{text('Đến ngày ghi nhận (UTC+7)','Recorded through (UTC+7)')}</label><input id="order-to" type="date" value={draft.to} aria-invalid={!!error} aria-describedby={error?'order-filter-error':undefined} onChange={e=>setDraft(v=>({...v,to:e.target.value}))}/></div>
+   <div><label htmlFor="order-from">{text('Từ ngày ghi nhận (UTC+7)','Recorded from (UTC+7)')}</label><input ref={fromInput} id="order-from" type="date" value={draft.from} aria-invalid={!!error} aria-describedby={error?'order-filter-error':undefined} onChange={e=>{setDraft(v=>({...v,from:e.target.value}));setError(null);}}/></div>
+   <div><label htmlFor="order-to">{text('Đến ngày ghi nhận (UTC+7)','Recorded through (UTC+7)')}</label><input ref={toInput} id="order-to" type="date" value={draft.to} aria-invalid={!!error} aria-describedby={error?'order-filter-error':undefined} onChange={e=>{setDraft(v=>({...v,to:e.target.value}));setError(null);}}/></div>
    {error&&<p role="alert" id="order-filter-error">{text('Chọn ngày hợp lệ; ngày bắt đầu không được sau ngày kết thúc.','Choose valid dates; the start date must not be after the end date.')}</p>}
    <div className="order-filter-actions"><button className="btn btn-primary" type="submit">{text('Áp dụng','Apply')}</button><button className="btn btn-secondary" type="button" onClick={()=>apply({...emptyOrderFilters})}>{text('Xóa bộ lọc','Clear filters')}</button></div>
   </form>

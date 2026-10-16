@@ -72,7 +72,8 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string}> = ({selectedOrd
   const [reviewModalOrder, setReviewModalOrder] = useState<any | null>(null);
   const [reviewScore, setReviewScore] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
-  const [reviewError,setReviewError]=useState(false),[disputeError,setDisputeError]=useState(false);
+  const [reviewError,setReviewError]=useState(false),[disputeFieldErrors,setDisputeFieldErrors]=useState<{reason?:boolean;evidence?:boolean}>({});
+  const disputeReasonInput=useRef<HTMLTextAreaElement>(null),disputeEvidenceInput=useRef<HTMLInputElement>(null);
   const reviewRequest=useRef<AbortController|null>(null);
   useEffect(()=>()=>reviewRequest.current?.abort(),[user?.id,token]);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
@@ -93,7 +94,7 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string}> = ({selectedOrd
       .finally(()=>{clearTimeout(timer);if(current())setLoading(false);});
   };
   useEffect(()=>{fetchOrders();return()=>{dataController.current?.abort();dataController.current=null;};},[user?.id,token,account]);
-  useEffect(()=>{setDisputeModalOrder(null);setDisputeError(false);setReviewError(false);setDisputeReason('');setDisputeEvidence('');setReviewModalOrder(null);setIsSubmittingReview(false);setIsSubmittingDispute(false);setReviewComment('');reviewDrafts.current.clear();disputeDrafts.current.clear();},[user?.id,token]);
+  useEffect(()=>{setDisputeModalOrder(null);setDisputeFieldErrors({});setReviewError(false);setDisputeReason('');setDisputeEvidence('');setReviewModalOrder(null);setIsSubmittingReview(false);setIsSubmittingDispute(false);setReviewComment('');reviewDrafts.current.clear();disputeDrafts.current.clear();},[user?.id,token]);
 
   // Decrypt entitlement secret
   const handleReveal = async (orderId: string) => {
@@ -121,9 +122,10 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string}> = ({selectedOrd
 
   const handleOpenDispute = async (e: React.FormEvent) => {
     e.preventDefault();
-    if(!disputeModalOrder||!disputeReason.trim())return;
+    if(!disputeModalOrder)return;
+    const errors={reason:!disputeReason.trim()||disputeReason.length>4000,evidence:!!disputeEvidence&&(disputeEvidence.length>2000||!cleanHttpsEvidenceUrl(disputeEvidence))};
+    setDisputeFieldErrors(errors);if(errors.reason||errors.evidence){(errors.reason?disputeReasonInput.current:disputeEvidenceInput.current)?.focus();return;}
     const owner={userId:user?.id,token},epoch=getSessionEpoch(),current=()=>scopeRef.current.userId===owner.userId&&scopeRef.current.token===owner.token&&getSessionEpoch()===epoch;
-    setDisputeError(false);if(disputeReason.length>4000||disputeEvidence&&!cleanHttpsEvidenceUrl(disputeEvidence)){setDisputeError(true);return;}
     setIsSubmittingDispute(true);
     try{
       const prepared=await orderAction.current?.begin(disputeModalOrder.id,disputeModalOrder.buyerPrincipal,{action:"DISPUTE",reason:disputeReason,evidenceUrls:disputeEvidence?[disputeEvidence]:[]});
@@ -364,7 +366,7 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string}> = ({selectedOrd
                     {o.deliveryStatus === "DELIVERED" && (
                       <button
                         className="btn btn-sm btn-secondary"
-                        onClick={() => {const saved=disputeDrafts.current.get(o.id);setDisputeModalOrder(o);setDisputeReason(saved?.reason||'');setDisputeEvidence(saved?.evidence||'');setDisputeError(false);}}
+                        onClick={() => {const saved=disputeDrafts.current.get(o.id);setDisputeModalOrder(o);setDisputeReason(saved?.reason||'');setDisputeEvidence(saved?.evidence||'');setDisputeFieldErrors({});}}
                         style={{ borderColor: "rgba(244, 63, 94, 0.4)", color: "var(--danger)" }}
                       >
                         <AlertTriangle size={14} /> {t("openDispute")}
@@ -422,7 +424,7 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string}> = ({selectedOrd
                 {text('Mở tranh chấp đơn hàng #','Open dispute for order #')}{disputeModalOrder.id}
               </h3>
             </div>
-            <form onSubmit={handleOpenDispute}>{disputeError&&<p role="alert">{text('Lý do tối đa 4000 ký tự; bằng chứng phải là link HTTPS không có thông tin đăng nhập.','Use at most 4000 characters and an HTTPS evidence link without credentials.')}</p>}
+            <form noValidate onSubmit={handleOpenDispute}>
               <p style={{ color: "var(--text-secondary)", fontSize: "0.88rem", marginBottom: "1rem" }}>
                 {text('Sau receipt tranh chấp hợp lệ, phần chưa phân bổ chờ trọng tài theo quy tắc hợp đồng. Rebate đã phân bổ và lịch sử claim được giữ nguyên.','After a verified dispute receipt, the unallocated amount awaits arbitration under the contract rules. Existing rebate allocations and claim history remain intact.')}
               </p>
@@ -431,31 +433,38 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string}> = ({selectedOrd
                 <textarea
                   className="form-textarea"
                   id="dispute-reason"
+                  ref={disputeReasonInput}
+                  aria-invalid={!!disputeFieldErrors.reason}
+                  aria-describedby={disputeFieldErrors.reason?'dispute-reason-error':undefined}
                   placeholder={text('Mô tả sự cố: Mã bản quyền không kích hoạt được, link tải bị hỏng…','Describe the issue: license activation failed, download link broken…')}
                   value={disputeReason}
-                  onChange={(e) => setDisputeReason(e.target.value)}
+                  onChange={(e) => {setDisputeReason(e.target.value);setDisputeFieldErrors(v=>({...v,reason:false}));}}
                   required
                   maxLength={4000}
                 />
+                {disputeFieldErrors.reason&&<p role="alert" id="dispute-reason-error">{text('Nhập lý do có nội dung, tối đa 4000 ký tự.','Enter a reason with content, up to 4000 characters.')}</p>}
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="dispute-evidence">{text("Link ảnh chụp màn hình bằng chứng (tùy chọn)","HTTPS evidence link (optional)")}</label>
                 <input
                   type="url"
                   id="dispute-evidence"
+                  ref={disputeEvidenceInput}
+                  aria-invalid={!!disputeFieldErrors.evidence}
+                  aria-describedby={disputeFieldErrors.evidence?'dispute-evidence-error':undefined}
                   maxLength={2000}
                   pattern="https://.*"
                   className="form-input"
                   placeholder={text('Link HTTPS không chứa thông tin đăng nhập','HTTPS link without credentials')}
                   value={disputeEvidence}
-                  onChange={(e) => setDisputeEvidence(e.target.value)}
+                  onChange={(e) => {setDisputeEvidence(e.target.value);setDisputeFieldErrors(v=>({...v,evidence:false}));}}
                 />
+                {disputeFieldErrors.evidence&&<p role="alert" id="dispute-evidence-error">{text('Dùng link HTTPS không có thông tin đăng nhập, tối đa 2000 ký tự.','Use an HTTPS link without credentials, up to 2000 characters.')}</p>}
               </div>
-              <div className="ui-row" style={{ display: "flex", gap: "0.75rem" }}>
+              <div className="ui-row order-dialog-actions">
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  style={{ flex: 1 }}
                   onClick={closeDispute}
                 >
                   {text('Hủy','Cancel')}
@@ -463,7 +472,6 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string}> = ({selectedOrd
                 <button
                   type="submit"
                   className="btn btn-danger"
-                  style={{ flex: 2 }}
                   disabled={isSubmittingDispute}
                 >
                   {isSubmittingDispute?text('Đang kiểm tra…','Checking…'):text('Kiểm tra và lưu bằng chứng','Check and save evidence')}
@@ -519,11 +527,10 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string}> = ({selectedOrd
                   required
                 />
               </div>
-              <div className="ui-row" style={{ display: "flex", gap: "0.75rem" }}>
+              <div className="ui-row order-dialog-actions">
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  style={{ flex: 1 }}
                   onClick={closeReview}
                 >
                   {text('Hủy','Cancel')}
@@ -531,7 +538,6 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string}> = ({selectedOrd
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  style={{ flex: 2 }}
                   disabled={isSubmittingReview||reviewError}
                 >
                   {isSubmittingReview?text('Đang gửi…','Sending…'):text('Gửi đánh giá','Submit review')}

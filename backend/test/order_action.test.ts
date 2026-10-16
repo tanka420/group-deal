@@ -14,18 +14,21 @@ import {CircleWalletService} from "../src/services/circleWalletService";
 import {DisputeService} from "../src/services/disputeService";
 import {reconciliationProvider} from "./fixtures/reconciliation";
 import {eventProvider} from "./fixtures/events";
+import {assertNewBusinessAction} from '../src/domain/accountAccess';
 
 let failureObservation:unknown;
 async function run(){
   assert.ok(store.isIsolated,"Tests must not open the active application database");
+  const restrictedExisting=process.argv.includes('--restricted-existing');
   const iface=new ethers.Interface(HUB_ABI),buyer=ethers.Wallet.createRandom().address,seller=ethers.Wallet.createRandom().address,now=Math.floor(Date.now()/1000);
   const controller=ethers.Wallet.createRandom();config.operatorAddress=controller.address;
   config.deploymentBlock=1;
   for(const [id,principal,roles] of [["buyer",buyer,["buyer"]],["seller",seller,["seller"]],["operator",config.operatorAddress,["operator"]],["other",ethers.Wallet.createRandom().address,["buyer"]]] as const){store.db.users[id]={id,email:id+"@fixture.invalid",activeWallet:principal,roles:[...roles],createdAt:0,circleUserId:'fixture-circle-'+id,circleWallet:{address:principal,walletId:'fixture-wallet-'+id,blockchain:'ARC-TESTNET'}};store.db.userByCircleId['fixture-circle-'+id]=id;store.db.userByWallet[principal.toLowerCase()]=id;}
+  if(restrictedExisting){for(const id of ['buyer','seller'])store.db.users[id].accountAccess={version:1,revision:1,restricted:true,sellerEnabled:true,updatedAt:Date.now(),updatedBy:'operator-fixture',reason:'Fixture restriction preserves existing order obligations'};assert.throws(()=>assertNewBusinessAction(store.db.users.buyer,'BUY'),/ACCOUNT_NEW_ACTIONS_RESTRICTED/);assert.throws(()=>assertNewBusinessAction(store.db.users.seller,'SELLER'),/ACCOUNT_NEW_ACTIONS_RESTRICTED/);}
   store.db.campaigns.stable={id:"stable",onchainCampaignId:1,chainId:config.arcChainId,hubAddress:config.hubAddress,sellerId:"seller",sellerPayoutWallet:seller,status:"FINALIZED",termsHash:ethers.id("order-action-terms"),finalizedAt:now-200,deliverySlaSeconds:100,deliveryContentTemplate:"private-template-preserved"} as any;
   for(let n=1;n<=5;n++)store.db.orders["order-"+n]={id:"order-"+n,onchainOrderId:n,campaignId:"stable",chainId:config.arcChainId,hubAddress:config.hubAddress,buyerAccountId:"buyer",buyerPrincipal:buyer,quantity:1,lockedUnitPrice:"100000000",committedGross:"100000000",rebateAllocated:"10000000",buyerRefundAllocated:n===5?"5000000":"0",sellerAllocated:n===5?"10000000":"0",buyerClaimedAmount:"0",sellerClaimedAmount:"0",isEarlySupporter:false,earlyRebateValue:"0",deliveryStatus:n===3?"PENDING":n===5?"DISPUTED":"DELIVERED",deliveryTimestamp:n===4?now-172801:now-10,deliveredEntitlementEncrypted:"private-entitlement-preserved",txHash:ethers.id("commit-"+n)} as any;
   store.db.syncState={lastIndexedBlock:4,lastSyncTimestamp:0};store.save();
-  const tokens=new Map(Object.keys(store.db.users).map(id=>[id,SessionService.issue(store.db.users[id])]));
+  const tokens=new Map(Object.keys(store.db.users).map(id=>[id,SessionService.issue(store.db.users[id],undefined,id==='operator'?'ADMIN':undefined)]));
   const enrollment=await enrollFixtureOperator("operator",SessionService.authenticate(tokens.get("operator")!),{wallet:controller,chainId:config.arcChainId});
   const truth=structuredClone(store.db),canonical=reconciliationProvider(truth,500000000n,5);
   let stale=false,changed=false,reads=0,deny=false,wrongOrder=false,wrongChain=false;
@@ -109,6 +112,7 @@ async function run(){
     const log={...iface.encodeEventLog(iface.getEvent("DisputeResolved")!,[1,1,40000000,50000000]),address:config.hubAddress,transactionHash:legacyHash,blockNumber:block,blockHash:ethers.id("block-"+block),transactionIndex:0,index:0};logs.push(log);calls[legacyHash]={from:config.operatorAddress,data:legacyData,nonce:Object.values(calls).filter(tx=>tx.from.toLowerCase()===config.operatorAddress.toLowerCase()).length};const chain=eventProvider(logs,calls,()=>now);TransactionVerifier.setProvider(chain);IndexerService.setProvider(chain);
     await DisputeService.resolveDispute("operator",legacy.id,"040000000","050000000","Verified legacy receipt",legacyHash,enrollment.proof);assert.equal(legacy.deliveryStatus,"RESOLVED");
     assert.equal(store.verifyAuditLogIntegrity().valid,true);assert.ok(nativeNonceReads.length>=3,'Sequential same-wallet ready must use fresh pinned-block nonce RPC proof');const loans=Object.values(store.db.signerReservations??{});assert.ok(loans.some(r=>r.phase==='RELEASED'&&r.completion),'Finalized completed owner leaves nonce history');assert.equal(loans.filter(r=>r.phase==='ACTIVE'&&r.principal===buyer.toLowerCase()).length,1);
+    if(restrictedExisting){assert.equal(store.db.users.buyer.accountAccess?.restricted,true);assert.equal(store.db.users.seller.accountAccess?.restricted,true);console.log('PASS RESTRICTED_EXISTING_OBLIGATIONS: dispute/confirm/breach/settle/resolve preparation/ready/receipt recovery preserve existing orders while new BUY/SELLER actions remain forbidden. Isolated fixture only.');}
     console.log("PASS LOCAL_FIXTURE: durable order actions; fixed-block capability/chain-only unallocated split, corrupt DB independence, atomic duplicate prepare and one signature, pinned roles/principals, encrypted private stage/DTO exclusion, Circle exact reservation, UNKNOWN recovery, indexer-first metadata retry, confirm/breach/settle/resolve receipts and private audit digests. No live wallet/provider acceptance.");
   }finally{globalThis.fetch=nativeFetch;OrderActionService.setProvider(undefined);await new Promise<void>(resolve=>server.close(()=>resolve()));store.close();}
 }

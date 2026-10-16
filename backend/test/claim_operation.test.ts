@@ -11,11 +11,14 @@ import {TransactionVerifier} from "../src/services/transactionVerifier";
 import {operationRouter} from "../src/routes/operationRoutes";
 import {reconciliationProvider} from "./fixtures/reconciliation";
 import {eventProvider} from "./fixtures/events";
+import {assertNewBusinessAction} from '../src/domain/accountAccess';
 
 async function run(){
+  assert.ok(store.isIsolated,'Claims must use an isolated fixture database');const restrictedExisting=process.argv.includes('--restricted-existing');
   const buyer=ethers.Wallet.createRandom().address,seller=ethers.Wallet.createRandom().address,other=ethers.Wallet.createRandom().address,iface=new ethers.Interface(HUB_ABI);
   config.deploymentBlock=1;
   for(const [id,wallet,roles] of [["buyer",buyer,["buyer"]],["seller",seller,["seller"]],["other",other,["buyer"]]] as const)store.db.users[id]={id,email:id+"@fixture.invalid",activeWallet:wallet,roles:[...roles],createdAt:0};
+  if(restrictedExisting){for(const id of ['buyer','seller'])store.db.users[id].accountAccess={version:1,revision:1,restricted:true,sellerEnabled:false,updatedAt:Date.now(),updatedBy:'operator-fixture',reason:'Fixture restricts new activity while historical rights remain'};assert.throws(()=>assertNewBusinessAction(store.db.users.buyer,'BUY'),/ACCOUNT_NEW_ACTIONS_RESTRICTED/);assert.throws(()=>assertNewBusinessAction(store.db.users.seller,'SELLER'),/ACCOUNT_NEW_ACTIONS_RESTRICTED/);}
   store.db.campaigns.stable={id:"stable",sellerId:"seller",sellerPayoutWallet:seller,chainId:config.arcChainId,hubAddress:config.hubAddress,onchainCampaignId:1,status:"FINALIZED",termsHash:ethers.id("fixture-terms"),finalClearingPrice:"80",protocolVersion:1,deliveryContentTemplate:"fixture-private-template"} as any;
   store.db.orders.internal={id:"internal",campaignId:"stable",chainId:config.arcChainId,hubAddress:config.hubAddress,onchainOrderId:1,buyerAccountId:"buyer",buyerPrincipal:buyer,quantity:1,lockedUnitPrice:"100",committedGross:"100",rebateAllocated:"20",buyerRefundAllocated:"30",sellerAllocated:"50",buyerClaimedAmount:"10",sellerClaimedAmount:"0",deliveryStatus:"RESOLVED",isEarlySupporter:false,earlyRebateValue:"0",txHash:ethers.id("fixture-commit"),entitlementEncrypted:"fixture-private-preserved"} as any;
   store.db.syncState={lastIndexedBlock:4,lastSyncTimestamp:0};store.save();
@@ -69,6 +72,7 @@ async function run(){
     const sellerProof=eventProvider([log,sellerLog],{[txHash]:{from:buyer,data:operation.calldata},[sellerHash]:{from:seller,data:sellerOperation.calldata}},()=>now);
     TransactionVerifier.setProvider(sellerProof);IndexerService.setProvider(sellerProof);
     assert.equal((await post("/"+sellerOperation.id+"/recover",{txHash:sellerHash},"seller")).status,200);assert.equal(store.db.orders.internal.sellerClaimedAmount,"50");assert.equal(store.db.operations[sellerOperation.id].phase,"PROJECTED");
+    if(restrictedExisting){assert.equal(store.db.users.buyer.accountAccess?.restricted,true);assert.equal(store.db.users.seller.accountAccess?.sellerEnabled,false);assert.ok(store.db.users.seller.roles.includes('seller'));console.log('PASS RESTRICTED_EXISTING_RIGHTS: buyer and seller cumulative claims/ready/recovery preserve existing rights while new BUY/SELLER actions remain forbidden. Isolated fixture only.');}
     console.log("PASS LOCAL_FIXTURE: fixed-block claim simulation independent of DB amounts, stale/changed/zero/wrong-chain fail closed, pinned principal/scope, duplicate prepare/one signature, receipt-unknown recovery, buyer cumulative claim/idempotency/private metadata and seller type2 receipt projection. No live transfer proof.");
   }finally{ClaimOperationService.setProvider(undefined);await new Promise<void>(resolve=>server.close(()=>resolve()));store.close();}
 }

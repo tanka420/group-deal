@@ -16,7 +16,7 @@ for(const kind of ['claim','order','delivery'])for(const language of ['vi','en']
  await page.route('**/api/transactions/claims/prepare',r=>r.fulfill({json:{operation:op}}));await page.route('**/api/transactions/built-review',r=>r.fulfill({json:{operation:op}}));
  await page.route('**/api/transactions/built-review/ready',r=>{ready++;return r.fulfill({status:409,json:{error:'Signing is not part of this recovery fixture'}})});
  await page.route('**/api/transactions/built-review/recover',r=>{expect(r.request().postDataJSON()).toEqual({txHash:hash});recovered++;completed=recovered===2;return r.fulfill({json:{operation:{...op,phase:'PROJECTED',...(completed?{}:{id:'other',txHash:'0x'+'cd'.repeat(32)})}}})});
- await page.goto(kind==='delivery'?'/#seller':'/#orders');
+ await page.goto(kind==='delivery'?'/seller/orders':'/orders/order');
  if(kind==='delivery'){await page.getByRole('button',{name:language==='en'?/Orders & access delivery/:/Đơn hàng & Giao quyền truy cập/}).click();await page.getByRole('button',{name:language==='en'?'Deliver resource':'Giao tài nguyên',exact:true}).click();}
  else await page.getByRole('button',{name:kind==='claim'?(language==='en'?'Withdraw $89 USDC':'Rút $89 USDC'):(language==='en'?'Confirm Receipt':'Xác nhận đã nhận sản phẩm'),exact:true}).click();
  const dialog=page.getByRole('dialog');await expect(dialog).toBeVisible();
