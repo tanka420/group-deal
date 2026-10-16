@@ -1,3 +1,4 @@
+import {assertNewBusinessAction,AccountAccessError} from '../domain/accountAccess';
 import { z } from "zod";
 import crypto from "node:crypto";
 import {ethers} from 'ethers';
@@ -51,7 +52,7 @@ export class ProductService {
     recordId.parse(sellerId);if(productId!==undefined){recordId.parse(productId);recordId.parse(expectedVersionId);}else if(expectedVersionId!==undefined)throw Error('VALIDATION: product version input is invalid');
     const parsed=productInputSchema.parse(input),kind=productId?'VERSION':'CREATE',contentDigest=productContentDigest(parsed),inputHash=productCommandInputHash(kind,contentDigest,productId,expectedVersionId);
     return store.mutateProduct<VersionResult|CommandResult>({actorId:sellerId,sessionKey:proof?.key,productId,...commandSelection(sellerId,commandId,kind)},state=>{
-      this.actor(state,sellerId,'seller',proof);const retained=retainedCommand(state,sellerId,commandId,kind,inputHash);if(retained)return retained;const product=state.product;
+      this.actor(state,sellerId,'seller',proof);const retained=retainedCommand(state,sellerId,commandId,kind,inputHash);if(retained)return retained;assertNewBusinessAction(state.auth.user,'SELLER');const product=state.product;
       if (productId && (!product || product.sellerId !== sellerId)) throw new Error("FORBIDDEN: product is not owned by this seller");
       if (product?.status === "ARCHIVED") throw new Error("CONFLICT: archived product cannot be edited");
       if (product && product.latestVersionId !== expectedVersionId) throw new Error("CONFLICT: product version changed; reload before editing");
@@ -72,7 +73,7 @@ export class ProductService {
     const metadata = z.object({declaration:z.enum(["OWNER","AUTHORIZED_RESELLER"]),declarationText:text(4000),evidenceRefs:z.array(httpsUrl).min(1).max(12)}).strict().parse(input);
     const contentDigest=productContentDigest(metadata),inputHash=productCommandInputHash('RIGHTS',contentDigest,productVersionId);
     return store.mutateProduct<RightsRecord|{rights:RightsRecord}&CommandResult|CommandResult>({actorId:sellerId,sessionKey:proof?.key,versionId:productVersionId,...commandSelection(sellerId,commandId,'RIGHTS')},state=>{
-      this.actor(state,sellerId,'seller',proof);const retained=retainedCommand(state,sellerId,commandId,'RIGHTS',inputHash);if(retained)return retained;const version=state.version;
+      this.actor(state,sellerId,'seller',proof);const retained=retainedCommand(state,sellerId,commandId,'RIGHTS',inputHash);if(retained)return retained;assertNewBusinessAction(state.auth.user,'SELLER');const version=state.version;
       if (!version || version.sellerId !== sellerId) throw new Error("FORBIDDEN: product version is not owned by this seller");
       const graph=this.graph(state);if(graph.product.status==='ARCHIVED')throw Error('CONFLICT: archived product cannot submit rights');
       const records=state.relatedRights.map(rightsInventory);if(records.some(r=>r.sellerId!==sellerId||r.licenseVersionId!==version.licenseVersionId))throw Error('CONFLICT: committed rights binding is invalid');

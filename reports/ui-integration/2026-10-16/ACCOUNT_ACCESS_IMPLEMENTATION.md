@@ -1,0 +1,15 @@
+# Người dùng / Phân quyền — chính sách đã chốt và triển khai source
+
+Người dùng đã chọn ngày16/10/2026: hạn chế hoạt động mới, vẫn cho đăng nhập/đọc/xử lý đơn và quyền lợi cũ; buyer mặc định, quản lý seller, operator theo controller hiện hành. ACCOUNT_ACCESS_DECISION.md giữ phương án trước khi chốt để đối chiếu lịch sử.
+
+Source bổ sung GET/POST `/api/operator/users/:id/access` và GET receipt `/access/commands/:commandId`. ADMIN realm và capability controller hiện hành được kiểm lại trong committed transaction. Target/self/controller được bảo vệ; revision digest/environment, command UUID/input digest và audit nguyên tử ngăn ghi lặp hoặc ghi đè trạng thái cũ. JSON patch giữ các trường riêng tư không liên quan. Command và user access được giữ khi mở lại native store.
+
+RESTRICT/RESTORE chặn/cho phép bắt đầu mua mới, sản phẩm/phiên bản/quyền sản phẩm mới, nháp/thay thế chiến dịch mới và bước phát hành chưa ký. GRANT_SELLER/REVOKE_SELLER quản lý quyền bắt đầu hoạt động seller. Vai trò seller lịch sử được giữ để các guard sở hữu/đơn/claim cũ tiếp tục hoạt động; `sellerEnabled=false` là nguồn kiểm quyền mới và được hiển thị rõ trong hồ sơ. Không tự xóa vai trò khỏi record rồi làm mất quyền lịch sử. Thu hồi seller từ chối nếu còn chiến dịch, đơn/claim hoặc operation chưa hoàn tất. Ví, hỗ trợ, giao hàng, confirm/dispute/claim và tác vụ sửa/thu hồi dữ liệu cũ tiếp tục theo guard sở hữu hiện có; không cấp quyền tài chính mới.
+
+Nguồn kiểm nằm tại ProductService, CampaignEditor/Replacement, OperationPreparation/Readiness và SellerProfileRegistry. Sau await trước ký/commit phải đọc lại auth/access; request đã giữ nonce và recovery tiếp tục có cùng ID. Thông tin access hỏng bị từ chối, không coi là quyền mặc định. Quyền operator/Safe không có mutation mới.
+
+UI VI/EN có trạng thái/lý do/thời điểm, xác nhận đúng target/action và lỗi form. Nháp lý do và command chưa rõ được giữ trong sessionStorage không chứa token. Mất response hoặc đổi trang vẫn dùng cùng command ID; Kiểm tra kết quả chỉ GET, Thử lại cùng yêu cầu giữ nguyên payload. Receipt cũ có thể đọc bằng phiên admin mới hợp lệ sau đổi auth context; không dùng context cũ để ghi command mới. Nhật ký hồ sơ bao gồm hành động tác động lên target, không chỉ hành động do target thực hiện.
+
+Kiểm source: backend build/frontend typecheck/build; 13 ca account access (fixture SQLite/key riêng), các nhóm operator administration/product mutation/seller profile/preparation/readiness/replacement; 5 ca UI native fixture gồm VI/EN, mất response/reload không ghi lần hai, bảo vệ controller. Giữ các lần fail: audit target chưa nối ở lần đầu; assertion idle30phút và APP realm của fixture cũ cần cập nhật theo phiên24h/admin realm hiện hành; re-enrollment fixture phải tôn trọng khoảng cách2giây. Không nới guard production để làm test xanh. Chưa mutation tài khoản thật, không full/CI.
+
+Trạng thái tại commit source này: chờ gói triển khai/kiểm VPS và cập nhật CURRENT. Admin authenticated live vẫn do user tự ký; source/fixture không là bằng chứng đã thao tác tài khoản thật. Candidate NOT_FROZEN; G5/G6, Circle swap/cirBTC, email, Safe và offhost vẫn mở.

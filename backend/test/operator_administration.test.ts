@@ -75,7 +75,7 @@ async function main(){
   await check('SESSION_REVOCATION_IDLE_EXPIRY_AND_RECOVERY_BARRIER',async()=>{
    const record=get('authSessions',current.proof.key);
    put('authSessions',current.proof.key,{...record,state:'REVOKED',revokedAt:Date.now(),revokeReason:'USER_REVOKED'});rejected(()=>operatorSettings(current.proof,{}),401);
-   put('authSessions',current.proof.key,record);const now=Date.now;try{Date.now=()=>now()+1800001;rejected(()=>listOperatorUsers(current.proof,{}),401);Date.now=()=>now()+8*86400000;rejected(()=>operatorSettings(current.proof,{}),401);}finally{Date.now=now;}
+   put('authSessions',current.proof.key,record);const now=Date.now;try{Date.now=()=>now()+24*60*60*1000+1;rejected(()=>listOperatorUsers(current.proof,{}),401);Date.now=()=>now()+8*86400000;rejected(()=>operatorSettings(current.proof,{}),401);}finally{Date.now=now;}
    sql.prepare("INSERT INTO domain_records(collection,record_key,record_json) VALUES('authRecovery','current',?)").run(JSON.stringify({version:1,context:crypto.randomBytes(32).toString('base64url'),createdAt:Date.now()}));rejected(()=>listOperatorUsers(current.proof,{}),401);rejected(()=>operatorSettings(current.proof,{}),401);sql.prepare("DELETE FROM domain_records WHERE collection='authRecovery'").run();
   });
   await check('MALFORMED_DIRECTORY_ROWS_FAIL_WITHOUT_PRIVATE_DIAGNOSTICS',async()=>{
@@ -105,7 +105,7 @@ async function main(){
    rejected(()=>operatorAccount(current.proof,'unknown',{}),404);assert.equal((await request('users/account-001',current.buyer)).response.status,403);
   });
   await check('PERMISSIONS_DESCRIBE_ENFORCED_CAPABILITIES_WITHOUT_MUTATION',async()=>{
-   const before=all(),p=operatorPermissions(current.proof,{});assert.equal(p.accountMutationsAvailable,false);assert.equal(p.capabilities.roleAssignment,false);assert.equal(p.capabilities.accountLock,false);assert.equal(p.capabilities.directoryRead,true);
+   const before=all(),p=operatorPermissions(current.proof,{});assert.equal(p.accountMutationsAvailable,true);assert.equal(p.capabilities.roleAssignment,true);assert.equal(p.capabilities.accountLock,true);assert.equal(p.capabilities.directoryRead,true);
    assert.equal((await request('permissions',current.token)).response.status,200);assert.equal((await request('permissions',current.buyer)).response.status,403);assert.equal(all(),before);
    rejected(()=>operatorPermissions(current.proof,{grant:'operator'}),400);
   });

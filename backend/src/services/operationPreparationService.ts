@@ -1,3 +1,4 @@
+import {assertNewBusinessAction,AccountAccessError} from '../domain/accountAccess';
 import { ethers } from 'ethers';
 import { randomUUID, randomBytes } from 'node:crypto';
 import { z } from 'zod';
@@ -28,7 +29,7 @@ import type { ResourceGrant } from '../domain/delivery';
 type State = ReturnType<typeof store.readOperationPreparationState>;
 const iface = new ethers.Interface(HUB_ABI), buyInput = z.object({ campaignId: z.string().min(1).max(180), quantity: z.number().int().positive().safe(), walletAddress: z.string(), requireEarlySlot: z.boolean(), maxGrossAmount: z.string().regex(/^\d{1,78}$/), idempotencyKey: z.string().regex(/^[-A-Za-z0-9:_]{8,180}$/) }).strict();
 export class OperationPreparationService {
-    static safe(e: unknown): Error { if (e instanceof OperationPreparationError || e instanceof SessionError)
+    static safe(e: unknown): Error { if(e instanceof AccountAccessError)return new OperationPreparationError(e.code,e.status); if (e instanceof OperationPreparationError || e instanceof SessionError)
         return e; if (e instanceof OperationTrackingError) {
         if (e.status === 403 || e.status === 404) return new OperationPreparationError('OPERATION_PREPARATION_FORBIDDEN', 403);
         if (e.status === 400) return new OperationPreparationError('OPERATION_PREPARATION_INPUT_INVALID', 400);
@@ -51,7 +52,7 @@ export class OperationPreparationService {
         const u = state.auth.user;
         if (!u || u.id !== actor || !Array.isArray(u.roles) || u.roles.some(r => !['buyer', 'seller', 'operator'].includes(r)))
             throw new OperationPreparationError('OPERATION_PREPARATION_FORBIDDEN', 403);
-    } if(action==='RESOLVE')SessionService.assertOperatorCommitted(proof,state.auth); if (state.priorDirty || !state.prior && state.targetsDirty)
+    } if(!state.prior&&(action==='BUY'||action==='PUBLISH'))assertNewBusinessAction(state.auth.user,action==='BUY'?'BUY':'SELLER'); if(action==='RESOLVE')SessionService.assertOperatorCommitted(proof,state.auth); if (state.priorDirty || !state.prior && state.targetsDirty)
         throw new OperationPreparationError('OPERATION_PREPARATION_CONFLICT'); }
     private static begin(selection: PreparationSelection, proof?: SessionProof) { if (proof)
         selection = { ...selection, sessionKey: proof.key }; const state = store.readOperationPreparationState(selection); this.authority(state, selection.actorId, proof,selection.action); const fingerprint = readinessFingerprint(state.graph), fresh = () => { const current = store.readOperationPreparationState(selection); this.authority(current, selection.actorId, proof,selection.action); if (readinessFingerprint(current.graph) !== fingerprint)

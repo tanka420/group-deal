@@ -15,11 +15,11 @@ export function operatorAccountRead(sql:DatabaseSync,assertActive:()=>void){
    support:{from:'domain_records d',where:"d.collection='supportTickets' AND (json_extract(d.record_json,'$.accountId')=? OR json_extract(d.record_json,'$.sellerId')=? OR json_extract(d.record_json,'$.assignedOperatorId')=?)",args:[id,id,id],projection:"json_object('id',d.record_key,'orderId',json_extract(d.record_json,'$.orderId'),'state',json_extract(d.record_json,'$.state'),'timestamp',json_extract(d.record_json,'$.createdAt'))"},
   };
   const counts=Object.fromEntries(Object.entries(specs).map(([key,s])=>[key,Number((sql.prepare('SELECT count(*) AS n FROM '+s.from+' WHERE '+s.where).get(...s.args) as {n:number}).n)]));
-  counts.audit=Number((sql.prepare("SELECT count(*) AS n FROM domain_records d,json_each(d.record_json) a WHERE d.collection='auditLogs' AND d.record_key='state' AND json_extract(a.value,'$.actor')=?").get(id) as {n:number}).n);
+  counts.audit=Number((sql.prepare("SELECT count(*) AS n FROM domain_records d,json_each(d.record_json) a WHERE d.collection='auditLogs' AND d.record_key='state' AND (json_extract(a.value,'$.actor')=? OR json_extract(a.value,'$.details.targetId')=?)").get(id,id) as {n:number}).n);
   let rows:unknown[];
   if(section==='audit'){
    if(typeof after!=='number'||!Number.isSafeInteger(after)||after< -1)throw Error('OPERATOR_ACCOUNT_BOUNDARY_INVALID');
-   rows=(sql.prepare("SELECT json_object('id',json_extract(a.value,'$.id'),'state',json_extract(a.value,'$.action'),'timestamp',json_extract(a.value,'$.timestamp'),'position',CAST(a.key AS INTEGER)) AS value FROM domain_records d,json_each(d.record_json) a WHERE d.collection='auditLogs' AND d.record_key='state' AND json_extract(a.value,'$.actor')=? AND CAST(a.key AS INTEGER)>? ORDER BY CAST(a.key AS INTEGER) LIMIT ?").all(id,after,limit) as {value:string}[]).map(r=>JSON.parse(r.value));
+   rows=(sql.prepare("SELECT json_object('id',json_extract(a.value,'$.id'),'state',json_extract(a.value,'$.action'),'timestamp',json_extract(a.value,'$.timestamp'),'position',CAST(a.key AS INTEGER)) AS value FROM domain_records d,json_each(d.record_json) a WHERE d.collection='auditLogs' AND d.record_key='state' AND (json_extract(a.value,'$.actor')=? OR json_extract(a.value,'$.details.targetId')=?) AND CAST(a.key AS INTEGER)>? ORDER BY CAST(a.key AS INTEGER) LIMIT ?").all(id,id,after,limit) as {value:string}[]).map(r=>JSON.parse(r.value));
   }else{
    if(typeof after!=='string')throw Error('OPERATOR_ACCOUNT_BOUNDARY_INVALID');const s=specs[section];
    rows=(sql.prepare('SELECT '+s.projection+' AS value FROM '+s.from+' WHERE '+s.where+' AND d.record_key>? ORDER BY d.record_key LIMIT ?').all(...s.args,after,limit) as {value:string}[]).map(r=>JSON.parse(r.value));

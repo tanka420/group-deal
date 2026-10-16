@@ -78,5 +78,5 @@ export function operatorAccount(proof:SessionProof,target:unknown,query:unknown)
 
 export function operatorPermissions(proof:SessionProof,query:unknown){
  if(!z.object({}).strict().safeParse(query).success)throw new OperatorAdministrationError('OPERATOR_PERMISSIONS_QUERY_INVALID',400);
- return read(proof,state=>({version:'1.0',scope:'OPERATOR_PERMISSIONS',operatorAccountId:proof.account.id,...deployment(),revision:state.revision,observedAt:Date.now(),roles:['buyer','seller','operator'],capabilities:{directoryRead:true,accountProfileRead:true,roleAssignment:false,accountLock:false},operatorWallet:address.parse(config.operatorAddress),authority:'CURRENT_ONCHAIN_OPERATOR_AND_ENROLLMENT',accountMutationsAvailable:false}));
+ return read(proof,state=>({version:'1.0',scope:'OPERATOR_PERMISSIONS',operatorAccountId:proof.account.id,...deployment(),revision:state.revision,observedAt:Date.now(),roles:['buyer','seller','operator'],capabilities:{directoryRead:true,accountProfileRead:true,roleAssignment:true,accountLock:true,operatorDelegation:false},operatorWallet:address.parse(config.operatorAddress),authority:'CURRENT_ONCHAIN_OPERATOR_AND_ENROLLMENT',accountMutationsAvailable:true}));
 }

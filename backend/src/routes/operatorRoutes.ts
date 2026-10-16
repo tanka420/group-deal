@@ -2,6 +2,8 @@ import {listOperatorDealDisputes,OperatorDealSectionError} from '../services/ope
 import {z as disputeZ} from 'zod';
 import {DisputeMetadataError,resolveMetadata} from '../domain/disputeMetadata';
 import { Router } from "express";
+import {readOperatorAccountAccess,changeOperatorAccountAccess,readOperatorAccountAccessCommand} from '../services/operatorAccountAccessService';
+import {AccountAccessError} from '../domain/accountAccess';
 import { store, sanitizeUser } from "../db/store";
 import { authMiddleware, AuthenticatedRequest, requireRole } from "../middleware/auth";
 import { DisputeService } from "../services/disputeService";
@@ -27,6 +29,11 @@ export const operatorRouter = Router();
 operatorRouter.use((_req,res,next)=>{res.set('Cache-Control','private, no-store');res.set('X-Content-Type-Options','nosniff');next();});
 operatorRouter.use(authMiddleware);
 operatorRouter.use(requireRole("operator"));
+operatorRouter.get('/users/:id/access/commands/:commandId',(req:AuthenticatedRequest,res)=>{try{res.json(readOperatorAccountAccessCommand(req.sessionProof!,req.params.id,req.params.commandId,req.query));}catch(error){const known=error instanceof AccountAccessError||error instanceof SessionError;res.status(known?error.status:503).json({error:known?error.code:'ACCOUNT_ACCESS_UNAVAILABLE'});}});
+for(const method of ['get','post'] as const)operatorRouter[method]('/users/:id/access',(req:AuthenticatedRequest,res)=>{
+ try{if(!req.sessionProof)throw new SessionError('AUTH_SESSION_INACTIVE');if(method==='post'&&Object.keys(req.query).length)throw new AccountAccessError('ACCOUNT_ACCESS_INPUT_INVALID',400);res.json(method==='get'?readOperatorAccountAccess(req.sessionProof,req.params.id,req.query):changeOperatorAccountAccess(req.sessionProof,req.params.id,req.body));}
+ catch(error){const known=error instanceof AccountAccessError||error instanceof SessionError;res.status(known?error.status:503).json({error:known?error.code:'ACCOUNT_ACCESS_UNAVAILABLE'});}
+});
 for(const [path,read] of [['users',listOperatorUsers],['settings',operatorSettings],['permissions',operatorPermissions]] as const)operatorRouter.get('/'+path,(req:AuthenticatedRequest,res)=>{
   try{if(!req.sessionProof){res.status(401).json({error:'AUTH_SESSION_INACTIVE'});return;}res.json(read(req.sessionProof,req.query));}
   catch(error){res.status(error instanceof OperatorAdministrationError||error instanceof SessionError?error.status:503).json({error:error instanceof OperatorAdministrationError||error instanceof SessionError?error.code:'OPERATOR_ADMINISTRATION_UNAVAILABLE'});}

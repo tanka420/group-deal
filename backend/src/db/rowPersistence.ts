@@ -1,4 +1,6 @@
 import {operatorAccountRead} from './operatorAccountRead';
+import {operatorAccountAccessRead} from './operatorAccountAccessRead';
+import {accountCommandKey,digest,readAccountAccess,type AccountAccessTarget,type AccountAccessCommand} from '../domain/accountAccess';
 import {captureOperatorFrame,hasOperatorCapability} from '../domain/operatorCapability';
 import type {SessionProof} from '../services/sessionService';
 import {isDeepStrictEqual} from 'node:util';
@@ -19,6 +21,9 @@ import type { DatabaseSchema,UserRecord,AuthSessionRecord,AuthSessionCommandReco
 import {sellerFollowId,sellerFollowSchema,sellerFollowCommandSchema,type SellerFollowRecord,type SellerFollowCommand} from '../domain/sellerFollow';
 export type SellerFollowState={auth:ProductMutationState['auth'];user?:UserRecord;seller?:{id:string;sellerProfile?:{displayName?:string}|null};follows:Record<string,SellerFollowRecord>;command?:SellerFollowCommand;commandAudited:boolean;preferences?:NotificationPreferenceRecord;campaigns:CampaignRecord[];products:Record<string,{status:string}>;budget?:DatabaseSchema['rateLimits'][string];activeCount:number};
 export type OperatorAdministrationState=OperatorDealRead&{auth:ProductMutationState['auth'];revision:number;page:(limit:number,role?:'buyer'|'seller'|'operator',after?:string,q?:string)=>unknown[];account:ReturnType<typeof operatorAccountRead>;auditPage:(limit:number,after:number,action?:string,actor?:string,dealId?:string)=>unknown[];auditIntegrityPage:(limit:number,after:number)=>{position:number;entry:unknown}[]};
+export type OperatorAccountAccessSelection={actorId:string;sessionKey:string;targetId:string;controller:string;commandId?:string};
+export type OperatorAccountAccessState={auth:ProductMutationState['auth'];target?:AccountAccessTarget;command?:AccountAccessCommand;commandAudited:boolean};
+export type OperatorAccountAccessPlan<T>={result:T;command?:AccountAccessCommand};
 export type OperatorMailFrame={graph:DatabaseSchema;receipts:Record<string,DatabaseSchema['auditLogs']>};
 export type OperatorMailState=OperatorMailFrame&{auth:ProductMutationState['auth'];job?:DatabaseSchema['emailOutbox'][string]|null;page:(limit:number,status?:string,boundary?:{createdAt:number;id:string})=>{jobs:DatabaseSchema['emailOutbox'][string][];frame:OperatorMailFrame}};
 export type OperatorMailSelection={actorId:string;sessionKey:string;jobId:string;action:'REDRIVE'|'CANCEL';requestHash?:string};
@@ -120,7 +125,7 @@ const walletBindingFields=['version','id','userId','sourceWallet','targetWallet'
 const walletBindingProjection=()=>{const projection="json_set("+publicProjection(walletBindingFields)+",'$.circleSigning',json(CASE WHEN json_type(record_json,'$.circleSigning')='object' THEN json_remove(json_object('SOURCE',json(CASE WHEN json_type(record_json,'$.circleSigning.SOURCE')='object' THEN "+publicProjection(['state','walletId','challengeId'],"json_extract(record_json,'$.circleSigning.SOURCE')")+" END),'TARGET',json(CASE WHEN json_type(record_json,'$.circleSigning.TARGET')='object' THEN "+publicProjection(['state','walletId','challengeId'],"json_extract(record_json,'$.circleSigning.TARGET')")+" END)),CASE WHEN json_type(record_json,'$.circleSigning.SOURCE') IS NULL THEN '$.SOURCE' ELSE '$.__absent' END,CASE WHEN json_type(record_json,'$.circleSigning.TARGET') IS NULL THEN '$.TARGET' ELSE '$.__absent' END) END))";return "json_remove("+projection+",CASE WHEN json_type(record_json,'$.circleSigning') IS NULL THEN '$.circleSigning' ELSE '$.__absent' END)";};
 const walletUserProjection=()=>{
  const roles="CASE WHEN json_type(record_json,'$.roles')='array' AND NOT EXISTS(SELECT 1 FROM json_each(record_json,'$.roles') WHERE type<>'text') THEN json_extract(record_json,'$.roles') ELSE 'null' END";
- return "json_set("+publicProjection(['id','email','emailVerified','legacySessionEpoch','loginMethod','createdAt','activeWallet','circleUserId'])+",'$.roles',json("+roles+"),'$.circleWallet',json(CASE WHEN json_type(record_json,'$.circleWallet')='object' THEN "+publicProjection(['address','walletId','blockchain'],"json_extract(record_json,'$.circleWallet')")+" ELSE 'null' END),'$.sellerProfile',json(CASE WHEN json_type(record_json,'$.sellerProfile')='object' THEN "+publicProjection(['displayName','bio','payoutWallet','verifiedSellerBadge','verifiedRightsBadge'],"json_extract(record_json,'$.sellerProfile')")+" ELSE 'null' END))";
+ return "json_set("+publicProjection(['id','email','emailVerified','legacySessionEpoch','loginMethod','createdAt','activeWallet','circleUserId'])+",'$.accountAccess',json(CASE WHEN json_type(record_json,'$.accountAccess') IS NULL THEN '{\"version\":1,\"revision\":0,\"restricted\":false,\"sellerEnabled\":true,\"updatedAt\":0,\"updatedBy\":\"system\",\"reason\":\"Baseline permissions\"}' WHEN json_type(record_json,'$.accountAccess')='object' THEN json_extract(record_json,'$.accountAccess') ELSE '{\"invalid\":true}' END),'$.roles',json("+roles+"),'$.circleWallet',json(CASE WHEN json_type(record_json,'$.circleWallet')='object' THEN "+publicProjection(['address','walletId','blockchain'],"json_extract(record_json,'$.circleWallet')")+" ELSE 'null' END),'$.sellerProfile',json(CASE WHEN json_type(record_json,'$.sellerProfile')='object' THEN "+publicProjection(['displayName','bio','payoutWallet','verifiedSellerBadge','verifiedRightsBadge'],"json_extract(record_json,'$.sellerProfile')")+" ELSE 'null' END))";
 };
 
 export type PublicProjectionSelection={campaignId?:string;sellerId?:string};
@@ -1190,6 +1195,38 @@ export class RowPersistence {
     if(!value)return false;const receipt=badgeReceipt(value);if(value.id!==badgeCommandKey(receipt.actorId,receipt.environmentDigest,receipt.commandId))throw Error('CONFLICT: seller badge command identity changed');
     const action=receipt.status==='SUCCEEDED'?'SELLER_BADGE_COMMITTED':'SELLER_BADGE_COMMAND_CANCELED',digest=badgeReceiptDigest(receipt);
     return !!this.sqlite.prepare("SELECT 1 FROM domain_records,json_each(record_json) AS a WHERE collection='auditLogs' AND record_key='state' AND json_extract(a.value,'$.actor')=? AND json_extract(a.value,'$.action')=? AND json_extract(a.value,'$.details.commandDigest')=? AND json_extract(a.value,'$.details.commandId')=? AND json_extract(a.value,'$.details.environmentDigest')=? LIMIT 1").get(receipt.actorId,action,digest,receipt.commandId,receipt.environmentDigest);
+  }
+  private operatorAccessSnapshot(s:OperatorAccountAccessSelection):OperatorAccountAccessState{
+    const auth=this.authSnapshot(s.actorId,s.sessionKey),key=s.commandId?accountCommandKey(s.actorId,s.commandId):undefined;
+    const row=key?this.sqlite.prepare("SELECT record_json FROM domain_records WHERE collection='operatorAccountCommands' AND record_key=?").get(key) as {record_json:string}|undefined:undefined,command=row?JSON.parse(row.record_json) as AccountAccessCommand:undefined;
+    const commandAudited=!!command&&!!this.sqlite.prepare("SELECT 1 FROM domain_records d,json_each(d.record_json) a WHERE d.collection='auditLogs' AND d.record_key='state' AND json_extract(a.value,'$.action')='ACCOUNT_ACCESS_CHANGED' AND json_extract(a.value,'$.actor')=? AND json_extract(a.value,'$.details.commandDigest')=?").get(s.actorId,digest(command));
+    return{auth,target:operatorAccountAccessRead(this.sqlite,s.targetId,s.controller),command,commandAudited};
+  }
+  public readOperatorAccountAccess<T>(s:OperatorAccountAccessSelection,verify:(state:OperatorAccountAccessState)=>T):T{
+    this.sqlite.exec('BEGIN');try{const marker=this.sqlite.prepare('SELECT format_version FROM storage_revision WHERE id=1').get() as {format_version:number}|undefined;if(marker?.format_version!==2)throw new StorageConflict();this.checkLegacyWriter();const result=verify(this.operatorAccessSnapshot(s));if(result&&typeof(result as any).then==='function')throw new StorageConflict();return result;}finally{this.sqlite.exec('COMMIT');}
+  }
+  public mutateOperatorAccountAccess<T>(s:OperatorAccountAccessSelection,data:DatabaseSchema,verify:(state:OperatorAccountAccessState)=>OperatorAccountAccessPlan<T>){
+    this.sqlite.exec('BEGIN IMMEDIATE');try{
+      const marker=this.sqlite.prepare('SELECT revision,format_version FROM storage_revision WHERE id=1').get() as {revision:number;format_version:number}|undefined;
+      if(marker?.format_version!==2||marker.revision!==this.revision||!s.commandId)throw new StorageConflict();this.checkLegacyWriter();
+      const state=this.operatorAccessSnapshot(s),plan=verify(state);
+      if(!plan||typeof(plan as any).then==='function'||plan.result&&typeof(plan.result as any).then==='function')throw new StorageConflict();
+      if(!plan.command){if(!state.command||!state.commandAudited)throw new StorageConflict();this.sqlite.exec('COMMIT');return{result:plan.result,audit:[],target:undefined,command:undefined};}
+      const command=plan.command,key=accountCommandKey(s.actorId,s.commandId),access=readAccountAccess(command.access);
+      if(state.command||!state.target||state.target.protected||s.targetId===s.actorId||command.id!==key||command.actorId!==s.actorId||command.targetId!==s.targetId||command.commandId!==s.commandId||!access||access.revision!==(state.target.accountAccess?.revision??0)+1||command.roles.some(r=>!['buyer','seller'].includes(r))||new Set(command.roles).size!==command.roles.length)throw new StorageConflict();
+      const clean=(collection:string,key:string,value:unknown)=>{if(this.persisted.get(stringify([collection,key]))?.json!==(value===undefined?undefined:stringify(value)))throw new StorageConflict();};
+      clean('users',s.targetId,data.users[s.targetId]);clean('operatorAccountCommands',key,data.operatorAccountCommands?.[key]);clean('auditLogs','state',data.auditLogs);
+      const auditRow=this.sqlite.prepare("SELECT record_json,json_array_length(record_json) AS count,json_extract(record_json,'$[0].hash') AS hash,json_type(record_json) AS kind FROM domain_records WHERE collection='auditLogs' AND record_key='state'").get() as {record_json:string;count:number;hash:string;kind:string}|undefined;
+      if(!auditRow||auditRow.kind!=='array'||auditRow.count&&!/^[a-f0-9]{64}$/.test(auditRow.hash))throw new StorageConflict();
+      const changed=this.sqlite.prepare("UPDATE domain_records SET record_json=json_set(record_json,'$.accountAccess',json(?),'$.roles',json(?)) WHERE collection='users' AND record_key=?").run(stringify(access),stringify(command.roles),s.targetId);if(Number(changed.changes)!==1)throw new StorageConflict();
+      const targetRow=this.sqlite.prepare("SELECT record_json FROM domain_records WHERE collection='users' AND record_key=?").get(s.targetId) as {record_json:string};
+      const details={targetId:s.targetId,action:command.action,reason:command.reason,commandId:command.commandId,commandDigest:digest(command),beforeDigest:command.beforeDigest,afterDigest:command.afterDigest},timestamp=command.committedAt,prevHash=auditRow.count?auditRow.hash:'0'.repeat(64),action='ACCOUNT_ACCESS_CHANGED',entry={id:'audit_'+timestamp+'_'+randomUUID(),timestamp,actor:s.actorId,role:'operator',action,details,prevHash,hash:createHash('sha256').update(`${prevHash}:${timestamp}:${s.actorId}:operator:${action}:${JSON.stringify(details)}`).digest('hex')};
+      const auditJson='['+stringify(entry)+(auditRow.count?',':'')+auditRow.record_json.trim().slice(1),records=[{collection:'users',key:s.targetId,json:targetRow.record_json},{collection:'operatorAccountCommands',key,json:stringify(command)},{collection:'auditLogs',key:'state',json:auditJson}];
+      this.sqlite.prepare("INSERT INTO domain_records(collection,record_key,record_json) VALUES('operatorAccountCommands',?,?)").run(key,stringify(command));
+      this.sqlite.prepare("UPDATE domain_records SET record_json=? WHERE collection='auditLogs' AND record_key='state'").run(auditJson);this.sqlite.prepare('UPDATE storage_revision SET revision=? WHERE id=1').run(this.revision+1);this.sqlite.exec('COMMIT');this.revision++;
+      for(const row of records)this.persisted.set(stringify([row.collection,row.key]),row);
+      return{result:plan.result,audit:[entry],target:JSON.parse(targetRow.record_json) as UserRecord,command};
+    }catch(error){this.sqlite.exec('ROLLBACK');throw error;}
   }
   public readOperatorAdministration<T>(actorId:string,sessionKey:string,verify:(state:OperatorAdministrationState)=>T):T {
     this.sqlite.exec('BEGIN');let active=true;

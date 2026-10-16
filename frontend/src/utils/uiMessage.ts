@@ -14,6 +14,14 @@ export class UiError extends Error {
 export function errorMessage(error: unknown, fallback: UiMessage): UiMessage {
   if (error instanceof UiError) return error.displayMessage;
   if (error instanceof Error) {
+    if (/ACCOUNT_NEW_ACTIONS_RESTRICTED/.test(error.message)) return uiMessage(
+      "Tài khoản đang bị hạn chế hoạt động mới. Bạn vẫn có thể xem và xử lý đơn cũ; liên hệ hỗ trợ để được kiểm tra.",
+      "New activity is restricted for this account. You can still view and process existing orders; contact support for a review.",
+    );
+    if (/ACCOUNT_SELLER_PERMISSION_REVOKED/.test(error.message)) return uiMessage(
+      "Quyền bắt đầu hoạt động người bán đã bị thu hồi. Bạn vẫn có thể xử lý dữ liệu lịch sử và liên hệ hỗ trợ.",
+      "Permission to start new seller activity has been revoked. You can still process historical records and contact support.",
+    );
     if (error.name === "TimeoutError" || error.name === "AbortError") return uiMessage(
       "Chưa xác nhận kết quả do kết nối hết thời gian. Giữ yêu cầu hiện tại để kiểm tra lại.",
       "The connection timed out before the result was confirmed. Keep the current request for recovery.",

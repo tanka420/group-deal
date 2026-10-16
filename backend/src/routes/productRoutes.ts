@@ -1,3 +1,4 @@
+import {AccountAccessError} from '../domain/accountAccess';
 import { Router,ErrorRequestHandler } from "express";
 import { store } from "../db/store";
 import { authMiddleware, AuthenticatedRequest, requireRole } from "../middleware/auth";
@@ -13,14 +14,14 @@ export const productJsonErrorHandler:ErrorRequestHandler=(error,req,res,next)=>{
 productRouter.use((_req,res,next)=>{res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');next()});
 productRouter.use(authMiddleware);
 productRouter.use((req,res,next)=>{if(req.method==='POST'&&Object.keys(req.query).length){res.status(400).json({error:'PRODUCT_INPUT_INVALID'});return;}next()});
-const inventoryFailure=(res:any,error:unknown)=>{if(error instanceof SessionError){res.status(error.status).json({error:error.code});return;}res.status(503).json({error:'PRODUCT_INVENTORY_UNAVAILABLE'})};
+const inventoryFailure=(res:any,error:unknown)=>{if(error instanceof SessionError||error instanceof AccountAccessError){res.status(error.status).json({error:error.code});return;}res.status(503).json({error:'PRODUCT_INVENTORY_UNAVAILABLE'})};
 const inventory=(req:AuthenticatedRequest,review:boolean)=>{const proof=req.sessionProof!,snapshot=store.readProductInventoryState(req.user!.userId,proof.key,review),account=review?SessionService.assertOperatorCommitted(proof,snapshot.auth):SessionService.assertCommitted(proof,snapshot.auth);if(!account.roles.includes(review?'operator':'seller'))throw new SessionError(review?'OPERATOR_ROLE_REQUIRED':'SELLER_ROLE_REQUIRED',403);return {snapshot,account}};
 productRouter.get("/mine",requireRole("seller"),(req:AuthenticatedRequest,res)=>{
   if(Object.keys(req.query).length){res.status(400).json({error:'PRODUCT_INVENTORY_INPUT_INVALID'});return;}
   try{const {snapshot,account}=inventory(req,false),products=snapshot.products.map(p=>({...productInventory(p.product),version:productVersionInventory(p.version),license:licenseVersionInventory(p.license),rights:p.rights.map(rightsInventory)}));res.json({sellerAccountId:account.id,serverTime:Date.now(),revision:snapshot.revision,products})}catch(error){inventoryFailure(res,error)}
 });
 function failure(res:any,error:unknown) {
-  if(error instanceof SessionError){res.status(error.status).json({error:error.code});return;}
+  if(error instanceof SessionError||error instanceof AccountAccessError){res.status(error.status).json({error:error.code});return;}
   const message=error instanceof Error?error.message:'';
   if(message==='PRODUCT_COMMAND_CANCELED'){res.status(409).json({error:'PRODUCT_COMMAND_CANCELED'});return;}
   if(message==='PRODUCT_COMMAND_UNAVAILABLE'){res.status(503).json({error:'PRODUCT_COMMAND_UNAVAILABLE'});return;}

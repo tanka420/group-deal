@@ -43,7 +43,7 @@ export function parseAccountProfile(value:unknown,userId:string,target:string,se
 }
 export function parseOperatorPermissions(value:unknown,userId:string):OperatorPermissions {
  const v=value as any,meta=metadata(v,userId);
- if(v.scope!=='OPERATOR_PERMISSIONS'||!address(v.operatorWallet)||v.authority!=='CURRENT_ONCHAIN_OPERATOR_AND_ENROLLMENT'||v.accountMutationsAvailable!==false||v.capabilities?.directoryRead!==true||v.capabilities?.accountProfileRead!==true||v.capabilities?.roleAssignment!==false||v.capabilities?.accountLock!==false)throw Error('OPERATOR_PERMISSIONS_RESPONSE_INVALID');
+ if(v.scope!=='OPERATOR_PERMISSIONS'||!address(v.operatorWallet)||v.authority!=='CURRENT_ONCHAIN_OPERATOR_AND_ENROLLMENT'||v.accountMutationsAvailable!==true||v.capabilities?.directoryRead!==true||v.capabilities?.accountProfileRead!==true||v.capabilities?.roleAssignment!==true||v.capabilities?.accountLock!==true)throw Error('OPERATOR_PERMISSIONS_RESPONSE_INVALID');
  return {...meta,scope:'OPERATOR_PERMISSIONS',operatorWallet:v.operatorWallet};
 }
 export function parseRuntimeSettings(value:unknown,userId:string):RuntimeSettings {

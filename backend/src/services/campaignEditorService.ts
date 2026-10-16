@@ -29,6 +29,7 @@ export function validateCampaignDraftTerms(data:z.infer<typeof campaignDraftSche
     return {tiers,early};
 }
 
+import {assertNewBusinessAction,AccountAccessError} from '../domain/accountAccess';
 export class CampaignEditorService {
   public static saveDraft(sellerId:string,input:unknown,id?:string,expectedVersion?:number,idempotencyKey?:string):CampaignRecord {
     const data=campaignDraftSchema.parse(input),user=store.db.users[sellerId];
@@ -40,6 +41,7 @@ export class CampaignEditorService {
     if(id&&(!Number.isSafeInteger(expectedVersion)||(expectedVersion??0)<1))throw new Error("VALIDATION: expectedVersion must be a positive safe integer");
     const payloadHash=computeTermsHash(data),key=idempotencyKey?computeTermsHash({sellerId,idempotencyKey}):undefined;
     return store.transaction(()=>{
+      assertNewBusinessAction(store.db.users[sellerId],'SELLER');
       const previous=key&&store.db.campaignDraftKeys[key];
       if(previous) {
         if(previous.payloadHash!==payloadHash||(previous.writeKind||"CREATE")!==(id?"UPDATE":"CREATE")||(id&&(previous.campaignId!==id||previous.expectedVersion!==expectedVersion)))throw new Error("CONFLICT: draft key is bound to another write");

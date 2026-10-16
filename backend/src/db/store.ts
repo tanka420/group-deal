@@ -16,6 +16,7 @@ import type {RestoredWorkBarrier} from '../domain/restoredWork';
 import type {WebhookRecoveryReview} from '../domain/webhookRecovery';
 
 export interface UserRecord {
+  accountAccess?:import('../domain/accountAccess').AccountAccess;
   id: string;
   email: string;
   emailVerified?: boolean;
@@ -529,6 +530,7 @@ export interface DatabaseSchema {
   resourceCommands?:Record<string,ResourceCommand>;
   productCommands?:Record<string,import('../domain/product').ProductCommandRecord>;
   operatorBadgeCommands?:Record<string,import('../domain/sellerBadge').BadgeCommand>;
+  operatorAccountCommands?:Record<string,import('../domain/accountAccess').AccountAccessCommand>;
   orders: Record<string, OrderRecord>;
   supportMessages: Record<string, SupportMessageRecord[]>; // orderId -> messages
   webhooks: Record<string, WebhookSubscription>;
@@ -895,6 +897,8 @@ export class TransactionalStore {
   public mutateMailWorker<T>(selection:import('./rowPersistence').MailWorkerSelection,verify:(state:import('./rowPersistence').MailWorkerState)=>import('./rowPersistence').MailWorkerPlan<T>):T {if(this.batchDepth>0)throw new StorageConflict();const committed=this.rows.mutateMailWorker(selection,this.data,verify);if(committed.job)this.data.emailOutbox[selection.jobId]=committed.job;this.data.auditLogs.unshift(...committed.audit);Object.assign(this.data.auditDedupe,committed.dedupe);return committed.result;}
   public readOperatorMail<T>(actorId:string,sessionKey:string,jobId:string|undefined,verify:(state:import('./rowPersistence').OperatorMailState)=>T):T{return this.rows.readOperatorMail(actorId,sessionKey,jobId,verify);}
   public mutateOperatorMail<T>(selection:import('./rowPersistence').OperatorMailSelection,verify:(state:import('./rowPersistence').OperatorMailState)=>import('./rowPersistence').OperatorMailPlan<T>):T {if(this.batchDepth>0)throw new StorageConflict();const committed=this.rows.mutateOperatorMail(selection,this.data,verify);if(committed.job)this.data.emailOutbox[selection.jobId]=committed.job;this.data.auditLogs.unshift(...committed.audit);Object.assign(this.data.auditDedupe,committed.dedupe);return committed.result;}
+  public readOperatorAccountAccess<T>(selection:import('./rowPersistence').OperatorAccountAccessSelection,verify:(state:import('./rowPersistence').OperatorAccountAccessState)=>T):T{return this.rows.readOperatorAccountAccess(selection,verify);}
+  public mutateOperatorAccountAccess<T>(selection:import('./rowPersistence').OperatorAccountAccessSelection,verify:(state:import('./rowPersistence').OperatorAccountAccessState)=>import('./rowPersistence').OperatorAccountAccessPlan<T>):T{if(this.batchDepth>0)throw new StorageConflict();const committed=this.rows.mutateOperatorAccountAccess(selection,this.data,verify);if(committed.target)this.data.users[selection.targetId]=committed.target;if(committed.command)(this.data.operatorAccountCommands??={})[committed.command.id]=committed.command;this.data.auditLogs.unshift(...committed.audit);return committed.result;}
   public mutateWalletFlow<T>(selection:import('./rowPersistence').WalletFlowSelection,verify:(state:import('./rowPersistence').WalletFlowState)=>import('./rowPersistence').WalletFlowPlan<T>):T {if(this.batchDepth>0)throw new StorageConflict();const committed=this.rows.mutateWalletFlow({...selection,cached:selection.id?this.data.walletFlows?.[selection.id]:undefined},verify);if(committed.record)(this.data.walletFlows??={})[committed.record.id]=structuredClone(committed.record);for(const record of committed.reservations)(this.data.signerReservations??={})[record.id]=structuredClone(record);if(committed.budget)this.data.rateLimits[committed.rateKey]=structuredClone(committed.budget);this.data.auditLogs.unshift(...committed.audit);return committed.result;}
   public readContact<T>(actorId:string,sessionKey:string,verify:(state:import('./rowPersistence').ContactState)=>T):T{return this.rows.readContact(actorId,sessionKey,verify);}
   public mutateContact<T>(selection:import('./rowPersistence').ContactSelection,verify:(state:import('./rowPersistence').ContactState)=>import('./rowPersistence').ContactPlan<T>):T {if(this.batchDepth>0)throw new StorageConflict();const committed=this.rows.mutateContact(selection,this.data,verify);if(committed.contact)this.data.users[selection.actorId].contact=committed.contact;for(const r of committed.records)(this.data as any)[r.collection][r.key]=r.value;this.data.auditLogs.unshift(...committed.audit);return committed.result;}
