@@ -20,3 +20,5 @@ Job dispatch `r7-forms` ghim baseline3b56b7e và allowlist source của gói; ch
 Trước deploy đã đọc lại377runtime/181public bytes khớpfrontend9dc90d6, PID3655922/NRestarts0/95held/backup VERIFIED/privateRestore/BACKUP_CURRENT. Gói frontend mới phải có CI hẹp PASS, public/full-build manifest/HTTPS và runtime readback rồi mới cập nhật CURRENT. Không restart backend, mutation quyền thật, ký/OTP thay user, replay đơn1–5 hoặc giải phóng95held.
 
 Phạm vi còn mở: whole-app/cross-browser/OS scaling; các nhánh G5 chưa đủ proof; admin live hoãn; Circle chiều ngược/cirBTC/email nghiệp vụ; Safe independent control/custody/emergency; offhost/incident/RPO–RTO. Candidate NOT_FROZEN/G5/G6 OPEN.
+
+Đã triển khai frontend `7704cad`, giữ backend `324bca2`. [CI 38930605333](https://github.com/tanka420/group-deal/actions/runs/38930605333) PASS đúng SHA. Proof: reports/evidence/r7-auth-seller-campaign/2026-10-16T16-24-19-355Z/CHECKS.json; SHA256 `faa3577d9d3d072174f37144b27ad5e0508e866ce625c4fa3d5cbed56431490e`. Safe đọc tại block finalized 67526385; chưa có chữ ký kiểm soát/custody. Candidate NOT_FROZEN; G5/G6 OPEN.
