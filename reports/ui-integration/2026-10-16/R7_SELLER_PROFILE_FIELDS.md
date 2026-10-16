@@ -15,3 +15,5 @@ Giữ các lần fail: baseline nút disabled và hai lượt dev/built fail do 
 CI manual `r7-profile`: guard tooling, frontend typecheck/build, đúng file `seller_profile.spec.ts` trên dev và bản build. Baseline/allowlist/hash source trước–sau, dependency khóa, Action ghim SHA; không full test/CI. Source dùng `[skip ci]` và dispatch scope này. Kết quả GitHub/triển khai chỉ được ghi sau khi xác minh đúng SHA và bytes.
 
 Chưa nghiệm thu hồ sơ seller thật, OTP/ký/commit live, admin authenticated, toàn R5–R7/whole-app/cross-browser. Các nhánh G5, Safe control/custody/emergency, offhost/incident/RPO–RTO vẫn OPEN; candidate NOT_FROZEN. Không replay đơn/giao dịch đã hoàn tất hoặc giải phóng 95 held.
+
+Đã triển khai frontend `2761137`, giữ backend `324bca2`. [CI 38934428712](https://github.com/tanka420/group-deal/actions/runs/38934428712) PASS đúng SHA. Proof reports/evidence/r7-seller-profile-fields/2026-10-16T16-50-25-407Z/CHECKS.json; SHA256 `94e9b7f59a8dee88a276bb4f28bf24227f5d4bd998a16510ee5c0746278d2549`. NOT_FROZEN; G5/G6 OPEN.
