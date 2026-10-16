@@ -910,6 +910,7 @@ body { background-image:none; }
 .delivery-terms h2 { margin-bottom:1rem; }
 .deal-purchase-panel { position:sticky; top:calc(var(--app-header-height, 84px) + 16px); align-self:start; padding:1.5rem; display:flex; flex-direction:column; gap:1rem; }
 .deal-purchase-panel > .btn { max-width:100%; white-space:normal; }
+.deal-purchase-panel > .btn svg, .deal-breadcrumb .btn svg { flex-shrink:0; }
 .deal-panel-status { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; }
 .deal-deadline { display:flex; gap:.75rem; padding:1rem; background:#fff4db; border-radius:var(--radius-md); color:var(--warning); }
 .deal-deadline > div { display:grid; }
