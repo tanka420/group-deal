@@ -1,3 +1,5 @@
+**Đã xác minh GitHub:** run[38925620937](https://github.com/tanka420/group-deal/actions/runs/38925620937) PASS tại e3082cc9d9f394fa2a0735273ce4f14f28a292fc; duy nhất job tooling chạy, các job ứng dụng skipped. Full pipeline cũ38924441979/38923312168 vẫn là lịch sử FAIL ở guard, không sửa trạng thái hoặc ghi thành PASS. Frontend9dc90d6/backend324bca2 giữ; gói này không deploy/restart.
+
 # Sửa guard CI và công việc tiếp theo — 16/10/2026
 
 Run38924441979 (HEAD542901f) và38923312168 (source9dc90d6) lỗi ở `Tooling isolation and redaction guards`; compile/test ứng dụng chưa chạy. Tái hiện trên checkout sạch xác định assertion cũ `local_pipeline.test.cjs:34:314`: đếm đúng3 lần dùng Action. Workflow đã mở rộng thành8job/24lần dùng, đều ghim SHA40; assertion đếm cứng đã lỗi thời. Lượt bàn giao trước đã kiểm local scoped nhưng bỏ sót trạng thái CI tự động, không được coi các run này xanh.
@@ -11,7 +13,7 @@ Frontend đang phục vụ9dc90d6, backend324bca2/ops28f62e0; delta này chỉ t
 | Thứ tự | Trợ lý thực hiện | Người dùng phối hợp |
 |---|---|---|
 | 1 | Sửa guard CI, xác minh job tooling trên GitHub, cập nhật CURRENT/bàn giao. | Chưa cần thao tác. |
-| 2 | Tiếp tục đối chiếu R5–R7 theo màn/trạng thái còn thiếu; kiểm hẹp VI/EN, focus, bàn phím, chữ lớn/nội dung dài và các nhánh quyền hiện có. | Khi sẵn sàng mới đăng nhập admin `/admin/users`, chỉ xem danh bạ/Phân quyền, không thay quyền thật để test. Việc hoãn hiện tại vẫn được giữ. |
+| 2 | Tiếp tục đối chiếu R5–R7: ưu tiên đăng nhập, hồ sơ seller công khai và form tạo/sửa chiến dịch còn thiếu hồ sơ text200/nội dung dài; kiểm hẹp VI/EN, focus, bàn phím, chữ lớn/nội dung dài và các nhánh quyền hiện có. | Khi sẵn sàng mới đăng nhập admin `/admin/users`, chỉ xem danh bạ/Phân quyền, không thay quyền thật để test. Việc hoãn hiện tại vẫn được giữ. |
 | 3 | Chuẩn bị các hành trình G5 thực sự thiếu và đối chiếu từng request/receipt; không replay đơn1–5 hoặc swap đã thành công. | Tự OTP/ký khi phối hợp đúng yêu cầu Circle EURC→USDC còn thiếu; cirBTC chỉ thực hiện khi có route/quote hợp lệ. Không tự tiếp tục các request approve-only để chẩn đoán. |
 | 4 | Chuẩn bị sự kiện email nghiệp vụ mới và đối chiếu recipient/preferences/provider ACK; không giải phóng95held. | Chọn người nhận qua email liên hệ đã xác minh trong app, tự kiểm inbox khi có sự kiện mới hợp lệ; không cần gửi OTP/mật khẩu vào chat. |
 | 5 | Kiểm Safe packet đúng context/canonical trước khi thu chữ ký; xác minh chữ ký và ghi riêng custody. | Hai owner, gồm người giữ khóa độc lập đã báo, tự ký thông điệp kiểm soát và xác nhận vai trò giữ khóa. Đây không phải Safe transaction/approve/chuyển tiền. Chờ kiểm packet còn hiệu lực trước khi ký. |
