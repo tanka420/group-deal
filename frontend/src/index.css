@@ -891,6 +891,7 @@ img { max-width: 100%; }
 body { background-image:none; }
 .buyer-deal-detail, .join-dialog, .operator-deal { font-size:1rem; line-height:1.6; overflow-wrap:anywhere; }
 .deal-breadcrumb { display:flex; gap:1rem; align-items:center; flex-wrap:wrap; margin-bottom:1.5rem; color:var(--text-secondary); }
+.deal-breadcrumb .btn { max-width:100%; white-space:normal; text-align:left; }
 .product-gallery { margin-bottom:1.25rem; }
 .product-gallery-main { background:var(--bg-tertiary); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); aspect-ratio:16/10; overflow:hidden; display:grid; place-items:center; }
 .product-gallery-main img { width:100%; height:100%; object-fit:contain; }
@@ -908,6 +909,7 @@ body { background-image:none; }
 .product-deal-detail ul { padding-left:1.25rem; }
 .delivery-terms h2 { margin-bottom:1rem; }
 .deal-purchase-panel { position:sticky; top:calc(var(--app-header-height, 84px) + 16px); align-self:start; padding:1.5rem; display:flex; flex-direction:column; gap:1rem; }
+.deal-purchase-panel > .btn { max-width:100%; white-space:normal; }
 .deal-panel-status { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; }
 .deal-deadline { display:flex; gap:.75rem; padding:1rem; background:#fff4db; border-radius:var(--radius-md); color:var(--warning); }
 .deal-deadline > div { display:grid; }
@@ -984,7 +986,10 @@ summary { cursor:pointer; min-height:44px; padding:.5rem 0; }
 }
 @media(max-width:767px) {
   .buyer-deal-detail { padding-bottom:80px; }
-  .deal-join-cta { position:fixed; z-index:110; bottom:0; left:0; width:100%; min-height:56px; border-radius:0; padding-bottom:calc(.75rem + env(safe-area-inset-bottom)); box-shadow:var(--shadow-lg); }
+  .deal-join-cta { position:fixed; z-index:110; bottom:0; left:0; width:100%; min-height:56px; border-radius:0; padding-bottom:calc(.75rem + env(safe-area-inset-bottom)); box-shadow:var(--shadow-lg); flex-wrap:wrap; white-space:normal; }
+  .deal-join-cta > span { min-width:0; max-width:100%; }
+  .deal-purchase-panel .summary-list { grid-template-columns:minmax(0,1fr); }
+  .deal-purchase-panel .summary-list dd { text-align:left; }
   .buyer-deal-detail :focus { scroll-margin-block:180px 80px; }
   .deal-title { margin:0; }
   .join-dialog { width:calc(100vw - 1rem); max-height:calc(100dvh - 1rem); padding:1rem; }
@@ -1074,6 +1079,7 @@ summary { cursor:pointer; min-height:44px; padding:.5rem 0; }
 .share-dialog .share-qr { width:240px; max-width:100%; height:auto; align-self:center; border:8px solid white; }
 .share-dialog input, .share-dialog textarea { width:100%; min-width:0; }
 .share-dialog textarea { min-height:130px; resize:vertical; }
+@media(max-width:480px) { .share-dialog .detail-list { grid-template-columns:minmax(0,1fr); } }
 /* Public profile follows the deal page's light cards and blue hierarchy. */
 .public-seller-page { max-width:1120px; margin:auto; display:grid; gap:1.5rem; min-width:0; }
 .public-seller-page .btn { min-height:44px; white-space:normal; }
