@@ -22,7 +22,7 @@
 .join-product-card > * { min-width:0; }
 .join-product-card .product-gallery { margin:0; }
 .join-product-card h3 { font-size:1.2rem; line-height:1.45; }
-.join-dialog .modal-header { position:sticky; top:-2rem; z-index:2; background:white; padding:1rem 0; }
+.join-dialog .modal-header { position:static; z-index:2; background:white; padding:1rem 0; }
 .join-dialog .deal-key-facts { grid-template-columns:minmax(0,1fr); }
 .join-dialog .deal-key-facts > div { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:.5rem; }
 .join-dialog .deal-key-facts dd { margin:0; }
@@ -79,6 +79,10 @@
 .join-dialog .quantity-control input { min-width:0; flex:0 1 84px; }
 @media(max-width:600px) {
  .circle-fee-dialog .summary-list, .purchase-budget .summary-list { grid-template-columns:minmax(0,1fr); }
+ .join-dialog .modal-header { position:static; display:grid; grid-template-columns:minmax(0,1fr) 44px; gap:.5rem; padding-block:.5rem; }
+ .join-dialog .modal-header > div { grid-column:1/-1; grid-row:2; min-width:0; }
+ .join-dialog .modal-header h2 { font-size:1.2rem; }
+ .join-dialog .modal-header .modal-close { position:static; grid-column:2; grid-row:1; justify-self:end; }
 }
 .operator-exceptions { margin:1rem 0; }
 .operator-exception-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; margin-top:1rem; }

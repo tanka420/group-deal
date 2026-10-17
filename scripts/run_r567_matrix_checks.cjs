@@ -6,7 +6,7 @@ const git=args=>cp.execFileSync('git',args,{cwd:root,encoding:'utf8',windowsHide
 function inspect(headerOnly=false){
  const changed=git(['diff','--name-only',baseline,'HEAD']).trim().split('\n').filter(Boolean);
  if(git(['status','--porcelain']).trim()||changed.some(p=>!allowed.includes(p)&&!p.startsWith('reports/')))throw Error('R567_MATRIX_SCOPE_CHANGED');
- if(headerOnly){const delta=git(['diff','--name-only','ef281a65ebf1c420f7a2e33b205ada5c8c659b3d','HEAD']).trim().split('\n').filter(Boolean);if(delta.some(p=>!['frontend/src/components/Header.tsx','frontend/e2e/navigation_foundation.spec.ts','.github/workflows/local-candidate.yml','scripts/run_r567_matrix_checks.cjs'].includes(p)&&!p.startsWith('reports/')))throw Error('R567_HEADER_DELTA_CHANGED');}
+ if(headerOnly){const delta=git(['diff','--name-only','ef281a65ebf1c420f7a2e33b205ada5c8c659b3d','HEAD']).trim().split('\n').filter(Boolean);if(delta.some(p=>!['frontend/src/components/Header.tsx','frontend/src/styles/masterScreens.css','frontend/e2e/purchase_budget.spec.ts','frontend/e2e/navigation_foundation.spec.ts','.github/workflows/local-candidate.yml','scripts/run_r567_matrix_checks.cjs'].includes(p)&&!p.startsWith('reports/')))throw Error('R567_HEADER_DELTA_CHANGED');}
  return {headerOnlyDelta:headerOnly,inheritedBroadSource:headerOnly?'ef281a65ebf1c420f7a2e33b205ada5c8c659b3d':null,sourceCommit:git(['rev-parse','HEAD']).trim(),baseline,changedFiles:changed,sourceFiles:allowed.map(p=>{const b=fs.readFileSync(path.join(root,p));return{path:p,sha256:crypto.createHash('sha256').update(b).digest('hex'),byteLength:b.length};})};
 }
 async function main(){
@@ -20,7 +20,7 @@ async function main(){
   ['external-fee-dev',['scripts/run_browser_checks.cjs','--reown-fixture','--port=4185','--','external_fee_review.spec.ts','--grep','widths and keyboard consent','--workers=3']],
   ['matrix-built',['scripts/run_browser_checks.cjs','--preview','--port=4184','--','r567_matrix.spec.ts','navigation_foundation.spec.ts','--workers=3']],
  ];
- const commands=headerOnly?[...allCommands.slice(0,3),['header-built',['scripts/run_browser_checks.cjs','--preview','--port=4184','--','navigation_foundation.spec.ts','--workers=3']]]:allCommands;
+ const commands=headerOnly?[...allCommands.slice(0,3),['header-built',['scripts/run_browser_checks.cjs','--preview','--port=4184','--','navigation_foundation.spec.ts','--workers=3']],['purchase-header-dev',['scripts/run_browser_checks.cjs','--port=4185','--','purchase_budget.spec.ts','--grep','seven widths and keyboard consent','--workers=3']]]:allCommands;
  const result={schemaVersion:1,recordedAt:new Date().toISOString(),layer:'SCOPED_R567_MATRIX_FIXTURE_CI',...source,scope:{backendApplicationStarted:false,liveDatabaseOpened:false,financialOrProviderRequestsCreated:false,applicationDeployed:false,fullCiOrFullApplicationSuite:false},steps:[],result:'RUNNING',acceptanceEligible:false};
  fs.mkdirSync(path.join(root,'.cache'),{recursive:true});const out=path.join(root,'.cache/r567-matrix-ci-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json'),save=()=>fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');save();
  for(const [id,args,cwd]of commands){const started=Date.now(),actual=args.map((a,i)=>i===0?path.join(root,a):a),child=cp.spawnSync(process.execPath,actual,{cwd:cwd||root,env:{...environment,...(id==='frontend-bundle'?{NODE_ENV:'production'}:{})},encoding:'utf8',windowsHide:true,timeout:id.includes('dev')||id.includes('built')?600000:120000,maxBuffer:8000000}),output=(child.stdout||'')+'\n'+(child.stderr||'');
