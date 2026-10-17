@@ -27,7 +27,7 @@ async function ordersFixture(page: Page, verified = true, unknownReceipt=false) 
     buyerClaimed:true,buyerClaimedAmount:verified ? "16000000":undefined,buyerClaimable:verified ? "89000000":null,
     accountingVerified:verified,deliveryStatus:"BREACHED_REFUNDED",sellerPayoutWallet:buyer,
   }]})}));
-  await page.goto("/#orders");
+  await page.goto("/orders/1");
   await expect(page.getByText("Cumulative claim fixture")).toBeVisible();
   return {operation};
 }

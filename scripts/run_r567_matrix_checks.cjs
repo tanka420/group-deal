@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto');
 const root=path.resolve(__dirname,'..'),baseline='fe0741c64419b2c01024c5ca8c822535b5810529';
-const allowed=["frontend/src/pages/DeveloperDocs.tsx","frontend/src/styles/navigation.css","frontend/src/styles/masterScreens.css","frontend/e2e/r567_matrix.spec.ts","frontend/e2e/purchase_budget.spec.ts","frontend/e2e/external_fee_review.spec.ts","frontend/e2e/circle_fee_review.spec.ts","frontend/e2e/fixtures/r567-matrix.ts","frontend/playwright.config.ts",".github/workflows/local-candidate.yml","scripts/run_r567_matrix_checks.cjs"];
+const allowed=["frontend/src/pages/DeveloperDocs.tsx","frontend/src/styles/navigation.css","frontend/src/styles/masterScreens.css","frontend/e2e/r567_matrix.spec.ts","frontend/e2e/purchase_budget.spec.ts","frontend/e2e/financial_projection.spec.ts","frontend/e2e/external_fee_review.spec.ts","frontend/e2e/circle_fee_review.spec.ts","frontend/e2e/fixtures/r567-matrix.ts","frontend/playwright.config.ts",".github/workflows/local-candidate.yml","scripts/run_r567_matrix_checks.cjs"];
 const git=args=>cp.execFileSync('git',args,{cwd:root,encoding:'utf8',windowsHide:true,timeout:20000});
 function inspect(){
  const changed=git(['diff','--name-only',baseline,'HEAD']).trim().split('\n').filter(Boolean);
