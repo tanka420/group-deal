@@ -19,6 +19,7 @@ on:
           - r7-share
           - r7-product
           - r567-matrix
+          - r567-header
           - r7-resource
           - current-arc-delta
           - ui-foundation
@@ -38,7 +39,7 @@ concurrency:
 
 jobs:
   r567-matrix:
-    if: github.event_name == 'workflow_dispatch' && inputs.scope == 'r567-matrix'
+    if: github.event_name == 'workflow_dispatch' && (inputs.scope == 'r567-matrix' || inputs.scope == 'r567-header')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -61,7 +62,7 @@ jobs:
         working-directory: frontend
         run: npx --no-install playwright install --with-deps chromium firefox webkit
       - name: Context, money and built UI matrix
-        run: node scripts/run_r567_matrix_checks.cjs
+        run: node scripts/run_r567_matrix_checks.cjs ${{ inputs.scope == 'r567-header' && '--header-only' || '' }}
       - name: Redacted R5–R7 matrix results
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

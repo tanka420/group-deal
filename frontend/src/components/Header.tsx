@@ -315,12 +315,13 @@ export const Header: React.FC<HeaderProps> = ({
                         className="dropdown-menu-item"
                         style={{ color: "var(--cyan)" }}
                         onClick={() => {
+                          accountButtonRef.current?.focus();
                           setIsDropdownOpen(false);
                           onOpenSellerRegistration();
                         }}
                       >
                         <Sparkles size={16} />
-                        <span>Đăng ký mở Kênh Người Bán</span>
+                        <span>{language==='en'?'Set up seller profile':'Đăng ký mở Kênh Người Bán'}</span>
                       </button>
                     )}
 

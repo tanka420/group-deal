@@ -1,9 +1,9 @@
 import {test,expect,type Page} from '@playwright/test';
 import {emptyCatalog} from './fixtures/catalog';
 
-async function fixture(page:Page,signedIn=false){
+async function fixture(page:Page,signedIn=false,language='en'){
  const errors:string[]=[],writes:string[]=[];
- await page.addInitScript(signedIn=>{localStorage.setItem('groupdeal_lang','en');if(signedIn)localStorage.setItem('groupdeal_token','navigation-fixture');},signedIn);
+ await page.addInitScript(({signedIn,language})=>{localStorage.setItem('groupdeal_lang',language);if(signedIn)localStorage.setItem('groupdeal_token','navigation-fixture');},{signedIn,language});
  page.on('pageerror',error=>errors.push(error.message));
  await page.route('**/*',r=>new URL(r.request().url()).hostname==='127.0.0.1'?r.continue():r.abort());
  await page.route('**/api/**',r=>{
@@ -45,4 +45,14 @@ test('notification and account popovers are independent and restore focus',async
  await account.click();await expect(page.locator('#header-account')).toBeVisible();await expect(page.locator('#header-notifications')).toHaveCount(0);await page.keyboard.press('Escape');await expect(account).toBeFocused();
  await bell.click();await page.screenshot({path:info.outputPath('notifications.png')});await page.keyboard.press('Escape');await expect(bell).toBeFocused();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
+});
+
+for(const language of ['vi','en'])test('seller entry copy and focus '+language,async({page},info)=>{
+ const f=await fixture(page,true,language),en=language==='en';await page.setViewportSize({width:375,height:1000});await page.goto('/account');
+ await page.evaluate(()=>document.documentElement.style.fontSize='200%');const account=page.locator('.account-pill-btn');await account.click();
+ const entry=page.getByRole('button',{name:en?'Set up seller profile':'Đăng ký mở Kênh Người Bán',exact:true});await expect(entry).toBeVisible();
+ expect(await page.locator('#header-account').evaluate(e=>e.scrollWidth<=e.clientWidth+1)).toBe(true);
+ await entry.click();const dialog=page.getByRole('dialog',{name:en?'Seller profile and payout':'Hồ sơ người bán và ví nhận tiền',exact:true});await expect(dialog).toBeVisible();
+ await page.screenshot({path:info.outputPath('seller-entry-'+language+'-text200.png'),animations:'disabled'});
+ await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await expect(account).toBeFocused();expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
 });
