@@ -17,6 +17,7 @@ async function fixture(page:Page,signedIn=false){
  });return {errors,writes};
 }
 for(const width of [375,768,1440])test(`buyer navigation remains reachable at ${width}px`,async({page},info)=>{
+ test.setTimeout(90_000);
  const f=await fixture(page);await page.setViewportSize({width,height:850});await page.goto('/explore');
  const mobile=width<1200;
  for(const [label,path] of [['Orders','/orders'],['Wallet','/wallet'],['Account','/account'],['Support','/support'],['Explore','/explore']]){

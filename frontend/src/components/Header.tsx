@@ -132,13 +132,13 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         <div className="desktop-navigation"><PrimaryNavigation currentTab={currentTab} seller={Boolean(isSeller)} admin={currentTab==='operator'} onNavigate={go}/></div>
-        <button className="btn btn-secondary mobile-menu-button" type="button" aria-label={language==='en'?'Open navigation':'Mở điều hướng'} aria-expanded={mobileOpen} aria-controls="mobile-navigation" onClick={()=>{setIsDropdownOpen(false);setNotificationsOpen(false);setMobileOpen(true);}}><Menu size={20} aria-hidden="true"/></button>
+        <button className="btn btn-secondary mobile-menu-button" type="button" aria-label={language==='en'?'Open navigation':'Mở điều hướng'} aria-expanded={mobileOpen} aria-controls="mobile-navigation" onClick={event=>{event.currentTarget.focus();setIsDropdownOpen(false);setNotificationsOpen(false);setMobileOpen(true);}}><Menu size={20} aria-hidden="true"/></button>
         {/* Right Actions & Account Dropdown */}
         <div className="header-actions">
           {/* Funding & Testnet Faucet */}
           <button
             className="btn btn-sm btn-secondary header-funding"
-            onClick={() => setIsFundingModalOpen(true)}
+            onClick={event => {event.currentTarget.focus();setIsFundingModalOpen(true);}}
             title={language==="en"?"Fund USDC, CCTP Bridge & Testnet Faucet":"Nạp USDC, CCTP Bridge & Testnet Faucet"}
           >
             <Coins size={15} color="var(--warning)" />
@@ -147,7 +147,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* User Account / Dropdown */}
           {!user ? (
-            <button className="btn btn-sm btn-primary header-login" onClick={onOpenAuth}>
+            <button className="btn btn-sm btn-primary header-login" onClick={event=>{event.currentTarget.focus();onOpenAuth();}}>
               <UserIcon size={15} />
               <span className="header-auth-label">{t("login")}</span>
             </button>
@@ -161,7 +161,8 @@ export const Header: React.FC<HeaderProps> = ({
                 aria-expanded={notificationsOpen}
                 aria-controls="header-notifications"
                 aria-label={language==="en"?`Notifications${unreadNotifications?`, ${unreadNotifications} unread`:""}`:`Thông báo${unreadNotifications ? `, ${unreadNotifications} chưa đọc` : ""}`}
-                onClick={() => {
+                onClick={event => {
+                  event.currentTarget.focus();
                   setIsDropdownOpen(false);setNotificationsOpen(prev=>!prev);
                   void inbox.reload();
                 }}
@@ -195,7 +196,7 @@ export const Header: React.FC<HeaderProps> = ({
                 ref={accountButtonRef}
                 aria-expanded={isDropdownOpen}
                 aria-controls="header-account"
-                onClick={() => {setNotificationsOpen(false);setIsDropdownOpen(prev=>!prev);}}
+                onClick={event => {event.currentTarget.focus();setNotificationsOpen(false);setIsDropdownOpen(prev=>!prev);}}
               >
                 <div className="avatar-circle">
                   {user.email

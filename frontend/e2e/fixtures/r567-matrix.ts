@@ -11,6 +11,13 @@ function auditFixture(actorId:string,timestamp:number){return{version:'1.0',scop
 export async function r567Fixture(page:Page,language='vi',roles=['buyer','seller','operator'],sessionToken='local-ui-fixture-session'){
  await page.route('**/*',r=>new URL(r.request().url()).hostname==='127.0.0.1'?r.continue():r.abort());
  await page.routeWebSocket('**/*',ws=>new URL(ws.url()).hostname==='127.0.0.1'?ws.connectToServer():ws.close());
+ await page.route(/https:\/\/rpc(?:\.[a-z]+)?\.testnet\.arc\.io\/?$/,r=>{
+  const input=r.request().postDataJSON(),calls=Array.isArray(input)?input:[input];
+  const allowed=['eth_chainId','eth_getBalance','eth_call','eth_getCode','eth_gasPrice','eth_blockNumber','net_version','eth_estimateGas','eth_getBlockByNumber'];
+  if(calls.some(c=>!allowed.includes(c.method)))throw Error('UI_MATRIX_NON_READ_RPC');
+  const replies=calls.map(c=>({jsonrpc:'2.0',id:c.id,result:c.method==='eth_chainId'?'0x4cef52':c.method==='net_version'?'5042002':c.method==='eth_call'?'0x'+'0'.repeat(64):c.method==='eth_getCode'?'0x':c.method==='eth_getBlockByNumber'?{number:'0x100',hash:'0x'+'11'.repeat(32),timestamp:'0x1',transactions:[]}:c.method==='eth_gasPrice'?'0x3b9aca00':c.method==='eth_estimateGas'?'0x5208':'0x0'}));
+  return r.fulfill({headers:{'access-control-allow-origin':'*'},json:Array.isArray(input)?replies:replies[0]});
+ });
  const data=masterFixture(),errors:string[]=[],writes:string[]=[],reads:{path:string,status:number}[]=[],state={verified:true,healthy:false};
  page.on('response',r=>{const u=new URL(r.url());if(u.pathname.startsWith('/api/'))reads.push({path:u.pathname,status:r.status()});});
  data.campaign.title=('Digital toolkit and licensing · ').repeat(3).slice(0,80);

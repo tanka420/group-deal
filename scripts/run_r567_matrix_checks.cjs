@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto');
 const root=path.resolve(__dirname,'..'),baseline='fe0741c64419b2c01024c5ca8c822535b5810529';
-const allowed=["frontend/src/pages/DeveloperDocs.tsx","frontend/src/styles/navigation.css","frontend/src/styles/masterScreens.css","frontend/e2e/r567_matrix.spec.ts","frontend/e2e/purchase_budget.spec.ts","frontend/e2e/financial_projection.spec.ts","frontend/e2e/external_fee_review.spec.ts","frontend/e2e/circle_fee_review.spec.ts","frontend/e2e/fixtures/r567-matrix.ts","frontend/playwright.config.ts",".github/workflows/local-candidate.yml","scripts/run_r567_matrix_checks.cjs"];
+const allowed=["frontend/src/pages/DeveloperDocs.tsx","frontend/src/components/Header.tsx","frontend/src/styles/navigation.css","frontend/src/styles/masterScreens.css","frontend/e2e/r567_matrix.spec.ts","frontend/e2e/navigation_foundation.spec.ts","frontend/e2e/purchase_budget.spec.ts","frontend/e2e/financial_projection.spec.ts","frontend/e2e/external_fee_review.spec.ts","frontend/e2e/circle_fee_review.spec.ts","frontend/e2e/fixtures/r567-matrix.ts","frontend/playwright.config.ts",".github/workflows/local-candidate.yml","scripts/run_r567_matrix_checks.cjs"];
 const git=args=>cp.execFileSync('git',args,{cwd:root,encoding:'utf8',windowsHide:true,timeout:20000});
 function inspect(){
  const changed=git(['diff','--name-only',baseline,'HEAD']).trim().split('\n').filter(Boolean);
@@ -17,7 +17,7 @@ async function main(){
   ['frontend-bundle',['frontend/node_modules/vite/bin/vite.js','build'],path.join(root,'frontend')],
   ['context-money-dev',['scripts/run_browser_checks.cjs','--port=4183','--','purchase_budget.spec.ts','circle_fee_review.spec.ts','financial_projection.spec.ts','buy_expiry.spec.ts','seller_integration.spec.ts','webhook_recovery_review.spec.ts','--grep','seven widths and keyboard consent|fee review.*widths and keyboard consent|claim dialog retains intent|buyer claim with unknown receipt survives reload|checkout preserves its no-hash|seller review draft closes|webhook review.*prepares','--workers=3']],
   ['external-fee-dev',['scripts/run_browser_checks.cjs','--reown-fixture','--port=4185','--','external_fee_review.spec.ts','--grep','widths and keyboard consent','--workers=3']],
-  ['matrix-built',['scripts/run_browser_checks.cjs','--preview','--port=4184','--','r567_matrix.spec.ts','--workers=3']],
+  ['matrix-built',['scripts/run_browser_checks.cjs','--preview','--port=4184','--','r567_matrix.spec.ts','navigation_foundation.spec.ts','--workers=3']],
  ];
  const result={schemaVersion:1,recordedAt:new Date().toISOString(),layer:'SCOPED_R567_MATRIX_FIXTURE_CI',...source,scope:{backendApplicationStarted:false,liveDatabaseOpened:false,financialOrProviderRequestsCreated:false,applicationDeployed:false,fullCiOrFullApplicationSuite:false},steps:[],result:'RUNNING',acceptanceEligible:false};
  fs.mkdirSync(path.join(root,'.cache'),{recursive:true});const out=path.join(root,'.cache/r567-matrix-ci-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json'),save=()=>fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');save();

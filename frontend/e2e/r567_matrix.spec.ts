@@ -37,7 +37,7 @@ for(const language of ['vi','en'])test(`R567 unavailable reads ${language} text2
   const retry=page.locator('.main-content').getByRole('button',{name:/^(Retry|Reload|Refresh|Thử lại|Tải lại|Làm mới)/}).first();await expect(retry).toBeVisible();
   await Promise.all([page.waitForResponse(r=>new URL(r.url()).pathname===endpoint),retry.click()]);await page.waitForLoadState('networkidle');await inspect(page);
   expect(new URL(page.url()).pathname+new URL(page.url()).search).toBe(route);
-  await page.screenshot({path:info.outputPath('unavailable-'+endpoint.replaceAll('/','_')+'.png'),fullPage:true,animations:'disabled'});
+  await page.screenshot({path:info.outputPath('unavailable-'+endpoint.replaceAll('/','_')+'.png'),animations:'disabled'});
  }
  expect(f.writes).toEqual([]);expect(f.errors).toEqual([]);
 });
@@ -52,7 +52,12 @@ for(const language of ['vi','en'])for(const width of [375,1280])for(const [group
    await inspect(page);expect(new URL(page.url()).pathname).toBe(new URL(route,'http://fixture.test').pathname);
    if(route==='/docs'&&language==='en')expect(await page.locator('.developer-docs').innerText()).not.toMatch(/[đĐăĂơƠưƯấầẩẫậắằẳẵặếềểễệốồổỗộớờởỡợứừửữự]/);
    expect(await page.evaluate(()=>localStorage.getItem('groupdeal_lang'))).toBe(language);
-   if(width===375)await page.screenshot({path:info.outputPath(route.split('?')[0].replaceAll('/','_')+'-'+language+'.png'),fullPage:true,animations:'disabled'});
+   if(width===375)await page.screenshot({path:info.outputPath(route.split('?')[0].replaceAll('/','_')+'-'+language+'.png'),animations:'disabled'});
+   if(route==='/docs')for(const [index,id]of ['docs-api','docs-webhook','docs-delivery'].entries()){
+    await page.locator('.docs-topics button').nth(index+1).focus();await page.keyboard.press('Enter');
+    await expect(page.locator('#'+id)).toBeFocused();await expect(page.locator('#'+id+' h2')).toBeInViewport();
+    if(width===375)await page.screenshot({path:info.outputPath(id+'-'+language+'.png'),animations:'disabled'});
+   }
    observations.push({route,selector,textPercent:200,keyboardFocusVisible:true,documentFits:true,alerts:await page.locator('.main-content [role="alert"]').allTextContents()});
   }
   expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
