@@ -1,6 +1,9 @@
 /* Approved light palette and typography are inherited from index.css. */
 .header { background:var(--bg-secondary); backdrop-filter:none; transition:none; }
-.header-inner { gap:1rem; }
+.header-inner { gap:1rem; flex-wrap:wrap; }
+.desktop-navigation { min-width:0; flex:1 1 auto; }
+.desktop-navigation .primary-navigation { flex-wrap:wrap; }
+.header-actions { max-width:100%; flex-wrap:wrap; }
 .primary-navigation { display:flex; align-items:center; gap:.25rem; }
 .primary-navigation a { display:flex; align-items:center; gap:.5rem; min-height:44px; padding:.65rem .75rem; border-radius:var(--radius-md); color:var(--text-secondary); text-decoration:none; font-size:.875rem; font-weight:600; }
 .primary-navigation a:hover { background:var(--bg-tertiary); }

@@ -18,6 +18,7 @@ on:
           - r7-profile
           - r7-share
           - r7-product
+          - r567-matrix
           - r7-resource
           - current-arc-delta
           - ui-foundation
@@ -36,6 +37,44 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  r567-matrix:
+    if: github.event_name == 'workflow_dispatch' && inputs.scope == 'r567-matrix'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '24.21.0'
+          package-manager-cache: false
+      - name: Verify R5–R7 matrix source scope
+        run: node scripts/run_r567_matrix_checks.cjs --check-scope
+      - name: Locked affected dependencies
+        run: |
+          npm install --global npm@11.6.2 --no-audit --no-fund --registry=https://registry.npmjs.org
+          npm ci --prefix backend --no-audit --no-fund
+          npm ci --prefix frontend --no-audit --no-fund
+      - name: Three engines for isolated UI fixtures
+        working-directory: frontend
+        run: npx --no-install playwright install --with-deps chromium firefox webkit
+      - name: Context, money and built UI matrix
+        run: node scripts/run_r567_matrix_checks.cjs
+      - name: Redacted R5–R7 matrix results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: r567-matrix-${{ github.sha }}
+          path: |
+            .cache/r567-matrix-ci-*.json
+            .cache/browser-run-*.json
+            .cache/browser-artifacts-*/**/coverage.json
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
+
   r7-resource:
     if: github.event_name == 'workflow_dispatch' && inputs.scope == 'r7-resource'
     runs-on: ubuntu-24.04

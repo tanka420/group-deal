@@ -21,6 +21,10 @@ export default defineConfig({
   },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    ...(process.env.GROUPDEAL_CROSS_BROWSER === "1" ? [
+      { name: "firefox", use: { ...devices["Desktop Firefox"], launchOptions: {} } },
+      { name: "webkit", use: { ...devices["Desktop Safari"], launchOptions: {} } },
+    ] : []),
   ],
   webServer: process.env.GROUPDEAL_FALLBACK_BASE_URL || process.env.GROUPDEAL_BROWSER_MODE === "preview" ? undefined : {
     command: `npm run dev -- --host 127.0.0.1 --port ${browserPort} --strictPort`,

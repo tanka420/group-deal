@@ -69,7 +69,17 @@
 .operator-deal-facts dt { color:var(--text-secondary); font-size:.875rem; }
 .operator-deal-facts dd { margin:.4rem 0 0; font-size:1.25rem; font-weight:700; }
 .operator-deal-card > .deal-deadline { width:100%; }
-.operator-view-nav .btn { white-space:normal; text-align:left; }
+.operator-view-nav .btn { min-width:0; max-width:100%; overflow-wrap:anywhere; white-space:normal; text-align:left; }
+.admin-identity .btn, .operator-portal .btn { min-width:0; max-width:100%; white-space:normal; overflow-wrap:anywhere; }
+.circle-fee-dialog { padding:min(1.25rem,5vw); overflow-wrap:anywhere; }
+.circle-fee-dialog .btn, .join-dialog .btn { min-width:0; max-width:100%; white-space:normal; overflow-wrap:anywhere; }
+.purchase-budget { min-width:0; overflow-wrap:anywhere; }
+.join-dialog .quantity-control { max-width:100%; gap:.375rem; }
+.join-dialog .quantity-control .btn { min-width:44px; padding:.5rem; flex:0 0 auto; }
+.join-dialog .quantity-control input { min-width:0; flex:0 1 84px; }
+@media(max-width:600px) {
+ .circle-fee-dialog .summary-list, .purchase-budget .summary-list { grid-template-columns:minmax(0,1fr); }
+}
 .operator-exceptions { margin:1rem 0; }
 .operator-exception-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; margin-top:1rem; }
 .operator-exception-grid .btn { display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; white-space:normal; text-align:left; height:100%; }
