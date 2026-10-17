@@ -62,12 +62,14 @@ export const Header: React.FC<HeaderProps> = ({
   const headerRef=useRef<HTMLElement>(null);
   useEffect(()=>{
     const element=headerRef.current;if(!element)return;
+    let frame=0;
     const update=()=>{
-      document.documentElement.style.setProperty("--app-header-height",`${element.getBoundingClientRect().height}px`);
+      const height=`${element.getBoundingClientRect().height}px`;
+      if(document.documentElement.style.getPropertyValue("--app-header-height")!==height)document.documentElement.style.setProperty("--app-header-height",height);
       const target=document.activeElement;if(target instanceof HTMLElement&&target.closest(".main-content"))revealFocus(target);
     };
-    const observer=new ResizeObserver(update);update();observer.observe(element);
-    return()=>{observer.disconnect();document.documentElement.style.removeProperty("--app-header-height");};
+    const observer=new ResizeObserver(()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(update);});update();observer.observe(element);
+    return()=>{observer.disconnect();cancelAnimationFrame(frame);document.documentElement.style.removeProperty("--app-header-height");};
   },[]);
 
   // Close dropdown on outside click
