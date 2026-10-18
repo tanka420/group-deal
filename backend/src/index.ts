@@ -1,6 +1,7 @@
 import { WebhookService } from "./services/webhookService";
 import express from "express";
 import cors from "cors";
+import {productMediaRouter} from "./routes/productMediaRoutes";
 import { config } from "./config";
 import { store, CampaignRecord,admitDefaultRecoveryStore } from "./db/store";
 import { authRouter } from "./routes/authRoutes";
@@ -45,6 +46,7 @@ app.use(
 app.use('/api/support',supportRouter);
 app.use('/api/bridge',bridgeRouter);
 app.use('/api/wallet/flows',walletFlowRouter);
+app.use('/api/product-images',productMediaRouter);
 app.use(express.json());
 app.use(productJsonErrorHandler);
 app.use(resourceJsonErrorHandler);

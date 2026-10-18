@@ -162,10 +162,10 @@ const productProjection=(fields:readonly string[])=>{
   return 'json_object('+fields.map(f=>"'"+f+"',"+(f==='media'?nested(f,['url','alt']):f==='decisions'?nested(f,['actorId','decision','reason','timestamp']):['requirements','regions','evidenceRefs'].includes(f)?strings(f):f==='transferable'?"json(CASE json_type(record_json,'$.transferable') WHEN 'true' THEN 'true' WHEN 'false' THEN 'false' END)":['durationDays','activationWindowDays'].includes(f)?nullable(f):f==='validUntil'?optional(f,'integer'):f==='activeVersionId'?optional(f,'text'):scalar(f))).join(',')+')';
 };
 
-export type ProductMutationSelection={actorId:string;sessionKey?:string;productId?:string;versionId?:string;rightsId?:string;challengeKey?:string;commandKey?:string;commandKind?:ProductCommandKind};
-export type ProductMutationState={auth:{user?:UserRecord;sessions:Record<string,AuthSessionRecord>;authRecovery?:unknown};product?:Record<string,any>;version?:Record<string,any>;license?:Record<string,any>;rights?:Record<string,any>;relatedRights:Record<string,any>[];challenge?:DatabaseSchema['walletChallenges'][string];command?:Record<string,any>;commandAudited:boolean};
-export type ProductMutationWrite={kind:'INSERT';collection:'products'|'productVersions'|'licenseVersions'|'rights'|'productCommands';key:string;value:Record<string,any>}|{kind:'PRODUCT_PATCH';key:string;patch:{latestVersionId?:string;status?:'ARCHIVED'}}|{kind:'RIGHTS_REVIEW';key:string;decision:RightsRecord['decisions'][number];validUntil?:number}|{kind:'OPERATOR_CHALLENGE';key:string;value:DatabaseSchema['walletChallenges'][string]};
-export type ProductMutationPlan<T>={result:T;writes:ProductMutationWrite[];consumeChallenge?:boolean;replay?:boolean;audit:{role:'seller'|'operator';action:string;details:Record<string,unknown>}[]};
+export type ProductMutationSelection={actorId:string;sessionKey?:string;productId?:string;versionId?:string;rightsId?:string;challengeKey?:string;commandKey?:string;commandKind?:ProductCommandKind;mediaKey?:string};
+export type ProductMutationState={auth:{user?:UserRecord;sessions:Record<string,AuthSessionRecord>;authRecovery?:unknown};product?:Record<string,any>;version?:Record<string,any>;license?:Record<string,any>;rights?:Record<string,any>;relatedRights:Record<string,any>[];image?:import('../domain/productMedia').ProductImage;imageQuota?:{sellerBytes:number;totalBytes:number};challenge?:DatabaseSchema['walletChallenges'][string];command?:Record<string,any>;commandAudited:boolean};
+export type ProductMutationWrite={kind:'INSERT';collection:'products'|'productVersions'|'licenseVersions'|'rights'|'productCommands'|'productImages';key:string;value:Record<string,any>}|{kind:'PRODUCT_PATCH';key:string;patch:{latestVersionId?:string;status?:'ARCHIVED'}}|{kind:'RIGHTS_REVIEW';key:string;decision:RightsRecord['decisions'][number];validUntil?:number}|{kind:'OPERATOR_CHALLENGE';key:string;value:DatabaseSchema['walletChallenges'][string]};
+export type ProductMutationPlan<T>={result:T;writes:ProductMutationWrite[];consumeChallenge?:boolean;replay?:boolean;mediaReplay?:boolean;audit:{role:'seller'|'operator';action:string;details:Record<string,unknown>}[]};
 export type OperatorStepUpSelection={actorId:string;sessionKey?:string;challengeKey:string;targetSellerId?:string};
 export type OperatorStepUpState={auth:ProductMutationState['auth'];challenge?:DatabaseSchema['walletChallenges'][string];seller?:{id:string;sellerProfile?:UserRecord['sellerProfile']}};
 export type OperatorStepUpPlan<T>={result:T;verifiedSellerBadge?:boolean};
@@ -1333,6 +1333,10 @@ export class RowPersistence {
     }catch(error){this.sqlite.exec('ROLLBACK');throw error;}
   }
   /** Product commands commit only their rows, challenge consumption and audit entries. */
+  public readProductImage(id:string){
+    const row=this.sqlite.prepare("SELECT record_json FROM domain_records WHERE collection='productImages' AND record_key=?").get(id) as {record_json:string}|undefined;
+    return row?JSON.parse(row.record_json) as import('../domain/productMedia').ProductImage:undefined;
+  }
   public mutateProduct<T>(selection:ProductMutationSelection,data:DatabaseSchema,command:(state:ProductMutationState)=>ProductMutationPlan<T>){
     const assertClean=(collection:string,key:string)=>{const value=collection==='auditLogs'?data.auditLogs:(data as any)[collection]?.[key],previous=this.persisted.get(stringify([collection,key]));if(previous?.json!==(value===undefined?undefined:stringify(value)))throw Error('CONFLICT: product mutation target has uncommitted changes');};
     this.sqlite.exec('BEGIN IMMEDIATE');try{
@@ -1348,8 +1352,14 @@ export class RowPersistence {
       const relatedRows=version?(this.sqlite.prepare('SELECT record_key,'+productProjection(productInventoryFields.rights)+" AS record_json FROM domain_records WHERE collection='rights' AND json_extract(record_json,'$.productVersionId')=? ORDER BY record_key").all(version.id) as {record_key:string;record_json:string}[]):[];
       const relatedRights=relatedRows.map(row=>{const r=JSON.parse(row.record_json);if(r.id!==row.record_key)throw Error('CONFLICT: rights record identity is invalid');return r as Record<string,any>});
       const challengeRow=selection.challengeKey?this.sqlite.prepare('SELECT '+productProjection(['userId','action','walletAddress','message','expiresAt','nonce','chainId','origin'])+" AS record_json FROM domain_records WHERE collection='walletChallenges' AND record_key=?").get(selection.challengeKey) as {record_json:string}|undefined:undefined;
-      const state:ProductMutationState={auth:this.authSnapshot(selection.actorId,selection.sessionKey),product,version,license,rights,relatedRights,challenge:challengeRow?JSON.parse(challengeRow.record_json):undefined,command:previousCommand,commandAudited:this.productCommandAudited(previousCommand)};
+      if(selection.mediaKey&&(!/^img_[a-f0-9]{64}$/.test(selection.mediaKey)||[selection.commandKey,selection.productId,selection.versionId,selection.rightsId,selection.challengeKey].some(v=>v!==undefined)))throw Error('CONFLICT: image selection');
+      const image=selection.mediaKey?this.readProductImage(selection.mediaKey):undefined;
+      const imageQuota=selection.mediaKey?this.sqlite.prepare("SELECT COALESCE(SUM(CASE WHEN json_extract(record_json,'$.sellerId')=? THEN json_extract(record_json,'$.byteLength') ELSE 0 END),0) AS sellerBytes,COALESCE(SUM(json_extract(record_json,'$.byteLength')),0) AS totalBytes FROM domain_records WHERE collection='productImages'").get(selection.actorId) as {sellerBytes:number;totalBytes:number}:undefined;
+      const state:ProductMutationState={auth:this.authSnapshot(selection.actorId,selection.sessionKey),product,version,license,rights,relatedRights,image,imageQuota,challenge:challengeRow?JSON.parse(challengeRow.record_json):undefined,command:previousCommand,commandAudited:this.productCommandAudited(previousCommand)};
       const plan=command(state);if(!plan||typeof (plan as any).then==='function'||plan.result&&typeof (plan.result as any).then==='function')throw Error('CONFLICT: product command must be synchronous');
+      if(plan.mediaReplay){if(!selection.mediaKey||!state.image||plan.writes.length||plan.audit.length||plan.replay||plan.consumeChallenge)throw Error('CONFLICT: image replay');this.sqlite.exec('COMMIT');return{result:plan.result,records:[],deleted:[],audit:[]};}
+      if(selection.mediaKey&&(plan.writes.length!==1||plan.writes[0].kind!=='INSERT'||plan.writes[0].collection!=='productImages'||plan.writes[0].key!==selection.mediaKey||plan.writes[0].value.sellerId!==selection.actorId||plan.audit.length!==1||plan.audit[0].action!=='PRODUCT_IMAGE_UPLOADED'||plan.consumeChallenge||plan.replay))throw Error('CONFLICT: image mutation scope');
+      if(!selection.mediaKey&&plan.writes.some(w=>w.kind==='INSERT'&&w.collection==='productImages'))throw Error('CONFLICT: image selection required');
       if(plan.replay){if(!selection.commandKey||!state.command||!state.commandAudited||plan.writes.length||plan.audit.length||plan.consumeChallenge)throw Error('CONFLICT: product command replay is invalid');this.sqlite.exec('COMMIT');return{result:plan.result,records:[],deleted:[],audit:[]};}
       if(!plan.writes.length||!plan.audit.length)throw Error('CONFLICT: product command must be audited');
       const receiptWrites=plan.writes.filter(w=>w.kind==='INSERT'&&w.collection==='productCommands'),receiptWrite=receiptWrites[0];let receipt:Record<string,any>|undefined;
@@ -1360,7 +1370,7 @@ export class RowPersistence {
       for(const write of plan.writes){
         const collection=write.kind==='INSERT'?write.collection:write.kind==='PRODUCT_PATCH'?'products':write.kind==='OPERATOR_CHALLENGE'?'walletChallenges':'rights',key=write.key,id=stringify([collection,key]);if(keys.has(id))throw Error('CONFLICT: duplicate product command row');keys.add(id);assertClean(collection,key);
         if(write.kind==='INSERT'){
-          if(!['products','productVersions','licenseVersions','rights','productCommands'].includes(collection)||write.value.id!==key||Object.hasOwn((data as any)[collection]??{},key)||this.persisted.has(id))throw Error('CONFLICT: product command insert already exists');
+          if(!['products','productVersions','licenseVersions','rights','productCommands','productImages'].includes(collection)||write.value.id!==key||Object.hasOwn((data as any)[collection]??{},key)||this.persisted.has(id))throw Error('CONFLICT: product command insert already exists');
           this.sqlite.prepare('INSERT INTO domain_records(collection,record_key,record_json) VALUES(?,?,?)').run(collection,key,stringify(write.value));
         }else if(write.kind==='OPERATOR_CHALLENGE'){
           if(key!==selection.challengeKey||write.value.userId!==selection.actorId||write.value.action!=='OPERATOR_ACTION')throw Error('FORBIDDEN: operator challenge scope is invalid');

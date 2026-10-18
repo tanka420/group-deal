@@ -528,6 +528,7 @@ export interface DatabaseSchema {
   resourceGrants: Record<string, ResourceGrant>;
   deliveryProbes: Record<string, DeliveryProbe>;
   resourceCommands?:Record<string,ResourceCommand>;
+  productImages?:Record<string,import('../domain/productMedia').ProductImage>;
   productCommands?:Record<string,import('../domain/product').ProductCommandRecord>;
   operatorBadgeCommands?:Record<string,import('../domain/sellerBadge').BadgeCommand>;
   operatorAccountCommands?:Record<string,import('../domain/accountAccess').AccountAccessCommand>;
@@ -844,6 +845,7 @@ export class TransactionalStore {
     if(this.batchDepth>0)throw Error('CONFLICT: replacement cannot join an unfinished transaction');const committed=this.rows.mutateCampaignReplacement(selection,this.data,command);for(const r of committed.records)(this.data as any)[r.collection][r.key]=r.value;this.data.auditLogs.unshift(...committed.audit);return committed.result;
   }
   public readSellerInventoryState(userId:string,key:string,includeOrders=true){return this.rows.readSellerInventoryState(userId,key,includeOrders);}
+  public readProductImage(id:string){return this.rows.readProductImage(id);}
   public readProductInventoryState(userId:string,key:string,review=false){return this.rows.readProductInventoryState(userId,key,review);}
   public readPublicProjectionState(selection:import('./rowPersistence').PublicProjectionSelection,chainId:number,hubAddress:string){return this.rows.readPublicProjectionState(selection,chainId,hubAddress);}
   public readSellerResourceState(userId:string,key:string,versionId?:string){return this.rows.readSellerResourceState(userId,key,versionId);}
