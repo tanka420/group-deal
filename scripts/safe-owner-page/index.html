@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="__CSP__">
+  <title>Ký xác nhận ví Safe · GroupDeal</title>
+  <link rel="stylesheet" href="__STYLE__" integrity="__STYLE_SRI__" crossorigin="anonymous">
+  <script defer src="__CLIENT__" integrity="__CLIENT_SRI__" crossorigin="anonymous"></script>
+</head>
+<body>
+<main>
+  <a class="brand" href="/">GroupDeal</a>
+  <h1>Ký xác nhận ví Safe</h1>
+  <p class="lead">Mỗi người giữ ví thực hiện một lần, rồi gửi kết quả vào chat. Không cần đăng nhập GroupDeal.</p>
+  <p class="notice">Chỉ ký thông điệp chứng minh quyền kiểm soát ví. Không gửi giao dịch, chuyển tiền, cấp quyền hoặc trả phí gas.</p>
+  <div class="context"><span>Arc Testnet · 5042002</span><span id="expiry"></span></div>
+  <p class="small">Cần owner <strong>__REQUIRED_OWNER__</strong> và một owner khác. Hai người tự thao tác trên ví của mình; chữ ký chưa chứng minh custody độc lập.</p>
+
+  <section aria-labelledby="wallet-title">
+    <h2 id="wallet-title">1. Kết nối ví owner</h2>
+    <p class="small">Chọn ví tiện ích trên máy tính, hoặc mở trang bằng trình duyệt bên trong ứng dụng ví.</p>
+    <div id="wallets" class="wallets" role="group" aria-label="Chọn ví"></div>
+    <p id="no-wallet" class="small">Chưa phát hiện ví. Hãy mở khóa OKX/MetaMask rồi tải lại trang, hoặc mở link bằng trình duyệt trong ví.</p>
+    <button id="connect" class="btn secondary" type="button" disabled>Kết nối ví đã chọn</button>
+    <p id="account" class="address small">Chưa kết nối.</p>
+  </section>
+
+  <section aria-labelledby="message-title">
+    <h2 id="message-title">2. Đọc và ký thông điệp</h2>
+    <p class="small">Nội dung dưới đây sẽ xuất hiện trong cửa sổ ví. Kiểm địa chỉ owner và hạn trước khi ký.</p>
+    <pre id="message" tabindex="0" aria-label="Toàn bộ thông điệp cần ký">Kết nối một ví owner để xem thông điệp tương ứng.</pre>
+    <button id="sign" class="btn primary" type="button" disabled>Đã đọc · Ký thông điệp bằng ví</button>
+    <p id="status" class="status" role="status" aria-live="polite">Chưa yêu cầu chữ ký.</p>
+  </section>
+
+  <section id="result-section" aria-labelledby="result-title" hidden>
+    <h2 id="result-title">3. Gửi kết quả vào chat</h2>
+    <p class="small">Bấm Sao chép và dán vào chat này. Không gửi seed hoặc private key. Người giữ ví còn lại làm tương tự trên máy/ví của họ.</p>
+    <label for="result">Chữ ký đã kiểm đúng ví và thông điệp</label>
+    <textarea id="result" readonly rows="7" spellcheck="false"></textarea>
+    <button id="copy" class="btn secondary" type="button">Sao chép kết quả</button>
+    <p class="small">Kèm xác nhận ai giữ từng ví và ai khác có thể sử dụng/khôi phục khóa. Trang không lưu hoặc gửi chữ ký lên máy chủ; chỉ giữ trong tab này.</p>
+  </section>
+  <noscript>Trang cần JavaScript để hiển thị thông điệp và yêu cầu ví ký khi bạn bấm nút.</noscript>
+</main>
+</body>
+</html>
