@@ -6,8 +6,9 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "npm run build && node test/consumer.cjs && node test/webhookEnvelope.cjs",
-    "test:webhook": "npm run build && node test/webhookEnvelope.cjs"
+    "test": "npm run build && node test/consumer.cjs && node test/webhookEnvelope.cjs && node test/supportDownload.cjs",
+    "test:webhook": "npm run build && node test/webhookEnvelope.cjs",
+    "test:support-download": "npm run build && node test/supportDownload.cjs"
   },
   "devDependencies": {
     "@types/node": "24.19.0",

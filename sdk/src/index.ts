@@ -166,7 +166,21 @@ export class GroupDealSDK {
   public assignSupportTicket(token:string,ticketId:string,input:SupportRevisionInput&{assignedOperatorId:string|null}):Promise<SupportCommandResult>{this.followToken(token);this.supportKeys(input,['idempotencyKey','expectedRevision','assignedOperatorId']);this.supportRevision(input);if(input.assignedOperatorId!==null)this.supportId(input.assignedOperatorId);return this.request('/api/support/tickets/'+this.supportTicketId(ticketId)+'/assignment',token,input);}
   public removeSupportAttachment(token:string,ticketId:string,input:SupportRevisionInput&{attachmentId:string}):Promise<SupportCommandResult>{this.followToken(token);this.supportKeys(input,['idempotencyKey','expectedRevision','attachmentId']);this.supportRevision(input);if(!/^tatt_[a-f0-9-]{36}$/.test(input.attachmentId))throw Error('Invalid support attachment');return this.request('/api/support/tickets/'+this.supportTicketId(ticketId)+'/attachments/remove',token,input);}
   public listSupportOperators(token:string):Promise<{userId:string;operators:{id:string;displayName:string}[]}>{this.followToken(token);return this.request('/api/support/operators',token);}
-  public async downloadSupportAttachment(token:string,ticketId:string,attachmentId:string,expected:{byteLength:number;sha256:string}):Promise<Uint8Array>{this.followToken(token);this.supportTicketId(ticketId);if(!/^tatt_[a-f0-9-]{36}$/.test(attachmentId)||!Number.isSafeInteger(expected.byteLength)||expected.byteLength<1||expected.byteLength>1048576||!/^[a-f0-9]{64}$/.test(expected.sha256))throw Error('Invalid support download metadata');const r=await fetch(this.baseUrl+'/api/support/tickets/'+ticketId+'/attachments/'+attachmentId,{headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(this.timeoutMs),redirect:'error'});if(!r.ok)throw new GroupDealApiError(r.status);if(r.headers.get('content-type')!=='application/octet-stream'||Number(r.headers.get('content-length'))!==expected.byteLength)throw Error('Support download was not verified');const bytes=new Uint8Array(await r.arrayBuffer());if(bytes.length!==expected.byteLength||crypto.createHash('sha256').update(bytes).digest('hex')!==expected.sha256)throw Error('Support download was not verified');return bytes;}
+  public async downloadSupportAttachment(token:string,ticketId:string,attachmentId:string,expected:{byteLength:number;sha256:string}):Promise<Uint8Array>{
+    this.followToken(token);this.supportTicketId(ticketId);
+    if(!/^tatt_[a-f0-9-]{36}$/.test(attachmentId)||!Number.isSafeInteger(expected.byteLength)||expected.byteLength<1||expected.byteLength>1048576||!/^[a-f0-9]{64}$/.test(expected.sha256))throw Error('Invalid support download metadata');
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),this.timeoutMs);
+    let reader:ReadableStreamDefaultReader<Uint8Array>|undefined;
+    try{
+      const r=await fetch(this.baseUrl+'/api/support/tickets/'+ticketId+'/attachments/'+attachmentId,{headers:{Authorization:'Bearer '+token},signal:controller.signal,redirect:'error'});
+      if(!r.ok)throw new GroupDealApiError(r.status);
+      if(!r.body||r.headers.get('content-type')!=='application/octet-stream'||Number(r.headers.get('content-length'))!==expected.byteLength)throw Error('Support download was not verified');
+      reader=r.body.getReader();const bytes=new Uint8Array(expected.byteLength);let size=0;
+      while(true){const chunk=await reader.read();if(chunk.done)break;if(chunk.value.byteLength>expected.byteLength-size)throw Error('Support download was not verified');bytes.set(chunk.value,size);size+=chunk.value.byteLength;}
+      if(controller.signal.aborted||size!==expected.byteLength||crypto.createHash('sha256').update(bytes).digest('hex')!==expected.sha256)throw Error('Support download was not verified');
+      return bytes;
+    }finally{clearTimeout(timer);controller.abort();if(reader)try{await reader.cancel();}catch{}}
+  }
   private supportId(v:string){if(typeof v!=='string'||!/^[A-Za-z0-9_-]{1,180}$/.test(v))throw Error('Invalid support identifier');return v;}
   private supportTicketId(v:string){if(typeof v!=='string'||!/^tkt_[a-f0-9-]{36}$/.test(v))throw Error('Invalid support ticket');return v;}
   private supportRevision(v:SupportRevisionInput){this.followUuid(v.idempotencyKey);if(!Number.isSafeInteger(v.expectedRevision)||v.expectedRevision<1||v.expectedRevision>=1e9)throw Error('Invalid support revision');}
