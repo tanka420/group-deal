@@ -1,3 +1,5 @@
+**Chốt UI —18/10/2026:** frontend1909e4f97110d70b17a77ed86d232584c69a91c9 đã push/deploy;giữbố cục ac1dff5,thêm1dòng focus NạpUSDC từdropdown.1CUAfocus/typecheck-build/14HTTPS đạt;18CUA/22responsive/live2rights3seller/preview kếthừa đúngtimestamp,khôngrerunfullmatrix.377runtime/184activepublic(180+4Safe)/3242filesystem/PID97197/Nginx/backupCURRENT giữ;native2026-10-18T07:18:15.108Z sameFILE_LINKopPREPARED/nohash,5oldorders/ledger52/64/hash209d178f/95held giữ. KhôngyêucầuuserchoUI,ký/provider/Circle/replay/heldrelease. Observerclone .cache/workspace-focus-ops-after.cjs +manifest .cache/workspace-focus-public-files.json,đổioutputwx khi chạy mới. NOT_FROZEN/G5G6OPEN. CURRENT reports/evidence/workspace-ui-focus/2026-10-18T07-16-39-043Z/CHECKS.json,SHA256 6bfaa2abbad0e6fbeb1724f4eed3cf2bd99807bd9e115b43f53902c396b0cb0d.
+
 # Việc cần người dùng hiện hành
 
 Gói UI đã được triển khai và kiểm,không cần chốt lại bố cục hoặc đăng nhập/ký để sửa giao diện. Bản live đã có danh sách riêng,sidebartrái cố định và preview bằng nút mắt.
