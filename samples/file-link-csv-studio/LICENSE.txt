@@ -1,0 +1,25 @@
+GROUPDEAL CSV STUDIO — PERSONAL TESTNET FILE_LINK LICENSE, VERSION 1
+
+Một đơn vị cấp quyền sử dụng cá nhân cho một người, không chuyển nhượng.
+Quyền sử dụng bản 1.0 đã nhận là lâu dài. Tài khoản buyer được tải gói
+FILE_LINK sau khi receipt giao hàng hợp lệ đã cấp quyền truy cập.
+Không yêu cầu nhập mã license; không có cửa sổ kích hoạt bằng mã.
+Quyền tài chính của order và allocation/claim không hết hạn do tải tệp.
+
+Được phép chạy, sao lưu và sửa công cụ cho nhu cầu cá nhân. Không bán lại,
+phân phối công khai gói, chia sẻ tài khoản hoặc đường dẫn có quyền truy cập.
+Nguồn công cụ: mã được viết trong dự án GroupDeal ngày 10/10/2026.
+Biến thể FILE_LINK được chuẩn bị ngày 18/10/2026 theo yêu cầu tiếp tục
+kiểm chứng FILE_LINK của chủ dự án; không chứa phần mềm/license hãng khác.
+
+Sản phẩm mẫu Arc Testnet. Không cam kết SLA hoặc hỗ trợ có thời hạn.
+FILE_LINK kiểm soát quyền tải qua GroupDeal, không phải DRM offline.
+
+TESTNET DISTRIBUTION PERMISSION
+
+Seller được chủ dự án chỉ định và được operator phê duyệt quyền phân phối
+cho đúng ProductVersion/LicenseVersion này có thể giao gói FILE_LINK
+qua tài khoản buyer trên GroupDeal và nhận USDC Testnet cho hành trình
+kiểm chứng. Không bao gồm Mainnet, sản phẩm của hãng khác hoặc phân phối
+công khai không kiểm soát. Buyer nhận quyền PERSONAL như phần trên.
+Quyền phân phối của bản LICENSE_KEY cũ không tự phê duyệt biến thể này.

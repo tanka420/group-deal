@@ -1,0 +1,26 @@
+{
+  "title": "GroupDeal CSV Studio 1.0 — FILE_LINK Personal License",
+  "description": "Công cụ xem, lọc và xuất CSV UTF-8 chạy trên máy; hỗ trợ phẩy/chấm phẩy/tab, ô có dấu nháy và xuống dòng, phân trang và chống công thức khi xuất. Gói gồm HTML mở bằng Chrome/Edge, hướng dẫn, điều khoản và CSV minh họa. Phiên bản phân phối FILE_LINK trên Arc Testnet: buyer được cấp quyền tải gói bằng tài khoản GroupDeal sau receipt giao hàng hợp lệ, không nhập mã license. Công cụ chạy offline sau khi tải.",
+  "category": "Productivity",
+  "vendor": "GroupDeal Testnet Lab",
+  "thumbnailUrl": "https://placehold.co/960x540/0866e8/ffffff.png?text=GroupDeal%20CSV%20Studio",
+  "media": [],
+  "requirements": [
+    "Chrome hoặc Edge hiện hành",
+    "CSV UTF-8; tối đa 5 MB, 25.000 dòng, 128 cột, 250.000 ô"
+  ],
+  "supportPolicy": "Sản phẩm mẫu Testnet; không cam kết SLA hoặc hỗ trợ có thời hạn. Báo lỗi qua kênh hỗ trợ GroupDeal khi được cấu hình.",
+  "license": {
+    "edition": "Personal 1.0 FILE_LINK",
+    "seatsPerUnit": 1,
+    "usageScope": "PERSONAL",
+    "durationDays": null,
+    "activationWindowDays": null,
+    "regions": [
+      "Worldwide"
+    ],
+    "transferable": false,
+    "supportDays": 0,
+    "usageTerms": "Một người cho mỗi đơn vị; sử dụng bản 1.0 đã nhận lâu dài. FILE_LINK cấp quyền tải gói cho tài khoản buyer sau receipt giao hàng hợp lệ, không yêu cầu nhập mã license và không có cửa sổ kích hoạt bằng mã. Được chạy, sao lưu, sửa để dùng cá nhân; không bán lại, chia sẻ tài khoản hoặc đường dẫn có quyền truy cập, hay phân phối công khai gói. Quyền tải qua GroupDeal không phải DRM offline. Quyền order/claim không hết hạn do việc tải tệp. Áp dụng LICENSE.txt trong gói."
+  }
+}
