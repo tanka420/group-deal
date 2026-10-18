@@ -1,7 +1,7 @@
-# Việc cần người dùng — FILE_LINK hiện hành
+# Việc cần người dùng hiện hành
 
-Đã tải ZIP6852/hash5f90be; đã tự login operator và ký duyệt riêng FILE_LINK. Rights APPROVED đến09/11/2026; probe FILE_LINK và draft mới version3 đã kiểm native. Không cần tải lại tệp, login operator hoặc duyệt lại.
+Gói UI đã được triển khai và kiểm,không cần chốt lại bố cục hoặc đăng nhập/ký để sửa giao diện. Bản live đã có danh sách riêng,sidebartrái cố định và preview bằng nút mắt.
 
-Đang cần chuyển sang ví seller **0x24F0c19a6E77cc687181500455BeE3550E617580**, bấm **Ký và xuất bản trên Arc Testnet**, đọc phí gas rồi tự ký. Bản mới **draft_d702e1b5-2db3-4795-943c-a08dad36cafb**, operation **op_1510d8a7-f9d8-4c8e-bb38-4eebe9079f8b**, UNLISTED/UNITS_COUNT/tiers1→0,8USDC/max2/inventory2/1ngày/SLA24h/earlyOFF/platform0. Hiện PREPARED/txHash=null, chưaREADY; khi user trả lời phải đọc lại trạng thái, không ký/prepare trùng. URL có draft cũ; nội dung và operation.resourceId ghim draft mới. Nếu mở lại hãy dùng bản mới, không publish draft_060109bf mặc định105→89.
+FILE_LINK vẫn chờ chữ ký xuất bản của seller **0x24F0c19a6E77cc687181500455BeE3550E617580** khi quay lại hành trình. Mở đúng **https://groupdeal.thanhtan.top/seller/create?draft=draft_d702e1b5-2db3-4795-943c-a08dad36cafb**;bảnv3/termsHash0x0dfdab…/opop_1510d8a7-f9d8-4c8e-bb38-4eebe9079f8b vẫnPREPARED/nohash theo native 2026-10-18T07:11:53.947Z. Không tạo draft/prepare/intent khác hoặc mở/publish draft_060mặcđịnh105→89. Tab mới dùng bundle mới đã mở đúng publication cũ;tab chờ ký ban đầu khôngreload. User tự kiểm gas và ký,agent không ký/broadcast.
 
-Agent không ký/OTP/broadcast thay. Sau publish đã có receipt/projection mới đi buyerE48b…1Ead mua quantity2/gross2USDC theo gói; chưa mua/delivery/download/confirm/claim.5đơn cũ khôngreplay,95held giữ. Circle và admin khác hoãn; username/social POST-V1. Safe3sig verified/user3người ký giữ, không ký lại. Offhost/RPO/RTO/provider/receiver/email/các nhánh G5 khác cònOPEN. NOT_FROZEN/G5G6 OPEN.
+ZIP/rights APPROVED/probe giữ,không upload hoặc duyệt lại. Chưa FILE_LINK publish/buy/delivery/download/confirm/claim.5đơn cũ/ledger52/64/95held giữ. Circle và admin mutations khác hoãn;username/social POST-V1;Safe3sig/user3human giữ context gốc,không ký lại. Offhost/RPO/RTO/provider/receiver/email/nhánhG5 khác cònOPEN. NOT_FROZEN/G5G6OPEN.

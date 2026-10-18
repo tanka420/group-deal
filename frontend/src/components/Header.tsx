@@ -281,7 +281,7 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
 
                   <div className="dropdown-menu-list">
-                    <button className="dropdown-menu-item" onClick={event=>{event.currentTarget.focus();setIsDropdownOpen(false);setIsFundingModalOpen(true);}}><Coins size={16} aria-hidden="true"/>{language==='en'?'Fund USDC':'Nạp USDC'}</button>
+                    <button className="dropdown-menu-item" onClick={()=>{accountButtonRef.current?.focus();setIsDropdownOpen(false);setIsFundingModalOpen(true);}}><Coins size={16} aria-hidden="true"/>{language==='en'?'Fund USDC':'Nạp USDC'}</button>
                     <button className="dropdown-menu-item" onClick={()=>go('account')}>{language==='en'?'Account settings':'Cài đặt tài khoản'}</button>
                     <button className="dropdown-menu-item" onClick={()=>go('wallet')}>{language==='en'?'Wallet':'Ví'}</button>
                     <button className="dropdown-menu-item" onClick={()=>go('support')}>{language==='en'?'Support':'Hỗ trợ'}</button>
