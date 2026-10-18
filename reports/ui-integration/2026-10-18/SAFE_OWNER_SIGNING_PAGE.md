@@ -1,3 +1,5 @@
+**Safe hiện hành:** Ba chữ ký control đã verified; user xác nhận “1 người” có thể ký/khôi phục cả ba ví. Control đạt; custody độc lập NOT MET, không còn chờ chữ ký hoặc câu trả lời về số người giữ. Chưa có quyết định miễn yêu cầu hoặc đổi cấu hình Safe.
+
 # Cách gửi hai chữ ký Safe — trang owner tự ký
 
 Mở **https://groupdeal.thanhtan.top/safe-owner-control/index.html**. Không cần đăng nhập GroupDeal bằng hai ví; chữ ký đăng nhập là thông điệp khác và không dùng cho gói control này.

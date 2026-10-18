@@ -1,3 +1,5 @@
+**Safe hiện hành:** Ba chữ ký control đã verified; user xác nhận “1 người” có thể ký/khôi phục cả ba ví. Control đạt; custody độc lập NOT MET, không còn chờ chữ ký hoặc câu trả lời về số người giữ. Chưa có quyết định miễn yêu cầu hoặc đổi cấu hình Safe.
+
 # Việc cần người dùng — hiện hành 18/10/2026
 
 Circle live: người dùng chọn “Hoãn Circle, tiếp tục phần độc lập”. Không tự tạo/tiếp tục request, không lặp hỏi lượng/OTP Circle.

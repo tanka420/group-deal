@@ -1,3 +1,5 @@
+**Safe hiện hành:** Ba chữ ký control đã verified; user xác nhận “1 người” có thể ký/khôi phục cả ba ví. Control đạt; custody độc lập NOT MET, không còn chờ chữ ký hoặc câu trả lời về số người giữ. Chưa có quyết định miễn yêu cầu hoặc đổi cấu hình Safe.
+
 **Trang ký đã sẵn sàng:** https://groupdeal.thanhtan.top/safe-owner-control/index.html — không cần đăng nhập GroupDeal. Xem SAFE_OWNER_SIGNING_PAGE.md; owner tự ký và sao chép JSON vào chat, không gửi private key.
 
 # Safe control: gói sẵn sàng cho owner — 18/10/2026
