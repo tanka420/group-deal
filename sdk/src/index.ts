@@ -131,7 +131,7 @@ export class GroupDealSDK {
     try {event=JSON.parse(rawBody);}catch{return {accepted:false,duplicate:false};}
     if(!event||event.event==='subscription.review'||!/^evt_[A-Za-z0-9_-]{1,80}$/.test(event.id)||event.id!==headers.eventId||event.event!==headers.event||!/^([a-z]+\.)+[a-z_]+$/.test(event.event)
       ||event.timestamp!==Number(headers.timestamp)||!Number.isSafeInteger(event.createdAt)||event.createdAt<0||!event.data||typeof event.data!=="object"||Array.isArray(event.data)
-      ||Object.entries(event.data).some(([key,value])=>["__proto__","constructor","prototype"].includes(key)||!["string","number","boolean"].includes(typeof value)))return {accepted:false,duplicate:false};
+      ||Object.entries(event.data).some(([key,value])=>["__proto__","constructor","prototype"].includes(key)||!["string","number","boolean"].includes(typeof value)||typeof value==='number'&&!Number.isFinite(value)))return {accepted:false,duplicate:false};
     const inserted=await inbox.persist(this.config.webhookSubscriptionId,event);
     return {accepted:true,duplicate:!inserted,...(inserted?{event}:{})};
   }
