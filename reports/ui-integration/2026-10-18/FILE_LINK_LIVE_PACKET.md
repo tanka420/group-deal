@@ -1,3 +1,5 @@
+**Cập nhật hiện hành:** gói tái dùng license/ZIP cũ đã bị thay thế sau khi đọc thấy điều khoản LICENSE_KEY. Dùng version2/license/ZIPFILE_LINK mới theo FILE_LINK_LIVE_PROGRESS.md. User đã cho phép duyệt riêng FILE_LINK; upload và operator auth/review còn chờ. Phần dưới là đề xuất ban đầu, không dùng để dispatch.
+
 # Gói FILE_LINK thật tiếp theo — chờ phiên và khoản mới được chốt
 
 Đây là gói chuẩn bị, chưa phải execution PASS. Chưa tạo draft/probe/operation, chưa ký, phát giao dịch hoặc tải tệp. Hai gói độc lập vừa hoàn tất: SLA/refund đơn3 canonical52RPC và PUBLIC1/UNLISTED3/product-rights19GET. Các branch khác vẫn OPEN.

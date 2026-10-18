@@ -1,15 +1,9 @@
-**Việc kế tiếp cần user:** packet FILE_LINK mới đã chuẩn bị tại reports/ui-integration/2026-10-18/FILE_LINK_LIVE_PACKET.md. Chờ chốt gross2USDC test,cặpví seller24F0…/buyerE48…và phiên đăng nhập/human signatures. Network fees chưa quote; duyệt ở UI/ví trước mỗi lần ký. Chưa tạo draft/probe/operation.
+# Việc cần người dùng — FILE_LINK hiện hành
 
-# Việc cần người dùng — hiện hành 18/10/2026
+Seller24F0…7580 đã tự ký đăng nhập; version2/license và hồ sơ rights mới được nộp, chưa approve. User đã cho phép **duyệt riêng FILE_LINK**; không hỏi lại quyền này. Các mục admin khác tiếp tục hoãn. Circle tiếp tục hoãn; username/social POST-V1. Safe3control signatures đãverified,user xác nhận3người khác nhau,khôngkýlại.
 
-Safe: đã nhận và xác minh3chữ ký owner, đủ quorum2/3 và owner bắt buộc73307bdd. Anh đã sửa khai báo thành3người khác nhau thực hiện3chữ ký; kết luận trước dựa trên “1 người” đã bị thay thế. Không cần đăng nhập GroupDeal hoặc ký lại. Khai báo/control có sẵn cho review custody; chưa là kiểm độc lập toàn bộ bản sao/khôi phục khóa. Không có yêu cầu đổi owner/threshold hay ký Safe transaction.
+Đang cần user chọn **GROUPDEAL_CSV_STUDIO_1.0_FILE_LINK.zip** tại reports/evidence/file-link-live/2026-10-18T05-00-06-325Z/ trong nút “File thật, tối đa16MB” trên form seller. Extension không có Allow access to file URLs nên automation không tựsetfile; không tựmởquyền. Chưa chọn/upload. Sau user chọn, agent bấm upload và kiểm6852byte/hash5f90be…; không tạo tài nguyên trùng khi outcome chưa rõ.
 
-Circle: hoãn theo “Hoãn Circle, tiếp tục phần độc lập”. Không tạo/tiếp tục request hoặc lặp hỏi lượng/OTP. Admin authenticated live: tiếp tục hoãn; không đổi quyền account thật để test. Username/social: POST-V1-01.
+Sau upload: víoperator/buyerE48b30ea…1Ead cần user tựđăngnhậpoperator realm/step-up để duyệt **chỉrightsrgt_4361e7a6-c4da-47e8-a1b8-da1c152c5c55 / pv_9a577a80-9b57-4db8-9559-0e6015fa9c84 / lv_2730410d-3b49-476d-9d54-4589ea2e20d8**. Bản cũAPPROVED không đổi. Saureviewquay seller24F0…; rebind cùngdraftdraft_060109bf-a257-4f13-8244-b6962857cc84 sangversion2vàcấuhìnhđềxuất2USDCtest,UNLISTED/tiers1→0,8/inventory2/SLA24 trướcprobe/review/publish. Draft hiện vẫn105→89mặcđịnh,0PUBLISHintent;không dùng cấu hình mặc định.
 
-Offhost: chưa có máy đích được chỉ định. Incident restore/RPO/RTO cần target độc lập; chưa xuất thêm backup/credential hoặc hạ tiêu chí nghiệm thu.
-
-Các lần thực thi live còn thiếu cần phiên người dùng/OTP/chữ ký hoặc provider/receiver thực: seller publish/edit/các delivery method khác, recovery theo phiên/thiết bị, email nghiệp vụ/inbox và các branch negative/outage theo G5. Không replay đơn1–5. Tôi tiếp tục phần độc lập và chỉ yêu cầu thao tác cụ thể khi packet đã sẵn sàng.
-
-Đã làm độc lập trong lượt này: đọc canonical3receipt SLA/refund đơn3 bằng52RPC;19GET public kiểm PUBLIC1/UNLISTED3 và product/license/rights binding. Ledger52/64/hash209d178f… và95held giữ. Không phát giao dịch hoặc thay đổi source/app/DB.
-
-NOT_FROZEN;G5/G6 OPEN. Trạng thái bằng chứng mới nhất theo reports/evidence/CURRENT_G5_PREPARATION_LATEST.json. Các tệp evidence đã hash giữ lịch sử; không lấy câu cũ “chưa chữ ký”/“1 người” làm trạng thái hiện hành.
+Tất cảOTP/chữkýuser tựlàm. Chưa có publish/buy/delivery/download/confirm/claim FILE_LINK;phíví chưaquote. Ledger52/64/95held và5đơn cũ giữ. Offhost/RPO/RTO/provider/receiver/email/cácnhánhG5khác cònOPEN;NOT_FROZEN/G5G6 OPEN. Xem FILE_LINK_LIVE_PROGRESS.md và CURRENT_G5_PREPARATION_LATEST.json.
