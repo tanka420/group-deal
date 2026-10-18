@@ -1,3 +1,7 @@
+**Quyết định tiếp tục — 18/10/2026:** người dùng đã đồng ý hoãn cả username bắt buộc cho seller và liên kết xác thực X/GitHub/Discord sang kế hoạch sau bản đầu. Xem reports/KE_HOACH_PHAT_TRIEN_SAU_BAN_DAU.md (POST-V1-01); không đưa gói này vào phạm vi chặn G5/G6 hiện hành. Đề xuất cũ triển khai social/username trước G5/G6 đã bị thay thế.
+
+**Prompt bàn giao mới nhất:** E:/apps/group-deal/reports/PROMPT_CHAT_MOI_2026-10-18.md. Tiếp tục Người dùng/Phân quyền → hành trình thật còn thiếu → vận hành → G5/G6; giữ phần source/UI R5–R7 đã khép trong phạm vi hồ sơ hiện hành, chỉ mở lại khi có lỗi/delta. Admin authenticated live vẫn do user hoãn; tiếp tục phần độc lập khi chờ ký/offhost. Gói này chỉ sửa tài liệu, không quan sát lại hay triển khai ứng dụng; CURRENT G5 vẫn giữ proof r567-matrix/2026-10-17T18-24-51-868Z, NOT_FROZEN/G5 OPEN/G6 OPEN.
+
 # KẾ HOẠCH THỐNG NHẤT HOÀN THIỆN GROUPDEAL
 
 **Phiên bản:** 2.0 — 03/10/2026. **Mục tiêu duy nhất:** hoàn thiện GroupDeal thành sản phẩm mua chung sản phẩm số hoạt động đầy đủ, đúng nghiệp vụ, an toàn về tài chính, dễ dùng, responsive và có thể vận hành, bảo trì, kiểm chứng.
