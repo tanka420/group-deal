@@ -1,3 +1,5 @@
+**Safe — khai báo mới nhất:** Ba chữ ký đã verified và user xác nhận do ba người khác nhau thực hiện. Câu “1 người” trước đó đã được sửa; kết luận chỉ dựa trên một người không còn hiện hành. Không yêu cầu ký lại.
+
 # Safe owner control đã xác minh; custody độc lập chưa đạt
 
 Đã nhận ba chữ ký do người dùng cung cấp trong chat và kiểm bằng verifier hiện hành, đúng toàn bộ thông điệp982byte của từng owner. Ba địa chỉ khôi phục từ chữ ký khớp:73307bdd…50b6d,7366adbf…7db22,c289b853…6d18b. Có owner bắt buộc73307bdd, ba owner khác nhau, đáp ứng quorum kỹ thuật2/3. Digest 0x21207e4bbe6a41efad99f8b398254370c8784abdd7dd78d5a599436cbc64f7d4, challenge gốc48aa5c9a-073c-4b1e-b026-3c565acd10d3, context backend30fea223380affc471cc91f4ab2390814ddaa87c. Verification lúc 2026-10-18T04:12:28.633Z trong thời hạn; không suy ra thời điểm ký từ chuỗi chữ ký.
