@@ -1,3 +1,5 @@
+**Việc kế tiếp cần user:** packet FILE_LINK mới đã chuẩn bị tại reports/ui-integration/2026-10-18/FILE_LINK_LIVE_PACKET.md. Chờ chốt gross2USDC test,cặpví seller24F0…/buyerE48…và phiên đăng nhập/human signatures. Network fees chưa quote; duyệt ở UI/ví trước mỗi lần ký. Chưa tạo draft/probe/operation.
+
 # Việc cần người dùng — hiện hành 18/10/2026
 
 Safe: đã nhận và xác minh3chữ ký owner, đủ quorum2/3 và owner bắt buộc73307bdd. Anh đã sửa khai báo thành3người khác nhau thực hiện3chữ ký; kết luận trước dựa trên “1 người” đã bị thay thế. Không cần đăng nhập GroupDeal hoặc ký lại. Khai báo/control có sẵn cho review custody; chưa là kiểm độc lập toàn bộ bản sao/khôi phục khóa. Không có yêu cầu đổi owner/threshold hay ký Safe transaction.

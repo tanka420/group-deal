@@ -1,0 +1,20 @@
+# Gói FILE_LINK thật tiếp theo — chờ phiên và khoản mới được chốt
+
+Đây là gói chuẩn bị, chưa phải execution PASS. Chưa tạo draft/probe/operation, chưa ký, phát giao dịch hoặc tải tệp. Hai gói độc lập vừa hoàn tất: SLA/refund đơn3 canonical52RPC và PUBLIC1/UNLISTED3/product-rights19GET. Các branch khác vẫn OPEN.
+
+Đề xuất cụ thể: Arc Testnet5042002/Hub0x2A7aECd1CE90f1284EB060488c8dDEF4b1bE0574/protocol1; campaign mới “CSV Studio 1.0 — Arc Testnet FILE_LINK journey”, UNLISTED, FILE_LINK, UNITS_COUNT; tiers1đơnvị@1USDC và2đơnvị@0,8USDC; inventory2/maxPerAccount2; duration1ngày/SLA24giờ/earlyOFF/platform0bps. Buyer mua quantity2 một lần, gross2USDC test; sold-out dự kiến final-clearing0,8 mỗiđơnvị, rebate0,4USDC và seller1,6USDC sau buyer xác nhận. Chưa có quote network fee, allowance, số dư hoặc nonce; UI/ví phải hiển thị để human duyệt trước mỗi lần ký. Đề xuất này chưa là sự đồng ý cho giao dịch.
+
+Seller payout 0x24F0c19a6E77cc687181500455BeE3550E617580; buyer đề xuất 0xe48b30ea70f77e5fa6311471c2e9687f8a701ead, là wallet đã dùng hành trình trước. Cần user chốt đúng cặp ví và khoản2USDC mới, rồi tự đăng nhập/OTP/ký. Không yêu cầu các Safe owner ký lại; không liên quan Circle hoặc admin live.
+
+Tài nguyên có sẵn GROUPDEAL_CSV_STUDIO_1.0.zip, 6825byte, SHA256 57bd74a84d9f39872ff722cfeafcbf9296c78177c539e7ba1e2373fe930e9686; resourceres_69eb5d47-74bd-4af7-8d85-990b2b2cfa89/productVersionpv_964f58e9-6bf3-4ea2-a2b1-16fc70d52c21/licenseVersionlv_4628927a-568c-46ba-8158-75c11398e2b7. Metadata whitelist quan sát 2026-10-18T04:36:47.950Z khớp owner/product/resource. Product container hiện DRAFT, không ARCHIVED; quyền dựa trên version/rights APPROVED đã dùng trước, validUntil1794243599 đủduration+SLA theo thời điểm đọc. Không suy metadata là đã kiểm lại file bytes. Chỉ có LICENSE_KEY probe, bắt buộc chạy FILE_LINK probe mới qua phiên seller hợp lệ trước publish.
+
+Lượt preflight đầu READ_UNCONFIRMED do exporter tìm sellerEnabled ở top-level và bắt buộctrue. Source accountAccess.ts dùng accountAccess.sellerEnabled với legacy historical seller khi chưa có override. Exporter sửa đúng schema, giữ log/version đầu. Seller hiện không accountAccess override, có seller role và payout; đây là quan sát flags, authenticated backend guard vẫn bắt buộc trước mọi write. Không cấp quyền hoặc dùng metadata để bypass session.
+
+Trình tự đã chốt trong JSON: seller đăng nhập→new draft/probe→review/sign publish→buyer đăng nhập/review/sign buy2→seller review/sign delivery→buyer tải và kiểm byte/hash→buyer xác nhận→buyer/seller review/sign claim→canonical finance/projection readback. FILE_LINK phải tạo2grant không licenseKeyId, tải qua quyền buyer, không bước nhập key. Mọi receipt/ID/nonce/quote lấy mới từ native flow; không đặt trước ID hoặc dùng lại đơn1–5.
+
+Reservation claim cuối của đơn3 vẫn ACTIVE ở chuẩn bị này; không clear/release thủ công. Normal READY sau khi user chốt sẽ kiểm lịch sử qua signer registry; nếu conflict thì dừng dispatch để đối chiếu.95held jobs giữ nguyên. Không reset/seed/replay/đụng Circle request cũ.
+
+VPS PID97197/NRestarts0/backend30fea22 và ledger52/64/hash209d178f… giữ tại metadata read. Runtime377/public185/backup và Safe/3owner control/3người user khai báo kế thừa timestamp riêng từ CURRENT, không gán thành lần mới. Source app không đổi, không test/fullCI/deploy. Circle/admin hoãn,offhost/RPO/RTO/provider/receiver/email và cácbranch live khác cònOPEN. NOT_FROZEN;G5/G6 OPEN;acceptanceEligible=false.
+
+Proof: reports/evidence/file-link-live-preparation/2026-10-18T04-36-18-684Z/CHECKS.json
+SHA256: f0c7770bb0798cd354ab900ffee3ebea551b81dfc9853cff6694b91c4030c53d
