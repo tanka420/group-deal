@@ -138,14 +138,14 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Right Actions & Account Dropdown */}
         <div className="header-actions">
           {/* Funding & Testnet Faucet */}
-          <button
+          {!user&&<button
             className="btn btn-sm btn-secondary header-funding"
             onClick={event => {event.currentTarget.focus();setIsFundingModalOpen(true);}}
             title={language==="en"?"Fund USDC, CCTP Bridge & Testnet Faucet":"Nạp USDC, CCTP Bridge & Testnet Faucet"}
           >
             <Coins size={15} color="var(--warning)" />
             <span>{language==="en"?"Fund USDC":"Nạp USDC"}</span>
-          </button>
+          </button>}
 
           {/* User Account / Dropdown */}
           {!user ? (
@@ -195,6 +195,7 @@ export const Header: React.FC<HeaderProps> = ({
               {/* Account Pill Trigger */}
               <button
                 className="account-pill-btn"
+                aria-label={language==='en'?`Account menu: ${accountLabel}`:`Menu tài khoản: ${accountLabel}`}
                 ref={accountButtonRef}
                 aria-expanded={isDropdownOpen}
                 aria-controls="header-account"
@@ -280,6 +281,7 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
 
                   <div className="dropdown-menu-list">
+                    <button className="dropdown-menu-item" onClick={event=>{event.currentTarget.focus();setIsDropdownOpen(false);setIsFundingModalOpen(true);}}><Coins size={16} aria-hidden="true"/>{language==='en'?'Fund USDC':'Nạp USDC'}</button>
                     <button className="dropdown-menu-item" onClick={()=>go('account')}>{language==='en'?'Account settings':'Cài đặt tài khoản'}</button>
                     <button className="dropdown-menu-item" onClick={()=>go('wallet')}>{language==='en'?'Wallet':'Ví'}</button>
                     <button className="dropdown-menu-item" onClick={()=>go('support')}>{language==='en'?'Support':'Hỗ trợ'}</button>

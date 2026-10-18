@@ -1,0 +1,169 @@
+/* Workspace presentation only. Business commands, checkpoints and wallet guards stay with their callers. */
+:root { --workspace-sidebar-width: 256px; --workspace-gutter: 32px; }
+.ui-stack { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+[hidden] { display: none !important; }
+.header .header-inner { flex-wrap: nowrap; gap: 24px; }
+.header .header-brand, .header .logo-group { flex-shrink: 0; }
+.header .desktop-navigation { flex: 1 1 auto; min-width: 0; }
+.header .primary-navigation, .header .header-actions { flex-wrap: nowrap; }
+.header .primary-navigation a { white-space: nowrap; }
+.header .header-actions { flex-shrink: 0; gap: 12px; }
+.header .account-summary { display: none !important; }
+.header .account-dropdown-wrapper { display: flex; align-items: center; gap: 12px; }
+.header .account-pill-btn { min-width: 44px; min-height: 44px; }
+.dropdown-user-header { display: grid; gap: 12px; }
+.dropdown-user-header > .btn { justify-self: start; }
+.dropdown-user-header .dropdown-wallet-box { margin: 0; }
+.dropdown-menu-item { min-height: 44px; }
+.workspace-app .header-inner { max-width: none; }
+.workspace-app .main-content { max-width: none; margin: 0; padding: 24px var(--workspace-gutter) 48px; }
+.workspace-app .seller-workspace-content, .workspace-app .operator-workspace-content { min-width: 0; }
+.workspace-app .seller-workspace-content > p, .workspace-app .operator-workspace-content > p { margin-block: 16px; }
+.workspace-app .operator-workspace-content > .glass-card, .workspace-app .seller-workspace-content > .glass-card { padding: 24px; }
+.workspace-app .operator-workspace-content .support-page { max-width: none; margin-inline: 0; padding-inline: 0; }
+.section-heading { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.section-heading > div { flex: 1 1 320px; min-width: 0; }
+.section-heading h2, .review-section > h2 { margin: 0 0 8px; font-size: 1.3rem; }
+.section-heading p, .review-section > p { line-height: 1.65; max-width: 80ch; }
+.verification-workspace, .review-section { display: grid; gap: 24px; min-width: 0; }
+.review-section > .btn { justify-self: start; }
+.review-section .notice { margin: 0; }
+.section-switcher { display: flex; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 16px; }
+.section-switcher .btn { min-height: 44px; box-shadow: none; }
+.section-switcher [aria-pressed="true"] { background: var(--bg-tertiary); color: var(--primary); border-color: var(--primary); }
+.record-list-toolbar { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(180px, 240px) auto; align-items: end; gap: 16px; }
+.record-list-toolbar label { display: grid; gap: 8px; min-width: 0; font-size: .875rem; }
+.record-search > div { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border: 1px solid var(--border-medium); border-radius: var(--radius-md); background: var(--bg-secondary); }
+.record-search svg { flex-shrink: 0; color: var(--text-secondary); }
+.record-search input { width: 100%; min-width: 0; min-height: 42px; border: 0; background: transparent; color: var(--text-primary); font: inherit; }
+.record-search:focus-within > div { outline: 2px solid var(--primary); outline-offset: 2px; }
+.record-search input:focus-visible { outline: none; }
+.record-list-count { padding-block: 12px; margin: 0; font-size: .875rem; white-space: nowrap; }
+.record-list { display: grid; list-style: none; padding: 0; margin: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--bg-secondary); overflow: clip; }
+.record-list > li { min-width: 0; }
+.record-list > li + li { border-top: 1px solid var(--border-subtle); }
+.record-summary { display: grid; align-items: center; gap: 24px; padding: 20px; min-width: 0; }
+.rights-record-summary { grid-template-columns: minmax(0, 1fr) minmax(140px, .35fr) auto; }
+.record-identity { min-width: 0; }
+.record-identity h3 { font-size: 1rem; line-height: 1.5; margin: 0 0 6px; overflow-wrap: anywhere; }
+.record-identity p { font-size: .85rem; margin: 0; overflow-wrap: anywhere; }
+.record-status { display: inline-block; color: var(--text-secondary); font-size: .85rem; line-height: 1.6; }
+.record-status.is-approved { color: var(--success); }
+.record-status.is-pending { color: var(--warning); }
+.record-expiry { margin-top: 4px; font-size: .8rem; }
+.record-summary .btn { max-width: 100%; min-height: 44px; white-space: normal; }
+.rights-review-card { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.record-detail { display: grid; gap: 24px; padding: 24px; border-top: 1px solid var(--border-subtle); background: var(--bg-primary); }
+.record-detail .detail-list { margin: 0; }
+.record-evidence { display: grid; gap: 12px; line-height: 1.7; }
+.record-evidence ul { display: grid; gap: 8px; padding-left: 20px; }
+.record-decision-form { display: grid; gap: 20px; min-width: 0; padding: 24px; border-radius: var(--radius-md); background: var(--bg-secondary); }
+.record-decision-form .form-group { margin: 0; gap: 8px; }
+.record-decision-form > .btn { justify-self: start; }
+.record-list-empty { padding: 24px; background: var(--bg-secondary); border: 1px dashed var(--border-subtle); border-radius: var(--radius-md); }
+.seller-verification-summary { grid-template-columns: minmax(0, 1fr) minmax(140px, .6fr) minmax(120px, .5fr) auto; }
+.record-wallet { display: grid; gap: 6px; min-width: 0; }
+.record-wallet code { font-size: .85rem; overflow-wrap: anywhere; }
+.record-field-label { font-size: .75rem; color: var(--text-secondary); }
+.product-studio .product-record-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); overflow: clip; }
+.product-studio .product-record-list > .glass-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .8fr); gap: 8px 24px; border: 0; border-radius: 0; box-shadow: none; padding: 20px; }
+.product-studio .product-record-list > .glass-card + .glass-card { border-top: 1px solid var(--border-subtle); }
+.product-studio .product-record-list h3 { grid-column: 1; margin: 0; font-size: 1rem; }
+.product-studio .product-record-list p { grid-column: 1; font-size: .875rem; line-height: 1.65; }
+.product-studio .product-record-list .action-row { grid-column: 2; grid-row: 1 / 4; align-self: center; justify-content: flex-end; margin: 0; padding: 0; gap: 8px; }
+.product-editor-toggle { margin-top: 24px; }
+.product-version-editor { scroll-margin-top: calc(var(--app-header-height, 80px) + 24px); }
+.seller-create-layout { display: block; }
+.seller-create-layout > .workspace-sidebar { position: static; margin-bottom: 24px; }
+.wizard-intro { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.wizard-intro h2 { font-size: 1.3rem; margin: 0; }
+.wizard-intro .btn { min-height: 44px; }
+.seller-create-layout .wizard-steps { display: flex; gap: 8px; flex-wrap: wrap; margin: 20px 0 12px; }
+.seller-create-layout .wizard-steps li { flex: 1 1 150px; margin: 0; }
+.seller-create-layout .wizard-steps button { min-height: 48px; height: 100%; border: 1px solid var(--border-subtle); background: var(--bg-secondary); }
+.seller-create-layout .wizard-steps button[aria-current="step"] { color: var(--primary); border-color: var(--primary); background: var(--bg-tertiary); }
+.seller-create-layout .wizard-main > .glass-card { padding: 24px; }
+.seller-create-layout .wizard-main { max-width: 1100px; }
+.draft-preview-dialog.ui-dialog { width: min(1080px, calc(100vw - 48px)); padding: 32px; }
+.draft-preview-dialog .deal-preview { position: static; padding: 0; clear: both; }
+.draft-preview-dialog h2 { margin-bottom: 12px; }
+.draft-preview-dialog .preview-mode { margin-block: 20px; }
+.draft-preview-dialog .preview-content { max-width: 920px; margin: 24px auto 0; }
+.draft-preview-dialog .preview-mobile { max-width: 375px; }
+.draft-preview-dialog .product-gallery { max-width: 520px; }
+.draft-preview-dialog .deal-key-facts { margin-block: 24px; }
+.draft-preview-dialog .price-tier-rail { margin-top: 24px; }
+.seller-menu-drawer.ui-dialog { position: fixed; inset: 0 auto 0 0; width: min(340px, 90vw); height: 100dvh; max-height: 100dvh; margin: 0; padding: 20px; border-radius: 0; }
+.seller-menu-drawer.ui-dialog[open] { display: grid; grid-template-columns: minmax(0, 1fr) 44px; grid-template-rows: auto minmax(0, 1fr); gap: 20px; overflow: hidden; }
+.seller-menu-drawer .ui-dialog-close { grid-column: 2; grid-row: 1; float: none; position: static; width: 44px; height: 44px; margin: 0; }
+.seller-menu-drawer h2 { grid-column: 1; grid-row: 1; align-self: center; font-size: 1.1rem; margin: 0; }
+.seller-menu-drawer nav { grid-column: 1 / -1; grid-row: 2; align-content: start; min-height: 0; overflow-y: auto; }
+@media (min-width: 768px) {
+ .header .desktop-navigation { display: block; }
+ .header .mobile-menu-button { display: none; }
+}
+@media (min-width: 1024px) {
+ .workspace-app:has(.seller-workspace-nav, .operator-workspace-nav) .main-content { padding-left: calc(var(--workspace-sidebar-width) + var(--workspace-gutter)); }
+ .workspace-app .seller-workspace-frame, .workspace-app .operator-workspace { display: block; margin-top: 0; }
+ .workspace-app .seller-workspace-frame .seller-workspace-nav, .workspace-app .operator-workspace .operator-workspace-nav { position: fixed; left: 0; top: var(--app-header-height, 76px); bottom: 0; width: var(--workspace-sidebar-width); height: calc(100dvh - var(--app-header-height, 76px)); max-height: none; margin: 0; padding: 20px 16px; border: 0; border-right: 1px solid var(--border-subtle); border-radius: 0; background: var(--bg-secondary); overflow-y: auto; z-index: 20; }
+ .workspace-app .operator-navigation-desktop { display: block; max-height: none; padding: 0; border: 0; border-radius: 0; overflow: visible; }
+ .workspace-app .operator-menu-trigger { display: none; }
+ .workspace-app .operator-navigation-label { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; white-space: normal; }
+ .workspace-app .operator-navigation-heading h2 { display: block; position: static; width: auto; height: auto; clip: auto; margin: 0; }
+ .workspace-app .operator-navigation-heading, .workspace-app .seller-workspace-nav h2 { margin-bottom: 20px; font-size: .9rem; }
+ .workspace-app .operator-navigation-list, .workspace-app .seller-workspace-nav nav { gap: 8px; }
+ .workspace-app .operator-navigation-list .btn, .workspace-app .seller-workspace-nav .btn { border-color: transparent; box-shadow: none; justify-content: flex-start; }
+ .workspace-app .operator-navigation-toggle { display: none; }
+}
+@media (max-width: 1100px) {
+ .seller-verification-summary { grid-template-columns: minmax(0, 1fr) minmax(120px, .5fr) auto; }
+ .seller-verification-summary .record-wallet { display: none; }
+ .product-studio .product-record-list > .glass-card { grid-template-columns: minmax(0, 1fr); }
+ .product-studio .product-record-list .action-row { grid-column: 1; grid-row: auto; justify-content: flex-start; margin-top: 8px; }
+}
+@media (max-width: 1023px) {
+ :root { --workspace-gutter: 24px; }
+ .workspace-app .seller-workspace-frame, .workspace-app .operator-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+ .workspace-app .operator-navigation-desktop { display: none; }
+ .workspace-app .operator-workspace-nav, .workspace-app .seller-workspace-nav { position: static; border: 0; padding: 0; }
+ .workspace-app .operator-workspace-nav .operator-menu-trigger { display: flex; width: 100%; }
+}
+@media (max-width: 767px) {
+ :root { --workspace-gutter: 16px; }
+ .header .header-inner { display: flex; padding: 12px 16px; gap: 8px; }
+ .header .header-brand { flex: 1; }
+ .header .desktop-navigation { display: none; }
+ .header .mobile-menu-button { display: inline-flex; flex-shrink: 0; margin-left: auto; min-width: 44px; min-height: 44px; padding: 10px; }
+ .header .header-actions, .header .account-dropdown-wrapper { gap: 8px; }
+ .header .account-pill-btn { width: 44px; padding: 4px; }
+ .header .account-dropdown-menu { top: calc(100% + 8px); }
+ .admin-header .header-brand { flex: none; }
+ .admin-header .logo-text { font-size: 1.1rem; }
+ .admin-header .logo-text small { display: none; }
+ .admin-header nav.ui-row { margin-left: auto; width: auto; gap: 8px; flex-wrap: nowrap; }
+ .admin-header nav .btn { min-width: 44px; min-height: 44px; padding: 10px; }
+ .admin-header nav a > span { display: none; }
+ .workspace-app .main-content { padding-top: 20px; }
+ .record-list-toolbar { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+ .record-list-count { padding: 0; }
+ .record-summary, .seller-verification-summary { grid-template-columns: minmax(0, 1fr) auto; padding: 16px; gap: 16px; }
+ .record-identity { grid-column: 1 / -1; }
+ .record-detail, .record-decision-form { padding: 16px; }
+ .record-detail .detail-list { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+ .record-detail .detail-list dd { margin-bottom: 12px; }
+ .record-decision-form .form-grid { grid-template-columns: minmax(0, 1fr); }
+ .record-decision-form > .btn { width: 100%; }
+ .seller-create-layout .wizard-steps li { flex-basis: 135px; }
+ .seller-create-layout .workspace-sidebar h2, .seller-create-layout .workspace-sidebar > p { display: block; }
+ .seller-create-layout .wizard-main > .glass-card { padding: 16px; }
+ .draft-preview-dialog.ui-dialog { width: calc(100vw - 24px); padding: 20px; }
+}
+/* Thin scrollbars keep a stable gutter and follow the existing text token. */
+* { --scrollbar-thumb: transparent; }
+*:hover { --scrollbar-thumb: color-mix(in srgb, var(--text-primary) 16%, transparent); }
+.is-scrolling { --scrollbar-thumb: color-mix(in srgb, var(--text-primary) 28%, transparent); }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--text-primary) 40%, transparent); }
+@supports not selector(::-webkit-scrollbar) { * { scrollbar-width: thin; scrollbar-color: transparent transparent; } *:hover { scrollbar-color: color-mix(in srgb, var(--text-primary) 18%, transparent) transparent; } }

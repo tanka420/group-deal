@@ -165,8 +165,8 @@ export const SellerDashboard: React.FC = () => {
       {(loading||!dataVisible)&&<p role="status">{text("Đang tải dữ liệu seller…","Loading seller data…")}</p>}
       <div className="seller-workspace-frame"><SellerWorkspaceNavigation active={activeTab} onChange={setActiveTab}/><div className="seller-workspace-content">
       {/* Overview Cards */}
-      {dataReady&&<p className="muted">{text('Tổng dữ liệu của kênh người bán; không đổi theo bộ lọc bên dưới.','Seller studio totals; filters below do not change these figures.')}</p>}
-      {dataReady&&<div
+      {dataReady&&['CAMPAIGNS','REVENUE'].includes(activeTab)&&<p className="muted">{text('Tổng dữ liệu của kênh người bán; không đổi theo bộ lọc bên dưới.','Seller studio totals; filters below do not change these figures.')}</p>}
+      {dataReady&&['CAMPAIGNS','REVENUE'].includes(activeTab)&&<div
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",

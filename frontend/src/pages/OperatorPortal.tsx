@@ -11,7 +11,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
 import { useWeb3 } from "../context/Web3Context";
-import { RightsReview } from "../components/RightsReview";
+import {OperatorVerifications} from '../components/OperatorVerifications';
 import { OperatorDealDetail } from "../components/OperatorDealDetail";
 import type { OperatorDealSelection } from "../utils/appRoute";
 import {OperatorEmailOutbox} from "../components/OperatorEmailOutbox";
@@ -21,7 +21,6 @@ import {OperatorWorkspaceNavigation,type OperatorSection} from '../components/Op
 import {focusPageElement} from '../utils/focus';
 import {OperatorAuditLog} from '../components/OperatorAuditLog';
 import {OperatorLegacyReview} from '../components/OperatorLegacyReview';
-import {OperatorSellerVerification} from '../components/OperatorSellerVerification';
 import {cleanHttpsEvidenceUrl} from "../../../shared/evidence.mjs";
 import {
   ShieldAlert,
@@ -104,7 +103,7 @@ export const OperatorPortal: React.FC<{dealSelection?:OperatorDealSelection|null
       {loadError&&<div role="alert" className="notice notice-error">{language==="en"?"Operator data could not be loaded. Retry when the connection is stable.":loadError}<button className="btn btn-secondary" onClick={fetchOperatorData}>{language==="en"?"Retry":"Thử lại"}</button></div>}
       <div className="workspace-heading">
         <div>
-          <h1 style={{ fontSize: "1.85rem", marginBottom: "0.25rem" }}>{t("operatorTitle")}</h1>
+          <h1 style={{ fontSize: "1.85rem", marginBottom: "0.25rem" }}>{activeTab==='VERIFICATIONS'?(language==='en'?'Verifications and rights':'Xác minh và bản quyền'):t("operatorTitle")}</h1>
           <p style={{ color: "var(--text-secondary)", fontSize: "0.92rem" }}>
             {language==="en"?"Review deals, distribution rights, disputes and financial reconciliation.":"Kiểm tra deal, quyền phân phối, tranh chấp và đối soát tài chính."}
           </p>
@@ -115,7 +114,6 @@ export const OperatorPortal: React.FC<{dealSelection?:OperatorDealSelection|null
         </button>
       </div>
 
-      <a className="btn btn-sm btn-secondary" href="/admin/support">{language==='en'?'Support tickets':'Ticket hỗ trợ'}</a>
       {loading&&<p role="status">{language==="en"?"Loading operator data…":"Đang tải dữ liệu operator…"}</p>}
       <div className={'operator-workspace'+(navigationExpanded?' is-navigation-expanded':'')}>
       <OperatorWorkspaceNavigation active={activeTab} disputeCount={!loading&&!loadError?disputes.length:'—'} expanded={navigationExpanded} onToggle={()=>setNavigationExpanded(value=>!value)} onChange={section=>{selectSection(section);requestAnimationFrame(()=>focusPageElement(workspaceContent.current));}}/>
@@ -196,10 +194,7 @@ export const OperatorPortal: React.FC<{dealSelection?:OperatorDealSelection|null
 
       {/* VERIFICATIONS TAB */}
       {activeTab === "VERIFICATIONS" && (
-        <div className="glass-card">
-          <RightsReview/>
-          <OperatorSellerVerification/>
-        </div>
+        <OperatorVerifications/>
       )}
 
       {/* RECONCILIATION TAB */}

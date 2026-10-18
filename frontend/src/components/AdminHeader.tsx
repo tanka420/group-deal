@@ -1,5 +1,5 @@
 import {useLayoutEffect,useRef} from 'react';
-import {Users} from 'lucide-react';
+import {Users,ArrowLeft,Languages} from 'lucide-react';
 import {useLanguage} from '../context/LanguageContext';
 
 export function AdminHeader(){
@@ -7,6 +7,6 @@ export function AdminHeader(){
  useLayoutEffect(()=>{const element=header.current;if(!element)return;const update=()=>document.documentElement.style.setProperty('--app-header-height',element.getBoundingClientRect().height+'px');const observer=new ResizeObserver(update);observer.observe(element);update();return()=>observer.disconnect();},[]);
  return <header className="header admin-header" ref={header}><div className="header-inner">
   <a href="/admin" className="logo-group" aria-label={en?'GroupDeal administration':'Quản trị GroupDeal'}><span className="logo-mark"><Users size={23} aria-hidden="true"/></span><span className="logo-text">GroupDeal <small>Admin</small></span></a>
-  <nav className="ui-row" aria-label={en?'Admin workspace links':'Liên kết khu quản trị'}><a className="btn btn-secondary" href="/">{en?'Back to app':'Về ứng dụng'}</a><button className="btn btn-secondary" onClick={()=>setLanguage(en?'vi':'en')}>{en?'Language: EN':'Ngôn ngữ: VI'}</button></nav>
+  <nav className="ui-row" aria-label={en?'Admin workspace links':'Liên kết khu quản trị'}><a className="btn btn-secondary" href="/" aria-label={en?'Back to app':'Về ứng dụng'}><ArrowLeft size={18} aria-hidden="true"/><span>{en?'Back to app':'Về ứng dụng'}</span></a><button className="btn btn-secondary" aria-label={en?'Language: EN':'Ngôn ngữ: VI'} onClick={()=>setLanguage(en?'vi':'en')}><Languages size={18} aria-hidden="true"/><span>{en?'EN':'VI'}</span></button></nav>
  </div></header>;
 }
