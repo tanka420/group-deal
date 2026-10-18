@@ -1,0 +1,55 @@
+**Hiện hành — 18/10/2026, sau gói Người dùng/Phân quyền:** backend 30fea22, ops 73b6fae đã push và triển khai; frontend 8dc5cf1 giữ nguyên. Đã sửa đơn RESOLVED rút đủ vẫn chặn thu hồi seller; giữ kiểm nghĩa vụ còn mở và vai trò lịch sử. 15 ca account-access, 10 ca danh bạ/quản trị fixture và backend build đạt; giữ log FAIL tái hiện. Chưa đổi quyền tài khoản thật; admin live vẫn do người dùng hoãn.
+
+Native upgrade HEALTHY tại block 67760896, dữ liệu/private fields và ledger được giữ. PID 97197, NRestarts 0; maintenance 13.182 giây. 377 file runtime, 181 file public, HTTPS/guest401, backup đúng source/private restore/BACKUP_CURRENT và timer đạt. Đọc lại lúc 08:23:28 ngày 18/10 (UTC+7): 52 flows/64 reservations giữ hash, 3 seller không còn nghĩa vụ mở theo guard, 1 đơn RESOLVED đã rút đủ; 0 account commands/0 restricted. Giữ 95 held jobs. Tám email SENT đều TEST cũ đang held; chưa email nghiệp vụ/inbox. Chưa Circle chiều ngược/cirBTC. Safe finalized 67761173, 2/3, nonce 0, modules rỗng; control packet context backend mới chưa có chữ ký/custody. Chưa máy offhost hoặc phép đo RPO/RTO.
+
+Đã đối chiếu 14 nhóm G5; hash source/test inventory chỉ chứng minh sự hiện diện, không thay execution proof. UI R5–R7 kế thừa đúng phạm vi, không chạy lại UI/full CI. Username/social sau bản đầu. **NOT_FROZEN; G5/G6 OPEN.** [Báo cáo gói](E:/apps/group-deal/reports/evidence/account-access-followup/2026-10-18T01-19-03-731Z/ACCOUNT_ACCESS_FOLLOWUP.md). CURRENT: reports/evidence/account-access-followup/2026-10-18T01-19-03-731Z/CHECKS.json; SHA256 54e34b40093584926841fa4c4870f055e3b435c44cbee5c794a448aed59bd657. Các cập nhật bên dưới giữ vai trò lịch sử theo thời điểm của chúng.
+
+**Quyết định tiếp tục — 18/10/2026:** người dùng đã đồng ý hoãn cả username bắt buộc cho seller và liên kết xác thực X/GitHub/Discord sang kế hoạch sau bản đầu. Xem reports/KE_HOACH_PHAT_TRIEN_SAU_BAN_DAU.md (POST-V1-01); không đưa gói này vào phạm vi chặn G5/G6 hiện hành. Đề xuất cũ triển khai social/username trước G5/G6 đã bị thay thế.
+
+**Prompt bàn giao mới nhất:** E:/apps/group-deal/reports/PROMPT_CHAT_MOI_2026-10-18.md. Tiếp tục Người dùng/Phân quyền → hành trình thật còn thiếu → vận hành → G5/G6; giữ phần source/UI R5–R7 đã khép trong phạm vi hồ sơ hiện hành, chỉ mở lại khi có lỗi/delta. Admin authenticated live vẫn do user hoãn; tiếp tục phần độc lập khi chờ ký/offhost. Gói này chỉ sửa tài liệu, không quan sát lại hay triển khai ứng dụng; CURRENT G5 vẫn giữ proof r567-matrix/2026-10-17T18-24-51-868Z, NOT_FROZEN/G5 OPEN/G6 OPEN.
+
+**R5–R7 — 18/10/2026:** frontend8dc5cf1,backend324bca2/ops28f62e0 lên VPS. Khép source và dossier UI hữu hạn:34route/VIEN/375–1280/text200/3engine =408lượt,30lượt lỗi tải/retry; CI ef281a6:30context+6external dev/54matrix+18navigation built PASS; delta header hiện hành24built+6dev budget PASS, không SKIP;15production smoke/181hash trước-sau. Sửa header focus/WebKit và admin/fee/budget/quantity reflow, bỏ header mua che số tiền ở text200 và EN Docs.11gói/664artifact kế thừa đã đối hash. Không coi đó là mọi hành trình thật/accessibility100%.
+
+377runtime/181public/HTTPS khớp,PID3655922/NRestarts0/Nginx giữ,backup VERIFIED/privateRestore/BACKUP_CURRENT;95held không giải phóng. Không DBread/write, realOTP/ký/provider request/replay; metadata tài chính kế thừa theo timestamp cũ. Phần còn lại R5/R6 live theo G5:Circle chiều ngược/cirBTC/recovery/seller/admin/email. Admin thật user hoãn. Safe0chữ ký/custody; chưa offhost/RPO/RTO. NOT_FROZEN,G5/G6 OPEN. [Hồ sơ](E:/apps/group-deal/reports/evidence/r567-matrix/2026-10-17T18-24-51-868Z/R567_COVERAGE.md). CURRENT reports/evidence/r567-matrix/2026-10-17T18-24-51-868Z/CHECKS.json,SHA256 967a6440390cf708b2e9370b2d293f33c418c64e24f4057164be282c5105027f.
+
+# Đối chiếu R1–R8 sau UI01–06
+
+Mốc hiện hành frontend8dc5cf1/backend30fea22, ops73b6fae,18/10/2026; proof account-access-followup ở đầu tài liệu. Mốc fe9a004/52bbaef/4851fef là lịch sử. Đọc bảng này thay cho suy luận “đã triển khai UI01–06 = đã nghiệm thu mọi tiêu chí R1–R8”. Không thay đổi hoặc mở rộng yêu cầu đã duyệt.
+
+| Mục | Kết quả đã triển khai | Phần cần phân biệt khi kết luận hoàn tất |
+|---|---|---|
+| R1 — điều hướng mobile | Menu dùng chung, buyer vào các khu chính; menu admin riêng, focus/Escape và URL. Gói01/04/05. | Phần sửa/tích hợp đã xong; không tự suy thành toàn bộ hành trình nghiệp vụ đã nghiệm thu. |
+| R2 — Khám phá | Filter toàn tập ở API, giá/khả năng mua/sort, chip/xóa/reset/áp dụng nháp, URL và tải thêm. Gói02. | Phần sửa/tích hợp đã xong theo scoped proof. |
+| R3 — Đơn mua | Tìm mã/tên, trạng thái/ngày, STT khác order.id, mới nhất trước, tải thêm, tách tiền hàng/rebate/refund. Gói03/04. | Phần sửa/tích hợp đã xong; không tạo lại đơn hoàn tất để kiểm. |
+| R4 — giữ chức năng | Đánh giá/phản hồi, seller follows trong Account, trao đổi theo đơn tách ticket hỗ trợ, nháp và kết quả chưa rõ. Gói01/03/04. | Phần sửa/tích hợp đã xong theo scoped proof; kiểm live mới theo phần thực sự còn thiếu. |
+| R5 — ngữ cảnh hành trình | Route/returnTo/auth handoff, order/draft/checkpoint và recovery; bảng ngữ cảnh seller; gửi/swap có review và giữ cùng yêu cầu. Gói01/03/04/06 và wallet fixes. | Đã tích hợp; chưa khép kiểm chứng toàn bộ hành trình thật, Circle chiều ngược/cirBTC và các nhánh recovery còn trong G5; Circle1USDC→1.154436EURC đã recheck receipt thành công. Không đánh dấu toàn mục đã nghiệm thu. |
+| R6 — tiền/ngày/phí | UTC+7/base units, metric theo campaign, thiếu số dư không giả0, gross/rebate/refund, spender/exact allowance/min nhận/trần phí/TTL; popup tự cập nhật quote chưa ký. Gói02/03/04/06 và delta16/10. | Đã tích hợp; Circle USDC→EURC có một execution receipt đã xác minh; chiều ngược/cirBTC chưa đủ proof. No-route không là swap thành công. |
+| R7 — copy/form/VI–EN/khả dụng | Copy người dùng, lỗi form, giữ nháp, xác nhận, VI/EN, focus/keyboard/mobile được kiểm theo các gói và delta. | Đã áp dụng và có scoped checks; đã có dossier hữu hạn34route/VIEN/375–1280/text200/3engine và proof form/dialog/recovery kế thừa;408lượt+30error/retry. Không suy mọi tổ hợp trạng thái/thiết bị hoặc accessibility100%; nghiệm thu live còn theo G5. |
+| R8 — Home và menu hiện hành | Home/Explore tách biệt, dữ liệu thật, không deal/giảm giá giả, menu theo phiên/vai trò, bản preview cũ giữ lịch sử. Gói01/02/04/05. | Phần sửa/tích hợp đã xong theo scoped proof. |
+
+Nguồn: PACKAGE_01–05 trong reports/ui-integration/2026-10-15; PACKAGE_06, WALLET_LAYOUT_SWAP_POPUP và WALLET_SEND_CONFIRMATION trong thư mục hiện tại; CURRENT_UI_* và CURRENT_WALLET_* là pointer bằng chứng có phạm vi riêng. Các câu “còn ở gói sau” trong báo cáo cũ chỉ đúng tại thời điểm gói đó, phải đọc cùng các gói tiếp theo.
+
+Mã order.id xuyên buyer/seller/admin và khu Người dùng/Phân quyền là yêu cầu bổ sung sau bảng R1–R8. Đã triển khai tham chiếu mã đơn, danh bạ/hồ sơ và phân khu quyền, tách phiên admin. Gói ACCOUNT_ACCESS_IMPLEMENTATION đã triển khai command hạn chế/gỡ hoạt động mới và cấp/thu hồi quyền bắt đầu hoạt động seller, giữ role lịch sử cho đơn/quyền lợi cũ; buyer mặc định, operator/controller giữ nguyên. Có scoped/native/guest proof, chưa mutation tài khoản thật hoặc admin authenticated live; user đang hoãn thao tác admin. Không suy read-only/fixture thành bằng chứng hành trình admin thật.
+
+Safe owner độc lập, offhost/incident RPO–RTO, freeze candidate và G5/G6 là điều kiện nghiệm thu/vận hành khác ngoài danh sách chỉnh UI R1–R8. Vẫn OPEN theo hồ sơ hiện hành. Bước tiếp: hoàn thiện/kiểm đúng các khoảng trống R5–R7 và ma trận G5; không dựng lại R1–R8 từ đầu hoặc chạy full test để thay một bảng đối chiếu.
+
+Gói R567_WALLET_FIELDS_FOCUS bổ sung lỗi theo trường, focus/draft/review và swap heading text200% ở VI/EN; chỉ đóng đúng phạm vi ví đã kiểm, không đánh dấu toàn R5–R7/accessibility100%.
+
+Gói ADMIN_TEXT200 sửa controls hồ sơ admin giữ một dòng/tràn385px ở viewport375 text200; VI/EN/Tab trap/Escape/nháp dài/confirm visible đạt bằng native fixture. Chỉ scoped, không authenticated admin live hoặc toàn-app accessibility. Ma trận mới: reports/evidence/admin-text200/2026-10-16T10-44-48-558Z/G5_MATRIX.md.
+
+Gói R567_ORDERS_FIELDS_ZOOM: lỗi trường/focus ngày và tranh chấp VI/EN, order.id/returnTo/nháp/checkpoint, buyer/seller text200/action wrapping đã có scoped proof.6new+16buyer+6built+2native restricted-existing; không gọi toàn R5–R7 đạt hoặc thay live acceptance. Map: reports/evidence/r567-orders/2026-10-16T12-07-35-691Z/G5_SOURCE_PROOF_MAP.json.
+
+R7_SUPPORT_SCOPED bổ sung2ca VI/EN text200/nháp/lỗi tệp focus, không source/deploy/email thật. Scope vẫn chọn lọc, không whole-app accessibility. Proof reports/evidence/r7-support/2026-10-16T12-11-45-758Z/CHECKS.json.
+
+Gói R7_ACCOUNT_NOTIFICATIONS: giữ ngữ cảnh đến ACK khớp, khôi phục qua GET không POST lặp, account/header/popup text200 VI/EN;31ca scoped cuối đạt. Không authenticated live/whole-app/cross-browser. Map reports/evidence/r7-account-notifications/2026-10-16T15-28-31-613Z/G5_SOURCE_PROOF_MAP.json.
+
+Gói auth/seller/campaign7704cad:emailfields/focus/providerhandoff, tier/metric/name/headerguest text200 và fetchedAtUTC+7 có CIhẹp22dev/8builtPASS,2SDKcasesSKIPbuilt. Không realOTP/admin/livefinancial hoặc whole-app/cross-browser. Map reports/evidence/r7-auth-seller-campaign/2026-10-16T16-24-19-355Z/G5_SOURCE_PROOF_MAP.json.
+
+Gói R7 hồ sơ seller 2761137: lỗi trường VI/EN/aria/focus trước checkpoint/request; 19 dev/18 built PASS, 1 signer dev-only SKIP. Chỉ scoped G5-03/G5-05/G5-13, chưa hồ sơ seller thật/whole-app. Map reports/evidence/r7-seller-profile-fields/2026-10-16T16-50-25-407Z/G5_SOURCE_PROOF_MAP.json.
+
+Gói R5–R7 chia sẻ/deal aa7bff7: breadcrumb/CTA/icon/summary và nhãn giá chia sẻ ở text200; 15 dev/9 built PASS. Chỉ scoped G5-05/G5-13, chưa live/whole-app. Map reports/evidence/r7-share-deal-reflow/2026-10-16T17-16-09-037Z/G5_SOURCE_PROOF_MAP.json.
+
+Gói R567 sản phẩm/quyền phân phối a248dd8: lỗi metadata/rights trước checkpoint, VI/EN/aria/focus/text200; CI25dev/25built PASS. Metadata52/64 và8receipt external mới đã recheck, không replay; không authenticated seller/admin live hoặc whole-app. Map reports/evidence/r567-product-fields/2026-10-16T18-04-00-478Z/G5_SOURCE_PROOF_MAP.json.
+
+Gói R567 resource d835abc: file/code fields/context/VIEN/focus/text200 scoped,43dev/47built PASS. Unknown giữ input và khóa đổi sản phẩm; không live seller/admin/whole-app. Metadata52/64 giữ;G5/G6 OPEN. Map reports/evidence/r567-resource-fields/2026-10-16T23-04-54-616Z/G5_SOURCE_PROOF_MAP.json.
+

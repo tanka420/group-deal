@@ -1,3 +1,9 @@
+**Hiện hành — 18/10/2026, sau gói Người dùng/Phân quyền:** backend 30fea22, ops 73b6fae đã push và triển khai; frontend 8dc5cf1 giữ nguyên. Đã sửa đơn RESOLVED rút đủ vẫn chặn thu hồi seller; giữ kiểm nghĩa vụ còn mở và vai trò lịch sử. 15 ca account-access, 10 ca danh bạ/quản trị fixture và backend build đạt; giữ log FAIL tái hiện. Chưa đổi quyền tài khoản thật; admin live vẫn do người dùng hoãn.
+
+Native upgrade HEALTHY tại block 67760896, dữ liệu/private fields và ledger được giữ. PID 97197, NRestarts 0; maintenance 13.182 giây. 377 file runtime, 181 file public, HTTPS/guest401, backup đúng source/private restore/BACKUP_CURRENT và timer đạt. Đọc lại lúc 08:23:28 ngày 18/10 (UTC+7): 52 flows/64 reservations giữ hash, 3 seller không còn nghĩa vụ mở theo guard, 1 đơn RESOLVED đã rút đủ; 0 account commands/0 restricted. Giữ 95 held jobs. Tám email SENT đều TEST cũ đang held; chưa email nghiệp vụ/inbox. Chưa Circle chiều ngược/cirBTC. Safe finalized 67761173, 2/3, nonce 0, modules rỗng; control packet context backend mới chưa có chữ ký/custody. Chưa máy offhost hoặc phép đo RPO/RTO.
+
+Đã đối chiếu 14 nhóm G5; hash source/test inventory chỉ chứng minh sự hiện diện, không thay execution proof. UI R5–R7 kế thừa đúng phạm vi, không chạy lại UI/full CI. Username/social sau bản đầu. **NOT_FROZEN; G5/G6 OPEN.** [Báo cáo gói](E:/apps/group-deal/reports/evidence/account-access-followup/2026-10-18T01-19-03-731Z/ACCOUNT_ACCESS_FOLLOWUP.md). CURRENT: reports/evidence/account-access-followup/2026-10-18T01-19-03-731Z/CHECKS.json; SHA256 54e34b40093584926841fa4c4870f055e3b435c44cbee5c794a448aed59bd657. Các cập nhật bên dưới giữ vai trò lịch sử theo thời điểm của chúng.
+
 # Prompt tiếp tục GroupDeal — 18/10/2026
 
 Tiếp tục hoàn thiện GroupDeal tại E:\apps\group-deal theo kế hoạch đã chốt. Bắt đầu bằng đối chiếu source/bằng chứng và trạng thái thực, sau đó thực thi phần còn thiếu; không dừng ở báo cáo kế hoạch.
@@ -23,13 +29,13 @@ Backlog: reports/KE_HOACH_PHAT_TRIEN_SAU_BAN_DAU.md, POST-V1-01. Đặc tả gi�
 
 - Chỉ sửa source tại E:\apps\group-deal\.cache\ci\c-322e58ff, nhánh codex/license-key-csv-studio. Root E:\apps\group-deal giữ artifact và nhiều thay đổi lịch sử; không copy/stage/reset toàn bộ source root.
 - Remote push là github: https://github.com/tanka420/group-deal.git. Remote origin là checkout local lịch sử, không phải đích push sản phẩm.
-- Checkout sạch đã kiểm trước gói tài liệu bàn giao này: HEAD 5f11872fcd266b1405e5cf3a058fff6ca63bc510. HEAD tiếp theo có thể chỉ là docs; luôn kiểm git status/HEAD/log/remote trước thao tác, không reset về mốc cũ.
-- Frontend triển khai gần nhất: 8dc5cf1ee3a10c2e1065ba755c99b39a778b6f07. Backend: 324bca2dc3230bd2721e2582ba282eb42c0ba10b. Ops: 28f62e0d29032ea6ecbbef4f0c912edf4baa5dd0. Mốc fe9a004/52bbaef/4851fef là lịch sử.
+- Checkout sạch đã kiểm trước gói tài liệu bàn giao này: HEAD 73b6fae5a33eda1dfc9ab6c3364d9fcfa65809b8. HEAD tiếp theo có thể chỉ là docs; luôn kiểm git status/HEAD/log/remote trước thao tác, không reset về mốc cũ.
+- Frontend triển khai gần nhất: 8dc5cf1ee3a10c2e1065ba755c99b39a778b6f07. Backend: 30fea223380affc471cc91f4ab2390814ddaa87c. Ops: 73b6fae5a33eda1dfc9ab6c3364d9fcfa65809b8. Mốc fe9a004/52bbaef/4851fef là lịch sử.
 - Website https://groupdeal.thanhtan.top; VPS SSH alias tan-picks là writer app/DB duy nhất.
 - Mốc runtime đã ghi: /home/ubuntu/groupdeal/releases/47d853f79ff5c2b1c8ac7f0f8163ca613fb82d9a; public /var/www/groupdeal/releases/47d853f79ff5c2b1c8ac7f0f8163ca613fb82d9a. Kiểm lại resolved paths/PID/health và hash trước mọi thay đổi; không mặc định mốc này còn hiện hành.
-- CURRENT G5 nền trỏ reports/evidence/r567-matrix/2026-10-17T18-24-51-868Z/CHECKS.json, SHA256 967a6440390cf708b2e9370b2d293f33c418c64e24f4057164be282c5105027f, 106021 bytes. Đây là bằng chứng lúc 2026-10-17T18:24:52.596Z, acceptanceEligible=false, wholeProjectAccepted=false, candidate NOT_FROZEN, G5/G6 OPEN. Nếu pointer mới hơn thì kiểm và dùng bản mới.
+- CURRENT G5 mới trỏ reports/evidence/account-access-followup/2026-10-18T01-19-03-731Z/CHECKS.json, SHA256 54e34b40093584926841fa4c4870f055e3b435c44cbee5c794a448aed59bd657, 45879 bytes; acceptanceEligible=false, wholeProjectAccepted=false, NOT_FROZEN/G5 OPEN/G6 OPEN. G5 nền r567-matrix được kế thừa theo hash và scope, không được ghi đè.
 
-Gói bàn giao này chỉ thay tài liệu và ghi backlog, không triển khai ứng dụng hoặc quan sát lại DB/runtime. Không diễn giải các số liệu bên dưới thành kiểm chứng mới.
+Gói tiếp nối 18/10 đã triển khai backend30fea22/ops73b6fae và đọc lại runtime/DB metadata theo proof ở đầu. Các số liệu lịch sử bên dưới giữ timestamp của chúng; đọc CURRENT mới trước thao tác.
 
 ## Phần đã khép và giới hạn
 
@@ -59,6 +65,6 @@ Giữ quyền push nhánh qua remote github và triển khai VPS đã cấp; kh�
 
 Không chạy app/backend/DB local trên snapshot cũ, reset/seed, replay đơn 1–5 hay giao dịch đã xong, giải phóng 95 held jobs, hoặc chạy full test/CI không cần thiết. Local chỉ dùng fixture/mocks cô lập đúng gói; kiểm đúng delta và phụ thuộc. Giữ nguyên request/checkpoint/nonce đang chờ; không tự resume approve-only, ký tiếp swap còn PLANNED, hoặc tạo yêu cầu thay thế. Có nhiều hồ sơ approve-only trong lịch sử, không coi tất cả là yêu cầu mới cần hoàn thành.
 
-Metadata tài chính được kế thừa gần nhất lúc 2026-10-16T22:54:43.126Z: 52 wallet flows/64 reservations, ledger SHA256 209d178f55e26c607962caabe5265e7a922678849fe81f70733a565f17f7d6b4. Gói UI sau đó không đọc lại financial metadata. 8 email SENT cũ đều TEST/held, chưa là email nghiệp vụ/inbox. Không gọi các số này là trạng thái hiện tại nếu chưa đọc lại. Không xuất token, private environment, email riêng hoặc license.
+Metadata đọc lại lúc 2026-10-18T01:23:28.886Z: 52 wallet flows/64 reservations, ledger SHA256 209d178f55e26c607962caabe5265e7a922678849fe81f70733a565f17f7d6b4; 95 held nguyên trạng. 8 email SENT được phân loại lại lúc 2026-10-18T01:24:33.471Z: notification.type TEST, không source nghiệp vụ, đều held; chưa inbox. Không coi số liệu này là realtime ở lần tiếp theo nếu chưa đọc lại. Không xuất token, private environment, email riêng hoặc license. Backend upgrade kết thúc phiên cũ; người dùng tự đăng nhập/OTP/ký khi tiếp tục, admin live vẫn hoãn.
 
 Mỗi gói: chuẩn bị thay đổi cụ thể → sửa đúng source → kiểm hẹp đủ ý nghĩa → push/deploy khi cần theo quyền đã cấp → ghi bằng chứng đúng phạm vi → cập nhật CURRENT và bàn giao. Phân biệt source đã có, fixture đã kiểm, receipt/provider thật và phần user/offhost còn chờ. Không dừng chỉ để liệt kê kế hoạch, không kéo backlog social/username vào bản hiện hành. Tiếp tục các phần độc lập trong lúc chờ người dùng.
