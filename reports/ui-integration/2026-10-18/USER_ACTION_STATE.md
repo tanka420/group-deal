@@ -1,19 +1,13 @@
-**Safe — khai báo mới nhất:** Ba chữ ký đã verified và user xác nhận do ba người khác nhau thực hiện. Câu “1 người” trước đó đã được sửa; kết luận chỉ dựa trên một người không còn hiện hành. Không yêu cầu ký lại.
-
-**Safe hiện hành:** Ba chữ ký control đã verified; user xác nhận “1 người” có thể ký/khôi phục cả ba ví. Control đạt; custody độc lập NOT MET, không còn chờ chữ ký hoặc câu trả lời về số người giữ. Chưa có quyết định miễn yêu cầu hoặc đổi cấu hình Safe.
-
 # Việc cần người dùng — hiện hành 18/10/2026
 
-Circle live: người dùng chọn “Hoãn Circle, tiếp tục phần độc lập”. Không tự tạo/tiếp tục request, không lặp hỏi lượng/OTP Circle.
+Safe: đã nhận và xác minh3chữ ký owner, đủ quorum2/3 và owner bắt buộc73307bdd. Anh đã sửa khai báo thành3người khác nhau thực hiện3chữ ký; kết luận trước dựa trên “1 người” đã bị thay thế. Không cần đăng nhập GroupDeal hoặc ký lại. Khai báo/control có sẵn cho review custody; chưa là kiểm độc lập toàn bộ bản sao/khôi phục khóa. Không có yêu cầu đổi owner/threshold hay ký Safe transaction.
 
-Admin live: tiếp tục hoãn theo quyết định trước; không đổi quyền account thật để test.
+Circle: hoãn theo “Hoãn Circle, tiếp tục phần độc lập”. Không tạo/tiếp tục request hoặc lặp hỏi lượng/OTP. Admin authenticated live: tiếp tục hoãn; không đổi quyền account thật để test. Username/social: POST-V1-01.
 
-Username bắt buộc/social: POST-V1-01, ngoài gói hiện hành.
+Offhost: chưa có máy đích được chỉ định. Incident restore/RPO/RTO cần target độc lập; chưa xuất thêm backup/credential hoặc hạ tiêu chí nghiệm thu.
 
-Safe control/custody: cần owner tự ký thông điệp control-only và chứng minh các principal độc lập; chưa thu chữ ký. Offhost: chưa có target; không suy là đã duyệt xuất ciphertext mới. Tiếp tục phần độc lập, G5/G6 OPEN.
+Các lần thực thi live còn thiếu cần phiên người dùng/OTP/chữ ký hoặc provider/receiver thực: seller publish/edit/các delivery method khác, recovery theo phiên/thiết bị, email nghiệp vụ/inbox và các branch negative/outage theo G5. Không replay đơn1–5. Tôi tiếp tục phần độc lập và chỉ yêu cầu thao tác cụ thể khi packet đã sẵn sàng.
 
-Safe checked 2026-10-18T03:35:51.019Z: nguyên gói control digest 0x21207e4bbe6a41efad99f8b398254370c8784abdd7dd78d5a599436cbc64f7d4, hạn08:27:27 ngày19/10 UTC+7; xem SAFE_CONTROL_READINESS.md. Cần hai owner tự ký (bắt buộc73307bdd) và attestation custody độc lập; chưa có proof này.
+Đã làm độc lập trong lượt này: đọc canonical3receipt SLA/refund đơn3 bằng52RPC;19GET public kiểm PUBLIC1/UNLISTED3 và product/license/rights binding. Ledger52/64/hash209d178f… và95held giữ. Không phát giao dịch hoặc thay đổi source/app/DB.
 
-User đã trả lời: “Tôi sẽ cung cấp chữ ký và xác nhận custody”. Chờ dữ liệu thực; không coi lời hẹn là chữ ký/custody đã xác minh. Tiếp tục phần độc lập.
-
-Cách ký đã chuẩn bị: https://groupdeal.thanhtan.top/safe-owner-control/index.html. Không cần đăng nhập GroupDeal; mỗi owner tự bấm Ký rồi sao chép JSON vào chat. Chưa có chữ ký/custody thật; không điều khiển tab khi human đang ký/OTP. Hạn08:27:27 ngày19/10 UTC+7.
+NOT_FROZEN;G5/G6 OPEN. Trạng thái bằng chứng mới nhất theo reports/evidence/CURRENT_G5_PREPARATION_LATEST.json. Các tệp evidence đã hash giữ lịch sử; không lấy câu cũ “chưa chữ ký”/“1 người” làm trạng thái hiện hành.
