@@ -1,3 +1,5 @@
+**Trang ký đã sẵn sàng:** https://groupdeal.thanhtan.top/safe-owner-control/index.html — không cần đăng nhập GroupDeal. Xem SAFE_OWNER_SIGNING_PAGE.md; owner tự ký và sao chép JSON vào chat, không gửi private key.
+
 # Safe control: gói sẵn sàng cho owner — 18/10/2026
 
 Đã kiểm public authority lúc 2026-10-18T03:35:51.019Z, finalized 67776814: Hub/manifest/runtime/roles và Safe 1.5.0 đúng; 3 owner, quorum 2/3, nonce 0, modules rỗng, không pending transfer. 12 kiểm đạt. Block cũ 67761173 của challenge vẫn canonical. Chưa có chữ ký hoặc bằng chứng custody độc lập.
