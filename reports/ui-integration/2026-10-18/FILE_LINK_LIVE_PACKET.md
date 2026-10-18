@@ -1,3 +1,5 @@
+**Hiện hành:** FILE_LINK_LIVE_PROGRESS.md đã ghi upload/rights APPROVED/probe và1PUBLISH PREPARED cho draft mới draft_d702e1b5-2db3-4795-943c-a08dad36cafb. Chờ chữ ký seller24F0; không upload/review/prepare lại. Chỉ dẫn rebind cùng draft cũ được thay bằng hành vi wizard tạo draft mới; draft cũ mặc định khôngpublish. Các đề xuất/trạng thái bên dưới là lịch sử.
+
 **Cập nhật hiện hành:** gói tái dùng license/ZIP cũ đã bị thay thế sau khi đọc thấy điều khoản LICENSE_KEY. Dùng version2/license/ZIPFILE_LINK mới theo FILE_LINK_LIVE_PROGRESS.md. User đã cho phép duyệt riêng FILE_LINK; upload và operator auth/review còn chờ. Phần dưới là đề xuất ban đầu, không dùng để dispatch.
 
 # Gói FILE_LINK thật tiếp theo — chờ phiên và khoản mới được chốt
