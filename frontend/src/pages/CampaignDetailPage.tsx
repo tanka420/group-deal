@@ -296,6 +296,7 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
       localStorage.setItem(key, JSON.stringify(intent));
       setFundingIntent(null);
       await preflightPreparedOperation(operation);assertPurchaseIdentity();
+      setTxStep("READY");
       const ready=await operationRequest<{operation:TransactionOperation}>(token,`/api/transactions/${operation.id}/ready`,{});
       if(ready.operation.calldata!==operation.calldata||!ready.operation.purchaseQuote||BigInt(ready.operation.purchaseQuote.commitmentAmount)>maxGross||accountRef.current?.toLowerCase()!==buyer.toLowerCase())throw new UiError(uiMessage("Intent hoặc quote trước chữ ký đã thay đổi; giữ lượt mua để phục hồi", "The intent or quote changed before signing. Keep the purchase for recovery."));
 

@@ -56,7 +56,10 @@ export class OperationRequestFailure extends Error {
 }
 export async function operationRequest<T>(token:string|null,path:string,body?:unknown,headers?:Record<string,string>):Promise<T> {
   if(!token)throw new UiError(uiMessage("Đăng nhập để tiếp tục","Sign in to continue"));
-  const response=await fetch(path,{method:body===undefined?"GET":"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json",...headers},...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(10000)});
+  // Ready rechecks bounded signer history before reserving a signature (up to25s,
+  // plus the quote). Keep that response alive; never retry this write on timeout.
+  const readiness=body!==undefined&&/^\/api\/transactions\/op_[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}\/ready$/i.test(path);
+  const response=await fetch(path,{method:body===undefined?"GET":"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json",...headers},...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(readiness?45000:10000)});
   const data=await response.json().catch(()=>{throw new UiError(uiMessage("API chưa trả về phản hồi hợp lệ","The API has not returned a valid response"));});
   if(!response.ok){const hold=signerHoldMessage(data?.code)??signerHoldMessage(data?.error);if(hold)throw new UiError(hold);if(typeof data?.error==="string"&&data.error)throw new OperationRequestFailure(response.status,typeof data.code==="string"&&/^[A-Z_]{3,100}$/.test(data.code)?data.code:undefined,data.error);throw new UiError(uiMessage("Thao tác chưa hoàn tất","The operation has not completed"));}
   return data as T;

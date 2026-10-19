@@ -5,7 +5,7 @@ import { useLanguage } from "../context/LanguageContext";
 import { useDealLanguage } from "./DealPresentation";
 import { focusPageElement } from "../utils/focus";
 
-export type TxStep = "AUTH" | "APPROVE" | "BROADCAST" | "SYNCING" | "PENDING_CHECK" | "CONFIRMED" | "REVERTED" | "FAILED" | "EXPIRED";
+export type TxStep = "AUTH" | "READY" | "APPROVE" | "BROADCAST" | "SYNCING" | "PENDING_CHECK" | "CONFIRMED" | "REVERTED" | "FAILED" | "EXPIRED";
 interface TxTrackerModalProps { isOpen:boolean;step:TxStep;txHash:string|null;errorMessage:string|null;onClose:()=>void;onCheck?:()=>void;returnFocus?:()=>HTMLElement|null; }
 
 export function providerWindowOpen() {
@@ -19,7 +19,7 @@ export function TxTrackerModal({isOpen,step,txHash,errorMessage,onClose,onCheck,
   const {t}=useLanguage(),{text}=useDealLanguage(),dialog=useRef<HTMLDialogElement>(null),heading=useRef<HTMLHeadingElement>(null);
   const [providerHandoff,setProviderHandoff]=useState(false),handoff=useRef(false),closeState=useRef({closable:false,onClose,returnFocus});
   const confirmed=step==="CONFIRMED",failed=["REVERTED","FAILED","EXPIRED"].includes(step),closable=confirmed||failed||step==="PENDING_CHECK";
-  const stage=confirmed||["SYNCING","PENDING_CHECK"].includes(step)?3:2;
+  const stage=confirmed||["SYNCING","PENDING_CHECK"].includes(step)?3:["AUTH","READY"].includes(step)?1:2;
   closeState.current={closable,onClose,returnFocus};
   useEffect(()=>{
     if(!isOpen)return;
@@ -48,6 +48,7 @@ export function TxTrackerModal({isOpen,step,txHash,errorMessage,onClose,onCheck,
   const title=confirmed?t("txConfirmed"):step==="EXPIRED"?t("authorizationExpired"):failed?text("Giao dịch thất bại","Transaction failed"):step==="PENDING_CHECK"?text("Cần kiểm tra giao dịch cũ","Previous transaction needs review"):text("Đang xử lý trên Arc Testnet…","Processing on Arc Testnet…");
   const descriptions:Record<TxStep,string>={
     AUTH:text("Đang kiểm tra điều kiện mua trước khi yêu cầu ví ký.","Checking purchase eligibility before requesting a wallet signature."),
+    READY:text("Đang kiểm tra giá và lịch sử giao dịch của ví. Có thể mất vài chục giây; chưa cần thao tác trong ví.","Checking the price and wallet transaction history. This may take several seconds; no wallet action is needed yet."),
     APPROVE:text("Ví cần cấp quyền chi tiêu USDC cho hợp đồng của deal.","Your wallet needs to approve USDC spending for the deal contract."),
     BROADCAST:text("Đang gửi giao dịch cam kết USDC vào escrow.","Submitting the transaction that commits USDC into escrow."),
     SYNCING:text("Đang xác minh giao dịch và cập nhật đơn. Chưa mua thêm khi kết quả chưa rõ.","Verifying the transaction and updating your order. Wait for its outcome before buying again."),
