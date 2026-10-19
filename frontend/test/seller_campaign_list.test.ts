@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {campaignTime,campaignCount,campaignTier,sortCampaigns} from '../src/services/sellerCampaignList';
+let cases=0;const check=(name:string,f:()=>void)=>{f();cases++;};
+check('dates are Unix seconds',()=>assert.equal(campaignTime(1792376594),1792376594000));
+check('missing and invalid dates stay unknown',()=>{for(const value of [undefined,null,0,-1,'1792376594',NaN,Infinity,1792376594000])assert.equal(campaignTime(value),null);});
+check('zero commitments remain zero',()=>assert.equal(campaignCount({id:'a',metric:'UNITS_COUNT',totalUnitsCommitted:0}),0));
+check('buyer metric ignores units',()=>assert.equal(campaignCount({id:'a',metric:'BUYER_COUNT',totalBuyerCount:2,totalUnitsCommitted:1284500}),2));
+check('unknown metric never invents count',()=>assert.equal(campaignCount({id:'a',metric:'OTHER',totalUnitsCommitted:8}),null));
+check('negative/fractional counts stay unknown',()=>{for(const n of [-1,1.5,'2',NaN])assert.equal(campaignCount({id:'a',metric:'UNITS_COUNT',totalUnitsCommitted:n}),null);});
+check('tier is one-based for display',()=>assert.deepEqual(campaignTier({id:'a',currentUnlockedTier:0,tiers:[{},{}]}),{current:1,total:2}));
+check('invalid tier never looks verified',()=>{for(const i of [-1,2,1.5,'0'])assert.equal(campaignTier({id:'a',currentUnlockedTier:i,tiers:[{},{}]}),null);});
+const rows=[{id:'draft',title:'B'},{id:'old',title:'C',startTime:100,endTime:400},{id:'new',title:'A',startTime:200,endTime:300}];
+check('latest start sorts all rows before pagination',()=>assert.deepEqual(sortCampaigns(rows,'START_DESC').map(r=>r.id),['new','old','draft']));
+check('ending soonest puts missing dates last',()=>assert.deepEqual(sortCampaigns(rows,'END_ASC').map(r=>r.id),['new','old','draft']));
+check('title ordering works for drafts too',()=>assert.deepEqual(sortCampaigns(rows,'TITLE').map(r=>r.id),['new','draft','old']));
+check('sort never mutates input',()=>{sortCampaigns(rows,'START_DESC');assert.deepEqual(rows.map(r=>r.id),['draft','old','new']);});
+console.log(JSON.stringify({result:'SELLER_CAMPAIGN_PRESENTATION_CHECKS_PASSED',cases,noNetworkOrStorageMutations:true}));

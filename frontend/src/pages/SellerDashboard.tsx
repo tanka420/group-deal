@@ -13,11 +13,12 @@ import { useAuth } from "../context/AuthContext";
 import { useWeb3 } from "../context/Web3Context";
 import { displayUSDC } from "../services/orderAccounting";
 import {orderMoney,deliveryStatusText,recordedDeadline} from '../services/buyerOrderPresentation';
-import {sellerOrderAmounts,canCheckSettlement,sellerCampaignStatus,validateSellerData} from '../services/sellerOrderPresentation';
+import {sellerOrderAmounts,canCheckSettlement,validateSellerData} from '../services/sellerOrderPresentation';
 import {ProductStudio} from "../components/ProductStudio";
 import { SellerCreateDeal } from "../components/SellerCreateDeal";
-import {CampaignReplacementControl} from "../components/CampaignReplacementControl";
-import {CampaignAmendmentControl} from "../components/CampaignAmendments";
+import {SellerCampaignTable} from "../components/SellerCampaignTable";
+import {sortCampaigns,type CampaignSort} from "../services/sellerCampaignList";
+
 import { SellerProfileEditor } from "../components/SellerProfileEditor";
 import { ManagedFulfillment } from "../components/ManagedFulfillment";
 import { TransactionHistory } from "../components/TransactionHistory";
@@ -60,6 +61,7 @@ export const SellerDashboard: React.FC = () => {
   useEffect(()=>{const sync=()=>{const section=sellerSection();setActiveTabState(section);setVisited(v=>new Set([...v,section]));setFilters(readFilters());setLimit(20);const id=new URLSearchParams(location.search).get('draft');setInitialDraftId(id&&/^[A-Za-z0-9_-]{1,180}$/.test(id)?id:undefined);};sync();window.addEventListener('groupdeal:navigate',sync);window.addEventListener('popstate',sync);return()=>{window.removeEventListener('groupdeal:navigate',sync);window.removeEventListener('popstate',sync);};},[]);
   const [initialDraftId,setInitialDraftId]=useState<string|undefined>(()=>{const id=new URLSearchParams(location.search).get('draft');return id&&/^[A-Za-z0-9_-]{1,180}$/.test(id)?id:undefined;});
   const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [campaignSort,setCampaignSort]=useState<CampaignSort>('START_DESC');
   const [orders, setOrders] = useState<any[]>([]);
   const [webhookData, setWebhookData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -144,7 +146,7 @@ export const SellerDashboard: React.FC = () => {
   const dataReady=dataVisible&&!loading&&!loadError&&!!user?.id&&!!token,allSellerAmountsVerified=orders.every(order=>sellerOrderAmounts(order).remaining!==null);
   const orderView=['FULFILLMENT','REVENUE','DISPUTES'].includes(activeTab);
   const matchingOrders=filterOrders(activeTab==='DISPUTES'?orders.filter(o=>['DISPUTED','RESOLVED'].includes(o.deliveryStatus)):orders,filters),shownOrders=matchingOrders.slice(0,limit);
-  const matchingCampaigns=filterOrders(campaigns.map(c=>({...c,campaignTitle:c.title,deliveryStatus:c.status})),filters),shownCampaigns=matchingCampaigns.slice(0,limit);
+  const matchingCampaigns=sortCampaigns(filterOrders(campaigns.map(c=>({...c,campaignTitle:c.title,deliveryStatus:c.status})),filters),campaignSort),shownCampaigns=matchingCampaigns.slice(0,limit);
   return (
     <div className="app-page seller-dashboard">
       {loadError&&<div role="alert" className="notice notice-error">{loadError==='SELLER_SIGN_IN_REQUIRED'?text('Đăng nhập để tải dữ liệu seller.','Sign in to load seller data.'):text('Không tải được dữ liệu. Thử lại khi kết nối ổn định.','Unable to load seller data. Retry when your connection is stable.')}<button className="btn btn-secondary" onClick={fetchSellerData}>{text('Thử lại','Retry')}</button></div>}
@@ -206,56 +208,11 @@ export const SellerDashboard: React.FC = () => {
       {activeTab==='CREATE'&&(<div><div className="action-row" style={{marginBottom:"1.25rem"}}><button className="btn btn-secondary" onClick={()=>setActiveTab("CAMPAIGNS")}>{text("← Quay lại quản lý deal","← Back to deal management")}</button></div><SellerCreateDeal key={(user?.id??'')+':'+(initialDraftId??'new')} initialDraftId={initialDraftId} onCreated={()=>{setActiveTab("CAMPAIGNS");fetchSellerData();}}/></div>)}
       {visited.has('PRODUCTS')&&<div hidden={activeTab!=='PRODUCTS'}><ProductStudio active={activeTab==='PRODUCTS'}/></div>}
       {visited.has('PROFILE')&&<div hidden={activeTab!=='PROFILE'} className="glass-card"><SellerProfileEditor key={user?.id}/></div>}
-      {dataReady&&(activeTab==='CAMPAIGNS'||orderView)&&<><SellerListFilters value={filters} campaigns={activeTab==='CAMPAIGNS'} disputes={activeTab==='DISPUTES'} onApply={applyFilters}/><p role="status">{activeTab==='CAMPAIGNS'?matchingCampaigns.length:matchingOrders.length} {text('kết quả · Mới nhất trước','results · Newest first')}</p></>}
+      {dataReady&&(activeTab==='CAMPAIGNS'||orderView)&&<><SellerListFilters value={filters} campaigns={activeTab==='CAMPAIGNS'} disputes={activeTab==='DISPUTES'} onApply={applyFilters}/>{orderView&&<p role="status">{matchingOrders.length} {text('kết quả · Mới nhất trước','results · Newest first')}</p>}</>}
       {activeTab==='REVENUE'&&<p className="notice seller-section-note">{text('Tiền buyer cam kết khác khoản được phân bổ cho seller. Chỉ rút phần còn lại đã xác minh; ví nhận của đơn cũ được giữ nguyên.','Buyer commitments are separate from seller allocations. Claim only the verified remainder; existing order payout wallets are retained.')}</p>}
       {activeTab==='DISPUTES'&&<p className="notice seller-section-note">{text('Trao đổi theo đơn để cung cấp thông tin; seller không tự quyết định kết quả phân xử hoặc hoàn tiền.','Use the order conversation to provide information; sellers do not decide arbitration or refunds.')}</p>}
       {/* Tab Content: CAMPAIGNS */}
-      {dataReady && activeTab === "CAMPAIGNS" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          {matchingCampaigns.length === 0 ? (
-            <div className="glass-card" style={{ textAlign: "center", padding: "3rem" }}>
-              <p style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>
-                {text("Không có chiến dịch phù hợp. Xóa bộ lọc hoặc tạo chiến dịch mới.","No campaigns match this list. Clear filters or create a campaign.")}
-              </p>
-              <button className="btn btn-primary" onClick={() => {setInitialDraftId(undefined);setActiveTab("CREATE");}}>
-                {text("Tạo chiến dịch mới","Create new campaign")}
-              </button>
-            </div>
-          ) : (
-            shownCampaigns.map((c,i) => (
-              <div
-                key={c.id}
-                className="glass-card ui-record-card ui-row"
-                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 1.5rem" }}
-              >
-                <div>
-                  <div className="ui-row" style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.3rem" }}>
-                    <span className="muted">{text("STT ","No. ")}{i+1}</span><span className="badge">{c.id}</span>
-                    <strong style={{ fontSize: "1.1rem" }}>{c.title??text('Chưa có tiêu đề ghi nhận','No recorded title')}</strong>
-                    <span className="badge" style={{ background: "var(--bg-tertiary)" }}>
-                      {sellerCampaignStatus(c.status,language)}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-                    {c.replacementFor?.campaignId&&<p>{text('Thay thế campaign: ','Replaces campaign: ')}<a href={'#campaign-'+encodeURIComponent(c.replacementFor.campaignId)}>{c.replacementFor.campaignId}</a></p>}
-                    {c.metric==='BUYER_COUNT'?text('Người mua đã cam kết: ','Committed buyers: '):c.metric==='UNITS_COUNT'?text('Đơn vị đã cam kết: ','Units committed: '):text('Metric chưa xác minh: ','Unverified metric: ')}<strong>{c.metric==='BUYER_COUNT'&&Number.isSafeInteger(c.totalBuyerCount)&&c.totalBuyerCount>=0?c.totalBuyerCount:c.metric==='UNITS_COUNT'&&Number.isSafeInteger(c.totalUnitsCommitted)&&c.totalUnitsCommitted>=0?c.totalUnitsCommitted:text('Chưa xác minh','Unverified')}</strong> | {text('Tier ghi nhận: ','Recorded tier: ')}
-                    <strong>{Number.isSafeInteger(c.currentUnlockedTier)&&c.currentUnlockedTier>=0&&Array.isArray(c.tiers)&&c.currentUnlockedTier<c.tiers.length?`Tier ${c.currentUnlockedTier+1}/${c.tiers.length}`:text('Chưa xác minh','Unverified')}</strong> | SLA:
-                    <strong>{Number.isSafeInteger(c.deliverySlaSeconds)&&c.deliverySlaSeconds>0?c.deliverySlaSeconds%3600===0?`${c.deliverySlaSeconds/3600}h`:`${c.deliverySlaSeconds} ${text('giây','seconds')}`:text('Chưa xác minh','Unverified')}</strong>
-                  </div>
-                  {c.status!=="DRAFT"&&c.projectionOrigin==="VERIFIED_PUBLISH"&&<CampaignAmendmentControl campaignId={c.id}/> }
-                </div>
-
-                <div className="ui-row" style={{ display: "flex", gap: "0.5rem" }}>
-                  <a href={`#campaign-${c.id}`} className="btn btn-sm btn-secondary">
-                    {text('Xem trang deal','View deal')}
-                  </a>
-                  {c.status==='DRAFT'&&<button className="btn btn-sm btn-primary" onClick={()=>openDraft(c.id)}>{text('Tiếp tục bản nháp','Continue draft')}</button>}{c.status!=="DRAFT"&&c.projectionOrigin==="VERIFIED_PUBLISH"&&<CampaignReplacementControl sourceId={c.id} onReady={openDraft}/>}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
+      {dataReady&&activeTab==='CAMPAIGNS'&&<SellerCampaignTable campaigns={shownCampaigns} total={matchingCampaigns.length} sort={campaignSort} onSort={sort=>{setCampaignSort(sort);setLimit(20);}} onOpenDraft={openDraft} onCreate={()=>{setInitialDraftId(undefined);setActiveTab('CREATE');}}/>}
 
       {/* Tab Content: FULFILLMENT */}
       {dataReady && orderView && (
