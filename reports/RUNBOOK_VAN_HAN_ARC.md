@@ -1,3 +1,17 @@
+## Hiện hành — 19/10/2026: chuẩn hóa header API, giữ runtime và dữ liệu
+
+Thay trạng thái hiện hành trong ghi chú lịch sử bên dưới. **Nginx headers source556dc2d8d73dddef2af14fa5d02aa4f4087a0418 đã push/deploy**: chỉ thêm config/nginx/groupdeal-api-response-headers.conf,7dòng, nhúng vào /api/ để loại header lặp từ upstream và giữ một bộ nosniff/private,no-store/HSTS86400. Proxy/routes/timeouts/bytes ngoài APIblock giữ. App route source308ee39 vẫn giữ; backendb989/frontend0c61/opsbackupf021/helper9ccb không đổi.
+
+Config preimageSHAcd653ad9d2a9cf7213b7829e7b0014610b61ce8a1b32c1ebaa4f0d613d4a2f56 → postimage **fafecfbe84ef0a55ed70f2bd1378544ac2b265cf4bd673a95df848f3e4b77cc9**; source snippet SHA404430cb7a6172cd64dd106855e15841b8c77ec8b22d059f25c963f5cf8bae5c. **nginx-t/reload đạt**, Nginxmaster/appPID536813/NRestarts0 giữ, không restart app. Rollback config giữ tại /etc/nginx/sites-available/groupdeal.thanhtan.top.before-api-headers-556dc2d8d73d; deployscript có guard/hash/rollback. Không phải DBbackup và không thay policy3managedverified+1unknownarchive.
+
+**8GET status đạt**:5resource401/1unknownAPI404/health200/order6SPA200; **6APIresponse** header đơn, giữ HSTS/private/no-store. Order6HTML byte-identical, **383runtime/186public** khớp. Không dùng phiên authenticated, đọc privatebytes hoặc coi mọi APIheader/mọiroute đã kiểm. Không frontend/backendbuild, UI matrix hoặc fullCI. Diagnostic read đầu thiếu ^~ được giữ; chỉ sửa observer trước khi ghim preimage/deploy.
+
+Native05:29:53UTC giữ toàn bộ trường chọn:19users/6campaigns/6orders/44ops/8grants/12inventory; ledger52/72/**SHAee7087ef1992baf86b322aaf1259487d90fa0a17bf7c544c7ef5c16c3559ce17**,5đơn cũ/95held giữ; BACKUP_CURRENT/privateRestoreverified. Không DB/appwrite, giao dịch hoặc DBarchive mới. FILE_LINKorder6đãrútđủ/escrow0/2ACTIVE, không replay.
+
+Safe: **T→73307bdd…50b6d; A→7366adbf…7db22; N→c289b853…6d18b**, user xác nhận **mỗi người chỉ khôi phục ví của mình**. Declaration và14authoritychecks ở SafeCURRENT05:25:26 đã khép phần cung cấp thông tin; không còn câu hỏi/chữ ký chờ. Vẫn phân biệt khai báo với independentreview/custody vật lý; challenge30fea22 hết hạn, khôngfreshcontrol. Circle/admin khác hoãn; username/socialPOSTV1; OneDrive làm sau/offhostRPO RTO/provider/receiver/inbox và branch live cònOPEN. **NOT_FROZEN/G5OPEN/G6OPEN/acceptanceEligible=false/wholeProjectAccepted=false.**
+
+CURRENT [CHECKS.json](E:/apps/group-deal/reports/evidence/api-response-headers/2026-10-19T05-31-18-741Z/CHECKS.json), SHA256 **e63cfe05d6743428333b68bbc50566199c157d66ea0ec215045e8ca86e08b178**, **295190 byte/22 artifacts/14branches**; Safeparent14artifacts kiểm hash. [Báo cáo](E:/apps/group-deal/reports/evidence/api-response-headers/2026-10-19T05-31-18-741Z/API_RESPONSE_HEADERS.md). Observer .cache/api-headers-native.cjs /api-headers-ops.cjs; clone đổi outputwx khi đọc tiếp. Native dir .cache/application-recovery/drill-crvXHh/candidate, backendb989/PID536813/helper9ccb. Source chỉ sửa checkout sạch .cache/ci/c-322e58ff,remote github; HEAD trước docs **556dc2d8d73dddef2af14fa5d02aa4f4087a0418**, HEAD sau có thể chỉ tiến bằng docs.
+
 ## Hiện hành — 19/10/2026: Safe T/A/N giữ và khôi phục riêng từng ví
 
 Thay trạng thái hiện hành trong ghi chú lịch sử bên dưới. User trả lời **“T, A, N”** theo thứ tự ví trong câu hỏi, rồi xác nhận **“Mỗi người chỉ khôi phục ví của mình”**. Mapping được ghi theo khai báo trực tiếp:
