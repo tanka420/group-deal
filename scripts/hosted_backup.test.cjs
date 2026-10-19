@@ -9,18 +9,18 @@ function archive(f,timestamp,ownerId=f.ownerId,manifest=true){
  const value={schema,ownerId,archive:name,timestamp,sha256:crypto.createHash('sha256').update(bytes).digest('hex'),byteLength:bytes.length,verified:true,sourceReadOnly:true,privateRestoreVerified:true,auditAndSqliteIntegrity:true,sourceRowsPreserved:true};if(manifest)fs.writeFileSync(file+'.json',JSON.stringify(value));return{file,value};
 }
 function authenticate(f,file){const e=JSON.parse(fs.readFileSync(file)),d=crypto.createDecipheriv('aes-256-gcm',f.key,Buffer.from(e.iv,'hex'));d.setAAD(Buffer.from(String(e.timestamp)));d.setAuthTag(Buffer.from(e.tag,'hex'));assert.equal(Buffer.concat([d.update(Buffer.from(e.encrypted,'hex')),d.final()]).toString(),'synthetic-data');return{timestamp:e.timestamp,envelopeVersion:3,metadataAuthenticated:true};}
-function candidates(f,now){for(let i=0;i<24;i++)archive(f,now-86400000-i);return[archive(f,now-8*86400000),archive(f,now-9*86400000)];}
+function candidates(f,now){for(let i=0;i<3;i++)archive(f,now-86400000-i);return[archive(f,now-8*86400000),archive(f,now-9*86400000)];}
 test('freshness accepts exactly 90 minutes and rejects future, stale or unverified restore metadata',()=>{
  const now=1792000000000,value={schema,timestamp:now,verified:true,sourceReadOnly:true,privateRestoreVerified:true,auditAndSqliteIntegrity:true,sourceRowsPreserved:true};
  assert.equal(backupFreshness({...value,timestamp:now-90*60000},now).status,'UP');assert.equal(backupFreshness({...value,timestamp:now-90*60000-1},now).code,'BACKUP_STALE');
  for(const invalid of [null,{...value,timestamp:now+30001},{...value,verified:false},{...value,sourceReadOnly:false},{...value,privateRestoreVerified:false},{...value,auditAndSqliteIntegrity:false},{...value,sourceRowsPreserved:false},{...value,timestamp:NaN}])assert.equal(backupFreshness(invalid,now).code,'BACKUP_METADATA_INVALID');assert.equal(backupFreshness(value,NaN).code,'BACKUP_METADATA_INVALID');
 });
-test('retention keeps at least 24 archives and excludes the exact seven-day boundary',()=>{
- const now=1792000000000,records=Array.from({length:24},()=>({timestamp:now-9*86400000}));assert.equal(retentionCandidates(records,now).length,0);assert.equal(retentionCandidates([...records,{timestamp:now-7*86400000},{timestamp:now-7*86400000-1}],now).length,1);assert.throws(()=>retentionCandidates(records,now,1,0),/RETENTION_POLICY_INVALID/);
+test('temporary user policy keeps the latest three verified archives regardless of age',()=>{
+ const now=1792000000000,records=Array.from({length:3},(_,i)=>({timestamp:now-i*60000}));assert.equal(retentionCandidates(records,now).length,0);assert.equal(retentionCandidates([...records,{timestamp:now-7*86400000},{timestamp:now-1}],now).length,2);assert.throws(()=>retentionCandidates(records,now,7,24),/RETENTION_POLICY_INVALID/);
 });
 test('pruning authenticates old owned archives and preserves unmarked and foreign-owner files',t=>{
  const f=fixture(t),now=1792000000000,old=candidates(f,now),unmarked=archive(f,now-20*86400000,f.ownerId,false),foreign=archive(f,now-30*86400000,crypto.randomUUID());fs.writeFileSync(path.join(f.archives,'proof-t279.enc'),'historical-proof');
- assert.equal(pruneManaged(f.archives,f.ownerId,file=>authenticate(f,file),now),2);for(const r of old)assert.equal(fs.existsSync(r.file),false);for(const file of [unmarked.file,foreign.file,path.join(f.archives,'proof-t279.enc')])assert.equal(fs.existsSync(file),true);assert.equal(managedArchives(f.archives,f.ownerId).length,24);
+ assert.equal(pruneManaged(f.archives,f.ownerId,file=>authenticate(f,file),now),2);for(const r of old)assert.equal(fs.existsSync(r.file),false);for(const file of [unmarked.file,foreign.file,path.join(f.archives,'proof-t279.enc')])assert.equal(fs.existsSync(file),true);assert.equal(managedArchives(f.archives,f.ownerId).length,3);
 });
 test('changed bytes fail before any retention candidate is removed',t=>{
  const f=fixture(t),now=1792000000000,old=candidates(f,now);fs.appendFileSync(old[1].file,'tampered');assert.throws(()=>pruneManaged(f.archives,f.ownerId,file=>authenticate(f,file),now));for(const r of old)assert.ok(fs.existsSync(r.file)&&fs.existsSync(r.file+'.json'));

@@ -4,7 +4,7 @@ export type OperatorDealSelection = { id: string; view: OperatorDealView };
 export type AppRoute =
   | { kind: "tab"; tab: "home" | "explore" | "orders" | "seller" | "operator" | "docs" | "wallet" | "account" | "notifications" }
   | { kind: "campaign" | "public-seller" | "order"; id: string }
-  | { kind: "seller-section"; view: "orders"|"revenue"|"disputes"|"products"|"profile"|"integrations"|"create" }
+  | { kind: "seller-section"; view: "orders"|"revenue"|"disputes"|"products"|"profile"|"integrations"|"transactions"|"create" }
   | {kind:"operator-section";view:string}
   | {kind:"operator-user";id:string}
   | {kind:"operator-support";path:string}
@@ -29,7 +29,7 @@ export function parseAppHash(hash: string): AppRoute {
   const operatorUser=/^#operator\/users\/([A-Za-z0-9_-]{1,128})$/.exec(hash);if(operatorUser)return {kind:'operator-user',id:operatorUser[1]};
   const operatorSupport=/^#operator\/support\/(tickets\/tkt_[a-f0-9-]{36}|orders\/[A-Za-z0-9_-]{1,180})$/.exec(hash);if(operatorSupport)return {kind:'operator-support',path:operatorSupport[1]};
   const operatorDeal = /^#operator\/deals\/([A-Za-z0-9_-]{1,180})(?:\/(overview|orders|transactions|settlement|refunds|disputes|audit))?$/.exec(hash);
-  const seller=/^#seller\/(orders|revenue|disputes|products|profile|integrations|create)$/.exec(hash);
+  const seller=/^#seller\/(orders|revenue|disputes|products|profile|integrations|transactions|create)$/.exec(hash);
   if(seller)return {kind:'seller-section',view:seller[1] as Extract<AppRoute,{kind:'seller-section'}>['view']};
   if(/^#order-[A-Za-z0-9_-]{1,180}$/.test(hash))return {kind:'order',id:hash.slice(7)};
   if (operatorDeal) return { kind: "operator-deal", id: operatorDeal[1], view: (operatorDeal[2] || "overview").toUpperCase() as OperatorDealView };

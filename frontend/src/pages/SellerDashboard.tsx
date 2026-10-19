@@ -410,9 +410,9 @@ export const SellerDashboard: React.FC = () => {
         </div>
       )}
 
+      {visited.has('TRANSACTIONS')&&<div hidden={activeTab!=='TRANSACTIONS'}><TransactionHistory key={user?.id} onRecovered={fetchSellerData}/></div>}
       </div></div>
       <ManagedOrderAction key={(user?.id??'')+':'+(token?getSessionEpoch():'signed-out')} ref={orderAction} onRecovered={fetchSellerData}/>
-      <TransactionHistory key={user?.id} onRecovered={fetchSellerData}/>
       {dataVisible&&fulfillOrderObj && <ManagedFulfillment key={(user?.id??'')+':'+getSessionEpoch()} order={fulfillOrderObj} onClose={()=>setFulfillOrderObj(null)} onDelivered={()=>{setFulfillOrderObj(null);fetchSellerData();}}/>}
     </div>
   );
