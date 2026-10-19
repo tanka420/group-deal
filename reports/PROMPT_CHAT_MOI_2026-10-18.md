@@ -1,3 +1,22 @@
+## Hiện hành — 19/10/2026: FILE_LINK #6 đã rút đủ; escrow bằng 0
+
+Phần này thay trạng thái hiện hành trong các ghi chú lịch sử bên dưới. **Đơn #6 đã đi đủ mua → giao2quyền → tải/kiểm ZIP → xác nhận → buyer rebate → seller claim. Không cần user ký thêm cho đơn này; không lặp lại giao dịch đã xong.** Buyer580c/seller24F, campaign5/draft_d702. Order CONFIRMED, hai grant ACTIVE, buyerClaimedAmount400000/sellerClaimedAmount1600000/refund0, escrow **0 USDC**.
+
+| Khoản đã finalized/PROJECTED | Hash | Gốc về ví | Gas USDC native | Ví tăng ròng |
+|---|---|---:|---:|---:|
+| Buyer /nonce26/block67955473 | 0x965da6a92cf3ba19b452535048b7b240c841768483cdc9ba084efc499be863be | 0,4 USDC | 0,06192002 | 0,33807998 USDC |
+| Seller /nonce14/block67955929 | 0xa4e73a7a8b7c60ce796fa67f6a01387409e29a8773ae32d074651e3deba6cd28 | 1,6 USDC | 0,003680775 | 1,596319225 USDC |
+
+Mỗi khoản **24 kiểm tra** exact call/principal/calldata/orderIds=[6]/FundsClaimed/Transfer/canonical/finalized/native claim flags/escrow/net wallet delta đạt. Escrow **2→1,6→0**. Buyer op_b523f49b-513b-4a0a-a4cb-55dbf2a06627; seller op_c852efe2-cdb0-4600-b0ea-9cd37d43d7fc; đều PROJECTED. Latest=pending buyer27/seller15 ở mốc canonical. RPC estimate không phải trần phí; chưa biết thiết lập OKX/nguyên nhân chênh lệch.
+
+Native **2026-10-19T04:48:23.228Z**:19users/6campaigns/6orders/**44operations**/8grants/12inventory; ledger52flows/**72reservations**/SHA **ee7087ef1992baf86b322aaf1259487d90fa0a17bf7c544c7ef5c16c3559ce17**. Parent42/70→44/72 do hai chữ ký thật, không manual release. Năm đơn cũSHAf864e1a7f21a123450f6d17111f2f0bbc5514557bb47d048b1cd521622b24ae9/grants/95held giữ. Không đổi implementation/deploy/restart/fullCI.
+
+Runtime383/public186/backendb989/frontend0c61/opsf021/helper9ccb/PID536813/NRestarts0 giữ, hash khớp. Backup sau cả hai khoản **private-restore verified/BACKUP_CURRENT**, đúng44ops/8grants/95held. Giữ3managedverified+1unknownarchive; OneDrive làm sau/offhost RPO RTOOPEN. Màn ký/download không do agent quan sát sau browser4/tab1905950848 debugger unattached; receipt/native/localfile có bằng chứng riêng. Không yêu cầu login lặp lại vì thiếu điều khiển.
+
+**Bước tiếp:** tiếp tục G5 độc lập, ưu tiên kiểm rejection chỉ đọc của khoản đã claim và quyền ví; tuyệt đối không gửi giao dịch lặp. Các recovery/session/device/batch/provider/negative khác vẫn có yêu cầu bằng chứng riêng. Circle/admin khác hoãn, username/socialPOSTV1, Safe proof/context cũ giữ. Một hành trình FILE_LINK không chứng minh mọi nhánh G5. **NOT_FROZEN/G5OPEN/G6OPEN/acceptanceEligible=false/wholeProjectAccepted=false.**
+
+CURRENT [CHECKS.json](E:/apps/group-deal/reports/evidence/file-link-claims/2026-10-19T04-49-34-254Z/CHECKS.json), SHA256 **82fbfbaad7e6608f2311101d667fb121b09c45b549e628eb1f9aa7efc0383446**, **285258 byte/23 artifacts/14 branches**. Parent confirm15artifacts kiểm hash; download20/delivery50 kiểm ở gói trước. [Báo cáo](E:/apps/group-deal/reports/evidence/file-link-claims/2026-10-19T04-49-34-254Z/FILE_LINK_CLAIMS_VERIFIED.md). Observer **.cache/file-link-seller-claim-native.cjs**, **.cache/file-link-claims-ops.cjs**; clone đổi outputwx trước khi đọc tiếp. Native dir **.cache/application-recovery/drill-crvXHh/candidate**. Source chỉ sửa checkout sạch **.cache/ci/c-322e58ff**, remote github; HEAD trước docs **31eb9a255188d1634471ba772acf16cb7c41a98f**, HEAD sau có thể chỉ tiến bằng docs.
+
 ## Hiện hành — 19/10/2026: FILE_LINK #6 đã tải, kiểm ZIP và xác nhận nhận hàng
 
 Phần này thay trạng thái hiện hành trong các ghi chú lịch sử bên dưới. Đơn #6 **CONFIRMED**, hai grant **ACTIVE**. Không mua, xuất bản, giao hoặc xác nhận lại. Buyer **0x580cdb6a6354313f73ff16b160b15dcc914d21ae**, seller **0x24F0c19a6E77cc687181500455BeE3550E617580**.
@@ -165,11 +184,11 @@ Backlog: reports/KE_HOACH_PHAT_TRIEN_SAU_BAN_DAU.md, POST-V1-01. Đặc tả gi�
 
 - Chỉ sửa source tại E:\apps\group-deal\.cache\ci\c-322e58ff, nhánh codex/license-key-csv-studio. Root E:\apps\group-deal giữ artifact và nhiều thay đổi lịch sử; không copy/stage/reset toàn bộ source root.
 - Remote push là github: https://github.com/tanka420/group-deal.git. Remote origin là checkout local lịch sử, không phải đích push sản phẩm.
-- Checkout sạch đã kiểm trước gói tài liệu bàn giao này: HEAD26bcd12411b12ec9be221b7f19f759cc181426d3. HEAD tiếp theo có thể chỉ là docs; kiểm status/HEAD/log/remote, không reset.
-- Frontend0c61f06f7aa5dc4d3cd9f5c7fddaf9bc8ed2e876; opsf0213a72f52de3c152c67cded6613dc8e93eb61f; Nginx308ee3920dc9574e7d26016689ec0805ec4f0087; backendb989bfdfcdcb5ef2b35a3d43498de378b768c419. SDK5458925/Safecf29838 giữcontext. FILE_LINK#5/order6 human purchase/delivery/download/confirm verified; hai claim chưa verified.
+- Checkout sạch đã kiểm trước gói tài liệu bàn giao này: HEAD31eb9a255188d1634471ba772acf16cb7c41a98f. HEAD tiếp theo có thể chỉ là docs; kiểm status/HEAD/log/remote, không reset.
+- Frontend0c61f06f7aa5dc4d3cd9f5c7fddaf9bc8ed2e876; opsf0213a72f52de3c152c67cded6613dc8e93eb61f; Nginx308ee3920dc9574e7d26016689ec0805ec4f0087; backendb989bfdfcdcb5ef2b35a3d43498de378b768c419. SDK5458925/Safecf29838 giữcontext. FILE_LINK#5/order6 human purchase/delivery/download/confirm/buyer+seller claims verified; escrow0.
 - Website https://groupdeal.thanhtan.top; VPS SSH alias tan-picks là writer app/DB duy nhất.
 - Mốc runtime đã ghi: /home/ubuntu/groupdeal/releases/47d853f79ff5c2b1c8ac7f0f8163ca613fb82d9a; public /var/www/groupdeal/releases/47d853f79ff5c2b1c8ac7f0f8163ca613fb82d9a. Kiểm lại resolved paths/PID/health và hash trước mọi thay đổi; không mặc định mốc này còn hiện hành.
-- CURRENT G5 mới trỏ reports/evidence/file-link-confirm/2026-10-19T04-36-15-107Z/CHECKS.json, SHA256 785f05d8cc9def1b254f70761f752327a0aef2095faac0cf0798fa286c5bcd66, 277706 byte/15 artifacts. Order6 CONFIRMED/2ACTIVE; ZIP đã kiểm, seller1,6/buyer0,4 phân bổ nhưng chưa claim. Backendb989/opsf021/frontend0c61/PID536813/383runtime/186public/helper9ccb5e. Ledger52/70/b2c33f…/95held. Tiếp buyer claim rồi seller claim, không mua/giao/confirm lại.
+- CURRENT G5 mới trỏ reports/evidence/file-link-claims/2026-10-19T04-49-34-254Z/CHECKS.json, SHA256 82fbfbaad7e6608f2311101d667fb121b09c45b549e628eb1f9aa7efc0383446, 285258 byte/23 artifacts. Order6 CONFIRMED/2ACTIVE; buyer0,4/seller1,6 đã rút canonical/finalized, escrow0. Backendb989/opsf021/frontend0c61/PID536813/383runtime/186public/helper9ccb5e. Ledger52/72/ee7087…/95held. Tiếp G5 độc lập, không ký/mua/giao/confirm/claim lại6.
 
 Gói tiếp nối 18/10 đã triển khai backend30fea22/ops73b6fae và đọc lại runtime/DB metadata theo proof ở đầu. Các số liệu lịch sử bên dưới giữ timestamp của chúng; đọc CURRENT mới trước thao tác.
 
