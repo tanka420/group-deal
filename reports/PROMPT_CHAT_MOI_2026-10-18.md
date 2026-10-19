@@ -1,3 +1,21 @@
+## Hiện hành — 19/10/2026: Safe T/A/N giữ và khôi phục riêng từng ví
+
+Thay trạng thái hiện hành trong ghi chú lịch sử bên dưới. User trả lời **“T, A, N”** theo thứ tự ví trong câu hỏi, rồi xác nhận **“Mỗi người chỉ khôi phục ví của mình”**. Mapping được ghi theo khai báo trực tiếp:
+
+| Owner | Giữ seed/backup và tự khôi phục |
+|---|---|
+| 0x73307bdd39d875f98857ffce0fed1cdc62f50b6d | T |
+| 0x7366adbf19e511095e7737138498f625d737db22 | A |
+| 0xc289b853d90f2c604fd38458b1ce4b991156d18b | N |
+
+Không có quyền khôi phục chéo theo khai báo; không nhận/đọc seed, privatekey hoặc backup. Ba chữ ký verified ngày18/10 giữ nguyên context/timestamp; **challenge30fea22 đã hết hạn08:27:27 ngày19/10UTC+7, không dùng lại như control mới trênb989**. Không yêu cầu ký thêm/đổiowner/quorum/miễnđiềukiện. Khai báo đủ để chuyển sang rà soát độc lập, chưa gọi danh tính/custody vật lý đã được người độc lập kiểm. Các kết luận “1 người/NOT MET” lịch sử đã được sửa bởi khai báo ba người; không tái dùng làm kết luận hiện hành.
+
+Readback **2026-10-19T05:23:35.823Z**, finalized **67960192**, hash0xae24e1e98cddfd3ee7b75e2777c88d663076a2bf08155587183ca674e42e6f3a: **14checks đạt**. Safe1.5.0 đúng3owners/quorum2-of3/nonce0/modulesrỗng; Hub roles/codehash/manifest/canonicalblock và noPendingSecurityAuthority khớp. Chỉ đọc, không execution/drill/giao dịch. Runtime383/public186/backendb989/frontend0c61/opsf021/helper9ccb/PID536813/NRestarts0 và BACKUP_CURRENT/privateRestore verified giữ. Native05:24:17UTC:19users/6campaigns/6orders/44ops/8grants/12inventory;ledger52/72/SHAee7087ef1992baf86b322aaf1259487d90fa0a17bf7c544c7ef5c16c3559ce17/5đơncũ/95held giữ. Không source implementation/deploy/restart/fullCI/backup mới.
+
+**Tiếp:** không còn câu hỏi custody/chữ ký đang chờ ở bước này; tiếp tục vận hành và G5 độc lập. FILE_LINKorder6 đã rút đủ/escrow0/2ACTIVE; không mua/giao/confirm/claim lại. Circle/admin khác hoãn, username/socialPOSTV1, policy3backup/OneDrive làm sau/offhostRPO RTOOPEN; các branch live còn thiếu và independentreview/finalcandidatecontrol giữ phạm vi riêng. **NOT_FROZEN/G5OPEN/G6OPEN/acceptanceEligible=false/wholeProjectAccepted=false.**
+
+CURRENT [CHECKS.json](E:/apps/group-deal/reports/evidence/safe-custody-mapping/2026-10-19T05-25-26-274Z/CHECKS.json), SHA256 **1770114f5660e8e793af68fcff63f8a3ad82e5a5b458080029461ba9a884eef3**, **291277 byte/14 artifacts/14branches**; parentG5 15artifacts/Safe8artifacts kiểm hash. [Báo cáo](E:/apps/group-deal/reports/evidence/safe-custody-mapping/2026-10-19T05-25-26-274Z/SAFE_CUSTODY_MAPPING.md). Observer .cache/safe-custody-readback.cjs /safe-custody-native.cjs /safe-custody-ops.cjs; clone đổi outputwx khi đọc tiếp; native dir .cache/application-recovery/drill-crvXHh/candidate. Source chỉ sửa checkout sạch .cache/ci/c-322e58ff, remote github; HEAD trước docs **9bd9e79028694bbdff7e8c4de079c131eba4408d**, HEAD sau có thể chỉ tiến bằng docs.
+
 ## Hiện hành — 19/10/2026: FILE_LINK #6 khép hành trình; guard chỉ đọc đã kiểm
 
 Trạng thái này thay ghi chú lịch sử bên dưới. **Đơn #6 đã mua/giao2quyền/tải ZIP/confirm/buyer rút0,4/seller rút1,6USDC; escrow0, orderCONFIRMED, hai grantACTIVE. Không ký hoặc làm lại bước nào của đơn này.** Hai receipt và net wallet delta đã canonical/finalized/native-verified trong parent;48checks. Gas buyer0,06192002/seller0,003680775USDC native, ví tăng ròng0,33807998/1,596319225.
@@ -196,11 +214,11 @@ Backlog: reports/KE_HOACH_PHAT_TRIEN_SAU_BAN_DAU.md, POST-V1-01. Đặc tả gi�
 
 - Chỉ sửa source tại E:\apps\group-deal\.cache\ci\c-322e58ff, nhánh codex/license-key-csv-studio. Root E:\apps\group-deal giữ artifact và nhiều thay đổi lịch sử; không copy/stage/reset toàn bộ source root.
 - Remote push là github: https://github.com/tanka420/group-deal.git. Remote origin là checkout local lịch sử, không phải đích push sản phẩm.
-- Checkout sạch đã kiểm trước gói tài liệu bàn giao này: HEADc3021977f90e1ba33e2026f5536581f661235240. HEAD tiếp theo có thể chỉ là docs; kiểm status/HEAD/log/remote, không reset.
+- Checkout sạch đã kiểm trước gói tài liệu bàn giao này: HEAD9bd9e79028694bbdff7e8c4de079c131eba4408d. HEAD tiếp theo có thể chỉ là docs; kiểm status/HEAD/log/remote, không reset.
 - Frontend0c61f06f7aa5dc4d3cd9f5c7fddaf9bc8ed2e876; opsf0213a72f52de3c152c67cded6613dc8e93eb61f; Nginx308ee3920dc9574e7d26016689ec0805ec4f0087; backendb989bfdfcdcb5ef2b35a3d43498de378b768c419. SDK5458925/Safecf29838 giữcontext. FILE_LINK#5/order6 human purchase/delivery/download/confirm/buyer+seller claims verified; escrow0.
 - Website https://groupdeal.thanhtan.top; VPS SSH alias tan-picks là writer app/DB duy nhất.
 - Mốc runtime đã ghi: /home/ubuntu/groupdeal/releases/47d853f79ff5c2b1c8ac7f0f8163ca613fb82d9a; public /var/www/groupdeal/releases/47d853f79ff5c2b1c8ac7f0f8163ca613fb82d9a. Kiểm lại resolved paths/PID/health và hash trước mọi thay đổi; không mặc định mốc này còn hiện hành.
-- CURRENT G5 mới trỏ reports/evidence/file-link-negatives/2026-10-19T04-53-56-266Z/CHECKS.json, SHA256 80c19a78d0793940ae9823f62ab23cf3098225cd224aba30754a9b067ae38222, 286494 byte/15 artifacts. Order6 đã rút đủ/escrow0; thêm4eth_call rejections+4HTTP401. Ledger52/72/ee7087…/95held giữ; backendb989/opsf021/frontend0c61/PID536813/383runtime/186public/helper9ccb. Chờ chi tiết tách quyền khôi phục Safe, không ký hoặc replay order6.
+- CURRENT G5 mới trỏ reports/evidence/safe-custody-mapping/2026-10-19T05-25-26-274Z/CHECKS.json, SHA256 1770114f5660e8e793af68fcff63f8a3ad82e5a5b458080029461ba9a884eef3, 291277 byte/14 artifacts. SafeT/A/N exclusive recovery khai báo,14currentauthoritychecksPASS, không còn câu hỏi/ký chờ. Historicalchallengeexpired/contextold, không freshcontrol. FILE_LINKorder6đãrútđủ/escrow0;ledger52/72/ee7087…/95held/backendb989/opsf021/frontend0c61/PID536813/383runtime/186public/helper9ccb giữ.
 
 Gói tiếp nối 18/10 đã triển khai backend30fea22/ops73b6fae và đọc lại runtime/DB metadata theo proof ở đầu. Các số liệu lịch sử bên dưới giữ timestamp của chúng; đọc CURRENT mới trước thao tác.
 
