@@ -1,3 +1,17 @@
+## Hiện hành —19/10/2026: bảng chiến dịch và FILE_LINK#5
+
+Phần này thay các trạng thái lịch sử bên dưới. Frontend **6e01dc33ba1abeefc89704eb3fdc40e8c87833c9** đã push/deploy: bảng5cột, trạng thái/hiển thị, cam kết/bậc giá, thời gian UTC+7, icon hover/focus; form ghi chú/thay thế mở dialog. Có tìm/lọc và3cách sắp xếp; mobile chuyển dòng có nhãn, không cuộn ngang. Giữ brand/sidebar, không thêm thư viện.12ca pure/9CUA/7viewport thực tế375–1536px VI/ENsubset/typecheck/build/15HTTPS/live6rows đạt; khôngfullCI/408matrix.
+
+**Seller đã ký xuất bản thành công, không yêu cầu ký lại.** Campaign **#5**, draft_d702e1b5-2db3-4795-943c-a08dad36cafb/v3,UNLISTED/FILE_LINK. Cùngop_1510d8a7-f9d8-4c8e-bb38-4eebe9079f8b **PROJECTED**,tx **0xe1e638b3713605796f4f7d289813c0c6c4e5aafadd80bcaeacddabba51e46f26**,nonce12,block67938825; exactcall/event/canonical/finalized verified.13receipt seller nonce0–12 đạt; latest=pending=finalized13. Thông báo hold trước đó không tái hiện trong pure verifier; user xác nhận ví khôngPending. Không kết luận đã sửa một bug signer chưa tái hiện.
+
+Native2026-10-19T02:47:05.169Z:19users/6campaigns/5orders/37operations/6grants/12inventory; ledger52flows/**65reservations**/SHA33e41bda177a1445cbe210604d0e30cd12756460253640802dd2e270a86eb183.64→65 là delta app theo chữ ký thật của user, không manualrelease. Sau đó góiUI giữ nguyên ledger/campaign/op/5đơn cũSHAf864e1a7…/95held. Backendf52dac9/PID205372/NRestarts0/383runtime giữ;**186activepublic(182main+4Safe)/3504filesystem**,88asset mới,oldimmutable/Safe/Nginx giữ.
+
+Backup sau xuất bản đã privateRestoreverified/BACKUP_CURRENT. Giữ3bản managed verified theo user,1unknown archive giữ riêng; OneDrive làm sau,offhost/RPO/RTO cònOPEN. Helper6a7d3f9/ops36b33ca/Nginx308ee39 giữ. Observer **.cache/campaign-table-ops-final.cjs**,manifest **.cache/campaign-table-public-files.json**,native **.cache/campaign-table-native.cjs**;clone đổioutputwx khi quan sát lại.
+
+**Tiếp theo:** FILE_LINK chưa có buyer purchase/delivery/download/rebate/claim thật. Khi tiếp tục cần buyer **0xe48b30ea70f77e5fa6311471c2e9687f8a701ead** tựlogin đúng realm GroupDeal,review quantity2/gross2USDC/quote/gas rồi tựký. Chưa tạo BUY/đơn mới; không replay đơn1–5,không dùng draft_060mặc định. Không yêu cầu seller xuất bản lần nữa. Circle/admin khác hoãn;username/socialPOSTV1;Safe giữ proof/context cũ;R5–R7 source/UI hồ sơ đãkhép,NOT_FROZEN/G5OPEN/G6OPEN/acceptanceEligiblefalse.
+
+CURRENT [CHECKS.json](E:/apps/group-deal/reports/evidence/campaign-table/2026-10-19T02-27-35-906Z/CHECKS.json),SHA256 **fbb2cd0d74884b9ebaa72c2115022c9392b3c0203e3651288a820cdb14c4c5de**,253052bytes/**57artifacts/14branches**. Parent59artifacts kiểm hash; các execution kế thừa giữ timestamp/context. [Báo cáo](E:/apps/group-deal/reports/evidence/campaign-table/2026-10-19T02-27-35-906Z/CAMPAIGN_TABLE_AND_PUBLICATION.md). Source chỉ sửa checkout sạch E:/apps/group-deal/.cache/ci/c-322e58ff,branch codex/license-key-csv-studio,remote github;HEAD có thể tiến thêm bằng docs. Kiểm CURRENT/source/runtime/hash trước thao tác; không stage/reset root.
+
 ## Hiện hành — 19/10/2026: phục hồi nháp, lịch sử và backup
 
 Phần này thay trạng thái hiện hành trong các ghi chú lịch sử bên dưới. Frontend/backup helper **36b33ca83aaae579b1bdd50652fd45bf7ba5d8df**, Nginx route **308ee3920dc9574e7d26016689ec0805ec4f0087** đã push/deploy. Backend **f52dac9762d4ce4558b42502ccaceca916a36cc1** giữ PID205372/NRestarts0;383runtime/185activepublic(181main+4Safe)/3416filesystem. Không restart app, không đổi dữ liệu ứng dụng.
