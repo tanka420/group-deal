@@ -111,6 +111,14 @@ async function main() {
     check(() => assert.throws(() => (OperationPreparationService as any).authority({ auth: { user: store.db.users[a], sessions: {} }, priorDirty: false, targetsDirty: false }, a, undefined, 'PUBLISH'), /SELLER_USERNAME_REQUIRED/));
     check(() => assert.doesNotThrow(() => (OperationPreparationService as any).authority({ auth: { user: store.db.users[a], sessions: {}, sellerIdentity: store.db.sellerIdentities![a] }, priorDirty: false, targetsDirty: false }, a, undefined, 'PUBLISH')));
     check(() => assert.doesNotThrow(() => (OperationPreparationService as any).authority({ auth: { user: store.db.users[a], sessions: {} }, prior: {}, priorDirty: false, targetsDirty: false }, a, undefined, 'PUBLISH')));
+    const concurrentA=service.start(pa,'discord',origin),concurrentB=service.start(pb,'discord',origin);
+    const concurrent=await Promise.allSettled([
+        service.complete(pa,'discord',{state:concurrentA.state,code:'fixture-code'},origin),
+        service.complete(pb,'discord',{state:concurrentB.state,code:'fixture-code'},origin),
+    ]);
+    check(()=>assert.equal(concurrent.filter(r=>r.status==='fulfilled').length,1));
+    check(()=>assert.equal(concurrent.filter(r=>r.status==='rejected'&&r.reason.message==='SOCIAL_ALREADY_LINKED').length,1));
+    check(()=>assert.equal([service.status(pa).identity,service.status(pb).identity].filter(i=>i.links.discord).length,1));
     const peer = new TransactionalStore(path.dirname(store.filePath));
     try {
         const registry = new SellerIdentityRegistry(peer, { credentials, exchange }), r = service.status(pa).identity.revision;
