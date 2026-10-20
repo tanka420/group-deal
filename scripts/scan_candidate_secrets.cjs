@@ -7,7 +7,7 @@ function scanText(text,file,developmentKey,exceptions=[]){
   const rules=[
     ['PRIVATE_KEY_PEM',/-----BEGIN ((?:RSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY)-----\s+[A-Za-z0-9+/\r\n=]{32,}-----END \1-----/g],
     ['PROVIDER_TOKEN',/\b(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{50,}|AKIA[A-Z0-9]{16})\b/g],
-    ['SECRET_LITERAL',/\b(?:privateKey|[A-Z_]*PRIVATE_KEY|jwtSecret|JWT_SECRET|masterEncryptionKey|MASTER_ENCRYPTION_KEY|campaignIdentitySecret|CAMPAIGN_IDENTITY_SECRET|circleApiKey|CIRCLE_API_KEY|SMTP_APP_PASSWORD|webhookSecret|WEBHOOK_SECRET)\s*[:=]\s*["'`]([^"'`\r\n]{20,})["'`]/g],
+    ['SECRET_LITERAL',/\b(?:privateKey|[A-Z_]*PRIVATE_KEY|jwtSecret|JWT_SECRET|masterEncryptionKey|MASTER_ENCRYPTION_KEY|campaignIdentitySecret|CAMPAIGN_IDENTITY_SECRET|circleApiKey|CIRCLE_API_KEY|SMTP_APP_PASSWORD|webhookSecret|WEBHOOK_SECRET|[A-Z_]*CLIENT_SECRET|clientSecret)\s*[:=]\s*["'`]([^"'`\r\n]{20,})["'`]/g],
   ];
   for(const [rule,pattern] of rules)for(const match of text.matchAll(pattern)){
     const value=match[1];
