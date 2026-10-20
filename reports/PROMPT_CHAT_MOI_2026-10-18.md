@@ -1,3 +1,15 @@
+## Hiện hành — 21/10/2026: username/OAuth đã deploy; mở lại toàn bộ phần từng hoãn
+
+Chỉ dẫn mới của user21Oct thay các dòng hoãn trong lịch sử: username/social, Circle, admin live và OneDrive đều trở lại phạm vi hoàn thành. Giữ Arc Testnet, người dùng tự OTP/ký/consent, VPS writer duy nhất; không reset/seed/replay đơn1–6/giải phóng95held.
+
+Backend **47f3f64da4915e9b46c37ff7b9e09f048e2f8293**, frontend **6e643c8181daada6b33f3874d8e2a3e56b0af8e6**, ops backup **9734d195644dee1b5a77abca0d6c86cc7ecf18ca** đã push/deploy. Seller chọn username trước publication mới; liên kết X/GitHub/Discord bằng OAuth+PKCE, gắn đúng phiên/provider/ID ổn định và duy nhất toàn hệ thống; có ngắt và hiển thị công khai. Chưa cấu hình/consent OAuth live; không ghi đã nghiệm thu provider.
+
+55 scoped identity checks, regression snapshot cũ,10 source/emitted runtime-upgrade cases và các kiểm auth/profile/wallet/product/SQLite liên quan đạt. Desktop/390px CUA fixture đạt; VI quan sát, không coi đã kiểm EN/200%/OAuth live. Build backend/frontend đạt,9 HTTPS routes/guard/assets đạt. Lần deploy đầu bị guard từ chối do thêm collection rỗng vào snapshot; rollback bản cũ/health200 đã kiểm. Sửa lazy collections, không giảm guard; lần sau native preparation **HEALTHY**, mọi field/ledger giữ. Runtime **389 file**, public **186 file**; PID **1339439**, NRestarts0, native **.cache/application-recovery/drill-bqoqaE/candidate**. Backup mới source47f3 private-restore verified/BACKUP_CURRENT.
+
+Native22:07:30UTC:19users/6campaigns/6orders/44ops/8grants/12inventory;ledger52/72/SHAee7087ef1992baf86b322aaf1259487d90fa0a17bf7c544c7ef5c16c3559ce17;5đơn cũSHAf864e1a7f21a123450f6d17111f2f0bbc5514557bb47d048b1cd521622b24ae9/95held giữ. FILE_LINKorder6 đã rút đủ, không làm lại. Safe T/A/N giữ khai báo tách quyền khôi phục; chữ ký18Oct đã hết hạn, không fresh control cho candidate mới.
+
+CURRENT [CHECKS.json](E:/apps/group-deal/reports/evidence/project-completion/2026-10-20T21-38-39-093Z/CHECKS.json), SHA256 **f933b9affb8598ab3d6f3ae01f9bcdc69d8d6038f78b37e683995cf000d7efb8**, 341648bytes/51artifacts. Checkout source duy nhất **E:/apps/group-deal/.cache/ci/c-322e58ff**, remote github, branchcodex/license-key-csv-studio. Rootreports là nơi giữ evidence. NginxSHAfafecfbe84ef0a55ed70f2bd1378544ac2b265cf4bd673a95df848f3e4b77cc9 giữ. **NOT_FROZEN/G5OPEN/G6OPEN/acceptanceEligible=false/wholeProjectAccepted=false.** Tiếp OneDrive/ops độc lập, rồi tài liệu human actions và prompt chat mới; không dừng ở kế hoạch.
+
 ## Hiện hành — 19/10/2026: chuẩn hóa header API, giữ runtime và dữ liệu
 
 Thay trạng thái hiện hành trong ghi chú lịch sử bên dưới. **Nginx headers source556dc2d8d73dddef2af14fa5d02aa4f4087a0418 đã push/deploy**: chỉ thêm config/nginx/groupdeal-api-response-headers.conf,7dòng, nhúng vào /api/ để loại header lặp từ upstream và giữ một bộ nosniff/private,no-store/HSTS86400. Proxy/routes/timeouts/bytes ngoài APIblock giữ. App route source308ee39 vẫn giữ; backendb989/frontend0c61/opsbackupf021/helper9ccb không đổi.
