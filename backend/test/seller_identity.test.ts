@@ -15,6 +15,12 @@ import { OperationPreparationService } from '../src/services/operationPreparatio
 import { BackupService } from '../src/services/backupService';
 async function main() {
     assert.ok(store.isIsolated);
+    const legacyShape = store.snapshot();
+    for (const key of ['sellerIdentities', 'sellerUsernames', 'sellerSocialOwners', 'sellerSocialAttempts', 'sellerIdentityRates']) delete (legacyShape as any)[key];
+    const legacyDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'groupdeal-identity-legacy-'));
+    const legacyStore = new TransactionalStore(legacyDirectory);
+    try { legacyStore.initializeRecoverySnapshot(legacyShape); assert.deepEqual(legacyStore.snapshot(), legacyShape); }
+    finally { legacyStore.close(); }
     let checks = 0;
     const check = (f: () => void) => { f(); checks++; }, a = 'identity-seller-a', b = 'identity-seller-b';
     for (const id of [a, b])

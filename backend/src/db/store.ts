@@ -630,7 +630,8 @@ export class TransactionalStore {
       authSessionCommands:{},
       walletBindingIntents:{},
       sellerProfileIntents:{},
-      sellerIdentities:{},sellerUsernames:{},sellerSocialOwners:{},sellerSocialAttempts:{},sellerIdentityRates:{},
+      // Optional identity collections are created on first scoped write. Adding
+      // empty collections here would alter an exact legacy recovery snapshot.
       sellerFollows:{},
       sellerFollowCommands:{},
       userByEmail: {},
@@ -673,6 +674,12 @@ export class TransactionalStore {
 
   private normalize(parsed: Partial<DatabaseSchema>): DatabaseSchema {
     const normalized = { ...this.emptySchema(), ...parsed } as DatabaseSchema;
+    const identityCollections = ['sellerIdentities','sellerUsernames','sellerSocialOwners','sellerSocialAttempts','sellerIdentityRates'] as const;
+    // Legacy archives must retain their exact shape. Once identity is used,
+    // normalize its empty maps consistently across SQLite restart and backup.
+    if (identityCollections.some(key => Object.prototype.hasOwnProperty.call(parsed,key))) {
+      for (const key of identityCollections) (normalized as any)[key] ||= {};
+    }
     normalized.userByCircleId ||= {};
     normalized.authSessions ||= {};
     normalized.authSessionCommands ||= {};
@@ -897,7 +904,7 @@ export class TransactionalStore {
   public readSellerProfileState(actorId:string,sessionKey:string,intentKey:string){return this.rows.readSellerProfileState(actorId,sessionKey,intentKey);}
   public readSellerIdentity(actorId:string,sessionKey?:string,keys:[string,string][]=[]){return this.rows.readSellerIdentity(actorId,sessionKey,keys);}
   public mutateSellerIdentity<T>(actorId:string,sessionKey:string,keys:[string,string][],verify:(state:import('./rowPersistence').SellerIdentityState)=>import('./rowPersistence').SellerIdentityPlan<T>):T{return this.mutateIdentityInternal(actorId,sessionKey,keys,verify);}
-  private mutateIdentityInternal<T>(actorId:string,sessionKey:string,keys:[string,string][],verify:(state:import('./rowPersistence').SellerIdentityState)=>import('./rowPersistence').SellerIdentityPlan<T>):T{if(this.batchDepth>0)throw new StorageConflict();const out=this.rows.mutateSellerIdentity(actorId,sessionKey,keys,this.data,verify);for(const r of out.records){const collection=((this.data as any)[r.collection]??={});if(r.value===undefined)delete collection[r.key];else collection[r.key]=r.value;}this.data.auditLogs.unshift(...out.audit);return out.result;}
+  private mutateIdentityInternal<T>(actorId:string,sessionKey:string,keys:[string,string][],verify:(state:import('./rowPersistence').SellerIdentityState)=>import('./rowPersistence').SellerIdentityPlan<T>):T{if(this.batchDepth>0)throw new StorageConflict();const out=this.rows.mutateSellerIdentity(actorId,sessionKey,keys,this.data,verify);if(out.records.length)for(const key of ['sellerIdentities','sellerUsernames','sellerSocialOwners','sellerSocialAttempts','sellerIdentityRates'])(this.data as any)[key]??={};for(const r of out.records){const collection=((this.data as any)[r.collection]??={});if(r.value===undefined)delete collection[r.key];else collection[r.key]=r.value;}this.data.auditLogs.unshift(...out.audit);return out.result;}
   public mutateSellerProfile<T>(selection:import('./rowPersistence').SellerProfileSelection,verify:(state:import('./rowPersistence').SellerProfileState)=>import('./rowPersistence').SellerProfilePlan<T>):T{
     if(this.batchDepth>0)throw Error('CONFLICT: seller profile cannot join an unfinished transaction');const committed=this.rows.mutateSellerProfile(selection,this.data,verify);
     for(const r of committed.records){const collection=(this.data as any)[r.collection]??={},existing=collection[r.key];if(r.collection==='sellerProfileIntents'&&existing){const value={...r.value};delete value.circleSigning;for(const field of ['state','attempts','cancelledAt','committedAt'])delete value[field];Object.assign(existing,value);for(const field of ['state','attempts','cancelledAt','committedAt'])if(r.value[field]!==undefined)existing[field]=r.value[field];if(r.value.circleSigning)Object.assign(existing.circleSigning??={},r.value.circleSigning);}else collection[r.key]=r.value;}
