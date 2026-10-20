@@ -494,6 +494,11 @@ export interface DatabaseSchema {
   webhookRecoveryReviews?:Record<string,WebhookRecoveryReview>;
   walletBindingIntents:Record<string,WalletBindingIntent>;
   sellerProfileIntents:Record<string,SellerProfileIntent>;
+  sellerIdentities?:Record<string,import('../domain/sellerIdentity').SellerIdentityRecord>;
+  sellerUsernames?:Record<string,string>;
+  sellerSocialOwners?:Record<string,string>;
+  sellerSocialAttempts?:Record<string,import('../domain/sellerIdentity').SocialAttempt>;
+  sellerIdentityRates?:Record<string,{count:number;startedAt:number}>;
   sellerFollows:Record<string,SellerFollowRecord>;
   sellerFollowCommands:Record<string,SellerFollowCommand>;
   supportTickets:Record<string,SupportTicket>;
@@ -625,6 +630,7 @@ export class TransactionalStore {
       authSessionCommands:{},
       walletBindingIntents:{},
       sellerProfileIntents:{},
+      sellerIdentities:{},sellerUsernames:{},sellerSocialOwners:{},sellerSocialAttempts:{},sellerIdentityRates:{},
       sellerFollows:{},
       sellerFollowCommands:{},
       userByEmail: {},
@@ -889,6 +895,9 @@ export class TransactionalStore {
   }
 
   public readSellerProfileState(actorId:string,sessionKey:string,intentKey:string){return this.rows.readSellerProfileState(actorId,sessionKey,intentKey);}
+  public readSellerIdentity(actorId:string,sessionKey?:string,keys:[string,string][]=[]){return this.rows.readSellerIdentity(actorId,sessionKey,keys);}
+  public mutateSellerIdentity<T>(actorId:string,sessionKey:string,keys:[string,string][],verify:(state:import('./rowPersistence').SellerIdentityState)=>import('./rowPersistence').SellerIdentityPlan<T>):T{return this.mutateIdentityInternal(actorId,sessionKey,keys,verify);}
+  private mutateIdentityInternal<T>(actorId:string,sessionKey:string,keys:[string,string][],verify:(state:import('./rowPersistence').SellerIdentityState)=>import('./rowPersistence').SellerIdentityPlan<T>):T{if(this.batchDepth>0)throw new StorageConflict();const out=this.rows.mutateSellerIdentity(actorId,sessionKey,keys,this.data,verify);for(const r of out.records){const collection=((this.data as any)[r.collection]??={});if(r.value===undefined)delete collection[r.key];else collection[r.key]=r.value;}this.data.auditLogs.unshift(...out.audit);return out.result;}
   public mutateSellerProfile<T>(selection:import('./rowPersistence').SellerProfileSelection,verify:(state:import('./rowPersistence').SellerProfileState)=>import('./rowPersistence').SellerProfilePlan<T>):T{
     if(this.batchDepth>0)throw Error('CONFLICT: seller profile cannot join an unfinished transaction');const committed=this.rows.mutateSellerProfile(selection,this.data,verify);
     for(const r of committed.records){const collection=(this.data as any)[r.collection]??={},existing=collection[r.key];if(r.collection==='sellerProfileIntents'&&existing){const value={...r.value};delete value.circleSigning;for(const field of ['state','attempts','cancelledAt','committedAt'])delete value[field];Object.assign(existing,value);for(const field of ['state','attempts','cancelledAt','committedAt'])if(r.value[field]!==undefined)existing[field]=r.value[field];if(r.value.circleSigning)Object.assign(existing.circleSigning??={},r.value.circleSigning);}else collection[r.key]=r.value;}

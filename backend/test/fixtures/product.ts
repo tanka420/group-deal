@@ -1,3 +1,5 @@
+import {SellerIdentityService} from '../../src/services/sellerIdentityService';
+import {SessionService} from '../../src/services/sessionService';
 import {randomUUID} from 'node:crypto';
 import {enrollFixtureOperator} from '../helpers/operatorFixture';
 import {AuthService} from '../../src/services/authService';
@@ -12,6 +14,7 @@ export async function reviewedProductVerified(sellerId:string,payoutWallet:strin
   const operatorId="fixture-rights-reviewer-"+randomUUID();
   store.db.users[operatorId]={id:operatorId,email:`${operatorId}@fixture.invalid`,createdAt:0,activeWallet:null,roles:["operator"]};
   store.save();
+  SellerIdentityService.username(SessionService.authenticate(SessionService.issue(store.db.users[sellerId])),{username:'seller_'+randomUUID().replaceAll('-','').slice(0,20),expectedRevision:0});
   const enrollment=await enrollFixtureOperator(operatorId,undefined,{chainId:config.arcChainId});
   const product=ProductService.createVersion(sellerId,productInput);
   const rights=ProductService.submitRights(sellerId,product.version.id,{declaration:"OWNER",declarationText:"Fixture rights evidence",evidenceRefs:["https://fixture.invalid/private-evidence"]});

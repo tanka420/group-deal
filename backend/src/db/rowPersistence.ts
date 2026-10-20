@@ -16,6 +16,8 @@ export type OperationPreparationState={auth:ProductMutationState['auth'];graph:O
 import {OperationReplacementError,replacementOperation,replacementPatch,type ReplacementSelection,type ReplacementPlan} from '../domain/operationReplacement';
 export type OperationReplacementState=OperationTrackingState&{consumption:ReceiptConsumptionRecord|undefined;signer?:import('../domain/signerReservation').SignerState};
 import { DatabaseSync } from "node:sqlite";
+export type SellerIdentityState={auth:ReturnType<RowPersistence['readAuthState']>;identity?:import('../domain/sellerIdentity').SellerIdentityRecord;rows:Record<string,unknown>};
+export type SellerIdentityPlan<T>={result:T;writes?:{collection:string;key:string;value?:unknown}[];audit?:{action:string;details:Record<string,unknown>}};
 import type {CircleChallengeReceipt} from '../domain/circleChallenge';
 import type { DatabaseSchema,UserRecord,AuthSessionRecord,AuthSessionCommandRecord,CampaignRecord,NotificationPreferenceRecord } from "./store";
 import {sellerFollowId,sellerFollowSchema,sellerFollowCommandSchema,type SellerFollowRecord,type SellerFollowCommand} from '../domain/sellerFollow';
@@ -163,7 +165,7 @@ const productProjection=(fields:readonly string[])=>{
 };
 
 export type ProductMutationSelection={actorId:string;sessionKey?:string;productId?:string;versionId?:string;rightsId?:string;challengeKey?:string;commandKey?:string;commandKind?:ProductCommandKind;mediaKey?:string};
-export type ProductMutationState={auth:{user?:UserRecord;sessions:Record<string,AuthSessionRecord>;authRecovery?:unknown};product?:Record<string,any>;version?:Record<string,any>;license?:Record<string,any>;rights?:Record<string,any>;relatedRights:Record<string,any>[];image?:import('../domain/productMedia').ProductImage;imageQuota?:{sellerBytes:number;totalBytes:number};challenge?:DatabaseSchema['walletChallenges'][string];command?:Record<string,any>;commandAudited:boolean};
+export type ProductMutationState={auth:{user?:UserRecord;sessions:Record<string,AuthSessionRecord>;authRecovery?:unknown;sellerIdentity?:import('../domain/sellerIdentity').SellerIdentityRecord};product?:Record<string,any>;version?:Record<string,any>;license?:Record<string,any>;rights?:Record<string,any>;relatedRights:Record<string,any>[];image?:import('../domain/productMedia').ProductImage;imageQuota?:{sellerBytes:number;totalBytes:number};challenge?:DatabaseSchema['walletChallenges'][string];command?:Record<string,any>;commandAudited:boolean};
 export type ProductMutationWrite={kind:'INSERT';collection:'products'|'productVersions'|'licenseVersions'|'rights'|'productCommands'|'productImages';key:string;value:Record<string,any>}|{kind:'PRODUCT_PATCH';key:string;patch:{latestVersionId?:string;status?:'ARCHIVED'}}|{kind:'RIGHTS_REVIEW';key:string;decision:RightsRecord['decisions'][number];validUntil?:number}|{kind:'OPERATOR_CHALLENGE';key:string;value:DatabaseSchema['walletChallenges'][string]};
 export type ProductMutationPlan<T>={result:T;writes:ProductMutationWrite[];consumeChallenge?:boolean;replay?:boolean;mediaReplay?:boolean;audit:{role:'seller'|'operator';action:string;details:Record<string,unknown>}[]};
 export type OperatorStepUpSelection={actorId:string;sessionKey?:string;challengeKey:string;targetSellerId?:string};
@@ -986,7 +988,7 @@ export class RowPersistence {
     }
     return{accountId:userId,wallet,boundUserId,certificateDigest};
   }
-  private authSnapshot(userId:string,key?:string,commandKey?:string,userProjection='record_json',sessionProjection='record_json',commandProjection='record_json'):{user?:UserRecord;sessions:Record<string,AuthSessionRecord>;command?:AuthSessionCommandRecord;authRecovery?:unknown} {
+  private authSnapshot(userId:string,key?:string,commandKey?:string,userProjection='record_json',sessionProjection='record_json',commandProjection='record_json'):{user?:UserRecord;sessions:Record<string,AuthSessionRecord>;command?:AuthSessionCommandRecord;authRecovery?:unknown;sellerIdentity?:import('../domain/sellerIdentity').SellerIdentityRecord} {
       const userRow=this.sqlite.prepare('SELECT '+userProjection+" AS record_json FROM domain_records WHERE collection='users' AND record_key=?").get(userId) as {record_json:string}|undefined;
       const rows=(key===undefined?this.sqlite.prepare("SELECT record_key,"+sessionProjection+" AS record_json FROM domain_records WHERE collection='authSessions' AND json_extract(record_json,'$.userId')=?").all(userId):this.sqlite.prepare("SELECT record_key,"+sessionProjection+" AS record_json FROM domain_records WHERE collection='authSessions' AND record_key=?").all(key)) as {record_key:string;record_json:string}[];
       const sessions:Record<string,AuthSessionRecord>=Object.create(null);
@@ -995,7 +997,8 @@ export class RowPersistence {
       const recoveryRows=this.sqlite.prepare("SELECT record_key,record_json FROM domain_records WHERE collection='authRecovery'").all() as {record_key:string;record_json:string}[];
       let authRecovery:Record<string,unknown>|undefined;
       if(recoveryRows.length){authRecovery=Object.create(null);for(const row of recoveryRows)authRecovery![row.record_key]=JSON.parse(row.record_json);}
-      const auth={user:userRow?JSON.parse(userRow.record_json):undefined,sessions,command:commandRow?JSON.parse(commandRow.record_json):undefined,authRecovery};captureOperatorFrame(auth,this.operatorFrame(userId,auth.user));return auth;
+      const identity=this.sqlite.prepare("SELECT record_json FROM domain_records WHERE collection='sellerIdentities' AND record_key=?").get(userId) as {record_json:string}|undefined;
+      const auth={user:userRow?JSON.parse(userRow.record_json):undefined,sessions,command:commandRow?JSON.parse(commandRow.record_json):undefined,authRecovery,sellerIdentity:identity?JSON.parse(identity.record_json):undefined};captureOperatorFrame(auth,this.operatorFrame(userId,auth.user));return auth;
   }
   public readAuthState(userId:string,key?:string,commandKey?:string){
     this.sqlite.exec('BEGIN');try{const marker=this.sqlite.prepare('SELECT format_version FROM storage_revision WHERE id=1').get() as {format_version:number}|undefined;if(marker?.format_version!==2)throw Error('Auth storage unavailable');this.checkLegacyWriter();return this.authSnapshot(userId,key,commandKey);}finally{this.sqlite.exec('COMMIT');}
@@ -1969,6 +1972,19 @@ export class RowPersistence {
   private legacyHash(): string {
     const row = this.sqlite.prepare("SELECT state_json,updated_at FROM app_state WHERE id=1").get();
     return createHash("sha256").update(stringify(row || null)).digest("hex");
+  }
+  private identitySnapshot(actorId:string,sessionKey:string|undefined,keys:[string,string][]):SellerIdentityState{
+    if(keys.length>12||keys.some(([c,k])=>!['sellerIdentities','sellerUsernames','sellerSocialOwners','sellerSocialAttempts','sellerIdentityRates'].includes(c)||!k||k.length>180||['__proto__','constructor','prototype'].includes(k)))throw Error('IDENTITY_STORAGE_SCOPE');
+    const auth=this.authSnapshot(actorId,sessionKey),rows:Record<string,unknown>=Object.create(null);for(const[c,k]of keys){const r=this.sqlite.prepare('SELECT record_json FROM domain_records WHERE collection=? AND record_key=?').get(c,k) as {record_json:string}|undefined;rows[JSON.stringify([c,k])]=r?JSON.parse(r.record_json):undefined;}return{auth,identity:auth.sellerIdentity,rows};
+  }
+  public readSellerIdentity(actorId:string,sessionKey?:string,keys:[string,string][]=[]):SellerIdentityState{this.sqlite.exec('BEGIN');try{this.checkLegacyWriter();return this.identitySnapshot(actorId,sessionKey,keys)}finally{this.sqlite.exec('COMMIT')}}
+  public mutateSellerIdentity<T>(actorId:string,sessionKey:string,keys:[string,string][],data:DatabaseSchema,verify:(state:SellerIdentityState)=>SellerIdentityPlan<T>){
+    this.sqlite.exec('BEGIN IMMEDIATE');try{const marker=this.sqlite.prepare('SELECT revision,format_version FROM storage_revision WHERE id=1').get() as {revision:number;format_version:number}|undefined;if(marker?.format_version!==2||marker.revision!==this.revision)throw new StorageConflict();this.checkLegacyWriter();const state=this.identitySnapshot(actorId,sessionKey,keys),plan=verify(state);if(!plan||typeof(plan as any).then==='function')throw Error('IDENTITY_ASYNC_TRANSACTION');
+      const writes=plan.writes??[],allowed=new Set(keys.map(k=>JSON.stringify(k))),seen=new Set<string>(),assertClean=(c:string,k:string)=>{const value=c==='auditLogs'?data.auditLogs:(data as any)[c]?.[k];if(this.persisted.get(stringify([c,k]))?.json!==(value===undefined?undefined:stringify(value)))throw new StorageConflict();};for(const w of writes){const key=JSON.stringify([w.collection,w.key]);if(!allowed.has(key)||seen.has(key)||w.collection==='sellerIdentities'&&w.key!==actorId)throw Error('IDENTITY_WRITE_SCOPE');seen.add(key);assertClean(w.collection,w.key);}if(plan.audit)assertClean('auditLogs','state');const records:{collection:string;key:string;json?:string;value?:unknown}[]=[],audit:DatabaseSchema['auditLogs']=[];
+      for(const w of writes){if(w.value===undefined){this.sqlite.prepare('DELETE FROM domain_records WHERE collection=? AND record_key=?').run(w.collection,w.key);records.push({...w});}else{const json=stringify(w.value);this.sqlite.prepare('INSERT INTO domain_records(collection,record_key,record_json) VALUES(?,?,?) ON CONFLICT(collection,record_key) DO UPDATE SET record_json=excluded.record_json').run(w.collection,w.key,json);records.push({...w,json});}}
+      if(plan.audit){const a=this.sqlite.prepare("SELECT record_json,json_array_length(record_json) AS count,json_extract(record_json,'$[0].hash') AS hash FROM domain_records WHERE collection='auditLogs' AND record_key='state'").get() as {record_json:string;count:number;hash:string}|undefined;if(!a||a.count&&!/^[a-f0-9]{64}$/.test(a.hash))throw Error('IDENTITY_AUDIT_UNAVAILABLE');const timestamp=Date.now(),role='user',prevHash=a.count?a.hash:'0'.repeat(64),entry={id:'audit_'+timestamp+'_'+randomUUID(),timestamp,actor:actorId,role,...plan.audit,prevHash,hash:createHash('sha256').update(`${prevHash}:${timestamp}:${actorId}:${role}:${plan.audit.action}:${JSON.stringify(plan.audit.details)}`).digest('hex')};const json='['+stringify(entry)+(a.count?',':'')+a.record_json.trim().slice(1);this.sqlite.prepare("UPDATE domain_records SET record_json=? WHERE collection='auditLogs' AND record_key='state'").run(json);records.push({collection:'auditLogs',key:'state',json});audit.push(entry);}
+      if(records.length)this.sqlite.prepare('UPDATE storage_revision SET revision=? WHERE id=1').run(this.revision+1);this.sqlite.exec('COMMIT');if(records.length)this.revision++;for(const r of records){if(r.json===undefined)this.persisted.delete(stringify([r.collection,r.key]));else this.persisted.set(stringify([r.collection,r.key]),{collection:r.collection,key:r.key,json:r.json});}return{result:plan.result,records:records.filter(r=>r.collection!=='auditLogs'),audit};
+    }catch(e){this.sqlite.exec('ROLLBACK');throw e;}
   }
   private checkLegacyWriter(): void {
     const guard = this.sqlite.prepare("SELECT snapshot_hash FROM legacy_snapshot_guard WHERE id=1").get() as {snapshot_hash:string} | undefined;

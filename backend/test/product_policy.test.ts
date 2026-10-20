@@ -11,6 +11,7 @@ import {ProductService} from '../src/services/productService';
 import {CampaignEditorService} from '../src/services/campaignEditorService';
 import {ResourceDeliveryService} from '../src/services/resourceDeliveryService';
 import {SessionService} from '../src/services/sessionService';
+import {SellerIdentityService} from '../src/services/sellerIdentityService';
 import {campaignRouter} from '../src/routes/campaignRoutes';
 import {operationRouter} from '../src/routes/operationRoutes';
 import {productInput} from './fixtures/product';
@@ -19,6 +20,7 @@ const approved=()=>Math.floor(Date.now()/1000)+60*86400;
 async function setup(approve=true){
  store.replace(structuredClone(initial));const wallet=ethers.Wallet.createRandom().address;
  store.transaction(()=>{for(const id of ['seller','other','operator'])store.db.users[id]={id,email:id+'@policy.example.test',roles:id==='operator'?['operator']:['seller'],activeWallet:id==='seller'?wallet:null,createdAt:Date.now(),...(id==='seller'?{sellerProfile:{displayName:'Policy fixture',bio:'Fixture',payoutWallet:wallet,payoutProofSignature:'fixture-only',verifiedSellerBadge:true,verifiedRightsBadge:false}}:{})}});
+ SellerIdentityService.username(SessionService.authenticate(SessionService.issue(store.db.users.seller)),{username:'policy_seller',expectedRevision:0});
  const owned=ProductService.createVersion('seller',productInput),foreign=ProductService.createVersion('other',productInput);
  const rights=ProductService.submitRights('seller',owned.version.id,{declaration:'OWNER',declarationText:'Private local policy fixture',evidenceRefs:['https://policy.example.test/evidence']});
  if(approve){const enrollment=await enrollFixtureOperator('operator',undefined,{chainId:config.arcChainId});ProductService.reviewRights('operator',rights.id,{decision:'APPROVED',reason:'Independent local fixture review',validUntil:approved()},await enrollment.authorization());}

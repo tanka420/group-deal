@@ -1,3 +1,4 @@
+import {readSellerIdentity} from '../domain/sellerIdentity';
 import {assertNewBusinessAction,AccountAccessError} from '../domain/accountAccess';
 import { ethers } from 'ethers';
 import { randomUUID, randomBytes } from 'node:crypto';
@@ -52,7 +53,7 @@ export class OperationPreparationService {
         const u = state.auth.user;
         if (!u || u.id !== actor || !Array.isArray(u.roles) || u.roles.some(r => !['buyer', 'seller', 'operator'].includes(r)))
             throw new OperationPreparationError('OPERATION_PREPARATION_FORBIDDEN', 403);
-    } if(!state.prior&&(action==='BUY'||action==='PUBLISH'))assertNewBusinessAction(state.auth.user,action==='BUY'?'BUY':'SELLER'); if(action==='RESOLVE')SessionService.assertOperatorCommitted(proof,state.auth); if (state.priorDirty || !state.prior && state.targetsDirty)
+    } if(!state.prior&&action==='PUBLISH'&&!readSellerIdentity(state.auth.sellerIdentity,actor).username)throw new OperationPreparationError('SELLER_USERNAME_REQUIRED',409); if(!state.prior&&(action==='BUY'||action==='PUBLISH'))assertNewBusinessAction(state.auth.user,action==='BUY'?'BUY':'SELLER'); if(action==='RESOLVE')SessionService.assertOperatorCommitted(proof,state.auth); if (state.priorDirty || !state.prior && state.targetsDirty)
         throw new OperationPreparationError('OPERATION_PREPARATION_CONFLICT'); }
     private static begin(selection: PreparationSelection, proof?: SessionProof) { if (proof)
         selection = { ...selection, sessionKey: proof.key }; const state = store.readOperationPreparationState(selection); this.authority(state, selection.actorId, proof,selection.action); const fingerprint = readinessFingerprint(state.graph), fresh = () => { const current = store.readOperationPreparationState(selection); this.authority(current, selection.actorId, proof,selection.action); if (readinessFingerprint(current.graph) !== fingerprint)

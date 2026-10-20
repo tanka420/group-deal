@@ -14,6 +14,10 @@ export class UiError extends Error {
 export function errorMessage(error: unknown, fallback: UiMessage): UiMessage {
   if (error instanceof UiError) return error.displayMessage;
   if (error instanceof Error) {
+    if (/SELLER_USERNAME_REQUIRED/.test(error.message)) return uiMessage(
+      "Chọn username tại Hồ sơ người bán trước khi xuất bản deal mới. Bản nháp được giữ nguyên.",
+      "Choose a username in Seller profile before publishing a new deal. Your draft is preserved.",
+    );
     if (/ACCOUNT_NEW_ACTIONS_RESTRICTED/.test(error.message)) return uiMessage(
       "Tài khoản đang bị hạn chế hoạt động mới. Bạn vẫn có thể xem và xử lý đơn cũ; liên hệ hỗ trợ để được kiểm tra.",
       "New activity is restricted for this account. You can still view and process existing orders; contact support for a review.",

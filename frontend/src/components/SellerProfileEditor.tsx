@@ -5,6 +5,7 @@ import {useAuth} from '../context/AuthContext';
 import {useExternalWallet} from '../context/ExternalWalletContext';
 import {useLanguage} from '../context/LanguageContext';
 import {WalletManager} from './WalletManager';
+import {SellerIdentityPanel} from './SellerIdentityPanel';
 import {readWalletInventory,WalletRow} from '../services/walletBinding';
 import {profileCheckpoint,readProfileIntent,ProfileCheckpoint,ProfileIntent} from '../services/sellerProfile';
 
@@ -42,6 +43,7 @@ export function SellerProfileEditor({onSuccess,onSigningChange}:{onSuccess?:()=>
  if(!user||!token)return <p role="alert">{text('Đăng nhập để quản lý hồ sơ người bán.','Sign in to manage the seller profile.')}</p>;
  const terminal=intent&&['EXPIRED','LOCKED','CANCELLED'].includes(intent.state),circleSelected=rows.find(r=>r.address===intent?.payoutWallet)?.kind==='CIRCLE';
  return <section className="seller-profile-editor" aria-label={text('Hồ sơ và ví nhận tiền','Profile and payout wallet')}>
+  <SellerIdentityPanel key={userId+':'+token}/>
   <p>{text('Chọn ví đã xác minh thuộc tài khoản. Hồ sơ này dùng cho chiến dịch mới; ví nhận tiền của chiến dịch cũ và principal của đơn cũ được giữ nguyên. Thay đổi tên, giới thiệu hoặc payout cần operator xét lại huy hiệu.','Choose a verified account wallet. This profile applies to new campaigns; existing campaign payout wallets and order principals are retained. Changing the name, bio or payout requires operator badge review again.')}</p>
   {user.sellerProfile&&<dl className="detail-list"><dt>{text('Hồ sơ hiện tại','Current profile')}</dt><dd>{user.sellerProfile.displayName}</dd><dt>{text('Ví nhận tiền hiện tại','Current payout wallet')}</dt><dd className="address-value font-mono">{user.sellerProfile.payoutWallet}</dd><dt>{text('Xét duyệt người bán','Seller review')}</dt><dd>{user.sellerProfile.verifiedSellerBadge?text('Operator đã xét duyệt','Reviewed by operator'):text('Chưa được xét duyệt','Not reviewed')}</dd></dl>}
   {pending&&!error&&!notice&&<p role="status">{text('Đang chờ kiểm tra hoặc chữ ký…','Waiting for verification or signature…')}</p>}
