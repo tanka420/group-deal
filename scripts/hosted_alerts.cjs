@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto');
 const schema='GroupDealOpsAlertsV1',endpoint='https://groupdeal.thanhtan.top/api/health';
-const attentionCodes=new Set(['HTTP_REQUEST_UNAVAILABLE','HTTP_STATUS_UNEXPECTED','DEPLOYMENT_MISMATCH','LIVENESS_CONTRACT_INVALID','BACKUP_METADATA_INVALID','BACKUP_METADATA_UNAVAILABLE','BACKUP_STALE','PROBE_RESULT_UNAVAILABLE']);
+const attentionCodes=new Set(['HTTP_REQUEST_UNAVAILABLE','HTTP_STATUS_UNEXPECTED','DEPLOYMENT_MISMATCH','LIVENESS_CONTRACT_INVALID','BACKUP_METADATA_INVALID','BACKUP_METADATA_UNAVAILABLE','BACKUP_STALE','PROBE_RESULT_UNAVAILABLE','OFFHOST_RECEIPT_INVALID','OFFHOST_BACKUP_STALE','OFFHOST_BACKUP_UNAVAILABLE']);
 const fail=code=>{throw Error(code);};
 function freshState(){return{schema,lastObservationId:null,failureCount:0,incident:null};}
 /** Only the bounded public probe contract enters the alert state or email. */
@@ -10,8 +10,8 @@ function selectObservation(journal,now=Date.now()){
  let selected;
  for(const line of journal.split('\n').filter(Boolean)){
   try{const entry=JSON.parse(line),r=JSON.parse(entry.MESSAGE),time=Date.parse(r.observedAt),id=entry.__REALTIME_TIMESTAMP;
-   if(r.schemaVersion!==1||r.scope!=='HOSTED_PUBLIC_LIVENESS_AND_BACKUP_FRESHNESS'||r.endpoint!==endpoint||r.test404!==false||r.financialAccountingVerified!==false||r.credentialsRead!==false||r.emailSent!==false||!/^\d{13,20}$/.test(id)||!Number.isFinite(time)||time>now+30000||now-time>180000)continue;
-   const up=r.status==='UP'&&r.code==='LIVENESS_OBSERVED'&&r.httpStatus===200&&r.backup?.status==='UP'&&r.backup?.code==='BACKUP_CURRENT';
+   if(r.schemaVersion!==1||!['HOSTED_PUBLIC_LIVENESS_AND_BACKUP_FRESHNESS','HOSTED_PUBLIC_LIVENESS_BACKUP_AND_OFFHOST_FRESHNESS'].includes(r.scope)||r.endpoint!==endpoint||r.test404!==false||r.financialAccountingVerified!==false||r.credentialsRead!==false||r.emailSent!==false||!/^\d{13,20}$/.test(id)||!Number.isFinite(time)||time>now+30000||now-time>180000)continue;
+   const up=r.status==='UP'&&r.code==='LIVENESS_OBSERVED'&&r.httpStatus===200&&r.backup?.status==='UP'&&r.backup?.code==='BACKUP_CURRENT'&&(r.scope!=='HOSTED_PUBLIC_LIVENESS_BACKUP_AND_OFFHOST_FRESHNESS'||r.offhost?.status==='UP'&&r.offhost?.code==='OFFHOST_BACKUP_CURRENT');
    const attention=r.status==='ATTENTION'&&attentionCodes.has(r.code);if(!up&&!attention)continue;
    if(!selected||BigInt(id)>BigInt(selected.id))selected={id,status:up?'UP':'ATTENTION',code:r.code,observedAt:new Date(time).toISOString()};
   }catch{ /* Journal/provider diagnostics never enter output. */ }

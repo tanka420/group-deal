@@ -1,0 +1,20 @@
+[Unit]
+Description=GroupDeal encrypted backup upload and OneDrive download/hash verification
+After=network-online.target groupdeal-backup.service
+Wants=network-online.target
+ConditionPathExists=/home/ubuntu/groupdeal/operations/offhost/rclone.conf
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+UMask=0077
+ExecStart=/usr/bin/flock --nonblock /home/ubuntu/groupdeal/operations/backups/backup.lock /home/ubuntu/groupdeal-runtime/node-v24.21.0-linux-x64/bin/node /home/ubuntu/groupdeal/operations/hosted_offhost_backup.cjs --state-directory /home/ubuntu/groupdeal/operations/backups --offhost-directory /home/ubuntu/groupdeal/operations/offhost --config-file /home/ubuntu/groupdeal/operations/offhost/rclone.conf
+TimeoutStartSec=600
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/groupdeal/operations/offhost /home/ubuntu/groupdeal/operations/backups/backup.lock
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SyslogIdentifier=groupdeal-offhost-backup

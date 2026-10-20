@@ -1,0 +1,11 @@
+[Unit]
+Description=GroupDeal encrypted OneDrive copy after each hourly local backup
+
+[Timer]
+OnCalendar=*-*-* *:10:00
+Persistent=true
+AccuracySec=30
+Unit=groupdeal-offhost-backup.service
+
+[Install]
+WantedBy=timers.target
