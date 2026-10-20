@@ -25,6 +25,7 @@ async function main() {
     const check = (f: () => void) => { f(); checks++; }, a = 'identity-seller-a', b = 'identity-seller-b';
     for (const id of [a, b])
         store.db.users[id] = { id, email: id + '@fixture.invalid', createdAt: Date.now(), roles: ['buyer', 'seller'], activeWallet: null, sellerProfile: { displayName: id, bio: 'fixture', payoutWallet: '0x0000000000000000000000000000000000000001', verifiedRightsBadge: false, verifiedSellerBadge: false } };
+    store.db.users['identity-buyer']={id:'identity-buyer',email:'buyer@fixture.invalid',createdAt:Date.now(),roles:['buyer'],activeWallet:null,accountAccess:{version:1,revision:1,restricted:false,sellerEnabled:false,updatedAt:Date.now(),updatedBy:'fixture-operator',reason:'Buyer account, seller access disabled'}};
     store.save();
     const tokenA = SessionService.issue(store.db.users[a]), tokenB = SessionService.issue(store.db.users[b]), pa = SessionService.authenticate(tokenA), pb = SessionService.authenticate(tokenB), origin = config.allowedOrigins[0], credentials = () => ({ clientId: 'fixture-id', secret: 'fixture-secret' });
     let calls = 0, subject = '123456', login = 'fixture-user', exchangeError = false;
@@ -32,6 +33,9 @@ async function main() {
         throw Error('simulated outage'); return canonicalSocialLink(p, p === 'github' ? { id: Number(subject), login } : p === 'x' ? { data: { id: subject, username: 'fixture_user' } } : { id: subject, username: 'fixture.user' }, Date.now()); }, service = new SellerIdentityRegistry(store, { credentials, exchange });
     const financial = JSON.stringify({ orders: store.db.orders, campaigns: store.db.campaigns, flows: store.db.walletFlows, signers: store.db.signerReservations, resources: store.db.resourceGrants });
     check(() => assert.equal(service.status(pa).identity.revision, 0));
+    const buyerProof=SessionService.authenticate(SessionService.issue(store.db.users['identity-buyer']));
+    check(()=>assert.equal(service.username(buyerProof,{username:'optional_buyer',expectedRevision:0}).identity.username,'optional_buyer'));
+    check(()=>assert.throws(()=>service.publicIdentity('identity-buyer'),/SELLER_NOT_FOUND/));
     check(() => assert.equal(sellerUsername.safeParse('Admin').success, false));
     check(() => assert.equal(sellerUsername.safeParse('ab').success, false));
     check(() => assert.equal(sellerUsername.parse(' My_seller1 '), 'my_seller1'));
