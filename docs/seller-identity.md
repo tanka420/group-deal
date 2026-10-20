@@ -25,3 +25,18 @@ Tạo ba OAuth application riêng; không dùng callback wildcard. Homepage: `ht
 Kiểm nguồn và fixture: `node scripts/run_seller_identity_checks.cjs`. Dữ liệu cô lập, không dùng wallet/provider/DB live. Nó không thay thế consent thật tại provider.
 
 Tham chiếu giao thức: [GitHub OAuth](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps), [X authorization code](https://docs.x.com/fundamentals/authentication/oauth-2-0/authorization-code), [Discord OAuth2](https://docs.discord.com/developers/topics/oauth2).
+
+## API nội bộ
+
+Các thao tác riêng yêu cầu Bearer sessionAPP hiện hành; realmADMIN bị từ chối. Không nhận userId từ body để chọn chủ thể. Start/complete ràng buộc Origin chính xác.
+
+| Method / path | Input / kết quả |
+|---|---|
+| GET /api/seller/identity | Identity riêng, revision, cờ providerconfigured; không trả verifier/token/secret |
+| POST /api/seller/identity/username | username,expectedRevision → identity; idempotent nếu đúng tên đã chốt |
+| POST /api/seller/identity/social/:provider/start | Bodyrỗng → state,authorizationUrl,expiresAt |
+| POST /api/seller/identity/social/:provider/complete | state+code hoặc state+deniedtrue → identity/cancelled |
+| POST /api/seller/identity/social/:provider/unlink | expectedRevision → identity sau ngắt |
+| GET /api/seller/identity/public/:id | Minimal seller identity/verified links; không đọc campaignprivate hay session/payoutproof |
+
+HTTP400 cho input sai,401/403 cho phiên thiếu/không đủ quyền hoặc Origin không hợp lệ,409 cho revision/ownership conflict; providerunavailable/notconfigured có mã riêng. Sau lỗi chưa rõ kết quả: đọc lại status trước, không autoexchange code hoặc chuyển quyền sở hữu. PublicsellerV1 vẫn giữ điều kiện có campaignPUBLIC theo policy hiện hành.

@@ -1,3 +1,15 @@
+## Hiện hành — 21/10/2026: triển khai xong gói độc lập; hướng dẫn6nhóm thao tác chính chủ
+
+Chỉ dẫn mới21Oct mở lại mọi phần từng hoãn. **Backend 937285063b76f7192ae30f4254b051c9910df8fa; frontend 22a45704b0fff52c93e7e28358e64bf3bd571c50; guardops 154bac4176aa8aa55fc8f88bb94920c79a87136f; OneDrive support d571b380921a2bc2377957ef60bd0d709bbfa5cc đã push/deploy.** Username seller trước đăng bán mới, buyer tùy chọn tại /account; OAuth3providers/uniqueID/unlink/publiclinks và messageVI/EN đã có.60identity/35ops/10upgradecases; build/typecheck/scopedHTTPS10; source literal1273files0findings và final182publicfiles re-scan0findings. R5–R7 source/UI đã khép trước giữ phạm vi; không ghi toàn bộ live/a11y đã đạt.
+
+Finalreadback **2026-10-20T22:55:07.215Z**:19users/6campaigns/6orders/44ops/8grants/12inventory;ledger52/72/SHAee7087ef1992baf86b322aaf1259487d90fa0a17bf7c544c7ef5c16c3559ce17;oldorders1–5/grants/order6 ops/95held giữ.389runtime/186public/PID1350200/NRestarts0/native.cache/application-recovery/drill-mI4EL5/candidate; backup937 current/private-restore verified; same-block68250988 HEALTHY. Lần upgrade đầu bị guard exact-snapshot chặn và rollback; đã sửa lazycollections, không giảm guard. Không giao dịch/replay/reset/seed/heldrelease.
+
+OneDrive rclone/uploader/unit/monitoring support đã cài, nhưng **chưa MicrosoftOAuth/chưaupload/timerdisabled**; local3managed+1other giữ.3socialapps chưa cấu hình/consent. SDK realpackage anonymousWindows consumer đạt3GET; webhook/providerfulfillment/inbox/offhostrestore/RPO-RTO còn cần target/actor. EURC/cirBTC quote minh họa hợp lệ nhưng đã hết hạn, không là giao dịch. Safe14authoritychecks đạt; T/A/N tách khôi phục theo khai báo giữ; chữ ký18Oct hết hạn, không freshcontrol/candidateG6.
+
+**Đọc [hướng dẫn người dùng](E:/apps/group-deal/reports/HUONG_DAN_NGHIEM_THU_2026-10-21.md) và [prompt chat mới](E:/apps/group-deal/reports/PROMPT_CHAT_MOI_2026-10-21.md).** H1OAuth/username;H2OneDrive/restoretarget;H3operator/inbox;H4Circle/budget/chữký;H5HTTPSprovider/receiver;H6Safe/reviewcuối. Agent tiếp tục hậu kiểm/triển khai/sửa lỗi khi có dependency, không đẩy việc kỹ thuật đó sang user. FILE_LINK#6 rútđủ/escrow0/2ACTIVE, không làm lại.
+
+CURRENT [CHECKS.json](E:/apps/group-deal/reports/evidence/onedrive-preparation/2026-10-20T22-15-48-272Z/CHECKS.json), **SHA2567ec11bc83eaa5539148d957c41bc50875ee58dbdb4099c51c09470d42d016e34**,309165bytes/37artifacts; parent51artifacts kiểm hash. Source chỉ tại E:/apps/group-deal/.cache/ci/c-322e58ff, branchcodex/license-key-csv-studio, remotegithub. Code/tools HEAD trước docs e65b326523ca56a741070101760cdcc37e905f3f; docs có thể tiến. **NOT_FROZEN/G5OPEN/G6OPEN/acceptanceEligible=false/wholeProjectAccepted=false.** Không hạ tiêu chí WP28/WP29/mục9.
+
 ## Hiện hành — 21/10/2026: username/OAuth đã deploy; mở lại toàn bộ phần từng hoãn
 
 Chỉ dẫn mới của user21Oct thay các dòng hoãn trong lịch sử: username/social, Circle, admin live và OneDrive đều trở lại phạm vi hoàn thành. Giữ Arc Testnet, người dùng tự OTP/ký/consent, VPS writer duy nhất; không reset/seed/replay đơn1–6/giải phóng95held.

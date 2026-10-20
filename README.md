@@ -1,5 +1,9 @@
 # GroupDeal — Nền tảng Mua Chung Sản Phẩm Số trên Arc Testnet
 
+## Cập nhật21/10/2026
+
+Đã triển khai username seller/buyer tùy chọn và liên kết X/GitHub/Discord qua OAuth; xem [định danh và API](docs/seller-identity.md). Đã cài hỗ trợ [OneDrive backup](docs/onedrive-backup.md); Microsoftconsent và3OAuthapps vẫn cần chủ tài khoản thực hiện. [Hướng dẫn nghiệm thu6nhóm](reports/HUONG_DAN_NGHIEM_THU_2026-10-21.md) và [prompt chat mới](reports/PROMPT_CHAT_MOI_2026-10-21.md) ghi source/runtime/CURRENT và các bước đúng principal. Source/build/scopedchecks đạt không thay G5/G6; candidatechưaFROZEN và dự ánchưanghiệmthu.
+
 GroupDeal hiện là **release candidate trên Arc Testnet**, chưa hoàn tất nghiệm thu sản phẩm. Arc là lớp settlement và nguồn sự thật tài chính; ứng dụng hỗ trợ Circle User-Controlled Wallet, ví ngoài qua Reown AppKit và nạp USDC qua Circle Arc App Kit Bridge. Candidate mới là `GroupDealHub` tại `0x2A7a...0574`, dùng Safe 2-of-3 đã xác minh tại `0xdDB2...72e6`; deployment cũ `0x7d4b...9F9a` đã được dọn hết escrow và loại khỏi nghiệm thu. Xem [báo cáo tiến độ live](./reports/BAO_CAO_TIEN_DO_LIVE_ARC_30_09_2026.md) và [báo cáo checkout mới hơn](./reports/BAO_CAO_SUA_LOI_VA_CHECKOUT_03_10_2026.md). Credential/readiness đã có bằng chứng cấu hình; nghiệm thu cuối cần xác minh lại hiệu lực, quyền kiểm soát các principal độc lập, hành trình sản phẩm live G5 và rà soát độc lập G6.
 
 **Đầu mối thực thi duy nhất:** [Kế hoạch thống nhất hoàn thiện GroupDeal v2.0](./reports/KE_HOACH_HOAN_TAT_DU_AN.md). Kế hoạch hợp nhất báo cáo lỗi, thẩm tra, định hướng sản phẩm và ảnh thiết kế; xác định công việc, phụ thuộc và bằng chứng hoàn tất cho backend, contract, dữ liệu, frontend và vận hành. Các báo cáo/checklist cũ được giữ làm lịch sử theo phạm vi bằng chứng đã ghi.
