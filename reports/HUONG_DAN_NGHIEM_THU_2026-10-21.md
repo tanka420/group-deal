@@ -1,3 +1,11 @@
+## Hiện hành — 21/10/2026: full CI PASS, frontend cập nhật
+
+Full CI [39610131943](https://github.com/tanka420/group-deal/actions/runs/39610131943) đã đạt 77/77 bước trên source 5e7a012c790084a6c7ff59dfc3e9f31a4764b3f2 (Ubuntu 24.04/Node 24.21.0). Browser mặc định 989 PASS/67 SKIP; các mode riêng và provider/Worker/conformance đạt. Frontend source này đã lên groupdeal.tech; 181 tệp HTTPS đúng hash, health 200/metadata 404/guest webhook 401. Backend vẫn 4b5af76, PID1590135/restarts0; 393 runtime, 7 đơn, ledger và 95 held được đối chiếu giữ nguyên. Không restart hay phát giao dịch.
+
+Xem [báo cáo CI và phát hành](./HOAN_THIEN_CI_2026-10-21.md) và CURRENT_PROJECT_COMPLETION_LATEST ở workspace gốc. Các sửa dependency backup/recovery mới ở source chưa rollout backend; guard vận hành vẫn bind 4b5af76. Commit bàn giao sau 5e7a012 chỉ đổi tài liệu. Retry/DLQ live DEFERRED_BY_USER, restore/RPO-RTO WAIVED_BY_USER; không lặp đơn 7, không yêu cầu lại login/secret/chữ ký, không release95held hoặc mở Mainnet/dịch vụ trả phí. 21 hành trình bridge mới chưa khả dụng vẫn SKIP_NOT_PASS. G5/G6 OPEN, NOT_FROZEN; CI không thay nghiệm thu live/rà soát độc lập.
+
+Các nội dung dưới đây là lịch sử theo timestamp, được trạng thái hiện hành này thay thế khi có mâu thuẫn.
+
 ## Quyết định hiện hành — 21/10/2026: hoãn kiểm thử retry/DLQ, ưu tiên hoàn thiện dự án
 
 Người dùng yêu cầu: “ghi chú sẽ kiểm thử sau, giờ cần tiếp tục để hoàn thành dự án trước đã”. H5 retry/DLQ/redrive trên hệ thống thật chuyển sang **DEFERRED_BY_USER — kiểm thử sau**. Dừng chuẩn bị gây outage, tạo job lỗi, phát lại sự kiện hoặc tạo đơn mới cho mục đích này. Đây là hoãn, chưa phải PASS và không tự xóa tiêu chí nghiệm thu. Các fixture kiểm tra mã nguồn đang có vẫn được dùng khi cần xác minh thay đổi liên quan.

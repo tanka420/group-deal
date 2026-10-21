@@ -1,5 +1,13 @@
 ## Hiện hành — 21/10/2026: triển khai xong gói độc lập; hướng dẫn6nhóm thao tác chính chủ
 
+## Hiện hành — 21/10/2026: full CI PASS, frontend cập nhật
+
+Full CI [39610131943](https://github.com/tanka420/group-deal/actions/runs/39610131943) đã đạt 77/77 bước trên source 5e7a012c790084a6c7ff59dfc3e9f31a4764b3f2 (Ubuntu 24.04/Node 24.21.0). Browser mặc định 989 PASS/67 SKIP; các mode riêng và provider/Worker/conformance đạt. Frontend source này đã lên groupdeal.tech; 181 tệp HTTPS đúng hash, health 200/metadata 404/guest webhook 401. Backend vẫn 4b5af76, PID1590135/restarts0; 393 runtime, 7 đơn, ledger và 95 held được đối chiếu giữ nguyên. Không restart hay phát giao dịch.
+
+Xem [báo cáo CI và phát hành](./HOAN_THIEN_CI_2026-10-21.md) và CURRENT_PROJECT_COMPLETION_LATEST ở workspace gốc. Các sửa dependency backup/recovery mới ở source chưa rollout backend; guard vận hành vẫn bind 4b5af76. Commit bàn giao sau 5e7a012 chỉ đổi tài liệu. Retry/DLQ live DEFERRED_BY_USER, restore/RPO-RTO WAIVED_BY_USER; không lặp đơn 7, không yêu cầu lại login/secret/chữ ký, không release95held hoặc mở Mainnet/dịch vụ trả phí. 21 hành trình bridge mới chưa khả dụng vẫn SKIP_NOT_PASS. G5/G6 OPEN, NOT_FROZEN; CI không thay nghiệm thu live/rà soát độc lập.
+
+Các nội dung dưới đây là lịch sử theo timestamp, được trạng thái hiện hành này thay thế khi có mâu thuẫn.
+
 Chỉ dẫn mới21Oct mở lại mọi phần từng hoãn. **Backend 937285063b76f7192ae30f4254b051c9910df8fa; frontend 22a45704b0fff52c93e7e28358e64bf3bd571c50; guardops 154bac4176aa8aa55fc8f88bb94920c79a87136f; OneDrive support d571b380921a2bc2377957ef60bd0d709bbfa5cc đã push/deploy.** Username seller trước đăng bán mới, buyer tùy chọn tại /account; OAuth3providers/uniqueID/unlink/publiclinks và messageVI/EN đã có.60identity/35ops/10upgradecases; build/typecheck/scopedHTTPS10; source literal1273files0findings và final182publicfiles re-scan0findings. R5–R7 source/UI đã khép trước giữ phạm vi; không ghi toàn bộ live/a11y đã đạt.
 
 Finalreadback **2026-10-20T22:55:07.215Z**:19users/6campaigns/6orders/44ops/8grants/12inventory;ledger52/72/SHAee7087ef1992baf86b322aaf1259487d90fa0a17bf7c544c7ef5c16c3559ce17;oldorders1–5/grants/order6 ops/95held giữ.389runtime/186public/PID1350200/NRestarts0/native.cache/application-recovery/drill-mI4EL5/candidate; backup937 current/private-restore verified; same-block68250988 HEALTHY. Lần upgrade đầu bị guard exact-snapshot chặn và rollback; đã sửa lazycollections, không giảm guard. Không giao dịch/replay/reset/seed/heldrelease.

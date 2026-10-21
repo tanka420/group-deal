@@ -1,3 +1,11 @@
+## Hiện hành — 21/10/2026: full CI PASS, frontend cập nhật
+
+Full CI [39610131943](https://github.com/tanka420/group-deal/actions/runs/39610131943) đã đạt 77/77 bước trên source 5e7a012c790084a6c7ff59dfc3e9f31a4764b3f2 (Ubuntu 24.04/Node 24.21.0). Browser mặc định 989 PASS/67 SKIP; các mode riêng và provider/Worker/conformance đạt. Frontend source này đã lên groupdeal.tech; 181 tệp HTTPS đúng hash, health 200/metadata 404/guest webhook 401. Backend vẫn 4b5af76, PID1590135/restarts0; 393 runtime, 7 đơn, ledger và 95 held được đối chiếu giữ nguyên. Không restart hay phát giao dịch.
+
+Xem [báo cáo CI và phát hành](./HOAN_THIEN_CI_2026-10-21.md) và CURRENT_PROJECT_COMPLETION_LATEST ở workspace gốc. Các sửa dependency backup/recovery mới ở source chưa rollout backend; guard vận hành vẫn bind 4b5af76. Commit bàn giao sau 5e7a012 chỉ đổi tài liệu. Retry/DLQ live DEFERRED_BY_USER, restore/RPO-RTO WAIVED_BY_USER; không lặp đơn 7, không yêu cầu lại login/secret/chữ ký, không release95held hoặc mở Mainnet/dịch vụ trả phí. 21 hành trình bridge mới chưa khả dụng vẫn SKIP_NOT_PASS. G5/G6 OPEN, NOT_FROZEN; CI không thay nghiệm thu live/rà soát độc lập.
+
+Các nội dung dưới đây là lịch sử theo timestamp, được trạng thái hiện hành này thay thế khi có mâu thuẫn.
+
 ## Pha đang thực thi — hoàn thiện CI ngày 21/10/2026
 
 Đọc [báo cáo CI hiện tại](./HOAN_THIEN_CI_2026-10-21.md) trước khi tiếp tục. Candidate chưa freeze; đang sửa các lỗi cụ thể của pipeline và fixture, chưa full CI PASS. Retry/DLQ live vẫn DEFERRED_BY_USER, backup restore/RPO-RTO vẫn WAIVED_BY_USER. Không lặp đơn 7, không release 95 tác vụ đang giữ, không phát giao dịch mới. Runtime live vẫn 4b5af76 theo lần quan sát trước; các sửa nguồn pha CI chưa deploy.

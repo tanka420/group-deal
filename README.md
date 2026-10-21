@@ -4,6 +4,8 @@ Tên miền chính thức: [groupdeal.tech](https://groupdeal.tech). `www.groupd
 
 ## Cập nhật21/10/2026
 
+Full CI Ubuntu trên source 5e7a012 đã đạt 77/77 bước; browser mặc định 989 PASS/67 SKIP, các mode riêng và provider/Worker/conformance đạt. Frontend đã cập nhật, backend giữ 4b5af76. Xem [kết quả CI và phát hành](reports/HOAN_THIEN_CI_2026-10-21.md); các sửa dependency backup/recovery chưa rollout backend.
+
 GitHub và Discord đã được liên kết thật trong GroupDeal; X tạm hoãn theo yêu cầu người dùng vì chi phí. [OneDrive backup](docs/onedrive-backup.md) đã có consent, tải lên/tải ngược kiểm hash và lịch giám sát. Bản Circle email wallet đã đăng nhập và hoán đổi trên Arc Testnet. Luồng Webhook UAT đơn #7 đã hoàn tất từ mua, cấp quyền, tải và dùng CSV Studio đến xác nhận và rút tiền của buyer/seller. Xem [trạng thái hoàn thiện hiện tại](reports/HOAN_THIEN_DU_AN_HIEN_TAI_2026-10-21.md).
 
 Theo quyết định mới nhất, **kiểm thử retry/DLQ trên hệ thống thật sẽ làm sau**; chưa tính là đạt. Tiếp tục hoàn thiện tích hợp, pipeline và tài liệu của bản Arc Testnet. [Hướng dẫn nghiệm thu](reports/HUONG_DAN_NGHIEM_THU_2026-10-21.md) và [prompt bàn giao](reports/PROMPT_CHAT_MOI_2026-10-21.md) lưu bằng chứng và giới hạn hiện hành. G5/G6 vẫn mở; source/build đạt chưa đồng nghĩa dự án đã nghiệm thu hoặc được phát hành Mainnet.
