@@ -23,6 +23,7 @@ import { SellerProfileEditor } from "../components/SellerProfileEditor";
 import { ManagedFulfillment } from "../components/ManagedFulfillment";
 import { TransactionHistory } from "../components/TransactionHistory";
 import {WebhookRecoveryReview} from '../components/WebhookRecoveryReview';
+import {WebhookSecretField} from '../components/WebhookSecretField';
 import {OrderReference} from '../components/OrderReference';
 import {OrderConversation} from '../components/OrderConversation';
 import {formatOrderDate} from '../services/orderList';
@@ -321,18 +322,7 @@ export const SellerDashboard: React.FC = () => {
               />
             </div>
 
-            {webhookData && !webhookHeld && (
-              <div className="form-group">
-                <label className="form-label" htmlFor="seller-webhook-secret">{text("Webhook secret (xác thực chữ ký)","Webhook secret (signature verification)")}</label>
-                <input
-                  type="password" id="seller-webhook-secret" autoComplete="off"
-                  className="form-input font-mono"
-                  value={webhookData.secret||''}
-                  readOnly
-                  style={{ background: "var(--bg-tertiary)" }}
-                />
-              </div>
-            )}
+            {webhookData && !webhookHeld && <WebhookSecretField key={(user?.id??'')+':'+getSessionEpoch()+':'+webhookData.id} secret={webhookData.secret||''}/>}
 
             <button type="submit" className="btn btn-primary" disabled={isSavingWebhook||webhookHeld||webhookNotice==='FAILED'}>
               {isSavingWebhook ? text("Đang lưu...", "Saving…") : text("Lưu cấu hình Webhook", "Save webhook setup")}
