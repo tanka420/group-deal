@@ -1,0 +1,35 @@
+# GroupDeal receiver on Cloudflare Workers + D1
+
+This independently deployed receiver uses the pinned SDK 2.0.0 package and a durable D1 inbox. It does not connect to the GroupDeal application database, hold wallet keys, or issue transactions.
+
+The worker queues verified events. A provider worker must still implement the real entitlement effect. HTTP 202 or a queued event alone does not deliver CSV Studio or demonstrate H5 acceptance.
+
+## Local checks
+
+```sh
+npm ci --ignore-scripts
+npm test
+```
+
+Tests use synthetic events and local Miniflare/D1. No Cloudflare account or production secret is required. `npm run build` only bundles with `wrangler deploy --dry-run`; it does not deploy.
+
+## Deployment after the account is authorized
+
+Use the existing Cloudflare account on its Free plan. Create only `groupdeal-csv-studio-inbox` and `groupdeal-csv-studio-receiver`, record their actual IDs, and replace the placeholder database ID in the configuration. Apply the inbox migration remotely only to this new database. Store `GROUPDEAL_WEBHOOK_SECRET` and `GROUPDEAL_WEBHOOK_SUBSCRIPTION_ID` as Worker secrets using private input; never commit or paste them in chat.
+
+First deploy on the account's `workers.dev` HTTPS address. Do not change the GroupDeal domain, DNS or current VPS. A production custom domain can be considered separately after ownership is known. Confirm the account plan and usage before deploying; Free quotas are not a capacity or availability guarantee.
+
+Then create/review a new seller subscription for `/webhooks/groupdeal`. Verify fresh signed delivery, durable deduplication and controlled outage/retry/DLQ on new jobs. Keep all old orders and 95 held jobs untouched. Implement and verify the actual provider entitlement before treating H5 as complete.
+
+The receiver stores allowlisted order/campaign webhook metadata privately in D1. It exposes no inbox listing and logs neither bodies nor signatures. Account connection, deployment and real event transmission are not established by local tests.
+
+## Limits checked on 21 October 2026
+
+Workers Free includes 100,000 requests/day and 10 ms CPU/request. D1 Free includes 5 million rows read/day, 100,000 rows written/day and 5 GB total storage. Stay on Free for this small integration; do not enable a paid plan automatically.
+
+- [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/)
+- [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/)
+- [Node crypto compatibility](https://developers.cloudflare.com/workers/runtime-apis/nodejs/crypto/)
+- [workers.dev routing](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/)
+
+Pinned SDK archive SHA-256: `474af3cedf3d15b91e77fe4d7b1ce285880ea69d17e9f4cdfe824d3685669d54`.
