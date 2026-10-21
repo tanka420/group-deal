@@ -1,4 +1,12 @@
-## Hiện hành — 21/10/2026 08:03 ICT: readback tiếp tục đã kiểm, chờ H1–H6
+## Hiện hành — 21/10/2026 08:53 ICT: H2 OneDrive; phục hồi backup được miễn nghiệm thu
+
+Quyết định trực tiếp của người dùng21/10/2026: bỏ diễn tập phục hồi backup và đo RPO/RTO khỏi điều kiện nghiệm thu. Không còn yêu cầu chọn máy/thư mục phục hồi hoặc người nhập khóa. Đây là yêu cầu được miễn theo user, không phải bằng chứng đã phục hồi thành công. Giữ backup mã hóa, kiểm private-restore tự động hiện có, OneDrive consent/upload/tải ngược so hash, lịch và giám sát; không thay đổi các nghĩa vụ transaction recovery/reconciliation, G5/G6 khác.
+
+Đã kiểm CURRENT CHECKS cùng16artifact; nguồn sạch HEAD26413b0490e897d13ef8ca20b8c839f4ea230870 trước gói docs này. VPS PID1350200/NRestarts0/active. File rclone.conf đã xuất hiện trong lúc user cấu hình, chưa xác nhận OAuth/drive và chưa có offhost LATEST receipt. Advanced=y/access_scopes=3 trong log hợp lệ; đã bổ sung hướng dẫn đi tiếp từ encoding>, tunnel, consent, chọn drive và lưu remote vào H2. Không thay cấu hình/worker/timer hoặc runtime trong gói này.
+
+Đường dẫn sau upload: gd_onedrive:GroupDeal/ArcTestnet/5d27a82a-100e-41cb-b6a0-d8326e1538f1/. CURRENT authoritative đọc reports/evidence/CURRENT_G5_PREPARATION_LATEST.json. NOT_FROZEN/G5OPEN/G6OPEN/acceptanceEligible=false. H1/H3/H4/H5/H6 vẫn giữ dependency thật.
+
+## Trước quyết định08:53 — 21/10/2026 08:03 ICT: readback tiếp tục đã kiểm, chờ H1–H6
 
 Đã đọc prompt/hướng dẫn hiện hành và WP28/WP29/mục9. Xác minh SHA-256/byteLength CHECKS trước cùng toàn bộ 37 artifact; packet cha cùng 51 artifact đạt. Checkout nguồn sạch tại E:/apps/group-deal/.cache/ci/c-322e58ff, branch codex/license-key-csv-studio, GitHub remote đúng; HEAD trước gói docs này 36673337fd073299759890177c624021f51c7a12. Delta so backend chạy chỉ là test định danh; frontend/ops/offhost/SDK đã ghim khớp nguồn. 14 nhánh source-proof map/63 file khớp; inventory không thay execution proof.
 

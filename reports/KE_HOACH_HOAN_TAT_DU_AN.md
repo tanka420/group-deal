@@ -1,3 +1,7 @@
+## Quyết định nghiệm thu hiện hành — 21/10/2026 08:53 ICT
+
+Quyết định trực tiếp của người dùng21/10/2026: bỏ diễn tập phục hồi backup và đo RPO/RTO khỏi điều kiện nghiệm thu. Không còn yêu cầu chọn máy/thư mục phục hồi hoặc người nhập khóa. Đây là yêu cầu được miễn theo user, không phải bằng chứng đã phục hồi thành công. Giữ backup mã hóa, kiểm private-restore tự động hiện có, OneDrive consent/upload/tải ngược so hash, lịch và giám sát; không thay đổi các nghĩa vụ transaction recovery/reconciliation, G5/G6 khác. Các dòng yêu cầu offhost restore/RPO/RTO trong lịch sử và ma trận cũ bên dưới được quyết định này thay thế trong phạm vi backup. Không đánh dấu phép đo đã thực hiện hoặc toàn dự án đã đạt.
+
 ## Hiện hành — 21/10/2026: triển khai xong gói độc lập; hướng dẫn6nhóm thao tác chính chủ
 
 Chỉ dẫn mới21Oct mở lại mọi phần từng hoãn. **Backend 937285063b76f7192ae30f4254b051c9910df8fa; frontend 22a45704b0fff52c93e7e28358e64bf3bd571c50; guardops 154bac4176aa8aa55fc8f88bb94920c79a87136f; OneDrive support d571b380921a2bc2377957ef60bd0d709bbfa5cc đã push/deploy.** Username seller trước đăng bán mới, buyer tùy chọn tại /account; OAuth3providers/uniqueID/unlink/publiclinks và messageVI/EN đã có.60identity/35ops/10upgradecases; build/typecheck/scopedHTTPS10; source literal1273files0findings và final182publicfiles re-scan0findings. R5–R7 source/UI đã khép trước giữ phạm vi; không ghi toàn bộ live/a11y đã đạt.

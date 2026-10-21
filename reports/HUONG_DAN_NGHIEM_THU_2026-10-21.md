@@ -51,25 +51,35 @@ Readback08:03 ngày21/10: runtime/public/ledger/backup khớp hồ sơ. Agent đ
 
 Anh cần gửi lại: username đã chọn, provider nào đã cấu hình/cấp quyền, kết quả UI hoặc mã lỗi đã bỏ bí mật. Không gửi secret/code/token.
 
-## H2 — Cấp quyền OneDrive và chọn nơi phục hồi
+## H2 — Kết nối OneDrive
 
-1. Trên Windows mở PowerShell, chạy:
+Quyết định trực tiếp của người dùng21/10/2026: bỏ diễn tập phục hồi backup và đo RPO/RTO khỏi điều kiện nghiệm thu. Không còn yêu cầu chọn máy/thư mục phục hồi hoặc người nhập khóa. Đây là yêu cầu được miễn theo user, không phải bằng chứng đã phục hồi thành công. Giữ backup mã hóa, kiểm private-restore tự động hiện có, OneDrive consent/upload/tải ngược so hash, lịch và giám sát; không thay đổi các nghĩa vụ transaction recovery/reconciliation, G5/G6 khác.
+
+1. Nếu shell cấu hình hiện tại đã được mở bằng SSH có forward53682, giữ nguyên. Nếu chưa có tunnel, mở một PowerShell khác trên Windows và chạy:
 
 ~~~powershell
-ssh -L 53682:127.0.0.1:53682 tan-picks
+ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:53682:127.0.0.1:53682 tan-picks
 ~~~
 
-2. Trong shell VPS vừa mở, chạy:
+Giữ cửa sổ này mở. Nếu báo cổng đã dùng, không chạy thêm tunnel chồng; báo lỗi đã bỏ thông tin riêng để agent kiểm. Không cần cài rclone trên Windows.
+
+2. Shell VPS hiện tại tiếp tục phiên rclone đang mở. Nếu chưa mở cấu hình thì dùng:
 
 ~~~sh
 sudo -u ubuntu /usr/bin/rclone config --config /home/ubuntu/groupdeal/operations/offhost/rclone.conf
 ~~~
 
-3. Chọn tạo remote mới tên gd_onedrive, storage Microsoft OneDrive/onedrive. Để trống clientID/secret để dùng ứng dụng rclone; không advanced. Chọn đúng cloud/tài khoản. Với SSH tunnel đang mở, chọn Yes cho auto config/dùng trình duyệt. Mở URL loopback cổng53682 mà rclone hiện trên máy Windows, tự đăng nhập Microsoft, đọc quyền và consent. Chọn đúng drive, xác nhận lưu và thoát. Không gửi URL/code/token/config vào chat.
-4. Báo “Đã cấu hình gd_onedrive”. Agent tự kiểm quyền file/drive binding, chạy lần đầu, so hash tải ngược, bật lịch phút10 mỗi giờ và bật giám sát offhost sau khi đạt. Hiện chưa bật dọn remote; cần theo dõi dung lượng. Local giữ3bản managed, không xóa archive ngoài policy.
-5. Chọn nơi diễn tập phục hồi ngoài VPS và cách người giữ khóa nhập khóa giải mã qua kênh riêng. Có thể chọn máy Windows hiện tại/thư mục cô lập nếu anh đồng ý, hoặc một máy/VM riêng. Không cần gửi khóa vào chat và không sao chép .env/signer key/provider token sang nơi thử. Agent chuẩn bị restore có auth barrier, tắt mọi outbound worker và không promote writer; đo RPO/RTO theo mốc incident/điểm dữ liệu/ready đã công bố. Upload/hash hoặc drill cùng VPS chưa thay phép đo này.
+Remote tên gd_onedrive, storage onedrive, client_id/client_secret để trống; region1/global. Đoạn log người dùng gửi ngày21Oct đã chọn Advanced config=y và access_scopes=3: hợp lệ cho đọc/ghi OneDrive không duyệt SharePoint; không cần làm lại. Các trường khác đang để mặc định phù hợp. Tại encoding> nhấn Enter, các advanced prompt còn lại giữ mặc định. Lần tạo mới đơn giản có thể chọn Advanced config=n.
 
-Anh cần gửi lại: “Đã cấu hình gd_onedrive”, máy/thư mục phục hồi được chọn và người giữ khóa sẵn sàng nhập qua kênh riêng. Nếu dùng host khác, cung cấp aliasSSH/quyền truy cập đã cấu hình, không gửi private key.
+3. Khi hiện Use auto config? hoặc Use web browser to automatically authenticate rclone with remote?, chọn y vì đã có tunnel. VPS có thể báo không tự mở được trình duyệt nhưng vẫn hiện URL http://127.0.0.1:53682/auth?... và Waiting for code. Sao chép nguyên URL rclone vừa in sang Chrome trên Windows; không dùng URL tự đoán hoặc URL cũ. Tự đăng nhập đúng Microsoft account, đọc quyền và consent. Không gửi URL chứa state/code, token hoặc config vào chat. Chỉ mở http://127.0.0.1:53682 trống không thay được URL xác thực đầy đủ.
+
+4. Sau khi Microsoft báo thành công, quay lại shell VPS. Chọn mục có nhãn OneDrive Personal or Business/onedrive (thường số1). Trong danh sách drive, chọn đúng drive cá nhân/doanh nghiệp của mình theo tên/URL; không đoán số vì có thể là0 hoặc1. Xác nhận Drive OK?/Is that okay?=y. Ở Keep this gd_onedrive remote?/y/e/d>, chọn y; về menu chính chọn q. Bảng xác nhận có thể chứa token: không chụp hoặc dán bảng đó.
+
+5. Chỉ cần báo “Đã cấu hình gd_onedrive”. Agent kiểm quyền file/drive binding, chạy upload đầu, tải ngược archive+manifest so SHA-256/kích thước. Khi đạt mới bật lịch phút10 mỗi giờ và giám sát. File rclone.conf tồn tại chưa đủ chứng minh OAuth/drive đã cấu hình xong; hiện đã thấy file được tạo nhưng chưa có receipt upload.
+
+6. Truy cập [OneDrive trên web](https://onedrive.live.com/) bằng cùng tài khoản vừa consent, vào Tệp của tôi → GroupDeal → ArcTestnet → 5d27a82a-100e-41cb-b6a0-d8326e1538f1. Đường dẫn rclone: gd_onedrive:GroupDeal/ArcTestnet/5d27a82a-100e-41cb-b6a0-d8326e1538f1/. Thư mục backup được tạo trong lần upload thành công đầu tiên; trước đó có thể chưa thấy. Đây là thư mục riêng của tài khoản, không cần tạo link công khai.
+
+Anh cần gửi lại: “Đã cấu hình gd_onedrive”, hoặc tên prompt/mã lỗi đang gặp đã bỏ bí mật. Không còn yêu cầu máy phục hồi/khóa phục hồi trong H2.
 
 ## H3 — Operator, quyền tài khoản, sản phẩm và hộp thư
 
@@ -106,6 +116,8 @@ Anh cần gửi lại: host/HTTPS/quyền triển khai và provider/sản phẩm
 4. Sắp người rà soát độc lập đúng source/manifest/evidence cuối. Agent chuẩn bị packet/review chỉ đọc; người có trách nhiệm nghiệm thu ký nhận G6 khi issue bắt buộc đã đóng. Không dùng chữ ký control hay nhãnT/A/N thay cho review G6.
 
 ## Điều kiện ghi “hoàn thành dự án”
+
+Quyết định trực tiếp của người dùng21/10/2026: bỏ diễn tập phục hồi backup và đo RPO/RTO khỏi điều kiện nghiệm thu. Không còn yêu cầu chọn máy/thư mục phục hồi hoặc người nhập khóa. Đây là yêu cầu được miễn theo user, không phải bằng chứng đã phục hồi thành công. Giữ backup mã hóa, kiểm private-restore tự động hiện có, OneDrive consent/upload/tải ngược so hash, lịch và giám sát; không thay đổi các nghĩa vụ transaction recovery/reconciliation, G5/G6 khác.
 
 - Đủ proof đúng tầng cho các nhánh trọng yếu của14luồng tại mục9 kế hoạch. Local/fixture được dùng cho negative phù hợp; nhánh cần actor/provider/live phải có bằng chứng tương ứng.
 - Fresh readiness/reconcile/backup/offhost/roles và CI phù hợp trên cùng candidate, rồi review độc lập G6. Không hạ tiêu chí để ghi PASS.

@@ -1,4 +1,4 @@
-# Backup OneDrive và diễn tập phục hồi
+# Backup OneDrive
 
 Giữ 3 archive mã hóa đã kiểm trên VPS. Bản trên OneDrive dùng tên riêng theo owner của bộ backup và chỉ thêm mới; job không xóa remote, không sync/move, không tải `.env`, khóa giải mã hoặc cấu hình OAuth lên cloud. Cần theo dõi dung lượng OneDrive vì chưa bật dọn tự động trên cloud.
 
@@ -13,7 +13,7 @@ Giữ 3 archive mã hóa đã kiểm trên VPS. Bản trên OneDrive dùng tên 
    sudo -u ubuntu /usr/bin/rclone config --config /home/ubuntu/groupdeal/operations/offhost/rclone.conf
    ```
 
-3. Chọn tạo remote mới, tên chính xác **gd_onedrive**, storage **Microsoft OneDrive** (`onedrive`). Để trống client ID/secret để dùng ứng dụng rclone; không chọn advanced config. Chọn đúng cloud vùng tài khoản, thường Microsoft Cloud Global.
+3. Nếu đã chọn Advanced config=y, access_scopes=3 như log ngày21Oct thì hợp lệ; giữ mặc định tại encoding> và tiếp tục auto-config=y. Không cần cấu hình lại. Lần tạo mới đơn giản làm như sau. Chọn tạo remote mới, tên chính xác **gd_onedrive**, storage **Microsoft OneDrive** (`onedrive`). Để trống client ID/secret để dùng ứng dụng rclone; không chọn advanced config. Chọn đúng cloud vùng tài khoản, thường Microsoft Cloud Global.
 4. Khi hỏi auto config / dùng trình duyệt, chọn **Yes** vì đã có SSH tunnel. Mở URL `http://127.0.0.1:53682/auth?...` do rclone hiện trong trình duyệt máy Windows, tự đăng nhập Microsoft và đọc quyền trước khi đồng ý. Không gửi URL, code, token, password hoặc nội dung config vào chat.
 5. Chọn đúng OneDrive của mình trong danh sách do rclone đọc, xác nhận cấu hình và thoát. Báo **“Đã cấu hình gd_onedrive”**. Nếu lỗi, chỉ gửi mã lỗi đã bỏ thông tin bí mật. Agent sẽ tự kiểm mode/drive binding, upload/hash và bật lịch sau khi lần đầu đạt.
 
@@ -27,11 +27,11 @@ Không cần cài rclone trên Windows với cách dùng SSH tunnel này. Nếu 
 - Sau lần đầu đạt, cài `scripts/systemd/groupdeal-health-probe-offhost.conf` thành `/etc/systemd/system/groupdeal-health-probe.service.d/offhost.conf`, daemon-reload và kiểm probe. Không bật trước khi upload đầu đạt. Lúc đã bật, receipt thiếu, sai hoặc quá150phút phải tạo ATTENTION và đi qua policy cảnh báo hiện có; không coi healthHTTP200 là bằng chứng offsite tốt.
 - Ghi version/hash rclone, source/hash helpers, archive/manifest/remote round-trip và CURRENT. Không dùng thời gian upload làm RTO hoặc khẳng định offhost private restore đã đạt.
 
-## Phục hồi ngoài VPS / đo RPO, RTO
+## Phạm vi nghiệm thu hiện hành
 
-Cần một máy hoặc VM độc lập, thư mục riêng và người giữ khóa khôi phục. Không sao chép `.env`, private key signer hoặc token provider sang máy thử. Người giữ khóa đưa khóa giải mã cần thiết qua kênh riêng; không gửi khóa vào chat. Nếu thiếu máy/kênh giữ khóa thì giữ mục phục hồi này OPEN, không thay bằng drill trên cùng VPS.
+Quyết định trực tiếp của người dùng21/10/2026: bỏ diễn tập phục hồi backup và đo RPO/RTO khỏi điều kiện nghiệm thu. Không còn yêu cầu chọn máy/thư mục phục hồi hoặc người nhập khóa. Đây là yêu cầu được miễn theo user, không phải bằng chứng đã phục hồi thành công. Giữ backup mã hóa, kiểm private-restore tự động hiện có, OneDrive consent/upload/tải ngược so hash, lịch và giám sát; không thay đổi các nghĩa vụ transaction recovery/reconciliation, G5/G6 khác.
 
-Agent ghim ciphertext/manifest từ OneDrive và kiểm hash; phục hồi trong thư mục cô lập bằng đúng source/dependencies đã ghim; giữ auth recovery barrier, toàn bộ held jobs và tắt outbound mail/webhook/provider/financial worker. Kiểm SQLite/audit, mọi trường private, counts, request/checkpoint/nonce/ledger; đối soát canonical cùng block qua read-only RPC. Không seed/reset, không promote, không có hai writer. Đánh dấu thời điểm incident, điểm dữ liệu gần nhất phục hồi được và thời điểm đạt tiêu chí ready để tính RPO/RTO. Báo cáo phải nêu tiêu chí đo và giới hạn, cần review độc lập trước khi đóng G5-14.
+Hướng dẫn chi tiết tiếp tục phiên rclone tại reports/HUONG_DAN_NGHIEM_THU_2026-10-21.md, mục H2. Backup nằm trong OneDrive/Tệp của tôi/GroupDeal/ArcTestnet/5d27a82a-100e-41cb-b6a0-d8326e1538f1 sau upload thành công đầu tiên.
 
 Kiểm nguồn: `node --test scripts/hosted_offhost_backup.test.cjs scripts/hosted_backup.test.cjs scripts/observe_hosted_health.test.cjs scripts/hosted_alerts.test.cjs`. Fixture không liên hệ Microsoft/SMTP và không tải backup thật.
 
