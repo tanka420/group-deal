@@ -1,4 +1,8 @@
-## Hiện hành — 21/10/2026 08:53 ICT: H2 OneDrive; phục hồi backup được miễn nghiệm thu
+## Hiện hành — 21/10/2026 09:01 ICT: chuẩn bị6biến OAuth H1
+
+H1 preimage mới 2026-10-21T02:01:55.348Z: reports/evidence/CURRENT_SOCIAL_CONFIG_PREIMAGE_LATEST.json → reports/evidence/social-app-preparation/2026-10-21T02-01-09-037Z/CHECKS.json, SHA256c87ef29fa1cf53e82ba101c5d2191f979fbc88fefe21ba021c6692e1845bcd97/1886bytes. Private env mode600/uid1000; toàn bộ hash và hash bỏ6biếnsocial khớp preimage trước,3providerfalse, opsbyteskhớp/PID1350200/NRestarts0. Chỉ thu fingerprint, không copy/insecret, không đổi config/restart. Sau khi human nhập6biến, so hash non-social rồi nâng/restart đúng guard; không tự restart trực tiếp vì dotenv thay đổi. H1 callback chính xác https://groupdeal.thanhtan.top/seller/profile; GitHubOAuthApp/read:user, XOAuth2WebApp/users.read tweet.read, DiscordOAuth2/identify. G5/G6 vẫnOPEN; miễn backuprestore/RPO-RTO theo quyết định mới giữ nguyên.
+
+## Trước preimage09:01 — 21/10/2026 08:53 ICT: H2 OneDrive; phục hồi backup được miễn nghiệm thu
 
 Quyết định trực tiếp của người dùng21/10/2026: bỏ diễn tập phục hồi backup và đo RPO/RTO khỏi điều kiện nghiệm thu. Không còn yêu cầu chọn máy/thư mục phục hồi hoặc người nhập khóa. Đây là yêu cầu được miễn theo user, không phải bằng chứng đã phục hồi thành công. Giữ backup mã hóa, kiểm private-restore tự động hiện có, OneDrive consent/upload/tải ngược so hash, lịch và giám sát; không thay đổi các nghĩa vụ transaction recovery/reconciliation, G5/G6 khác.
 
