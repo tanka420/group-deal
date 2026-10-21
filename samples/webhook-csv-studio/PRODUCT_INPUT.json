@@ -1,0 +1,21 @@
+{
+  "title": "GroupDeal CSV Studio 1.0 — Webhook UAT 21-10-2026",
+  "description": "Công cụ xem, lọc và xuất CSV UTF-8 chạy offline bằng Chrome hoặc Edge. Gói gồm HTML, hướng dẫn, điều khoản và CSV minh họa. Provider Cloudflare nhận order.committed có chữ ký từ GroupDeal để cấp đường dẫn ZIP riêng cho đơn. Seller giao đường dẫn trong nội dung mã hóa của GroupDeal sau khi xác minh giao hàng onchain. Đây là sản phẩm UAT riêng trên Arc Testnet.",
+  "category": "Productivity",
+  "vendor": "GroupDeal Testnet Lab",
+  "thumbnailUrl": "https://placehold.co/960x540/0866e8/ffffff.png?text=GroupDeal%20CSV%20Studio",
+  "media": [],
+  "requirements": ["Chrome hoặc Edge hiện hành", "CSV UTF-8; tối đa 5 MB, 25.000 dòng, 128 cột, 250.000 ô"],
+  "supportPolicy": "Sản phẩm mẫu Arc Testnet; không cam kết SLA hoặc hỗ trợ có thời hạn. Báo lỗi qua kênh hỗ trợ GroupDeal.",
+  "license": {
+    "edition": "Personal 1.0 — Webhook UAT",
+    "seatsPerUnit": 1,
+    "usageScope": "PERSONAL",
+    "durationDays": null,
+    "activationWindowDays": null,
+    "regions": ["Worldwide"],
+    "transferable": false,
+    "supportDays": 0,
+    "usageTerms": "Một người mỗi đơn vị, dùng cá nhân bản 1.0 đã tải lâu dài. Provider cấp đường dẫn tải riêng có hiệu lực 30 ngày kể từ lúc cấp theo order.committed; không chia sẻ đường dẫn hoặc phân phối lại gói. Công cụ đã tải chạy offline, không có DRM hoặc bước nhập LICENSE_KEY. Quyền tài chính, tranh chấp và claim của order được xử lý riêng trên GroupDeal; cửa sổ tải không hạn chế các quyền này. Đây là mẫu UAT Arc Testnet, chưa dành cho Mainnet. Áp dụng LICENSE.txt trong gói."
+  }
+}

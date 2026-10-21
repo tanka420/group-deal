@@ -2,15 +2,21 @@
 
 This independently deployed receiver uses the pinned SDK 2.0.0 package and a durable D1 inbox. It does not connect to the GroupDeal application database, hold wallet keys, or issue transactions.
 
-The worker queues verified events. A provider worker must still implement the real entitlement effect. HTTP 202 or a queued event alone does not deliver CSV Studio or demonstrate H5 acceptance.
+The deployed worker queues verified events. A CSV Studio provider is prepared and locally tested, but has not been deployed or enabled. HTTP 202 or a queued event alone does not demonstrate H5 acceptance.
 
 ## Current deployment
 
-The receiver is deployed at `https://groupdeal-csv-studio-receiver.tanmai-26d.workers.dev/webhooks/groupdeal`. Six remote synthetic checks and a duplicate check after redeployment passed on 21 October 2026. All three synthetic inbox rows and both temporary test secrets were then removed. Until the real seller subscription and secret are connected, `/healthz` returns `503 NOT_READY` by design.
+The receiver is deployed at `https://groupdeal-csv-studio-receiver.tanmai-26d.workers.dev/webhooks/groupdeal`. Six remote synthetic checks and a duplicate check after redeployment passed on 21 October 2026. All three synthetic inbox rows and both temporary test secrets were then removed. The account holder subsequently connected the real subscription and secret through private input. Readback at 06:59 UTC confirms `200 READY`, both secret binding names and an empty inbox. A real producer signature has not yet been verified.
 
 The account holder authorized Free usage only. No paid-plan upgrade, billing subscription or GroupDeal DNS change was performed. Real GroupDeal delivery, provider entitlement and producer retry/DLQ remain unverified.
 
 ## Local checks
+
+`npm test` now covers16tests, including actual protected ZIP download, concurrent order deduplication, durable grant recovery, context isolation, expiry/revocation and business-schema failure without a false acknowledgement. These are synthetic local checks, separate from the earlier deployed receiver proof.
+
+The optional provider requires both `CSV_STUDIO_CAMPAIGN_ID` and `CSV_STUDIO_HUB_ADDRESS`. Configure them only after verifying a new campaign with zero orders. Migration0002is prepared, not applied remotely. Each allowed Arc Testnet order gets one capability for the purchased seat count; download lasts30days from provider grant creation. Capability URLs are private bearer secrets. No public inbox/grant listing exists. The prepared provider does not automate delivery transactions, financial lifecycle or Mainnet revocation.
+
+See `reports/H5_CSV_STUDIO_PROVIDER_NEXT_2026-10-21.md` for the next draft product and actor steps.
 
 ```sh
 npm ci --ignore-scripts

@@ -6,7 +6,7 @@
   "engines": {"node": ">=22.13.0"},
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "npm run build && node --test --test-reporter=tap test/receiver.test.mjs"
+    "test": "npm run build && node --test --test-reporter=tap test/receiver.test.mjs test/provider.test.mjs"
   },
   "dependencies": {"@groupdeal/sdk": "file:vendor/groupdeal-sdk-2.0.0.tgz"},
   "devDependencies": {"wrangler": "4.151.3", "miniflare": "5.20261019.1-beta"}

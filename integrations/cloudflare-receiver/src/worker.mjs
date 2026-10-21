@@ -1,4 +1,5 @@
 import {GroupDealSDK} from '@groupdeal/sdk';
+import {downloadCsvStudio, fulfillCsvStudio, providerHealth} from './csv-studio-provider.mjs';
 
 const MAX_BODY = 1048576;
 const reply = (status, body) => new Response(JSON.stringify(body), {
@@ -47,12 +48,14 @@ async function rawBody(request) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname.startsWith('/entitlements/')) return downloadCsvStudio(request, env);
     if (url.search || !['/healthz', '/webhooks/groupdeal'].includes(url.pathname)) return reply(404, {error: 'NOT_FOUND'});
     if (url.pathname === '/healthz') {
       if (request.method !== 'GET') return reply(405, {error: 'METHOD_NOT_ALLOWED'});
       if (!configured(env)) return reply(503, {status: 'NOT_READY'});
       try {
         await env.DB.prepare('SELECT event_id FROM webhook_inbox LIMIT 1').all();
+        await providerHealth(env);
         return reply(200, {status: 'READY'});
       } catch {return reply(503, {status: 'NOT_READY'});}
     }
@@ -82,6 +85,7 @@ export default {
         return result.meta.changes === 1;
       }};
       const result = await sdk.receiveWebhook(body, headers, inbox);
+      if (result.accepted) await fulfillCsvStudio(env, headers.eventId);
       return reply(result.accepted ? 202 : 401, {accepted: result.accepted, duplicate: result.duplicate});
     } catch (error) {
       return reply([400, 413].includes(error?.status) ? error.status : 503, {error: 'REQUEST_NOT_ACCEPTED'});
