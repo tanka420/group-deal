@@ -1,3 +1,13 @@
+## Hiện hành — 21/10/2026: đã xác minh liên kết GitHub và Discord thật
+
+Người dùng đã tự đăng nhập và consent trên GroupDeal. Readback 2026-10-21T03:16:05.696Z xác minh đúng seller `sellerlocal`, ví `0x24F0c19a6E77cc687181500455BeE3550E617580`: GitHub `tanka420` (ID202405295) và Discord `tankaa420` (ID1141206830996017263), identity revision3. Cả hai callback COMMITTED, đúng user/origin/callback, hoàn tất trong hạn5phút; verifier đã xóa, ownership map và audit SELLER_SOCIAL_LINKED khớp. API public identity trả200 với đúng username/hai link; Chrome thật cũng hiện hai liên kết đã xác thực. Không yêu cầu đăng nhập, chọn username hoặc consent lại để chụp bằng chứng.
+
+X vẫn DEFERRED_BY_USER_COST, không liên kết/không gọi API. OneDrive vẫn BACKUP_CURRENT và OFFHOST_BACKUP_CURRENT; lịch/giám sát đã bật ở gói trước. PID1461981/NRestarts0, source backend9372850 và frontend22a4570 giữ; private-env fingerprint, ledger52/72, oldorders1–5, counts19/6/6/44/8/12 và95held khớp. Gói này chỉ đọc: không restart/deploy, sửa config, chạy CI hoặc phát giao dịch.
+
+Đã khép bằng chứng dương tính cho username và hai liên kết OAuth đang bật. Các case live hủy consent/ngắt-rồi-liên-kết-lại/social-ID trùng giữa hai account cần UAT riêng theo ma trận; fixture source đã đạt nhưng chưa gọi các case live này là đạt. Không tự ngắt hai liên kết hiện tại để thử lại. H3–H6 và final Safe/G6 vẫn giữ phạm vi; không mở lại X hoặc yêu cầu diễn tập backup đã miễn.
+
+CURRENT ở root `reports/evidence/CURRENT_G5_PREPARATION_LATEST.json` → `reports/evidence/social-links-live/2026-10-21T03-16-06-605Z/CHECKS.json`; private-config preimage ở CURRENT_SOCIAL_CONFIG_PREIMAGE_LATEST vẫn hợp lệ vì env không đổi. Source checkout chỉ giữ docs, root reports giữ artifacts. Các ghi chú “chưa liên kết/chờ login H1” bên dưới là lịch sử. **NOT_FROZEN/G5OPEN/G6OPEN/acceptanceEligible=false/wholeProjectAccepted=false.**
+
 ## Hiện hành — 21/10/2026: OneDrive đã hoạt động; GitHub/Discord đã nạp; X tạm hoãn
 
 User báo đã cấu hình gd_onedrive và đã kết nối GitHub/Discord; yêu cầu tạm hoãn X do tính phí. Đã xác minh rclone OneDrive personal, drive binding cố định, file0600/ubuntu; không xuất token. Lần đầu upload ciphertext18.657.196bytes+manifest861bytes và tải ngược so SHA-256 đạt lúc2026-10-21T03:05:27.277Z. Timer offhost enabled/active vào phút10 mỗi giờ; dropin giám sát đã cài, probe https://groupdeal.tech/api/health thấy BACKUP_CURRENT và OFFHOST_BACKUP_CURRENT. Remote append-only, không xóa; giữ3backup managed+archive ngoài policy tại VPS. Không diễn tập restore/đoRPO-RTO vì user đã miễn; không hỏi lại target/key custodian từ câu hỏi cũ.

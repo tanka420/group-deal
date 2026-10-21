@@ -2,17 +2,17 @@
 
 Cập nhật 21/10/2026, Asia/Saigon. Phạm vi là bản Arc Testnet theo PLAN. Các quyết định hoãn trước đây đã được mở lại. Agent đã triển khai phần nguồn có thể tự làm, kiểm build/guard/dữ liệu và chuẩn bị vận hành; dự án chưa được ghi G5/G6 đạt khi các bằng chứng người dùng/provider dưới đây còn thiếu.
 
-Trạng thái mới21/10/2026: tên miền https://groupdeal.tech. OneDrive đã upload/tải ngược ciphertext+manifest đúng hash; lịch mỗi giờ/phút10 và giám sát offhost đã bật. GitHub/Discord đã nạp4biến private qua guarded restart; X tạm hoãn theo user và đã tắt2biến hoạt động. PID1461981/NRestarts0, native/ledger/95held giữ. Seller24F đã có username sellerlocal; chưa có liên kết GitHub/Discord trong native. Tab Chrome đã mở login tại /seller/profile; chính chủ đăng nhập một lần rồi tự consent2provider. Circle liveOTP/principal vẫn chưa xác minh.
+Trạng thái mới21/10/2026: https://groupdeal.tech. Seller24F đã có username sellerlocal và đã liên kết GitHub tanka420, Discord tankaa420. Agent đã đối chiếu native, callback COMMITTED, ownership/audit, API public identity và UI Chrome. Không cần đăng nhập hoặc consent lại cho hai liên kết này. X vẫn tạm hoãn theo user và đã tắt cấu hình hoạt động. OneDrive upload/tải ngược đúng hash, lịch và giám sát đã bật. Runtime/ledger/95held giữ nguyên; Circle liveOTP/principal và các nhóm H3–H6 khác vẫn còn phạm vi.
 
 
-Gói hiện hành: reports/evidence/h1h2-connection/2026-10-21T03-00-03-449Z/CHECKS.json. Đọc CURRENT_G5_PREPARATION_LATEST.json và CURRENT_SOCIAL_CONFIG_PREIMAGE_LATEST.json ở E:/apps/group-deal/reports/evidence; dùng SOCIAL_CHECKS.json mới sau khi nạp4biến và tắtX. Không dùng preimage trước H1/H2.
+Gói hiện hành: reports/evidence/social-links-live/2026-10-21T03-16-06-605Z/CHECKS.json. CURRENT_G5_PREPARATION_LATEST ở root reports/evidence là nguồn authoritative; CURRENT_SOCIAL_CONFIG_PREIMAGE_LATEST trước vẫn hợp lệ vì env không đổi.
 
 ## Những phần đã làm
 
 | Phần | Kết quả có bằng chứng |
 |---|---|
 | Username | Seller cần username trước publication mới; buyer chọn tùy ý tại Tài khoản. Tên chọn một lần, duy nhất toàn hệ thống. Đơn và intent cũ vẫn phục hồi được. |
-| Social | Có OAuth PKCE X/GitHub/Discord, kiểm đúng phiên/provider/origin, stable ID duy nhất, ngắt/chuyển phải xác thực lại; link công khai không phải dấu uy tín. GitHub/Discord đã nạp cấu hình, còn consent live; X tạm hoãn theo user do chi phí. |
+| Social | Có OAuth PKCE X/GitHub/Discord, kiểm đúng phiên/provider/origin, stable ID duy nhất, ngắt/chuyển phải xác thực lại; link công khai không phải dấu uy tín. GitHub/Discord đã liên kết thật và đối chiếu callback/ownership/audit/API/UI; X tạm hoãn theo user do chi phí. |
 | UI | Tái dùng giao diện hiện hành; định danh dạng danh sách; đã kiểm fixture desktop/390px, buyer tùy chọn, VI/EN và Tab. Đã sửa thông báo lưu/lỗi đổi đúng locale. Chưa gọi đây là consent OAuth hoặc toàn bộ a11y live đã đạt. |
 | Kiểm nguồn | 60 kiểm định danh, 35 case backup/probe/alert, 10 case nâng runtime và các regression auth/profile/product/wallet/SQLite phù hợp đã đạt. Không chạy lại full CI không cần thiết. |
 | Runtime | Nâng qua snapshot/admission và đối soát cùng block HEALTHY, giữ ledger52flows/72reservations, 95held và các đơn cũ. Backup mới đã phục hồi riêng thành công. |
@@ -40,7 +40,7 @@ Gói hiện hành: reports/evidence/h1h2-connection/2026-10-21T03-00-03-449Z/CHE
 
 ## H1 — GitHub/Discord; X tạm hoãn theo yêu cầu người dùng
 
-1. Seller0x24F0…7580 đã có username sellerlocal, không cần chọn lại. Mở [Hồ sơ seller](https://groupdeal.tech/seller/profile), tự đăng nhập một lần sau đợt nạp cấu hình. Buyer vẫn có thể chọn username tùy ý tại [Tài khoản](https://groupdeal.tech/account).
+1. Seller0x24F0…7580 đã có username sellerlocal và hai liên kết: GitHub tanka420, Discord tankaa420. Không cần chọn tên, đăng nhập hoặc liên kết lại. [Hồ sơ seller](https://groupdeal.tech/seller/profile) đang hiển thị kết quả đã xác thực.
 2. GitHub và Discord đã có biến private trên VPS và ứng dụng đã nạp. Không cần nhập lại nếu không có lỗi cụ thể. X tạm hoãn vì chi phí theo user; đã tắt cấu hình hoạt động, không yêu cầu nạp credit hoặc consent X. Callback GitHub/Discord chính xác: https://groupdeal.tech/seller/profile. Bảng sau giữ tham chiếu kỹ thuật cho từng provider.
 
 | App | Cấu hình | Hai biến private backend |
@@ -50,9 +50,9 @@ Gói hiện hành: reports/evidence/h1h2-connection/2026-10-21T03-00-03-449Z/CHE
 | [Discord OAuth2](https://docs.discord.com/developers/topics/oauth2) | OAuth2 application; identify | GROUPDEAL_SOCIAL_DISCORD_CLIENT_ID / GROUPDEAL_SOCIAL_DISCORD_CLIENT_SECRET |
 
 3. Agent đã kiểm fingerprint và nạp4biến GROUPDEAL_SOCIAL_{GITHUB|DISCORD}_CLIENT_ID/_CLIENT_SECRET. Private backend.env vẫn ownerubuntu/mode600; không đưa vào VITE_ hoặc chat. Nếu cần đổi credential sau này, báo agent ghim preimage mới trước rồi chỉ sửa4biến này. X giữ trống đến khi user mở lại; không tự restart ngoài guard.
-4. Khi agent xác nhận cấu hình đã hoạt động, tự bấm xác thực GitHub và Discord, đăng nhập/đồng ý quyền tại provider và quay lại đúng tab. Agent kiểm link/ID/thời điểm và hồ sơ công khai. Kiểm một lần hủy consent, ngắt rồi xác thực lại; dùng tài khoản UAT riêng để chứng minh không thể gắn cùng social ID sang account khác khi chưa ngắt. Seller chỉ có UNLISTED chưa xuất hiện ở hồ sơ public theo policy hiện hành; agent dùng campaign UAT PUBLIC riêng để kiểm, không đổi campaign5 đã xong.
+4. Hai consent GitHub/Discord đã hoàn tất và được agent xác minh. Các case hủy consent, ngắt-rồi-xác-thực-lại và cùng social ID ở account UAT khác vẫn cần gói UAT riêng theo ma trận; chưa coi fixture là đã kiểm live các case đó. Agent sẽ chuẩn bị target/account và trạng thái mong đợi trước; không tự ngắt hai liên kết chính đang hoạt động.
 
-Anh cần gửi lại: username đã chọn, GitHub/Discord nào đã liên kết thành công trong GroupDeal, kết quả UI hoặc mã lỗi đã bỏ bí mật. Không gửi secret/code/token.
+H1 không còn chờ câu trả lời “đã liên kết trong GroupDeal”; agent đã xác minh. Chỉ cần thao tác chính chủ khi có gói UAT riêng được chuẩn bị, không gửi secret/code/token.
 
 ## H2 — Kết nối OneDrive
 

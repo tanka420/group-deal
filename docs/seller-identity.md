@@ -1,6 +1,6 @@
 # Username và liên kết xã hội
 
-Trạng thái21/10/2026: GitHub/Discord đã nạp cấu hình private; consent live trong GroupDeal còn cần chính chủ. X tạm hoãn theo user vì chi phí;2biếnX đang để trống, không gọi API. Username seller24F đã là sellerlocal, không yêu cầu chọn lại. Callback hiện hành https://groupdeal.tech/seller/profile.
+Trạng thái21/10/2026: GitHub tanka420 và Discord tankaa420 đã liên kết thật với seller24F/username sellerlocal. Native callback COMMITTED, ownership/audit, API public identity và Chrome UI khớp; không cần consent lại để thu bằng chứng. X tạm hoãn theo user do chi phí và2biến hoạt động vẫn trống. Các case live hủy/ngắt-liên-kết-lại/social-ID trùng cần UAT riêng, chưa được suy ra từ hai liên kết dương tính.
 
 Username được lưu riêng khỏi hồ sơ payout có chữ ký. Seller chọn một lần, 3–30 ký tự thường/số/`_`, bắt đầu bằng chữ; tên hệ thống được giữ riêng. Server chuẩn hóa chữ thường và giữ duy nhất trong giao dịch SQLite. Deal mới cần username trước khi chuẩn bị xuất bản; các intent đã tạo và nghĩa vụ của đơn cũ vẫn phục hồi như trước.
 
