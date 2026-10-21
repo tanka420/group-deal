@@ -136,3 +136,8 @@ GHI CHÚ KHI TRIỂN KHAI
 ## Cập nhật21Oct2026 — H3 quyền tài khoản UAT
 
 Đã kiểm live qua Chrome đúng profile:4lệnh GRANT_SELLER/REVOKE_SELLER/RESTRICT/RESTORE trên ví0x7477…f27c,4receipt/4audit và chuỗi revision1–4 đạt. Kết thúc restricted=false/sellerEnabled=false; sellerrole lịch sử giữ. UAT đọc được thông tin khi hạn chế. Không phát giao dịch tài chính; ledger/oldorders/95held giữ; runtime/config không đổi. Gói reports/evidence/admin-h3-live/2026-10-21T03-49-32-311Z/CHECKS.json. Rights/inbox, negative ACL live mới, H4–H6/final Safe/G6 còn phạm vi; NOT_FROZEN/G5OPEN/G6OPEN/wholeProjectAccepted=false.
+
+
+## Cập nhật21Oct2026 — H3 contact/support/inbox
+
+UAT tự OTP contact thành công, bật email; tạo một ticketACCOUNT mới và operator trả lời, hai command/revision2 khớp; thông báo trong app mở đúng ticket. Outbox nghiệp vụ mớiSENT và user xác nhận nhận trong inbox. Chỉ lưu masked/metadata, không đọc OTP/emailpayload. Ledger/oldorders/95held/runtime giữ. Gói reports/evidence/contact-uat/2026-10-21T04-01-07-252Z/CHECKS.json. Rights/badge còn phạm vi; đã chuẩn bị draftCSVStudioUAT riêng, chờ APP seller24F và human rights attestation/signature. Không sửa hai hồ sơAPPROVED/đơn cũ; G5/G6OPEN/NOT_FROZEN.
