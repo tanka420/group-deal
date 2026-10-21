@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "groupdeal-csv-studio-receiver",
+  "account_id": "26d1e0308af3e38f5348b223cd991260",
   "main": "src/worker.mjs",
   "compatibility_date": "2026-10-21",
   "compatibility_flags": ["nodejs_compat"],
@@ -11,7 +12,7 @@
   "d1_databases": [{
     "binding": "DB",
     "database_name": "groupdeal-csv-studio-inbox",
-    "database_id": "00000000-0000-0000-0000-000000000000",
+    "database_id": "de241d11-29e9-4667-95ad-eb8f69308860",
     "migrations_dir": "migrations"
   }]
 }

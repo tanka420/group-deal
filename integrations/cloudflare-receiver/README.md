@@ -15,7 +15,7 @@ Tests use synthetic events and local Miniflare/D1. No Cloudflare account or prod
 
 ## Deployment after the account is authorized
 
-Use the existing Cloudflare account on its Free plan. Create only `groupdeal-csv-studio-inbox` and `groupdeal-csv-studio-receiver`, record their actual IDs, and replace the placeholder database ID in the configuration. Apply the inbox migration remotely only to this new database. Store `GROUPDEAL_WEBHOOK_SECRET` and `GROUPDEAL_WEBHOOK_SUBSCRIPTION_ID` as Worker secrets using private input; never commit or paste them in chat.
+The configuration targets account `26d1e0308af3e38f5348b223cd991260` and the dedicated D1 database `groupdeal-csv-studio-inbox` (`de241d11-29e9-4667-95ad-eb8f69308860`). The account holder confirmed Workers Free on 21 October 2026. This database was created in APAC and migration `0001_inbox.sql` was applied only to it. For a different deployment, create a new database and replace both account and database IDs first. Store `GROUPDEAL_WEBHOOK_SECRET` and `GROUPDEAL_WEBHOOK_SUBSCRIPTION_ID` as Worker secrets using private input; never commit or paste them in chat.
 
 First deploy on the account's `workers.dev` HTTPS address. Do not change the GroupDeal domain, DNS or current VPS. A production custom domain can be considered separately after ownership is known. Confirm the account plan and usage before deploying; Free quotas are not a capacity or availability guarantee.
 
