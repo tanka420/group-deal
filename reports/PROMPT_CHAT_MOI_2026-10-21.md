@@ -1,3 +1,7 @@
+## Pha đang thực thi — hoàn thiện CI ngày 21/10/2026
+
+Đọc [báo cáo CI hiện tại](./HOAN_THIEN_CI_2026-10-21.md) trước khi tiếp tục. Candidate chưa freeze; đang sửa các lỗi cụ thể của pipeline và fixture, chưa full CI PASS. Retry/DLQ live vẫn DEFERRED_BY_USER, backup restore/RPO-RTO vẫn WAIVED_BY_USER. Không lặp đơn 7, không release 95 tác vụ đang giữ, không phát giao dịch mới. Runtime live vẫn 4b5af76 theo lần quan sát trước; các sửa nguồn pha CI chưa deploy.
+
 ## Quyết định hiện hành — 21/10/2026: hoãn kiểm thử retry/DLQ, ưu tiên hoàn thiện dự án
 
 Người dùng yêu cầu: “ghi chú sẽ kiểm thử sau, giờ cần tiếp tục để hoàn thành dự án trước đã”. H5 retry/DLQ/redrive trên hệ thống thật chuyển sang **DEFERRED_BY_USER — kiểm thử sau**. Dừng chuẩn bị gây outage, tạo job lỗi, phát lại sự kiện hoặc tạo đơn mới cho mục đích này. Đây là hoãn, chưa phải PASS và không tự xóa tiêu chí nghiệm thu. Các fixture kiểm tra mã nguồn đang có vẫn được dùng khi cần xác minh thay đổi liên quan.
