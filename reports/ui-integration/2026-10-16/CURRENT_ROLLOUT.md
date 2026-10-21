@@ -1,3 +1,13 @@
+## Hiện hành — 21/10/2026: H3 đã kiểm bốn lệnh quyền tài khoản UAT thật
+
+Chrome đã kết nối lại; profile4 chứa đúng tab admin1905952512 và UAT1905952381. Profile3 còn một kết nối khác, không có phiên admin; không yêu cầu login lại hoặc bật Full CDP. Nguyên nhân gốc của thông báo disabled trước đó chưa xác định. Trang Phân quyền đã trả dữ liệu qua phiên admin thật, parser yêu cầu capability directoryRead/accountProfileRead/roleAssignment/accountLock; operator e48B đúng Hub/network.
+
+Qua UI đã gửi đúng bốn lệnh trên usr_wallet_f92c8fc9-cb18-486c-b222-bebc9288b907, ví0x7477f3fd762e4DB846D5b17C656395B09Fb0f27c: GRANT_SELLER → REVOKE_SELLER → RESTRICT → RESTORE. POSTFLIGHT.json xác minh4receipts+4audit ACCOUNT_ACCESS_CHANGED, đúng actor/target/action, revision1–4, command/audit digest và chuỗi before/after. Trạng thái cuối revision4/restrictedfalse/sellerEnabledfalse; rolesbuyer,seller giữ lịch sử, không phải seller đã được cấp lại. Phiên UAT đã đọc được tài khoản trong lúc hạn chế và đã thấy seller sau bước cấp. Không kiểm mua/phát hành bị chặn bằng một intent live mới; không coi việc đọc tài khoản là kiểm toàn bộ ACL hoặc nghĩa vụ cũ.
+
+Readback 2026-10-21T03:54:03.249Z:20users/6campaigns/6orders/44operations/8grants/12inventory;19accountprojection khác giữ. Ledger52/72 SHAee7087ef1992baf86b322aaf1259487d90fa0a17bf7c544c7ef5c16c3559ce17, oldorders1–5 SHA f864e1a7f21a123450f6d17111f2f0bbc5514557bb47d048b1cd521622b24ae9,95held giữ. PID1461981/NRestarts0, env/backend/frontend không đổi; backup/offhostCURRENT. Không deploy/restart/seed/reset/replay đơn hoặc phát giao dịch tài chính.
+
+Gói H3: reports/evidence/admin-h3-live/2026-10-21T03-49-32-311Z/CHECKS.json; đọc hash/bytes từ CURRENT_G5_PREPARATION_LATEST và CURRENT_ADMIN_H3_LIVE_LATEST ở root. H3 account UAT đã có proof; rights/badge, inbox nghiệp vụ, H1 negatives, Circle/H4–H6 và final Safe/G6 còn phạm vi. Các dòng chờ tạo UAT/cấp quyền browser bên dưới là lịch sử. **NOT_FROZEN/G5OPEN/G6OPEN/acceptanceEligible=false/wholeProjectAccepted=false.**
+
 ## Hiện hành — 21/10/2026: đã xác minh liên kết GitHub và Discord thật
 
 Người dùng đã tự đăng nhập và consent trên GroupDeal. Readback 2026-10-21T03:16:05.696Z xác minh đúng seller `sellerlocal`, ví `0x24F0c19a6E77cc687181500455BeE3550E617580`: GitHub `tanka420` (ID202405295) và Discord `tankaa420` (ID1141206830996017263), identity revision3. Cả hai callback COMMITTED, đúng user/origin/callback, hoàn tất trong hạn5phút; verifier đã xóa, ownership map và audit SELLER_SOCIAL_LINKED khớp. API public identity trả200 với đúng username/hai link; Chrome thật cũng hiện hai liên kết đã xác thực. Không yêu cầu đăng nhập, chọn username hoặc consent lại để chụp bằng chứng.

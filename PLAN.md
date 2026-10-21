@@ -132,3 +132,7 @@ GHI CHÚ KHI TRIỂN KHAI
 - Chữ ký, secret, email, license key và bằng chứng riêng tư không được lọt vào chain, log, webhook công khai hoặc tài liệu kiểm thử.
 - Giữ trạng thái chưa chắc chắn là pending/reconciling cho đến khi có bằng chứng chain; không tự suy diễn giao dịch thành công hoặc thất bại từ một lỗi HTTP.
 - Nếu một quyết định kinh doanh chưa được nêu, chẳng hạn chính sách phí khác 0, không tự kích hoạt trong lúc lập trình. Ghi rõ quyết định cần có và tiếp tục những phần không phụ thuộc vào nó.
+
+## Cập nhật21Oct2026 — H3 quyền tài khoản UAT
+
+Đã kiểm live qua Chrome đúng profile:4lệnh GRANT_SELLER/REVOKE_SELLER/RESTRICT/RESTORE trên ví0x7477…f27c,4receipt/4audit và chuỗi revision1–4 đạt. Kết thúc restricted=false/sellerEnabled=false; sellerrole lịch sử giữ. UAT đọc được thông tin khi hạn chế. Không phát giao dịch tài chính; ledger/oldorders/95held giữ; runtime/config không đổi. Gói reports/evidence/admin-h3-live/2026-10-21T03-49-32-311Z/CHECKS.json. Rights/inbox, negative ACL live mới, H4–H6/final Safe/G6 còn phạm vi; NOT_FROZEN/G5OPEN/G6OPEN/wholeProjectAccepted=false.
