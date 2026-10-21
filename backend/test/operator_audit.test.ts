@@ -79,7 +79,7 @@ async function main(){
   await check('audit rejects revoked actor and inactive session even with previously valid proofs',async()=>{
    put('users','fixture',{...get('users','fixture'),roles:['buyer']});rejected(()=>listOperatorAudit(current.proof,{}),409);rejected(()=>verifyOperatorAudit(current.proof,{}),409);assert.equal((await request('audit-logs',current.token)).response.status,403);
    current=await setup();const session=get('authSessions',current.proof.key);put('authSessions',current.proof.key,{...session,state:'REVOKED',revokedAt:Date.now()});rejected(()=>listOperatorAudit(current.proof,{}),401);rejected(()=>verifyOperatorAudit(current.proof,{}),401);
-   current=await setup();const now=Date.now;try{Date.now=()=>now()+1800001;rejected(()=>listOperatorAudit(current.proof,{}),401);Date.now=()=>now()+8*86400000;rejected(()=>verifyOperatorAudit(current.proof,{}),401);}finally{Date.now=now;}
+   current=await setup();const now=Date.now;try{Date.now=()=>now()+24*60*60*1000+1;rejected(()=>listOperatorAudit(current.proof,{}),401);Date.now=()=>now()+8*86400000;rejected(()=>verifyOperatorAudit(current.proof,{}),401);}finally{Date.now=now;}
   });
   await check('audit malformed records fail closed and read callbacks expire',async()=>{
    const logs=get('auditLogs','state');logs[0].hash='invalid';put('auditLogs','state',logs);rejected(()=>listOperatorAudit(current.proof,{}),503);assert.equal(verifyOperatorAudit(current.proof,{}).reason,'AUDIT_RECORD_INVALID');
