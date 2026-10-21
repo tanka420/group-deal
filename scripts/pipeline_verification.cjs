@@ -99,6 +99,7 @@ const steps=[
  ['ops-types','npm',['run','typecheck:ops']],
  ['browser','node',['scripts/run_browser_checks.cjs']],
  ['browser-built','node',['scripts/run_browser_checks.cjs','--preview','--port=4180','--','deferred_pages.spec.ts']],
+ ['wallet-login-browser','node',['scripts/run_browser_checks.cjs','--reown-fixture','--port=4206','--','reown_lazy.spec.ts']],
  ['checkout-browser','node',['scripts/run_browser_checks.cjs','--reown-fixture','--port=4203','--',"(?:^|[/\\\\])checkout\\.spec\\.ts$"]],
  ['external-fee-browser','node',['scripts/run_browser_checks.cjs','--reown-fixture','--port=4205','--','external_fee_review.spec.ts']],
  ['checkout-build','npm',['--prefix','frontend','run','build']],
