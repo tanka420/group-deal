@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),cp=require('node:child_process'),assert=require('node:assert/strict');
-const schema='GroupDealManagedBackupV1',expectedSource='937285063b76f7192ae30f4254b051c9910df8fa',namePattern=/^backup_(\d{13})_[a-f0-9-]{36}\.enc$/;
+const schema='GroupDealManagedBackupV1',expectedSource='4b5af7604df53be680e7af9986d45810ac4d26e2',namePattern=/^backup_(\d{13})_[a-f0-9-]{36}\.enc$/;
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 function fail(code){throw new Error(code);}
 function exactDirectory(dir){const absolute=path.resolve(dir);if(fs.realpathSync(absolute)!==absolute||!fs.lstatSync(absolute).isDirectory()||fs.lstatSync(absolute).isSymbolicLink())fail('DIRECTORY_SCOPE');return absolute;}
