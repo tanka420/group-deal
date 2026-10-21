@@ -1,3 +1,4 @@
+import {authRouter} from '../src/routes/authRoutes';
 /** Owned isolated product/API fixture; never imported by the runtime application. */
 import assert from 'node:assert/strict';
 import express from 'express';
@@ -18,8 +19,8 @@ for(const [id,roles] of [['support-browser',['buyer']],['support-other',['buyer'
 store.db.campaigns.supportCampaign={id:'supportCampaign',sellerId:'support-seller',projectionOrigin:'VERIFIED_PUBLISH',status:'FINALIZED'} as any;
 store.db.orders.supportOrder={id:'supportOrder',campaignId:'supportCampaign',buyerAccountId:'support-browser',deliveryStatus:'CONFIRMED',committedGross:'100',sellerAllocated:'80',buyerRefundAllocated:'20',buyerClaimedAmount:'0',sellerClaimedAmount:'0',deliveredEntitlementEncrypted:'existing-support-fixture-financial-sentinel'} as any;
 store.db.supportMessages.supportOrder=[{id:'legacy-support-fixture',orderId:'supportOrder',senderRole:'buyer',senderWallet:'fixture-wallet-not-shown',text:'Earlier order support fixture',timestamp:Date.now()}];store.save();
-const controller=await enrollFixtureOperator('support-operator'),alternate=ethers.Wallet.createRandom().address;
-const financial=JSON.stringify(store.db.orders),app=express();app.use('/api/support',supportRouter);app.use(express.json({limit:'1kb'}));app.use('/api/notifications',notificationRouter);
+const controller=await enrollFixtureOperator('support-operator',undefined,{chainId:5042002}),alternate=ethers.Wallet.createRandom().address;
+const financial=JSON.stringify(store.db.orders),app=express();app.use('/api/support',supportRouter);app.use(express.json({limit:'1kb'}));app.use('/api/admin-auth',authRouter);app.use('/api/notifications',notificationRouter);
 app.get('/api/auth/me',authMiddleware,(req:AuthenticatedRequest,res)=>{const u=store.db.users[req.user!.userId];res.json({user:{id:u.id,email:null,roles:u.roles,loginMethod:'EVM_WALLET',activeWallet:u.activeWallet}});});
 app.get('/api/orders/:id/messages',authMiddleware,(req:AuthenticatedRequest,res)=>{try{res.json({messages:OrderThreadService.list(req.sessionProof,req.params.id)});}catch{res.sendStatus(403);}});
 app.get('/__support_session',(req,res)=>{if(req.get('X-Local-Fixture')!=='support-browser'||!['support-browser','support-other','support-seller','support-operator','support-role-only'].includes(String(req.query.user))||req.query.realm!==undefined&&req.query.realm!=='ADMIN'){res.sendStatus(403);return;}res.setHeader('Cache-Control','no-store');res.json({token:req.query.realm==='ADMIN'?SessionService.issue(store.db.users[String(req.query.user)],undefined,'ADMIN'):jwt.sign({userId:req.query.user,jti:randomUUID()},config.jwtSecret,{expiresIn:'10m'})});});
