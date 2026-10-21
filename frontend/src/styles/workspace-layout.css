@@ -5,8 +5,9 @@
 .header .header-inner { flex-wrap: nowrap; gap: 24px; }
 .header .header-brand, .header .logo-group { flex-shrink: 0; }
 .header .desktop-navigation { flex: 1 1 auto; min-width: 0; }
-.header .primary-navigation, .header .header-actions { flex-wrap: nowrap; }
-.header .primary-navigation a { white-space: nowrap; }
+.header .primary-navigation { flex-wrap: wrap; }
+.header .header-actions { flex-wrap: nowrap; }
+.header .primary-navigation a { min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 .header .header-actions { flex-shrink: 0; gap: 12px; }
 .header .account-summary { display: none !important; }
 .header .account-dropdown-wrapper { display: flex; align-items: center; gap: 12px; }
