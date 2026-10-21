@@ -19,7 +19,7 @@ let cases=0,current='setup';const opened:TransactionalStore[]=[],initial=store.s
 const sessions=new SessionRegistry(store);const digest=(b:Buffer)=>crypto.createHash('sha256').update(b).digest('hex');
 async function check(name:string,fn:()=>unknown){current=name;await fn();cases++;console.log('PASS operator enrollment: '+name);}
 const rejected=(fn:()=>Promise<unknown>,code:string)=>assert.rejects(fn,e=>e instanceof OperatorEnrollmentError&&e.code===code);
-function setup(){
+function setup(realm?:'ADMIN'){
  assert.equal(process.env.NODE_ENV,'test');assert.ok(store.isIsolated);store.replace(structuredClone(initial));
  const wallet=ethers.Wallet.createRandom(),foreign=ethers.Wallet.createRandom(),safe=ethers.Wallet.createRandom().address;config.arcChainId=31337;config.deploymentBlock=1;config.protocolVersion=1;config.operatorAddress=wallet.address;
  const chain={chainId:31337,hubAddress:config.hubAddress,protocolVersion:1,operatorAddress:wallet.address,authorizedSigner:new ethers.Wallet(config.authorizedSignerPrivateKey).address,ownerAddress:foreign.address,securityAuthority:safe,bytecodeHash:ethers.keccak256('0x6000'),blockNumber:3,blockHash:ethers.id('operator-block-3'),observedAt:Date.now()};
@@ -32,7 +32,7 @@ function setup(){
   store.db.authRecovery={current:{version:1,context:crypto.randomBytes(32).toString('base64url'),createdAt:Date.now()}};
  });
  const old=store.snapshot();store.transaction(()=>{installRestoredWorkBarrier(store,old);});
- const token=sessions.issue(store.db.users.owner),proof=sessions.authenticate(token),truth={authority:chain,callback:undefined as (()=>void)|undefined,calls:0};
+ const token=sessions.issue(store.db.users.owner,undefined,realm),proof=sessions.authenticate(token),truth={authority:chain,callback:undefined as (()=>void)|undefined,calls:0};
  const authority=async(previous?:OperatorAuthority)=>{truth.calls++;truth.callback?.();truth.callback=undefined;return{...truth.authority,observedAt:Date.now()};};
  const service=new OperatorEnrollmentService({database:store,readAuthority:authority});
  const binding={arcChainId:31337,deploymentBlock:1,protocolVersion:1,operatorAddress:wallet.address};Object.assign(require('../dist/config').config,binding);
@@ -128,21 +128,30 @@ async function main(){
   const f=setup(),p=providerFixture(f),before=process.env.NODE_ENV;try{process.env.NODE_ENV='production';assert.throws(()=>new OperatorEnrollmentService({database:store,readAuthority:async()=>f.truth.authority}),e=>e instanceof OperatorEnrollmentError&&e.code==='OPERATOR_ENROLLMENT_FIXTURE_DISABLED');await rejected(()=>readCurrentOperatorAuthority(undefined,p),'OPERATOR_AUTHORITY_FIXTURE_DISABLED');}finally{process.env.NODE_ENV=before;}
   config.arcChainId=5042002;await rejected(()=>readCurrentOperatorAuthority(undefined,p),'OPERATOR_AUTHORITY_FIXTURE_DISABLED');config.arcChainId=31337;
  });
- const app=express();app.use(express.json());app.use('/api/auth',authRouter);const server=app.listen(0,'127.0.0.1');await new Promise<void>(resolve=>server.once('listening',resolve));const base='http://127.0.0.1:'+(server.address() as any).port;
- const request=(f:ReturnType<typeof setup>,url:string,body?:unknown,overrideOrigin=origin)=>fetch(base+'/api/auth/'+url,{method:body===undefined?'GET':'POST',headers:{Authorization:'Bearer '+f.token,'Content-Type':'application/json',Origin:overrideOrigin},...(body===undefined?{}:{body:JSON.stringify(body)})});
+ const app=express();app.use(express.json());app.use('/api/auth',authRouter);app.use('/api/admin-auth',authRouter);const server=app.listen(0,'127.0.0.1');await new Promise<void>(resolve=>server.once('listening',resolve));const base='http://127.0.0.1:'+(server.address() as any).port;
+ const request=(f:ReturnType<typeof setup>,url:string,body?:unknown,overrideOrigin=origin,prefix='/api/admin-auth')=>fetch(base+prefix+'/'+url,{method:body===undefined?'GET':'POST',headers:{Authorization:'Bearer '+f.token,'Content-Type':'application/json',Origin:overrideOrigin},...(body===undefined?{}:{body:JSON.stringify(body)})});
  try{
+  await check('HTTP enrollment requires ADMIN session and ADMIN prefix before reading or writing enrollment',async()=>{
+   const f=setup('ADMIN'),appSession={...f,token:sessions.issue(store.db.users.owner)};
+   for(const [actor,prefix]of [[appSession,'/api/admin-auth'],[appSession,'/api/auth'],[f,'/api/auth']] as const){
+    for(const [url,body]of [['operator/enrollment',undefined],['operator/enrollment/challenge',{walletAddress:f.wallet.address}],['operator/enrollment/verify',{walletAddress:f.wallet.address,nonce:'0'.repeat(32),message:'fixture',signature:'0x'}]] as const){
+     const r=await request(actor,url,body,origin,prefix);assert.equal(r.status,403);assert.equal((await r.json()).error,'AUTH_SESSION_REALM_REQUIRED');assert.equal(r.headers.get('cache-control'),'private, no-store');assert.equal(r.headers.get('x-content-type-options'),'nosniff');
+    }
+   }
+   assert.equal(f.truth.calls,0);assert.equal(Object.keys(store.db.walletChallenges).length,0);assert.equal(store.db.users.owner.operatorEnrollment,undefined);assert.deepEqual(store.db.users.owner.roles,['buyer','seller']);
+  });
   await check('strict HTTP rejects missing auth/query/extra fields/foreign origin with no-store finite codes',async()=>{
-   const f=setup();let r=await fetch(base+'/api/auth/operator/enrollment');assert.equal(r.status,401);assert.equal(r.headers.get('cache-control'),'private, no-store');
+   const f=setup('ADMIN');let r=await fetch(base+'/api/admin-auth/operator/enrollment');assert.equal(r.status,401);assert.equal(r.headers.get('cache-control'),'private, no-store');
    for(const [url,body]of [['operator/enrollment?cursor=x',undefined],['operator/enrollment/challenge',{walletAddress:f.wallet.address,roles:['operator']}],['operator/enrollment/verify',{walletAddress:f.wallet.address,nonce:'x',message:'x',signature:'x'}]] as const){r=await request(f,url,body);assert.equal(r.status,400);assert.equal(r.headers.get('cache-control'),'private, no-store');assert.equal(r.headers.get('x-content-type-options'),'nosniff');assert.ok(typeof(await r.json()).error==='string');}
    r=await request(f,'operator/enrollment/challenge',{walletAddress:f.wallet.address},'https://foreign.invalid');assert.equal(r.status,403);assert.equal(Object.keys(store.db.walletChallenges).length,0);assert.deepEqual(store.db.users.owner.roles,['buyer','seller']);
   });
   await check('HTTP challenge/verified enrollment/readback handles lost ACK without a second grant',async()=>{
-   const f=setup(),response=await request(f,'operator/enrollment/challenge',{walletAddress:f.wallet.address});assert.equal(response.status,200);const ch=await response.json(),signature=await f.wallet.signMessage(ch.challengeMessage);
+   const f=setup('ADMIN'),response=await request(f,'operator/enrollment/challenge',{walletAddress:f.wallet.address});assert.equal(response.status,200);const ch=await response.json(),signature=await f.wallet.signMessage(ch.challengeMessage);
    const result=await request(f,'operator/enrollment/verify',{walletAddress:f.wallet.address,nonce:ch.nonce,message:ch.challengeMessage,signature});assert.equal(result.status,200);const body=await result.json();assert.deepEqual(body.user.roles,['buyer','seller','operator']);assert.ok(!JSON.stringify(body).includes(signature));
    const status=await request(f,'operator/enrollment');assert.equal(status.status,200);assert.equal((await status.json()).status,'ENROLLED');assert.equal(store.db.auditLogs.filter(a=>a.action==='OPERATOR_SELF_ENROLLED').length,1);
   });
   await check('HTTP issuance budget persists finite429 without a second nonce',async()=>{
-   const f=setup();assert.equal((await request(f,'operator/enrollment/challenge',{walletAddress:f.wallet.address})).status,200);const r=await request(f,'operator/enrollment/challenge',{walletAddress:f.wallet.address});assert.equal(r.status,429);assert.equal((await r.json()).error,'WALLET_AUTH_RATE_LIMITED');assert.equal(Object.keys(store.db.walletChallenges).length,1);
+   const f=setup('ADMIN');assert.equal((await request(f,'operator/enrollment/challenge',{walletAddress:f.wallet.address})).status,200);const r=await request(f,'operator/enrollment/challenge',{walletAddress:f.wallet.address});assert.equal(r.status,429);assert.equal((await r.json()).error,'WALLET_AUTH_RATE_LIMITED');assert.equal(Object.keys(store.db.walletChallenges).length,1);
   });
  }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));}
  console.log('PASS '+cases+' operator enrollment cases; isolated random controller signatures and source/emitted/HTTP only, no actual actor or role acceptance.');
