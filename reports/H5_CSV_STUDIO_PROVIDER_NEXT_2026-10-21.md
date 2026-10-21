@@ -1,4 +1,20 @@
-# Sau CONNECTED / Worker READY
+# H5 hiện tại — 21/10/2026
+
+Browser đã hoạt động lại sau khi user bật/chọn Chrome. Agent đã tự điền và lưu sản phẩm, nộp hồ sơ quyền, điền form operator; user đã tự ký phê duyệt. **Không yêu cầu user tự tạo sản phẩm hoặc ký lại.** Hướng dẫn tạo nháp bên dưới là lịch sử/tham chiếu giá trị.
+
+Seller Local / sellerlocal dùng ví `0x24F0c19a6E77cc687181500455BeE3550E617580`. Product `prd_b8f0a5c5-528f-4264-8111-24c01633c4ea`, ProductVersion `pv_bcd05b6a-bd8d-43d4-9a74-19e3e19fbe21`, LicenseVersion `lv_d4445036-8336-451a-8594-49b19ca6201c`, Rights `rgt_1848317f-6520-4ed4-a272-4f1f860b8352`. UI/native07:28UTC cùng APPROVED/1decision/validUntil1794243599 (09/11/2026); product DRAFT. UAT quyền cũ rgt_3e3... vẫn REVOKED; hai hồ sơ cũ khác UI APPROVED.
+
+Draft `draft_33044efa-bfab-4762-b394-42bbb3a5e517`, version3, UNLISTED; tiers1→0.1USDC/2→0.08USDC, max1/account, stock2, duration1ngày, SLA24giờ, không earlyrebate. Native07:31UTC:0orders/0operations/no onchain campaign. Đây chỉ là giá đề xuất, chưa phải ngân sách giao dịch đã được duyệt. Campaigns tăng6→7do draft; giữ20users/6orders/8grants/12inventory/53walletFlows/74reservations/95held. Hashledger/runtime/env được kế thừa timestamp trước, chưa revalidation mới.
+
+**Khoảng trống phát hiện qua UI/source:** wizard khóa “Invite / webhook: cần provider thật”; draft thực tế còn FILE_LINK mặc định. Không force optiondisabled hoặc ghi cờ probe/dryRun bằng DB. ResourceMutationService và route test-delivery chỉ probe FILE_LINK/LICENSE_KEY; OperationPreparationService.publish luôn assertProbe. Managedprepare/stage/readiness/completion/retry giả định grant/resource nội bộ. Provider riêng chưa đủ để publish/giao hàng WEBHOOK qua UI. Bản provider9628e4c đã push và16localtests đạt, nhưng chưa deploy/migrate0002 hoặc bật; receiver live vẫn chỉ nhận inbox. ZIP6594bytes/SHA1edbbab6f3b6665132699f23f3fd2d05a1dcb78574751b66d236268fc702c6dađã qua bộ đọc ZIP Windows, HTML khớp gốc. Scan1298file/0finding.
+
+**Triển khai tiếp trước publish:** providerchallenge/probe có nonce/expiry, bind seller/subscription/endpoint/campaign/productversion/licenseversion/chain/Hub/packagehash; dùng HTTPS/DNSpinning/no redirects/bodycap như webhookTransport. Commit probe/receipt/audit bằng transaction SQL có selection và recheck session/context sau network. Không flush unrelatedwrites hoặc đổi proof của managedmethods. Stage externalentitlement mã hóa phải bind order/buyer/quantity/proofhash; readiness/completion/retry cùng context và nonceauthority. Buyer chỉ đọc entitlement thuộc mình sau verifieddelivery. Provider cần kênh resolve/proof private tới GroupDeal, hiện chưa có. Đây là việc ứng dụng **chưa triển khai**, không gọi source/livePASS.
+
+Sau localchecks mới guardeddeploy cùng DB/native hiện hành, giữ order1–6/95held. Chỉ bật provider cho campaign mới0order, không đổi billing/DNS/Mainnet. Ngân sách/fee publish/buy/deliver Testnet phải chốt trước intent; user tự ký. User đã yêu cầu agent tự điều khiển mọi phần UI được phép, không đẩy form về cho user khi browser hoạt động. Chrome4, seller tab1905952562, admin tab1905952512; claim/mark lại theo turn.
+
+NOT_FROZEN / G5 OPEN / G6 OPEN / acceptanceEligible=false / wholeProjectAccepted=false.
+
+## Tham chiếu lịch sử sau CONNECTED
 
 Đã kiểm chỉ đọc lúc13:59ngày21/10: subscription seller24F khớp endpoint, Worker200/READY, hai secret binding có mặt, inbox0event và95jobheld giữ. Không cần copy secret hoặc Allow Cloudflare lại. Chưa có event thật để xác minh hai bên dùng cùng HMACsecret.
 
