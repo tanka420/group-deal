@@ -14,7 +14,7 @@ async function fixture(page:Page,language="vi"){
   await page.route("**/api/notifications/preferences",r=>r.fulfill({json:{preferences:{inApp:true,email:false},contactStatus:"MISSING"}}));
 }
 const labels=(en:boolean)=>({open:en?"Contact email":"Email liên hệ",region:en?"Contact email settings":"Cài đặt email liên hệ",email:en?"Contact email address":"Địa chỉ email liên hệ",send:en?"Send verification code":"Gửi mã xác minh",code:en?"Six-digit code":"Mã 6 chữ số",verify:en?"Verify contact":"Xác minh liên hệ",reload:en?"Reload contact status":"Tải lại trạng thái liên hệ",confirmed:en?"Contact email verified.":"Đã xác minh email liên hệ."});
-async function open(page:Page,en=false){await page.goto("/");await page.getByRole("button",{name:en?"Notifications":"Thông báo",exact:true}).click();await page.getByRole("button",{name:labels(en).open,exact:true}).click();return page.getByRole("region",{name:labels(en).region,exact:true});}
+async function open(page:Page,en=false){await page.goto("/account");await page.getByRole("button",{name:labels(en).open,exact:true}).click();return page.getByRole("region",{name:labels(en).region,exact:true});}
 async function untouched(page:Page){
   expect(await page.evaluate(()=>localStorage.getItem("groupdeal_operation_checkpoints"))).toBe("fixture-contact-checkpoint");
   expect(await page.evaluate(()=>JSON.stringify({...localStorage}))).not.toContain(target);
@@ -41,7 +41,7 @@ for(const language of ["vi","en"])test(`contact ${language} explicit request ver
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
   await panel.getByRole("button",{name:n.reload,exact:true}).focus();expect(await panel.getByRole("button",{name:n.reload,exact:true}).evaluate(el=>{const rect=el.getBoundingClientRect();return rect.top>=0&&rect.bottom<=innerHeight;})).toBe(true);
   await page.screenshot({path:info.outputPath(`contact-${language}-mobile.png`)});
-  await page.keyboard.press("Escape");await expect(panel).toHaveCount(0);await expect(page.getByRole("button",{name:en?"Notifications":"Thông báo",exact:true})).toBeFocused();
+  await page.getByRole("button",{name:n.open,exact:true}).click();await expect(panel).toHaveCount(0);await expect(page.getByRole("button",{name:n.open,exact:true})).toBeFocused();
 });
 
 for(const outcome of ["lost-ack","wrong-confirmation","malformed-json","rate-limit"])test(`contact verification ${outcome} requires confirmed matching challenge`,async({page})=>{
