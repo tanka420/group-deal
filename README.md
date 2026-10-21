@@ -1,5 +1,7 @@
 # GroupDeal — Nền tảng Mua Chung Sản Phẩm Số trên Arc Testnet
 
+Tên miền chính thức: [groupdeal.tech](https://groupdeal.tech). `www.groupdeal.tech` và hostname cũ chuyển hướng về domain chính. Xem [cấu hình domain và quy trình chuyển đổi](docs/domain-migration.md).
+
 ## Cập nhật21/10/2026
 
 Đã triển khai username seller/buyer tùy chọn và liên kết X/GitHub/Discord qua OAuth; xem [định danh và API](docs/seller-identity.md). Đã cài hỗ trợ [OneDrive backup](docs/onedrive-backup.md); Microsoftconsent và3OAuthapps vẫn cần chủ tài khoản thực hiện. [Hướng dẫn nghiệm thu6nhóm](reports/HUONG_DAN_NGHIEM_THU_2026-10-21.md) và [prompt chat mới](reports/PROMPT_CHAT_MOI_2026-10-21.md) ghi source/runtime/CURRENT và các bước đúng principal. Source/build/scopedchecks đạt không thay G5/G6; candidatechưaFROZEN và dự ánchưanghiệmthu.

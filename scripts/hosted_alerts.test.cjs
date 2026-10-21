@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),cp=require('node:child_process'),path=require('node:path'),{freshState,selectObservation,transition,deliver}=require('./hosted_alerts.cjs');
 const now=1792000000000,id='00000000-0000-4000-8000-000000000001',recipient='ops@example.test',smtp={host:'smtp.example.test',port:587,secure:false,user:'synthetic-user',password:'synthetic-password',from:'alerts@example.test'};
-const reply={schemaVersion:1,observedAt:new Date(now).toISOString(),scope:'HOSTED_PUBLIC_LIVENESS_AND_BACKUP_FRESHNESS',endpoint:'https://groupdeal.thanhtan.top/api/health',status:'UP',code:'LIVENESS_OBSERVED',httpStatus:200,backup:{status:'UP',code:'BACKUP_CURRENT'},test404:false,financialAccountingVerified:false,credentialsRead:false,emailSent:false};
+const reply={schemaVersion:1,observedAt:new Date(now).toISOString(),scope:'HOSTED_PUBLIC_LIVENESS_AND_BACKUP_FRESHNESS',endpoint:'https://groupdeal.tech/api/health',status:'UP',code:'LIVENESS_OBSERVED',httpStatus:200,backup:{status:'UP',code:'BACKUP_CURRENT'},test404:false,financialAccountingVerified:false,credentialsRead:false,emailSent:false};
 function entry(r=reply,time=now){return JSON.stringify({__REALTIME_TIMESTAMP:String(time*1000),MESSAGE:JSON.stringify(r)});}
 function obs(n=0,status='ATTENTION'){return{id:String((now+n*60000)*1000),status,code:status==='UP'?'LIVENESS_OBSERVED':'BACKUP_STALE',observedAt:new Date(now+n*60000).toISOString()};}
 function incident(){const first=transition(freshState(),obs());return transition(first.state,obs(1),()=>id);}

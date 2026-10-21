@@ -1,12 +1,12 @@
 'use strict';
 const path=require('node:path'),{observeBackup}=require('./hosted_backup.cjs'),{observeOffhost}=require('./hosted_offhost_backup.cjs');
-const endpoint='https://groupdeal.thanhtan.top/api/health';
+const endpoint='https://groupdeal.tech/api/health';
 const deployment={chainId:5042002,protocolVersion:1,hub:'0x2a7aecd1ce90f1284eb060488c8ddef4b1be0574',usdc:'0x3600000000000000000000000000000000000000'};
 /** Only public liveness fields are inspected. Provider bodies and errors never enter output. */
 async function observe(fetchRequest=globalThis.fetch,test404=false,backupStateFile=null,offhostStateFile=null){
  const started=Date.now();let code='HTTP_REQUEST_UNAVAILABLE',httpStatus=null;
  try{
-  const response=await fetchRequest(test404?'https://groupdeal.thanhtan.top/api/__groupdeal_alert_probe__':endpoint,{redirect:'error',signal:AbortSignal.timeout(10000),headers:{Accept:'application/json'}});
+  const response=await fetchRequest(test404?'https://groupdeal.tech/api/__groupdeal_alert_probe__':endpoint,{redirect:'error',signal:AbortSignal.timeout(10000),headers:{Accept:'application/json'}});
   httpStatus=response.status;
   if(httpStatus!==200)code='HTTP_STATUS_UNEXPECTED';
   else{

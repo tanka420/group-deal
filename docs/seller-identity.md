@@ -8,7 +8,7 @@ Mỗi stable provider ID chỉ thuộc một tài khoản GroupDeal. Đổi tên
 
 ## Cấu hình trên VPS
 
-Tạo ba OAuth application riêng; không dùng callback wildcard. Homepage: `https://groupdeal.thanhtan.top`. Callback chính xác cho cả ba: `https://groupdeal.thanhtan.top/seller/profile`.
+Tạo ba OAuth application riêng; không dùng callback wildcard. Homepage: `https://groupdeal.tech`. Callback chính xác cho cả ba: `https://groupdeal.tech/seller/profile`.
 
 | Provider | Loại ứng dụng / quyền | Biến private ở backend |
 |---|---|---|

@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto');
-const schema='GroupDealOpsAlertsV1',endpoint='https://groupdeal.thanhtan.top/api/health';
+const schema='GroupDealOpsAlertsV1',endpoint='https://groupdeal.tech/api/health';
 const attentionCodes=new Set(['HTTP_REQUEST_UNAVAILABLE','HTTP_STATUS_UNEXPECTED','DEPLOYMENT_MISMATCH','LIVENESS_CONTRACT_INVALID','BACKUP_METADATA_INVALID','BACKUP_METADATA_UNAVAILABLE','BACKUP_STALE','PROBE_RESULT_UNAVAILABLE','OFFHOST_RECEIPT_INVALID','OFFHOST_BACKUP_STALE','OFFHOST_BACKUP_UNAVAILABLE']);
 const fail=code=>{throw Error(code);};
 function freshState(){return{schema,lastObservationId:null,failureCount:0,incident:null};}
@@ -41,7 +41,7 @@ function transition(state,observation,newId=()=>crypto.randomUUID()){
 async function deliver(decision,recipient,smtp,transportFactory,persist){
  persist(decision.state);if(!decision.action)return{status:decision.status,code:decision.code,emailSent:false};
  if(typeof recipient!=='string'||!/^[A-Za-z0-9_.+%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(recipient))fail('ALERT_RECIPIENT_INVALID');
- const a=decision.action,kind=a.kind==='INCIDENT'?'cảnh báo vận hành':'đã phục hồi',message={from:smtp.from,to:recipient,messageId:`<groupdeal-${a.incidentId}-${a.kind.toLowerCase()}@groupdeal.thanhtan.top>`,subject:'GroupDeal Arc Testnet — '+kind,text:`GroupDeal Arc Testnet\nTrạng thái: ${a.kind}\nMã: ${a.code}\nThời điểm: ${a.observedAt}\nMã sự cố: ${a.incidentId}\nPhạm vi: HTTPS liveness và độ mới của backup.\nKết quả này không xác minh tài chính.\n`};
+ const a=decision.action,kind=a.kind==='INCIDENT'?'cảnh báo vận hành':'đã phục hồi',message={from:smtp.from,to:recipient,messageId:`<groupdeal-${a.incidentId}-${a.kind.toLowerCase()}@groupdeal.tech>`,subject:'GroupDeal Arc Testnet — '+kind,text:`GroupDeal Arc Testnet\nTrạng thái: ${a.kind}\nMã: ${a.code}\nThời điểm: ${a.observedAt}\nMã sự cố: ${a.incidentId}\nPhạm vi: HTTPS liveness và độ mới của backup.\nKết quả này không xác minh tài chính.\n`};
  let transport;
  try{
   transport=transportFactory({host:smtp.host,port:smtp.port,secure:smtp.secure,requireTLS:!smtp.secure,auth:{user:smtp.user,pass:smtp.password},connectionTimeout:10000,greetingTimeout:10000,socketTimeout:15000,logger:false,debug:false});
