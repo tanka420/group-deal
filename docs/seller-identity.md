@@ -1,5 +1,7 @@
 # Username và liên kết xã hội
 
+Trạng thái21/10/2026: GitHub/Discord đã nạp cấu hình private; consent live trong GroupDeal còn cần chính chủ. X tạm hoãn theo user vì chi phí;2biếnX đang để trống, không gọi API. Username seller24F đã là sellerlocal, không yêu cầu chọn lại. Callback hiện hành https://groupdeal.tech/seller/profile.
+
 Username được lưu riêng khỏi hồ sơ payout có chữ ký. Seller chọn một lần, 3–30 ký tự thường/số/`_`, bắt đầu bằng chữ; tên hệ thống được giữ riêng. Server chuẩn hóa chữ thường và giữ duy nhất trong giao dịch SQLite. Deal mới cần username trước khi chuẩn bị xuất bản; các intent đã tạo và nghĩa vụ của đơn cũ vẫn phục hồi như trước.
 
 Buyer có thể chọn username tùy ý tại `/account`; không có username vẫn mua và xử lý đơn như trước. Tại `/seller/profile` hoặc `/account`, seller chọn username rồi xác thực GitHub, X hoặc Discord. URL tự nhập không được dùng như bằng chứng sở hữu. OAuth authorization code dùng PKCE S256 và state ngẫu nhiên có hạn 5 phút, buộc đúng user, phiên, origin, provider và revision. Verifier được mã hóa trong DB; access token chỉ dùng trong lần gọi provider, không lưu vào DB/trình duyệt. Callback lỗi không tự đổi code lần nữa. Sau lỗi mạng, tải lại định danh để xem kết quả trước khi xác thực lại.

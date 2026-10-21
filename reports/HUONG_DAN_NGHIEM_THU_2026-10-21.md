@@ -2,21 +2,21 @@
 
 Cập nhật 21/10/2026, Asia/Saigon. Phạm vi là bản Arc Testnet theo PLAN. Các quyết định hoãn trước đây đã được mở lại. Agent đã triển khai phần nguồn có thể tự làm, kiểm build/guard/dữ liệu và chuẩn bị vận hành; dự án chưa được ghi G5/G6 đạt khi các bằng chứng người dùng/provider dưới đây còn thiếu.
 
-Tên miền chính thức từ21/10/2026: https://groupdeal.tech. DNS/HTTPS/CORS/probe/alerts đã chuyển; www và hostname cũ chuyển hướng về apex mới. Sau restart có kiểm soát, PID1452180/NRestarts0; runtime/public, ledger52/72 và95held giữ. Phiên trên origin mới cần người dùng tự đăng nhập một lần; không chuyển token từ origin cũ. Ba OAuth app vẫn chưa cấu hình; callback H1 hiện là https://groupdeal.tech/seller/profile. Circle khởi tạo thiết bị chưa thành công sau2lần thử trên Chrome, nguyên nhân chưa xác định; chưa gửi OTP hoặc chứng minh đăng nhập Circle. OneDrive có file config nhưng OAuth/drive và upload receipt chưa được xác minh, lịch offhost vẫn disabled.
+Trạng thái mới21/10/2026: tên miền https://groupdeal.tech. OneDrive đã upload/tải ngược ciphertext+manifest đúng hash; lịch mỗi giờ/phút10 và giám sát offhost đã bật. GitHub/Discord đã nạp4biến private qua guarded restart; X tạm hoãn theo user và đã tắt2biến hoạt động. PID1461981/NRestarts0, native/ledger/95held giữ. Seller24F đã có username sellerlocal; chưa có liên kết GitHub/Discord trong native. Tab Chrome đã mở login tại /seller/profile; chính chủ đăng nhập một lần rồi tự consent2provider. Circle liveOTP/principal vẫn chưa xác minh.
 
 
-Tên miền mới đã triển khai ở gói reports/evidence/domain-migration/2026-10-21T02-31-36-430Z/CHECKS.json; đọc CURRENT_G5_PREPARATION_LATEST.json và CURRENT_SOCIAL_CONFIG_PREIMAGE_LATEST.json để lấy hash hiện hành. Preimage H1 cũ trước đổi domain đã hết hiệu lực; dùng SOCIAL_CHECKS.json của gói mới.
+Gói hiện hành: reports/evidence/h1h2-connection/2026-10-21T03-00-03-449Z/CHECKS.json. Đọc CURRENT_G5_PREPARATION_LATEST.json và CURRENT_SOCIAL_CONFIG_PREIMAGE_LATEST.json ở E:/apps/group-deal/reports/evidence; dùng SOCIAL_CHECKS.json mới sau khi nạp4biến và tắtX. Không dùng preimage trước H1/H2.
 
 ## Những phần đã làm
 
 | Phần | Kết quả có bằng chứng |
 |---|---|
 | Username | Seller cần username trước publication mới; buyer chọn tùy ý tại Tài khoản. Tên chọn một lần, duy nhất toàn hệ thống. Đơn và intent cũ vẫn phục hồi được. |
-| Social | Có OAuth PKCE X/GitHub/Discord, kiểm đúng phiên/provider/origin, stable ID duy nhất, ngắt/chuyển phải xác thực lại; link công khai không phải dấu uy tín. Ba OAuth app live còn cần tài khoản chính chủ. |
+| Social | Có OAuth PKCE X/GitHub/Discord, kiểm đúng phiên/provider/origin, stable ID duy nhất, ngắt/chuyển phải xác thực lại; link công khai không phải dấu uy tín. GitHub/Discord đã nạp cấu hình, còn consent live; X tạm hoãn theo user do chi phí. |
 | UI | Tái dùng giao diện hiện hành; định danh dạng danh sách; đã kiểm fixture desktop/390px, buyer tùy chọn, VI/EN và Tab. Đã sửa thông báo lưu/lỗi đổi đúng locale. Chưa gọi đây là consent OAuth hoặc toàn bộ a11y live đã đạt. |
 | Kiểm nguồn | 60 kiểm định danh, 35 case backup/probe/alert, 10 case nâng runtime và các regression auth/profile/product/wallet/SQLite phù hợp đã đạt. Không chạy lại full CI không cần thiết. |
 | Runtime | Nâng qua snapshot/admission và đối soát cùng block HEALTHY, giữ ledger52flows/72reservations, 95held và các đơn cũ. Backup mới đã phục hồi riêng thành công. |
-| OneDrive | Đã cài rclone, uploader chỉ thêm ciphertext/manifest và tải ngược so SHA-256, unit lịch và hỗ trợ cảnh báo. Chưa có OAuth Microsoft nên chưa upload và lịch offhost giữ disabled. Giữ3backup managed cục bộ. |
+| OneDrive | Đã cài rclone, uploader chỉ thêm ciphertext/manifest và tải ngược so SHA-256, unit lịch và hỗ trợ cảnh báo. Microsoft đã consent; upload/tải ngược archive+manifest đúng hash, lịch offhost enabled và giám sát active. Giữ3backup managed cục bộ. |
 | SDK | Gói SDK thật đã được cài offline vào consumer riêng trên Windows, gọi API live chỉ đọc và kiểm guard401. Chưa thay bằng chứng receiver/provider giao hàng thật. |
 | Circle | Hai route EURC→USDC/cirBTC→USDC đã trả quote hợp lệ cho lượng minh họa. Quote này ngắn hạn, đã hết hạn; chưa có OTP, intent GroupDeal hoặc giao dịch mới. |
 | Safe | 14 readback authority tại finalized block đạt. Khai báo T/A/N giữ và khôi phục riêng được giữ nguyên. Chữ ký18Oct chỉ là lịch sử; chưa fresh control cho candidate cuối. |
@@ -38,23 +38,25 @@ Tên miền mới đã triển khai ở gói reports/evidence/domain-migration/2
 | Safe owner A | 0x7366adbf19e511095e7737138498f625d737db22 |
 | Safe owner N | 0xc289b853d90f2c604fd38458b1ce4b991156d18b |
 
-## H1 — Username và tài khoản X/GitHub/Discord
+## H1 — GitHub/Discord; X tạm hoãn theo yêu cầu người dùng
 
-1. Dùng seller mở [Hồ sơ seller](https://groupdeal.tech/seller/profile), chọn username muốn dùng lâu dài rồi lưu. Username 3–30 ký tự thường/số/dấu _, bắt đầu bằng chữ, chọn một lần. Buyer có thể chọn tại [Tài khoản](https://groupdeal.tech/account); không bắt buộc để mua.
-2. Trong tài khoản developer chính chủ, tạo ba OAuth app theo bảng dưới. Từng seller không phải liên kết đủ3dịch vụ; nhưng để kiểm nền tảng hỗ trợ cả3, cần cấu hình app và consent của cả3provider. Callback chính xác cho cả3: https://groupdeal.tech/seller/profile. Không dùng wildcard.
+1. Seller0x24F0…7580 đã có username sellerlocal, không cần chọn lại. Mở [Hồ sơ seller](https://groupdeal.tech/seller/profile), tự đăng nhập một lần sau đợt nạp cấu hình. Buyer vẫn có thể chọn username tùy ý tại [Tài khoản](https://groupdeal.tech/account).
+2. GitHub và Discord đã có biến private trên VPS và ứng dụng đã nạp. Không cần nhập lại nếu không có lỗi cụ thể. X tạm hoãn vì chi phí theo user; đã tắt cấu hình hoạt động, không yêu cầu nạp credit hoặc consent X. Callback GitHub/Discord chính xác: https://groupdeal.tech/seller/profile. Bảng sau giữ tham chiếu kỹ thuật cho từng provider.
 
 | App | Cấu hình | Hai biến private backend |
 |---|---|---|
 | [GitHub OAuth App](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps) | Homepage https://groupdeal.tech; scope read:user | GROUPDEAL_SOCIAL_GITHUB_CLIENT_ID / GROUPDEAL_SOCIAL_GITHUB_CLIENT_SECRET |
-| [X OAuth2](https://docs.x.com/fundamentals/authentication/oauth-2-0/authorization-code) | Web/confidential client; users.read tweet.read | GROUPDEAL_SOCIAL_X_CLIENT_ID / GROUPDEAL_SOCIAL_X_CLIENT_SECRET |
+| [X OAuth2](https://docs.x.com/fundamentals/authentication/oauth-2-0/authorization-code) | Tạm hoãn theo user; cấu hình hoạt động đã tắt | GROUPDEAL_SOCIAL_X_CLIENT_ID / GROUPDEAL_SOCIAL_X_CLIENT_SECRET |
 | [Discord OAuth2](https://docs.discord.com/developers/topics/oauth2) | OAuth2 application; identify | GROUPDEAL_SOCIAL_DISCORD_CLIENT_ID / GROUPDEAL_SOCIAL_DISCORD_CLIENT_SECRET |
 
-3. Nhập giá trị thật qua SSH/private editor vào backend/.env của runtime: /home/ubuntu/groupdeal/releases/47d853f79ff5c2b1c8ac7f0f8163ca613fb82d9a/backend/.env, giữ ownerubuntu/mode600 và các dòng khác. Không thêm VITE_, không gửi nội dung vào chat. Agent phải ghim preimage/cấu hình trước, kiểm diff riêng6biến rồi restart theo quy trình; anh chỉ cần báo đã nhập xong. Không chạy app local bằng file này.
-4. Khi agent xác nhận cấu hình đã hoạt động, tự bấm xác thực từng provider, đăng nhập/đồng ý quyền tại provider và quay lại đúng tab. Agent kiểm link/ID/thời điểm và hồ sơ công khai. Kiểm một lần hủy consent, ngắt rồi xác thực lại; dùng tài khoản UAT riêng để chứng minh không thể gắn cùng social ID sang account khác khi chưa ngắt. Seller chỉ có UNLISTED chưa xuất hiện ở hồ sơ public theo policy hiện hành; agent dùng campaign UAT PUBLIC riêng để kiểm, không đổi campaign5 đã xong.
+3. Agent đã kiểm fingerprint và nạp4biến GROUPDEAL_SOCIAL_{GITHUB|DISCORD}_CLIENT_ID/_CLIENT_SECRET. Private backend.env vẫn ownerubuntu/mode600; không đưa vào VITE_ hoặc chat. Nếu cần đổi credential sau này, báo agent ghim preimage mới trước rồi chỉ sửa4biến này. X giữ trống đến khi user mở lại; không tự restart ngoài guard.
+4. Khi agent xác nhận cấu hình đã hoạt động, tự bấm xác thực GitHub và Discord, đăng nhập/đồng ý quyền tại provider và quay lại đúng tab. Agent kiểm link/ID/thời điểm và hồ sơ công khai. Kiểm một lần hủy consent, ngắt rồi xác thực lại; dùng tài khoản UAT riêng để chứng minh không thể gắn cùng social ID sang account khác khi chưa ngắt. Seller chỉ có UNLISTED chưa xuất hiện ở hồ sơ public theo policy hiện hành; agent dùng campaign UAT PUBLIC riêng để kiểm, không đổi campaign5 đã xong.
 
-Anh cần gửi lại: username đã chọn, provider nào đã cấu hình/cấp quyền, kết quả UI hoặc mã lỗi đã bỏ bí mật. Không gửi secret/code/token.
+Anh cần gửi lại: username đã chọn, GitHub/Discord nào đã liên kết thành công trong GroupDeal, kết quả UI hoặc mã lỗi đã bỏ bí mật. Không gửi secret/code/token.
 
 ## H2 — Kết nối OneDrive
+
+**H2 đã hoàn tất phần kết nối/upload/lịch/giám sát**: lần đầu đã upload và tải ngược archive18.657.196bytes cùng manifest861bytes, kích thước/SHA-256 trùng. Timer chạy phút10 mỗi giờ; probe kiểm receipt thiếu/sai/quá150phút. Không cần consent lại. Các bước cấu hình bên dưới chỉ dùng khi cần cấu hình lại; không còn yêu cầu diễn tập phục hồi hoặc người nhập khóa.
 
 Quyết định trực tiếp của người dùng21/10/2026: bỏ diễn tập phục hồi backup và đo RPO/RTO khỏi điều kiện nghiệm thu. Không còn yêu cầu chọn máy/thư mục phục hồi hoặc người nhập khóa. Đây là yêu cầu được miễn theo user, không phải bằng chứng đã phục hồi thành công. Giữ backup mã hóa, kiểm private-restore tự động hiện có, OneDrive consent/upload/tải ngược so hash, lịch và giám sát; không thay đổi các nghĩa vụ transaction recovery/reconciliation, G5/G6 khác.
 
@@ -78,11 +80,11 @@ Remote tên gd_onedrive, storage onedrive, client_id/client_secret để trống
 
 4. Sau khi Microsoft báo thành công, quay lại shell VPS. Chọn mục có nhãn OneDrive Personal or Business/onedrive (thường số1). Trong danh sách drive, chọn đúng drive cá nhân/doanh nghiệp của mình theo tên/URL; không đoán số vì có thể là0 hoặc1. Xác nhận Drive OK?/Is that okay?=y. Ở Keep this gd_onedrive remote?/y/e/d>, chọn y; về menu chính chọn q. Bảng xác nhận có thể chứa token: không chụp hoặc dán bảng đó.
 
-5. Chỉ cần báo “Đã cấu hình gd_onedrive”. Agent kiểm quyền file/drive binding, chạy upload đầu, tải ngược archive+manifest so SHA-256/kích thước. Khi đạt mới bật lịch phút10 mỗi giờ và giám sát. File rclone.conf tồn tại chưa đủ chứng minh OAuth/drive đã cấu hình xong; hiện đã thấy file được tạo nhưng chưa có receipt upload.
+5. Chỉ cần báo “Đã cấu hình gd_onedrive”. Agent kiểm quyền file/drive binding, chạy upload đầu, tải ngược archive+manifest so SHA-256/kích thước. Khi đạt mới bật lịch phút10 mỗi giờ và giám sát. File rclone.conf tồn tại chưa đủ chứng minh OAuth/drive đã cấu hình xong; hiện đã có receipt upload/round-trip đạt và lịch đã bật.
 
 6. Truy cập [OneDrive trên web](https://onedrive.live.com/) bằng cùng tài khoản vừa consent, vào Tệp của tôi → GroupDeal → ArcTestnet → 5d27a82a-100e-41cb-b6a0-d8326e1538f1. Đường dẫn rclone: gd_onedrive:GroupDeal/ArcTestnet/5d27a82a-100e-41cb-b6a0-d8326e1538f1/. Thư mục backup được tạo trong lần upload thành công đầu tiên; trước đó có thể chưa thấy. Đây là thư mục riêng của tài khoản, không cần tạo link công khai.
 
-Anh cần gửi lại: “Đã cấu hình gd_onedrive”, hoặc tên prompt/mã lỗi đang gặp đã bỏ bí mật. Không còn yêu cầu máy phục hồi/khóa phục hồi trong H2.
+H2 hiện không còn thao tác chính chủ đang chờ. Chỉ báo mã lỗi đã bỏ bí mật nếu OneDrive bị thu hồi quyền hoặc hết dung lượng; không gửi config/token/khóa.
 
 ## H3 — Operator, quyền tài khoản, sản phẩm và hộp thư
 

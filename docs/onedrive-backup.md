@@ -1,5 +1,10 @@
 # Backup OneDrive
 
+## Trạng thái21/10/2026
+
+Remote gd_onedrive đã cấu hình, first ciphertext/manifest round-trip verified; timer phút10 mỗi giờ và health-probe offhost đã bật. Không cần Microsoft consent lại. Receipt trong operations/offhost/LATEST.json là nguồn quan sát hiện hành. Đã sửa lỗi rclone1.60/OneDrive trả exit0/null cho object thiếu: parser kiểm JSON/name/IsDir/size, null nghĩa là cần upload; kết quả sai dạng bị chặn.12offhosttests đạt trước deploy. Không thay quy tắc chỉ thêm mới hoặc tải ngược so hash.
+
+
 Giữ 3 archive mã hóa đã kiểm trên VPS. Bản trên OneDrive dùng tên riêng theo owner của bộ backup và chỉ thêm mới; job không xóa remote, không sync/move, không tải `.env`, khóa giải mã hoặc cấu hình OAuth lên cloud. Cần theo dõi dung lượng OneDrive vì chưa bật dọn tự động trên cloud.
 
 `hosted_offhost_backup.cjs` chỉ nhận `LATEST.json` hợp lệ của bộ backup cục bộ, yêu cầu private restore đã đạt và ciphertext còn đúng hash. Sau upload, nó tải ngược archive và manifest để so kích thước/SHA-256 rồi mới ghi receipt offhost. Lặp cùng bản không ghi đè; nội dung remote khác hash bị từ chối. Nó không mở DB ứng dụng và không bật writer/worker.
