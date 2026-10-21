@@ -1,0 +1,6 @@
+# Preserve the published CSV Studio package bytes on every checkout platform.
+samples/license-key-csv-studio/*.html text eol=lf
+samples/license-key-csv-studio/*.txt text eol=lf
+samples/license-key-csv-studio/*.json text eol=lf
+# The sample CSV intentionally contains a UTF-8 BOM and CRLF records.
+samples/license-key-csv-studio/*.csv -text
