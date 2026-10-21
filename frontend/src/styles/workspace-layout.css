@@ -131,8 +131,8 @@
 }
 @media (max-width: 767px) {
  :root { --workspace-gutter: 16px; }
- .header .header-inner { display: flex; padding: 12px 16px; gap: 8px; }
- .header .header-brand { flex: 1; }
+ .header .header-inner { display: flex; flex-wrap: wrap; padding: 12px 16px; gap: 8px; }
+ .header .header-brand { flex: 1 0 auto; }
  .header .desktop-navigation { display: none; }
  .header .mobile-menu-button { display: inline-flex; flex-shrink: 0; margin-left: auto; min-width: 44px; min-height: 44px; padding: 10px; }
  .header .header-actions, .header .account-dropdown-wrapper { gap: 8px; }

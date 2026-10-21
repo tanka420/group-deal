@@ -1,3 +1,4 @@
+import {emptyCatalog} from './fixtures/catalog';
 import { test, expect, Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 const catalogHub=JSON.parse(readFileSync(new URL("../../shared/contracts.json",import.meta.url),"utf8")).contracts.GroupDealHub.address;
@@ -84,8 +85,8 @@ test("catalogue API failure offers retry and does not masquerade as empty data",
   let fail=true;
   await page.route("**/api/health",r=>r.fulfill({contentType:"application/json",body:'{}'}));
   await page.route("https://fonts.googleapis.com/**",r=>r.fulfill({contentType:"text/css",body:""}));
-  await page.route("**/api/v1/catalog?*",r=>r.fulfill(fail ? {status:503,body:"offline"}:{json:{version:"1.0",chainId:5042002,hubAddress:catalogHub,amountEncoding:"USDC base-unit integer strings (6 decimals)",filters:{q:"",category:"",status:null,metric:null,sort:"newest"},campaigns:[],categoriesScope:"PUBLIC_CURRENT_DEPLOYMENT",categories:[],pagination:{limit:12,sort:"newest",hasMore:false,nextCursor:null},summary:{scope:"MATCHING_PUBLIC_CURRENT_DEPLOYMENT",campaignCount:0,openCampaignCount:0,totalGrossCommitted:"0",projection:{source:"INDEXER",financialStateChainVerified:false,fetchedAt:Date.now()}}}}));
-  await page.goto("/");
+  await page.route("**/api/v1/catalog?*",r=>r.fulfill(fail ? {status:503,body:"offline"}:{json:emptyCatalog(r.request().url(),catalogHub)}));
+  await page.goto("/explore");
   await expect(page.getByRole("alert")).toContainText("Chưa tải được danh sách chiến dịch");
   await expect(page.getByRole("heading",{name:"Chưa có chiến dịch phù hợp",exact:true})).toHaveCount(0);
   fail=false;
