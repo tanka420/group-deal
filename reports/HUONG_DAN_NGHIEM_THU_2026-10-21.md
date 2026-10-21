@@ -2,7 +2,10 @@
 
 Cập nhật 21/10/2026, Asia/Saigon. Phạm vi là bản Arc Testnet theo PLAN. Các quyết định hoãn trước đây đã được mở lại. Agent đã triển khai phần nguồn có thể tự làm, kiểm build/guard/dữ liệu và chuẩn bị vận hành; dự án chưa được ghi G5/G6 đạt khi các bằng chứng người dùng/provider dưới đây còn thiếu.
 
-Readback08:03 ngày21/10: runtime/public/ledger/backup khớp hồ sơ. Agent đã nối đúng Chrome và xác nhận seller24F đang đăng nhập ở Hồ sơ seller; không cần đăng nhập seller lại. Username còn trống, ba OAuth app chưa cấu hình. Realm quản trị riêng chưa đăng nhập. OneDrive chưa có cấu hình Microsoft/receipt, lịch vẫn tắt. H1 và H2 đang chờ thông tin/thao tác chính chủ; các bước sau consent vẫn do agent xử lý.
+Tên miền chính thức từ21/10/2026: https://groupdeal.tech. DNS/HTTPS/CORS/probe/alerts đã chuyển; www và hostname cũ chuyển hướng về apex mới. Sau restart có kiểm soát, PID1452180/NRestarts0; runtime/public, ledger52/72 và95held giữ. Phiên trên origin mới cần người dùng tự đăng nhập một lần; không chuyển token từ origin cũ. Ba OAuth app vẫn chưa cấu hình; callback H1 hiện là https://groupdeal.tech/seller/profile. Circle khởi tạo thiết bị chưa thành công sau2lần thử trên Chrome, nguyên nhân chưa xác định; chưa gửi OTP hoặc chứng minh đăng nhập Circle. OneDrive có file config nhưng OAuth/drive và upload receipt chưa được xác minh, lịch offhost vẫn disabled.
+
+
+Tên miền mới đã triển khai ở gói reports/evidence/domain-migration/2026-10-21T02-31-36-430Z/CHECKS.json; đọc CURRENT_G5_PREPARATION_LATEST.json và CURRENT_SOCIAL_CONFIG_PREIMAGE_LATEST.json để lấy hash hiện hành. Preimage H1 cũ trước đổi domain đã hết hiệu lực; dùng SOCIAL_CHECKS.json của gói mới.
 
 ## Những phần đã làm
 
@@ -37,12 +40,12 @@ Readback08:03 ngày21/10: runtime/public/ledger/backup khớp hồ sơ. Agent đ
 
 ## H1 — Username và tài khoản X/GitHub/Discord
 
-1. Dùng seller mở [Hồ sơ seller](https://groupdeal.thanhtan.top/seller/profile), chọn username muốn dùng lâu dài rồi lưu. Username 3–30 ký tự thường/số/dấu _, bắt đầu bằng chữ, chọn một lần. Buyer có thể chọn tại [Tài khoản](https://groupdeal.thanhtan.top/account); không bắt buộc để mua.
-2. Trong tài khoản developer chính chủ, tạo ba OAuth app theo bảng dưới. Từng seller không phải liên kết đủ3dịch vụ; nhưng để kiểm nền tảng hỗ trợ cả3, cần cấu hình app và consent của cả3provider. Callback chính xác cho cả3: https://groupdeal.thanhtan.top/seller/profile. Không dùng wildcard.
+1. Dùng seller mở [Hồ sơ seller](https://groupdeal.tech/seller/profile), chọn username muốn dùng lâu dài rồi lưu. Username 3–30 ký tự thường/số/dấu _, bắt đầu bằng chữ, chọn một lần. Buyer có thể chọn tại [Tài khoản](https://groupdeal.tech/account); không bắt buộc để mua.
+2. Trong tài khoản developer chính chủ, tạo ba OAuth app theo bảng dưới. Từng seller không phải liên kết đủ3dịch vụ; nhưng để kiểm nền tảng hỗ trợ cả3, cần cấu hình app và consent của cả3provider. Callback chính xác cho cả3: https://groupdeal.tech/seller/profile. Không dùng wildcard.
 
 | App | Cấu hình | Hai biến private backend |
 |---|---|---|
-| [GitHub OAuth App](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps) | Homepage https://groupdeal.thanhtan.top; scope read:user | GROUPDEAL_SOCIAL_GITHUB_CLIENT_ID / GROUPDEAL_SOCIAL_GITHUB_CLIENT_SECRET |
+| [GitHub OAuth App](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps) | Homepage https://groupdeal.tech; scope read:user | GROUPDEAL_SOCIAL_GITHUB_CLIENT_ID / GROUPDEAL_SOCIAL_GITHUB_CLIENT_SECRET |
 | [X OAuth2](https://docs.x.com/fundamentals/authentication/oauth-2-0/authorization-code) | Web/confidential client; users.read tweet.read | GROUPDEAL_SOCIAL_X_CLIENT_ID / GROUPDEAL_SOCIAL_X_CLIENT_SECRET |
 | [Discord OAuth2](https://docs.discord.com/developers/topics/oauth2) | OAuth2 application; identify | GROUPDEAL_SOCIAL_DISCORD_CLIENT_ID / GROUPDEAL_SOCIAL_DISCORD_CLIENT_SECRET |
 
@@ -83,16 +86,16 @@ Anh cần gửi lại: “Đã cấu hình gd_onedrive”, hoặc tên prompt/m�
 
 ## H3 — Operator, quyền tài khoản, sản phẩm và hộp thư
 
-1. Dùng ví operator đăng nhập [Quản trị](https://groupdeal.thanhtan.top/admin) đúng realm quản trị và tự ký login. Agent đọc capability trước khi chuẩn bị thay đổi. Quyền admin live đã được anh mở lại; không cần xin lại ngoại lệ FILE_LINK.
-2. Dành một tài khoản UAT do anh kiểm soát cho [Người dùng](https://groupdeal.thanhtan.top/admin/users). Agent chuẩn bị grant/revoke seller và restrict/restore trên tài khoản này, đọc rõ target/action/reason; anh tự ký step-up khi UI yêu cầu. Không dùng account thật khác hoặc dữ liệu đơn đã xong để thử hạn chế quyền.
-3. Agent chuẩn bị đúng sản phẩm/rights/campaign UAT mới cần thiết; anh xác nhận quyền phân phối thật, tự upload tài nguyên/ảnh khi cần và tự ký quyết định tại [Xác minh](https://groupdeal.thanhtan.top/admin/verifications). Kiểm quyền mới bị chặn đúng chỗ, còn nghĩa vụ cũ vẫn xử lý được. Không duyệt mù hoặc tự gán badge.
+1. Dùng ví operator đăng nhập [Quản trị](https://groupdeal.tech/admin) đúng realm quản trị và tự ký login. Agent đọc capability trước khi chuẩn bị thay đổi. Quyền admin live đã được anh mở lại; không cần xin lại ngoại lệ FILE_LINK.
+2. Dành một tài khoản UAT do anh kiểm soát cho [Người dùng](https://groupdeal.tech/admin/users). Agent chuẩn bị grant/revoke seller và restrict/restore trên tài khoản này, đọc rõ target/action/reason; anh tự ký step-up khi UI yêu cầu. Không dùng account thật khác hoặc dữ liệu đơn đã xong để thử hạn chế quyền.
+3. Agent chuẩn bị đúng sản phẩm/rights/campaign UAT mới cần thiết; anh xác nhận quyền phân phối thật, tự upload tài nguyên/ảnh khi cần và tự ký quyết định tại [Xác minh](https://groupdeal.tech/admin/verifications). Kiểm quyền mới bị chặn đúng chỗ, còn nghĩa vụ cũ vẫn xử lý được. Không duyệt mù hoặc tự gán badge.
 4. Dùng email/hộp thư anh có thể tự mở để xác minh contact và nhận thông báo nghiệp vụ thật; bật preference trong Tài khoản, thực hiện ticket/reply của chính mình theo màn agent chuẩn bị, rồi xác nhận đã nhận. Không gửi OTP/mail token/nội dung riêng. SMTP test hoặc outbox SENT chưa đủ để khẳng định đã tới inbox nghiệp vụ.
 
 Anh cần gửi lại: đã đăng nhập operator, accountUAT được chọn, inbox nào anh tự kiểm được (chỉ cung cấp khi cần gửi đúng người) và kết quả nhận thư/step-up. Agent xử lý UI, kiểm ACL/audit/outbox và receipt; anh không phải tự gọi API.
 
 ## H4 — Circle và các nhánh giao dịch thật còn thiếu
 
-1. Chọn tài khoản Circle/email thật đang sử dụng và tự OTP trong GroupDeal ở [Ví](https://groupdeal.thanhtan.top/wallet). Agent phải xác minh Circle user/wallet/principal đúng; đăng nhập OKX không chứng minh embedded Circle đã đạt.
+1. Chọn tài khoản Circle/email thật đang sử dụng và tự OTP trong GroupDeal ở [Ví](https://groupdeal.tech/wallet). Agent phải xác minh Circle user/wallet/principal đúng; đăng nhập OKX không chứng minh embedded Circle đã đạt.
 2. Chốt lượng muốn dùng và ngân sách/phí tối đa cho gói UAT mới trước khi tạo intent/giao dịch. Agent lấy quote mới, đọc chain/balance/allowance/nonce/pending/gas và trình bày giá/phí trước; quote minh họa đã lưu không được dùng để ký. Anh tự kiểm màn ví, chấp nhận điều khoản và tự ký. RPC estimate không phải trần phí của OKX.
 3. Agent lập một gói tối thiểu cho những nhánh thật sự thiếu: early on/cap/rebuy/sold-out, quyền ví, partial/dispute/fallback/recovery hoặc Circle/bridge cần actor thật theo ma trận. Tái sử dụng receipt đúng phạm vi; không tạo giao dịch mới cho nhánh đã có proof phù hợp, không làm lại order1–6. Rủi ro/budget/call của từng giao dịch mới phải rõ trước khi anh ký.
 4. Khi kiểm reload/tab/phiên/thiết bị khác, giữ cùng operation/intent/hash. Chỉ chuyển bước khi agent đọc chain và native khớp; nếu đã gửi, báo hash/trạng thái, không ký lại hoặc mua/rút lại. Báo thiết bị/trình duyệt thực sự đã dùng; không coi hai tab là cross-device.
@@ -103,7 +106,7 @@ Anh cần gửi lại: tài khoản/loại ví, lượng và ngân sách đượ
 
 1. Cung cấp host/endpoint HTTPS và aliasSSH do anh kiểm soát, độc lập với VPS GroupDeal, hoặc quyền triển khai tương ứng. Node receiver mẫu cần Node>=22.13 và SQLite inbox bền vững. Không đưa private key/token vào chat.
 2. Chọn sản phẩm/provider giao quyền thật anh được phép vận hành, cùng cách nhập credential riêng tại host. Agent đã có gói SDK cài được và receiver mẫu; sẽ triển khai từ package đã ghim, không yêu cầu anh tự viết tích hợp.
-3. Agent tạo subscription mới qua [Tích hợp seller](https://groupdeal.thanhtan.top/seller/integrations), lưu secret riêng, kiểm raw-body HMAC/dedup, delivery/receipt thật và outage/retry/DLQ có kiểm soát trên đúng các job mới. HTTP202/inbox insert chưa tự chứng minh buyer dùng được entitlement; phải có business effect/provider proof tương ứng. Giữ95heldjobs cũ.
+3. Agent tạo subscription mới qua [Tích hợp seller](https://groupdeal.tech/seller/integrations), lưu secret riêng, kiểm raw-body HMAC/dedup, delivery/receipt thật và outage/retry/DLQ có kiểm soát trên đúng các job mới. HTTP202/inbox insert chưa tự chứng minh buyer dùng được entitlement; phải có business effect/provider proof tương ứng. Giữ95heldjobs cũ.
 4. Anh tự login/ký giao hàng nếu sản phẩm cần receipt onchain, và tự kiểm entitlement đã dùng được. Agent lưu metadata/hash/ack đã bỏ bí mật, không lưu secret sản phẩm vào bằng chứng.
 
 Anh cần gửi lại: host/HTTPS/quyền triển khai và provider/sản phẩm được chọn; credential nhập qua kênh riêng khi agent chuẩn bị xong.
@@ -111,7 +114,7 @@ Anh cần gửi lại: host/HTTPS/quyền triển khai và provider/sản phẩm
 ## H6 — Safe và review cuối
 
 1. T/A/N đã xác nhận mỗi người chỉ khôi phục ví của mình; không hỏi lại câu cũ “1 người”. Agent ghim candidate cuối sau các bước trên, recheck authority/nonce/modules/expiry rồi mới chuẩn bị challenge mới. Chữ ký và tệp OWNER18Oct đã hết hạn, không dùng như proof mới.
-2. Với gói control-only mới, T(73307bdd…50b6d) và một trong A(7366adbf…7db22)/N(c289b853…6d18b) tự ký đúng message của mình. Không phải đăng nhập GroupDeal bằng hai ví. Trang [Safe owner control](https://groupdeal.thanhtan.top/safe-owner-control/index.html) hiện tồn tại, nhưng phải chờ agent cấp/kiểm context mới trước khi dùng; không ký challenge cũ. Gửi JSON owner/signature của message mới, không seed/private key. Control-message không phải giao dịch hay Safe execution.
+2. Với gói control-only mới, T(73307bdd…50b6d) và một trong A(7366adbf…7db22)/N(c289b853…6d18b) tự ký đúng message của mình. Không phải đăng nhập GroupDeal bằng hai ví. Trang [Safe owner control](https://groupdeal.tech/safe-owner-control/index.html) hiện tồn tại, nhưng phải chờ agent cấp/kiểm context mới trước khi dùng; không ký challenge cũ. Gửi JSON owner/signature của message mới, không seed/private key. Control-message không phải giao dịch hay Safe execution.
 3. Nếu ma trận còn thiếu emergency/partial-allocation live, agent chuẩn bị gói Safe riêng cho campaign UAT mới, nêu nonce/calldata/budget và kết quả mong đợi. Đúng owner tự ký và tự gửi theo gói; không đổi owner/quorum hoặc cancel campaign đã hoàn tất để tạo proof.
 4. Sắp người rà soát độc lập đúng source/manifest/evidence cuối. Agent chuẩn bị packet/review chỉ đọc; người có trách nhiệm nghiệm thu ký nhận G6 khi issue bắt buộc đã đóng. Không dùng chữ ký control hay nhãnT/A/N thay cho review G6.
 
