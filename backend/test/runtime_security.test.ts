@@ -27,7 +27,7 @@ console.log("PASS Arc runtime rejects development/default/missing/reused secrets
 store.db.users.sessionUser={id:"sessionUser",email:"user@fixture.invalid",roles:["buyer"],createdAt:0,activeWallet:null};
 store.save();
 function request(token:string):{code:number;next:boolean} {
-  let code=0,next=false;authMiddleware({headers:{authorization:`Bearer ${token}`}} as any,{status:(value:number)=>{code=value;return {json:()=>{}};}} as any,()=>{next=true;});return {code,next};
+  let code=0,next=false;authMiddleware({originalUrl:'/api/auth/me',method:'GET',headers:{authorization:`Bearer ${token}`}} as any,{status:(value:number)=>{code=value;return {json:()=>{}};}} as any,()=>{next=true;});return {code,next};
 }
 assert.equal(request(jwt.sign({userId:"sessionUser"},config.jwtSecret,{expiresIn:"1h"})).next,true);
 assert.equal(request(jwt.sign({userId:"sessionUser"},config.jwtSecret,{algorithm:"HS384",expiresIn:"1h"})).code,401);

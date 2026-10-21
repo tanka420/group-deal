@@ -35,9 +35,9 @@ async function main() {
   const probe=ResourceDeliveryService.probe("seller",resource.id,"LICENSE_KEY");
   store.db.campaigns.stable={id:"stable",sellerId:"seller",sellerPayoutWallet:seller,status:"FINALIZED",onchainCampaignId:1,chainId:config.arcChainId,hubAddress:config.hubAddress,productSnapshot:snapshot,deliveryMethod:"LICENSE_KEY",deliveryProbeId:probe.id,deliverySlaSeconds:86400,finalizedAt:Math.floor(Date.now()/1000)} as any;
   store.db.orders["1"]={id:"1",campaignId:"stable",chainId:config.arcChainId,hubAddress:config.hubAddress,onchainOrderId:1,buyerAccountId:"buyer",buyerPrincipal:buyer,quantity:2,deliveryStatus:"PENDING",txHash:ethers.id("commit"),committedGross:"2000000",rebateAllocated:"0",sellerAllocated:"0",buyerRefundAllocated:"0",buyerClaimedAmount:"0",sellerClaimedAmount:"0"} as any;
-  store.save();const operation=ResourceDeliveryService.prepare("seller","1","delivery:fixture-operation");
+  store.save();const operation=await ResourceDeliveryService.prepare("seller","1","delivery:fixture-operation");
   assert.ok(!JSON.stringify(operation).includes("stagedEntitlementEncrypted"));
-  assert.equal(ResourceDeliveryService.prepare("seller","1","delivery:fixture-operation").id,operation.id);
+  assert.equal((await ResourceDeliveryService.prepare("seller","1","delivery:fixture-operation")).id,operation.id);
   assert.throws(()=>ResourceDeliveryService.prepare("seller","1","different:operation"),/another staged/);
   assert.equal(Object.values(store.db.resourceGrants).length,2);assert.equal(Object.values(store.db.licenseInventory).filter(k=>k.status==="RESERVED").length,2);
   assert.equal(ResourceDeliveryService.list("buyer","1").length,0);

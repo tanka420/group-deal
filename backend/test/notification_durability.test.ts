@@ -139,7 +139,7 @@ async function run() {
   await runAcl(owner,other,fail.id,visible.notification!.id);
   console.log("PASS NOTIFICATION_DURABILITY: 10 scoped checks; local fixtures, no live mail or original DB mutation");
 }
-const fixtureTokens=new Map<string,string>();const tokenFor=(id:string)=>{let token=fixtureTokens.get(id);if(!token){token=SessionService.issue(store.db.users[id]);fixtureTokens.set(id,token);}return token;};
+const fixtureTokens=new Map<string,string>();const tokenFor=(id:string)=>{let token=fixtureTokens.get(id);if(!token){token=SessionService.issue(store.db.users[id],undefined,store.db.users[id].roles.includes('operator')?'ADMIN':undefined);fixtureTokens.set(id,token);}return token;};
 const proofFor=(id:string)=>SessionService.authenticate(tokenFor(id));
 async function runAcl(owner:string,other:string,failId:string,visibleId:string){
   const operator=user();store.db.users[operator].roles=["operator"];

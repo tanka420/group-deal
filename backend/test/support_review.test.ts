@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import {ethers} from "ethers";
 import {store} from "../src/db/store";
 import {config} from "../src/config";
+import {SessionService} from '../src/services/sessionService';
 import {orderRouter} from "../src/routes/orderRoutes";
 import {sellerRouter} from "../src/routes/sellerRoutes";
 import {operatorRouter} from "../src/routes/operatorRoutes";
@@ -20,10 +21,10 @@ async function run(){
   store.db.campaigns.campaign={id:"campaign",sellerId:"seller",status:"FINALIZED",sellerPayoutWallet:store.db.users.seller.activeWallet,onchainCampaignId:1,chainId:config.arcChainId,hubAddress:config.hubAddress} as any;
   const order={id:"order",campaignId:"campaign",buyerAccountId:"buyer",buyerPrincipal:store.db.users.buyer.activeWallet,campaignIdentity:ethers.id("fixture-identity"),chainId:config.arcChainId,hubAddress:config.hubAddress,protocolVersion:config.protocolVersion,onchainOrderId:1,quantity:1,lockedUnitPrice:"100000000",committedGross:"100000000",rebateAllocated:"10000000",sellerAllocated:"90000000",buyerRefundAllocated:"0",buyerClaimedAmount:"0",sellerClaimedAmount:"0",deliveryStatus:"CONFIRMED",deliveryProofHash:ethers.id("fixture-proof"),deliveryTxHash:ethers.id("fixture-delivery"),txHash:ethers.id("fixture-commit"),commitmentTxHash:ethers.id("fixture-commit"),isEarlySupporter:false,earlyRebateValue:"0",createdAt:0,deliveredEntitlementEncrypted:"fixture-private-ciphertext",entitlementEncrypted:"fixture-private-legacy",privateExtension:"fixture-private-extension",transactionHistory:[{action:"DeliveryRecorded",txHash:ethers.id("fixture-delivery"),blockNumber:2,blockHash:ethers.id("fixture-block"),logIndex:0,chainId:config.arcChainId,hubAddress:config.hubAddress,licenseKey:"fixture-private-nested"}]} as any;
   store.db.orders.order=order;installReviewLineage(store,"order");store.db.orders.pending={...order,id:"pending",onchainOrderId:2,deliveryStatus:"PENDING"};store.db.orders.unverified={...order,id:"unverified",onchainOrderId:3,deliveryTxHash:undefined};store.save();
-  await enrollFixtureOperator('operator',undefined,{chainId:config.arcChainId});
+  const operatorToken=SessionService.issue(store.db.users.operator,undefined,'ADMIN');await enrollFixtureOperator('operator',SessionService.authenticate(operatorToken),{chainId:config.arcChainId});
   const financialBefore=JSON.stringify([order.committedGross,order.rebateAllocated,order.sellerAllocated,order.buyerRefundAllocated,order.buyerClaimedAmount,order.sellerClaimedAmount]);
   const app=express();app.use(express.json());app.use("/api/orders",orderRouter);app.use("/api/seller",sellerRouter);app.use("/api/operator",operatorRouter);const server=app.listen(0,"127.0.0.1");await new Promise<void>(resolve=>server.once("listening",resolve));const base="http://127.0.0.1:"+(server.address() as any).port;
-  const request=(path:string,user="buyer",body?:unknown)=>fetch(base+path,{method:body===undefined?"GET":"POST",headers:{Authorization:"Bearer "+jwt.sign({userId:user,roles:["operator"]},config.jwtSecret,{expiresIn:"2m"}),"Content-Type":"application/json"},...(body===undefined?{}:{body:JSON.stringify(body)})});
+  const request=(path:string,user="buyer",body?:unknown)=>fetch(base+path,{method:body===undefined?"GET":"POST",headers:{Authorization:"Bearer "+(user==='operator'?operatorToken:jwt.sign({userId:user,roles:["operator"]},config.jwtSecret,{expiresIn:"2m"})),"Content-Type":"application/json"},...(body===undefined?{}:{body:JSON.stringify(body)})});
   const safe=(body:any)=>assert.ok(!JSON.stringify(body).includes("fixture-private"),"Order responses must omit entitlement, unknown legacy and nested private fields");
   try{
     for(const unsafe of ["javascript:alert(1)","data:text/html,test","http://fixture.invalid/evidence","https://user:pass@fixture.invalid/evidence",null,"wrong-url"])assert.equal(cleanHttpsEvidenceUrl(unsafe),null);

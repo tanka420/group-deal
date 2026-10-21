@@ -33,7 +33,7 @@ async function setup(kind:'OPEN'|'RESOLVE'='OPEN'){
  store.db.eventJournal[key]={id:key,chainId:config.arcChainId,contractAddress:config.hubAddress,blockNumber,blockHash,transactionIndex:0,txHash,logIndex:0,eventName,payload,processedAt:Date.now(),evidenceVersion:2,eventDigest:eventDigest(log),blockTimestamp};
  store.db.orders.order.transactionHistory=[{action:eventName,txHash,blockNumber,blockHash,logIndex:0,chainId:config.arcChainId,hubAddress:config.hubAddress,privateExtension:'fixture-private-history'} as any];
  });
- tokens=Object.fromEntries(['buyer','seller','operator','other'].map(id=>[id,SessionService.issue(store.db.users[id])]));proofs=Object.fromEntries(Object.entries(tokens).map(([id,t])=>[id,SessionService.authenticate(t)]));
+ tokens=Object.fromEntries(['buyer','seller','operator','other'].map(id=>[id,SessionService.issue(store.db.users[id],undefined,id==='operator'?'ADMIN':undefined)]));proofs=Object.fromEntries(Object.entries(tokens).map(([id,t])=>[id,SessionService.authenticate(t)]));
  if(kind==='RESOLVE')await enrollFixtureOperator('operator',proofs.operator,{wallet:operatorWallet,chainId:config.arcChainId});
 }
 const open=(id='buyer',p:SessionProof|undefined=proofs[id],op?:string,urls=['https://fixture.invalid/evidence'])=>(DisputeService.recordOpenedMetadata as any)(id,'order',reason,urls,verification,p,op);
@@ -83,7 +83,8 @@ async function main(){
    assert.equal((await request('/api/orders/order/dispute','other',input)).status,403);
    assert.equal((await request('/api/orders/order/dispute','buyer',{...input,actorId:'operator'})).status,400);
    const response=await request('/api/orders/order/dispute','buyer',input);assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'private, no-store');assert.equal(response.headers.get('x-content-type-options'),'nosniff');const data=await response.json() as any;assert.deepEqual(Object.keys(data).sort(),['blockNumber','order','success','txHash']);assert.equal(data.order.hasEntitlement,true);assert.ok(!JSON.stringify(data).includes('fixture-private'));
-   await setup('RESOLVE');const resolved=await request('/api/operator/disputes/order/resolve','operator',{buyerShareBaseUSDC:'040',sellerShareBaseUSDC:'050',notes,txHash:verification.txHash});assert.equal(resolved.status,200);assert.ok(!JSON.stringify(await resolved.json()).includes('fixture-private'));assert.equal(record('orders','order').buyerRefundAllocated,'40');assert.equal(record('orders','order').sellerAllocated,'50');
+   await setup('RESOLVE');const resolution={buyerShareBaseUSDC:'040',sellerShareBaseUSDC:'050',notes,txHash:verification.txHash};tokens.operatorApp=SessionService.issue(store.db.users.operator);const before=rows(),beforeRevision=revision();assert.equal((await request('/api/operator/disputes/order/resolve','operatorApp',resolution)).status,403);assert.deepEqual(rows(),before);assert.equal(revision(),beforeRevision);
+   const resolved=await request('/api/operator/disputes/order/resolve','operator',resolution);assert.equal(resolved.status,200);assert.ok(!JSON.stringify(await resolved.json()).includes('fixture-private'));assert.equal(record('orders','order').buyerRefundAllocated,'40');assert.equal(record('orders','order').sellerAllocated,'50');
   }finally{await new Promise<void>(r=>server.close(()=>r()))}
  });
  console.log('PASS '+cases+' dispute metadata authority cases; isolated native SQLite and synthetic indexed receipt lineage; no live principal or financial broadcast');

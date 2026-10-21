@@ -13,7 +13,8 @@ import {NotificationService,OutboxError} from "../src/services/notificationServi
 import {operatorRouter} from "../src/routes/operatorRoutes";
 import {notificationRouter} from "../src/routes/notificationRoutes";
 
-const fixtureProofs=new Map<string,SessionProof>();const proofFor=(id:string)=>{let proof=fixtureProofs.get(id);if(!proof){proof=SessionService.authenticate(SessionService.issue(store.db.users[id]));fixtureProofs.set(id,proof);}return proof;};
+const fixtureTokens=new Map<string,string>();const tokenFor=(id:string)=>{let token=fixtureTokens.get(id);if(!token){token=SessionService.issue(store.db.users[id],undefined,store.db.users[id].roles.includes('operator')?'ADMIN':undefined);fixtureTokens.set(id,token);}return token;};
+const fixtureProofs=new Map<string,SessionProof>();const proofFor=(id:string)=>{let proof=fixtureProofs.get(id);if(!proof){proof=SessionService.authenticate(tokenFor(id));fixtureProofs.set(id,proof);}return proof;};
 const user=(role:"buyer"|"operator"="buyer")=>{const id="outbox_fixture_"+crypto.randomUUID();store.db.users[id]={id,email:id+"@example.test",emailVerified:true,roles:[role],activeWallet:null,createdAt:Date.now()};store.save();return id;};
 const operator=user("operator"),otherOperator=user("operator"),owner=user(),stranger=user();
 const hash=ethers.id("outbox-fixture-source"),eventId=`${config.arcChainId}_${config.hubAddress.toLowerCase()}_${hash}_0`;
@@ -77,9 +78,10 @@ async function run(){
   const app=express();app.use(express.json());let loseAck=false;
   app.use((req,res,next)=>{if(loseAck&&req.path.endsWith("/redrive")){loseAck=false;(res as any).json=()=>{res.destroy();return res;};}next();});app.use("/api/operator",operatorRouter);app.use("/api/notifications",notificationRouter);
   const server=app.listen(0,"127.0.0.1");await new Promise<void>(resolve=>server.once("listening",resolve));const base="http://127.0.0.1:"+(server.address() as any).port;
-  const headers=(actor:string,roles?:string[])=>({Authorization:"Bearer "+jwt.sign({userId:actor,roles},config.jwtSecret,{expiresIn:"1h"}),"Content-Type":"application/json"});
+  const headers=(actor:string,roles?:string[])=>({Authorization:"Bearer "+(roles?jwt.sign({userId:actor,roles},config.jwtSecret,{expiresIn:"1h"}):tokenFor(actor)),"Content-Type":"application/json"});
   try{
     assert.equal((await fetch(base+"/api/operator/email-outbox")).status,401);assert.equal((await fetch(base+"/api/operator/email-outbox",{headers:headers(owner,["operator"])})).status,403);
+    const appOperator=SessionService.issue(store.db.users[operator]);assert.equal((await fetch(base+"/api/operator/email-outbox",{headers:{Authorization:'Bearer '+appOperator}})).status,403);
     const target=user(),httpJob=create(target);httpJob.status="DLQ";httpJob.attempts=5;httpJob.lastError="PROVIDER_NOT_ACKNOWLEDGED";store.save();const request=body(httpJob.id);
     const denied=await fetch(base+"/api/operator/email-outbox/"+httpJob.id+"/redrive",{method:"POST",headers:headers(owner,["operator"]),body:JSON.stringify(request)});assert.equal(denied.status,403);
     const invalid=await fetch(base+"/api/operator/email-outbox/"+httpJob.id+"/redrive",{method:"POST",headers:headers(operator),body:JSON.stringify({...request,recipient:"not-allowed@example.test"})});assert.equal(invalid.status,400);
