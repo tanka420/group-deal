@@ -13,6 +13,13 @@ function configuration(file){
   if(values.get('type')!=='onedrive'||!/^[-A-Za-z0-9!_]{1,160}$/.test(values.get('drive_id')??''))fail('OFFHOST_ONEDRIVE_NOT_CONFIGURED');
   return sha(JSON.stringify(['type','drive_id','drive_type','root_folder_id'].map(k=>[k,values.get(k)??''])));
 }
+function remoteStatExists(bytes,expectedName){
+  let value;try{value=JSON.parse(bytes.toString('utf8'));}catch{fail('OFFHOST_REMOTE_STAT_INVALID');}
+  // rclone 1.60 OneDrive can return exit 0 with JSON null for a missing file.
+  if(value===null)return false;
+  if(!value||Array.isArray(value)||typeof value!=='object'||value.IsDir!==false||value.Name!==expectedName||!Number.isSafeInteger(value.Size)||value.Size<0)fail('OFFHOST_REMOTE_STAT_INVALID');
+  return true;
+}
 function rcloneTransport(configFile){
   // Ignore process-level rclone backend/credential overrides; the private file
   // selected by the operator is the only remote configuration for this job.
@@ -22,7 +29,7 @@ function rcloneTransport(configFile){
     let bytes=0,buffer=[],invalid=false;const hash=crypto.createHash('sha256'),timer=setTimeout(()=>{invalid=true;child.kill('SIGKILL');},240000);
     child.stdout.on('data',b=>{if(mode==='none')return;bytes+=b.length;if(bytes>maximum){invalid=true;child.kill('SIGKILL');return;}if(mode==='digest')hash.update(b);else buffer.push(b);});
     child.once('error',()=>{clearTimeout(timer);reject(Error('OFFHOST_TRANSPORT_UNAVAILABLE'));});
-    child.once('close',code=>{clearTimeout(timer);if(invalid)return reject(Error('OFFHOST_TRANSPORT_LIMIT'));if(mode==='exists'&&(code===3||code===4))return resolve(false);if(code!==0)return reject(Error('OFFHOST_TRANSPORT_UNAVAILABLE'));resolve(mode==='exists'?true:mode==='digest'?{byteLength:bytes,sha256:hash.digest('hex')}:mode==='json'?Buffer.concat(buffer):undefined);});
+    child.once('close',code=>{clearTimeout(timer);if(invalid)return reject(Error('OFFHOST_TRANSPORT_LIMIT'));if(mode==='exists'&&(code===3||code===4))return resolve(false);if(code!==0)return reject(Error('OFFHOST_TRANSPORT_UNAVAILABLE'));if(mode==='exists'){try{return resolve(remoteStatExists(Buffer.concat(buffer),args.at(-1).split('/').at(-1)));}catch(e){return reject(e);}}resolve(mode==='digest'?{byteLength:bytes,sha256:hash.digest('hex')}:mode==='json'?Buffer.concat(buffer):undefined);});
   });}
   return {exists:remote=>run(['lsjson','--stat','--files-only',remote],'exists'),copy:(file,remote)=>run(['copyto','--immutable',file,remote]),digest:(remote,maximum)=>run(['cat','--head',String(maximum+1),remote],'digest',maximum)};
 }
@@ -60,4 +67,4 @@ async function main(){
   const r=await publishLatest({stateDirectory:args[1],offhostDirectory:args[3],configFile:args[5]});console.log(JSON.stringify(r));
 }
 if(require.main===module)main().catch(e=>{console.log(JSON.stringify({status:'ATTENTION',code:/^OFFHOST_[A-Z_]+$/.test(e.message??'')?e.message:'OFFHOST_STAGE_UNAVAILABLE',privateValuesLogged:false}));process.exitCode=1;});
-module.exports={publishLatest,observeOffhost};
+module.exports={publishLatest,observeOffhost,remoteStatExists};
