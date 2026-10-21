@@ -41,4 +41,4 @@ async function main(){
   console.log('PASS provider contract: real bundled Worker conformance, nonce/body/signature/expiry/scope isolation, no-effect probe, actual protected ZIP resolve, foreign-order denial, revocation and schema failure; synthetic local only.');
  }finally{await mf.dispose();}
 }
-main().catch(()=>{console.error('FAIL provider contract; no payloads or capabilities printed');process.exitCode=1;});
+main().catch(error=>{console.error(JSON.stringify({result:'FAIL',suite:'provider contract',name:error instanceof Error?error.name:'UnknownError',code:typeof error?.code==='string'&&/^[A-Z][A-Z0-9_]+$/.test(error.code)?error.code:undefined,actual:typeof error?.actual==='number'?error.actual:undefined,expected:typeof error?.expected==='number'?error.expected:undefined,frames:error instanceof Error?error.stack?.split(/\r?\n/).filter(line=>/^\s+at /.test(line)&&line.includes('provider_contract.test.ts')).slice(0,3):[],privateValuesWithheld:true}));process.exitCode=1;});
