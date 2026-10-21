@@ -4,6 +4,12 @@ This independently deployed receiver uses the pinned SDK 2.0.0 package and a dur
 
 The worker queues verified events. A provider worker must still implement the real entitlement effect. HTTP 202 or a queued event alone does not deliver CSV Studio or demonstrate H5 acceptance.
 
+## Current deployment
+
+The receiver is deployed at `https://groupdeal-csv-studio-receiver.tanmai-26d.workers.dev/webhooks/groupdeal`. Six remote synthetic checks and a duplicate check after redeployment passed on 21 October 2026. All three synthetic inbox rows and both temporary test secrets were then removed. Until the real seller subscription and secret are connected, `/healthz` returns `503 NOT_READY` by design.
+
+The account holder authorized Free usage only. No paid-plan upgrade, billing subscription or GroupDeal DNS change was performed. Real GroupDeal delivery, provider entitlement and producer retry/DLQ remain unverified.
+
 ## Local checks
 
 ```sh
