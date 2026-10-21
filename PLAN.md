@@ -146,3 +146,8 @@ UAT tự OTP contact thành công, bật email; tạo một ticketACCOUNT mới 
 ## Cập nhật21Oct2026 — rightsUAT đã nộp, chờ ký
 
 Seller24F tạo một productDRAFT mới riêng và rightsrgt_3e3a1d09-5443-438e-8da6-6b443433bd12 SUBMITTED quaUI; hai command/audit, binding productVersion/license và licensehash so bản cũ đạt. Hai approval cũ/campaigns/orders/ledger/95held giữ. Tabadmin đã chuẩn bị đề xuấtAPPROVED đến09/11/2026; chưa ký/chưaPOSTreview. Humanoperator e48B tự kiểm và ký. Gói reports/evidence/rights-uat/2026-10-21T04-14-01-306Z/CHECKS.json. Khôngpublish/chaintransaction/badge; G5/G6OPEN/NOT_FROZEN.
+
+
+## 21/10/2026 — H3 rights UAT approval verified
+
+User confirmed approval; 2026-10-21T04:33:12.129Z read-only native projection verified rgt_3e3a1d09-5443-438e-8da6-6b443433bd12 APPROVED/1 independent operator decision, exact product/license tuple, validUntil 1794243599 (09Nov2026 23:59:59 ICT). Matching step-up/review audits pass digests and prevHash; challenge absent. New product remains DRAFT/zero campaigns, original two rights metadata/status APPROVED, business/ledger/old orders/95held/runtime/env preserved. Browser read currently disabled in Work settings; no fresh UI/screenshot proof or re-login/re-sign request. Scoped revocation proposal prepared only for the new unused UAT rights; not submitted. No badge/financial actions. Evidence reports/evidence/rights-uat-approved/2026-10-21T04-33-00-392Z/CHECKS.json. G5/G6 OPEN, NOT_FROZEN, acceptanceEligible=false, wholeProjectAccepted=false.

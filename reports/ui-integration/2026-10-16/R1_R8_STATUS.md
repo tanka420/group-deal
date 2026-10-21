@@ -1,3 +1,15 @@
+## Hiện hành — 21/10/2026: H3 hồ sơ quyền UAT đã được operator phê duyệt
+
+Người dùng báo “đã phê duyệt UAT”. Readback chỉ đọc lúc 2026-10-21T04:33:12.129Z xác nhận hồ sơ rgt_3e3a1d09-5443-438e-8da6-6b443433bd12 đã APPROVED, đúng một quyết định lúc 11:30:52 ICT của operator e48B, độc lập seller24F. ProductVersion pv_21b27ecd-0005-48bf-b896-a391c2928c98 và LicenseVersion lv_bb6f8d62-23a0-4a26-ae00-01818e6bbc30 khớp; hiệu lực đến 23:59:59 ngày 09/11/2026 (Asia/Saigon, validUntil 1794243599). Audit RIGHTS_REVIEWED và OPERATOR_STEP_UP_VERIFIED liền nhau, đúng actor/wallet/tuple/expiry; hash từng entry và liên kết prevHash đã kiểm. Challenge OPERATOR_ACTION được phát 4,772 giây trước step-up, hiện không còn challenge chờ. Không đọc hoặc lưu chữ ký, challenge message, nonce, declarationText hay evidenceRefs.
+
+Sản phẩm UAT prd_c7c01832-adb1-4a44-848b-fcb74e8777cc vẫn DRAFT, version1, chưa có campaign; hai hồ sơ quyền cũ vẫn APPROVED và đúng tuple đã đối chiếu. Giữ 20 users/6 campaigns/6 orders/44 operations/8 grants/12 inventory; ledger52/72 và hash đơn1–5 giữ, 95 held. PID1461981/NRestarts0, backend9372850 và env fingerprint giữ; backup/offhost CURRENT. Không deploy, restart, replay, cấp badge hoặc phát giao dịch.
+
+Công cụ trình duyệt hiện báo “Local browser use is disabled in Work settings” khi đọc tab admin cũ; chưa có ảnh/UI readback mới. Không coi lỗi connector là phiên admin hết hạn, không yêu cầu login hoặc ký phê duyệt lại. Kết quả APPROVED được xác minh bằng native metadata/audit, không bằng ảnh đề xuất trước đó.
+
+Đã chuẩn bị NEXT_REVOCATION_PROPOSAL.json chỉ cho hồ sơ UAT mới không có nghĩa vụ: APPROVED/1 quyết định → REVOKED/2 quyết định, giữ sản phẩm DRAFT và không có campaign. Chưa điền form thu hồi qua UI, chưa phát challenge hoặc POST; người giữ ví e48B tự thực hiện bước ký trên đúng hồ sơ nếu tiếp tục ca này. Không thu hồi hai hồ sơ cũ, không tự gán badge.
+
+Gói: reports/evidence/rights-uat-approved/2026-10-21T04-33-00-392Z/CHECKS.json; đọc hash/bytes từ CURRENT_G5_PREPARATION_LATEST và CURRENT_RIGHTS_UAT_LIVE_LATEST ở root reports/evidence sau khi gói đóng. H3 phần phê duyệt quyền UAT đã có proof; ca thu hồi, badge và các lifecycle/ACL còn thiếu vẫn mở. **NOT_FROZEN / G5 OPEN / G6 OPEN / acceptanceEligible=false / wholeProjectAccepted=false.**
+
 ## Hiện hành — 21/10/2026: H3 sản phẩm và hồ sơ quyền UAT mới, chờ chữ ký operator
 
 Đã hoàn tất contact/support/email tới inbox thật ở gói parent; không hỏi OTP/email lại. Seller24F đã đăng nhập APP tại Chrome profile4/tab1905952562, admin e48B ở tab1905952512 vẫn hoạt động sau APPlogout/reload. Đã tạo qua UI sản phẩmUAT riêng prd_c7c01832-adb1-4a44-848b-fcb74e8777cc, ProductVersion pv_21b27ecd-0005-48bf-b896-a391c2928c98, LicenseVersion lv_bb6f8d62-23a0-4a26-ae00-01818e6bbc30; statusDRAFT/version1. LicensePersonal1.0FILE_LINK/1seat/noactivation có hash0xd43857c2cb0fe403560ae1541356e1a10b22553b4fd73ec6fd703a25180d1c39 trùng license cũ. ProductVersion hash0x7a30068f9bffd9ef6d9bd27da0b61d25283d795a3f9f2d41bf89d60ee9be5a35.
