@@ -1,4 +1,4 @@
-import {installBridgeServerFixture,confirmSourceWallet} from './fixtures/bridgeServer';
+import {installBridgeServerFixture} from './fixtures/bridgeServer';
 import { expect, test } from "@playwright/test";
 import {installEmptyCatalog} from './fixtures/catalog';
 
@@ -44,15 +44,22 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-test("renders Arc identity and fails closed when Circle is not configured", async ({ page }) => {
+async function openFunding(page:import('@playwright/test').Page,signedIn=false){
+  if(signedIn)await page.getByRole('button',{name:/^Menu tài khoản:/}).click();
+  await page.getByRole('button',{name:'Nạp USDC',exact:true}).click();
+}
+
+test("renders Arc identity and keeps unavailable sign-in actions disabled", async ({ page }) => {
   const consoleErrors: string[] = [];
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
 
   await page.goto("/");
-  await expect(page.getByText("Arc Testnet · USDC escrow",{exact:true})).toBeVisible();
-  await expect(page.getByText("Arc Testnet (5042002)",{exact:true}).first()).toBeVisible();
+  const footer=page.getByRole('contentinfo');
+  await expect(footer).toContainText('Mua chung sản phẩm số trên Arc Testnet');
+  await expect(footer.getByText('Chain ID: 5042002',{exact:true})).toBeVisible();
+  await expect(footer.getByText('USDC Native Gas',{exact:true})).toBeVisible();
 
   await page.getByRole("button", { name: /đăng nhập/i }).click();
   const walletLogin = page.getByRole("button", { name: "Đăng nhập bằng ví hiện chưa sẵn sàng", exact: true });
@@ -65,20 +72,20 @@ test("renders Arc identity and fails closed when Circle is not configured", asyn
   expect(consoleErrors).toEqual([]);
 });
 
-test("offers an in-app Arc App Kit bridge and reports missing Reown configuration", async ({ page }) => {
+test("keeps new bridging planned and reports missing Reown configuration", async ({ page }) => {
   const consoleErrors: string[] = [];
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
 
   await page.goto("/");
-  await page.getByRole("button", { name: /nạp usdc/i }).click();
-  await page.getByRole("button", { name: "CCTP Bridge" }).click();
+  await openFunding(page);
+  await page.getByRole("button", { name: "Bridge · Sắp ra mắt / Hồ sơ cũ",exact:true }).click();
 
   await expect(page.getByText(/Kết nối ví ngoài chưa được cấu hình/)).toBeVisible();
   await expect(page.getByText("Arc Testnet (5042002)").last()).toBeVisible();
   await expect(page.getByLabel("Số USDC cần bridge")).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Lấy báo giá bridge USDC vào Arc" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Bridge mới · Sắp ra mắt",exact:true })).toBeDisabled();
   await expect(page.getByText("Hãy đăng nhập trước",{exact:true})).toBeVisible();
   expect(consoleErrors).toEqual([]);
 });
@@ -102,14 +109,14 @@ test("restores the authenticated wallet after reload and requests faucet in-app"
   });
   await page.goto("/");
   await page.reload();
-  await page.getByRole("button", { name: /nạp usdc/i }).click();
+  await openFunding(page,true);
   await expect(page.getByText(new RegExp(address, "i"))).toBeVisible();
   await page.getByRole("button", { name: "Nhận USDC testnet trực tiếp" }).click();
   await expect(page.getByRole('dialog').getByRole("status")).toContainText("Faucet đã nhận yêu cầu");
   expect(requests).toBe(1);
   expect(page.context().pages()).toHaveLength(1);
   await page.getByRole("button", { name: "Đóng nạp USDC" }).click();
-  await page.getByRole("button", { name: /^Thông báo/ }).click();
+  await page.getByRole("button", { name: /^Menu tài khoản:/ }).click();
   await expect(page.getByRole("button", { name: "Kết nối lại ví để ký" })).toBeVisible();
 });
 
@@ -147,7 +154,7 @@ test("email session opens immediately and binds an existing wallet even without 
   await page.getByRole("button", { name: "Gửi mã OTP qua Circle" }).click();
   await page.getByRole("button", { name: "Mở xác thực Circle" }).click();
   await expect(page.getByRole("button", { name: "Đóng đăng nhập" })).not.toBeVisible({ timeout: 2000 });
-  await page.getByRole("button", { name: /nạp usdc/i }).click();
+  await openFunding(page,true);
   await expect(page.getByText(new RegExp(address, "i"))).toBeVisible();
   expect(inventoryCalls).toBeGreaterThan(0);
   const stored = await page.evaluate(() => JSON.stringify({ ...localStorage }));
@@ -161,12 +168,12 @@ test("email account can reopen OTP after reload without logging out", async ({ p
     user: { id: "circle-fixture", email: "fixture@example.com", roles: ["buyer"], loginMethod: "CIRCLE_EMAIL", activeWallet: null },
   }) }));
   await page.goto("/");
-  await page.getByRole("button", { name: /^Thông báo/ }).click();
+  await page.getByRole("button", { name: /^Menu tài khoản:/ }).click();
   await page.getByRole("button", { name: "Xác thực email để ký / đồng bộ ví" }).click();
   await expect(page.getByLabel("Địa chỉ Email")).toBeVisible();
 });
 
-test("SDK result without a captured financial write cannot confirm a mint", async ({ page }) => {
+test("email wallet cannot start a new bridge or display an uninvoked SDK mint", async ({ page }) => {
   const sender = "0x73307bdd39d875f98857ffce0fed1cdc62f50b6d";
   const recipient = "0x580cdb6a6354313f73ff16b160b15dcc914d21ae";
   await page.addInitScript(() => localStorage.setItem("groupdeal_token", "fixture-session"));
@@ -208,26 +215,20 @@ test("SDK result without a captured financial write cannot confirm a mint", asyn
   }));
   await installBridgeServerFixture(page,"circle-fixture",recipient);
   await page.goto("/");
-  await page.getByRole("button", { name: /nạp usdc/i }).click();
-  await page.getByRole("button", { name: "CCTP Bridge" }).click();
-  await page.getByLabel("Số USDC cần bridge").fill("1.25");
-  await page.getByRole("button", { name: "Lấy báo giá bridge USDC vào Arc" }).click();
-  await expect(page.getByText(/Số nhận dự kiến tối thiểu/)).toBeVisible();
+  await openFunding(page,true);
+  await page.getByRole("button", { name: "Bridge · Sắp ra mắt / Hồ sơ cũ",exact:true }).click();
+  await expect(page.getByLabel("Số USDC cần bridge")).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Bridge mới · Sắp ra mắt",exact:true })).toBeDisabled();
+  await expect(page.getByText(/Số nhận dự kiến tối thiểu/)).toHaveCount(0);
   expect(await page.evaluate(() => (window as any).bridgeWrites || 0)).toBe(0);
-  await page.getByRole("button", { name: "Xác nhận bridge USDC vào Arc" }).click();
-  await confirmSourceWallet(page);
-  await expect(page.getByRole('dialog').locator('p[role="status"]')).toContainText("Lượt đã dừng trước burn");
   await expect(page.getByText(/Receipt Arc xác nhận đã mint/)).toHaveCount(0);
   await expect(page.getByRole("button",{name:"Tiếp tục attestation / mint"})).toHaveCount(0);
-  const evidence=await page.evaluate(recipient=>({writes:(window as any).bridgeWrites,record:JSON.parse(localStorage.getItem('groupdeal_bridge:v2:'+recipient)!)}),recipient);
-  expect(evidence.writes).toBe(1); // SDK method call, no wallet transaction.
-  expect(evidence.record.writes).toEqual([]);
-  const estimate=await page.evaluate(()=>(window as any).bridgeEstimate);
-  expect(estimate).toMatchObject({amount:"1.25",batch:false});expect(estimate.recipient.toLowerCase()).toBe(recipient);
+  const evidence=await page.evaluate(recipient=>({writes:(window as any).bridgeWrites||0,estimate:(window as any).bridgeEstimate,record:localStorage.getItem('groupdeal_bridge:v2:'+recipient)}),recipient);
+  expect(evidence).toEqual({writes:0,estimate:undefined,record:null});
 
 });
 
-test("bridge blocks a source wallet with USDC but no native ETH before estimating or writing", async ({ page }) => {
+test("new bridge does not estimate or write from an unfunded source wallet", async ({ page }) => {
   const address = "0x73307bdd39d875f98857ffce0fed1cdc62f50b6d";
   await page.addInitScript(() => localStorage.setItem("groupdeal_token", "fixture-session"));
   await page.route("**/api/auth/me", route => route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: {
@@ -243,10 +244,10 @@ test("bridge blocks a source wallet with USDC but no native ETH before estimatin
     export class AppKit {on(){} off(){} async estimateBridge(){window.unexpectedEstimate=true;throw new Error("Unexpected estimate")} async bridge(){window.unexpectedWrite=true;} } export default {AppKit};` }));
   await installBridgeServerFixture(page,"fixture",address);
   await page.goto("/");
-  await page.getByRole("button", { name: /nạp usdc/i }).click();
-  await page.getByRole("button", { name: "CCTP Bridge" }).click();
-  await page.getByRole("button", { name: "Lấy báo giá bridge USDC vào Arc" }).click();
-  await expect(page.getByRole("alert")).toContainText("Ví nguồn không có ETH");
+  await openFunding(page,true);
+  await page.getByRole("button", { name: "Bridge · Sắp ra mắt / Hồ sơ cũ",exact:true }).click();
+  await expect(page.getByRole("button", { name: "Bridge mới · Sắp ra mắt",exact:true })).toBeDisabled();
+  await expect(page.getByLabel("Số USDC cần bridge")).toBeDisabled();
   expect(await page.evaluate(() => Boolean((window as any).unexpectedEstimate || (window as any).unexpectedWrite))).toBe(false);
   expect(await page.evaluate(() => Object.keys(localStorage).some(key => key.startsWith("groupdeal_bridge:")))).toBe(false);
 });
@@ -266,9 +267,10 @@ test("balance survives RPC failure and failover avoids a false zero", async ({ p
     }))) });
   });
   await page.goto("/");
-  await expect(page.getByText("64.219208 USDC", { exact: true })).toBeVisible();
+  await openFunding(page,true);
+  await expect(page.getByRole('dialog').getByText('64.219208 USDC',{exact:true})).toBeVisible();
   unavailable = true;
-  await page.getByRole("button", { name: /nạp usdc/i }).click();
   await page.getByRole("button", { name: "Tôi đã nhận USDC — cập nhật số dư" }).click();
-  await expect(page.getByText("64.219208 USDC · chưa cập nhật", { exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog').getByRole('status')).toContainText('Chưa đọc được số dư mới');
+  await expect(page.getByRole('dialog').getByText('64.219208 USDC',{exact:true})).toBeVisible();
 });
