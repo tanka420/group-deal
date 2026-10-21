@@ -3,7 +3,7 @@ import {fixture,openPrivate,studio,code,fileBody,sellerId} from './product-studi
 import {probeFixture,openProbeDraft,prepareProbe,editor} from './campaign-probe';
 export const resourceCheckpoint=(page:Page)=>page.evaluate(()=>sessionStorage.getItem('groupdeal_product_pending:studio-seller'));
 export const cancelResource=(page:Page)=>studio(page).getByRole('button',{name:'Resolve or cancel pending resource request',exact:true});
-export const cancelProbe=(page:Page)=>editor(page).getByRole('button',{name:'Resolve or cancel pending delivery check',exact:true});
+export const cancelProbe=(page:Page)=>editor(page).getByRole('button',{name:'Check or cancel pending delivery check',exact:true});
 export async function wireTerminal(page:Page,receipts:Record<string,any>){
  const state={writes:0,hold:Promise.resolve() as Promise<void>,fail:false,status:undefined as number|undefined,value:undefined as any,commandId:''};
  await page.route('**/api/delivery/resource-commands/*/cancel',async route=>{state.writes++;state.commandId=decodeURIComponent(new URL(route.request().url()).pathname.split('/').at(-2)!);expect(route.request().method()).toBe('POST');expect(route.request().postDataJSON()).toEqual({});const receipt=receipts[state.commandId]??{schema:'GroupDealResourceCommandV1',commandId:state.commandId,sellerAccountId:sellerId,kind:'CANCEL',status:'CANCELED',committedAt:Date.now()};if(!state.status)receipts[state.commandId]=receipt;const value=structuredClone(state.value??{receipt});await state.hold;if(state.fail)return route.abort('failed');return route.fulfill({status:state.status??200,json:state.status?{error:'PRIVATE_TERMINAL_DIAGNOSTIC'}:value})});return state;
