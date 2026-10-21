@@ -17,18 +17,23 @@ async function fixture(page:Page,signedIn=false,language='en'){
  });return {errors,writes};
 }
 for(const width of [375,768,1440])test(`buyer navigation remains reachable at ${width}px`,async({page},info)=>{
- test.setTimeout(90_000);
- const f=await fixture(page);await page.setViewportSize({width,height:850});await page.goto('/explore');
- const mobile=width<1200;
- for(const [label,path] of [['Orders','/orders'],['Wallet','/wallet'],['Account','/account'],['Support','/support'],['Explore','/explore']]){
+ const f=await fixture(page,true);await page.setViewportSize({width,height:850});await page.goto('/explore');
+ const account=page.locator('.account-pill-btn');
+ for(const [label,path] of [['My Orders','/orders'],['Wallet','/wallet'],['Account settings','/account'],['Support','/support']]){
+  await account.click();await page.locator('#header-account').getByRole('button',{name:label,exact:true}).click();
+  await expect(page).toHaveURL(new RegExp(path+'$'));expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ }
+ const mobile=width<768;
+ for(const [label,path] of [['Home','/'],['Explore','/explore']]){
   if(mobile)await page.getByRole('button',{name:'Open navigation'}).click();
-  const nav=mobile?page.getByRole('dialog',{name:'Navigation'}):page.locator('.desktop-navigation');
-  await nav.getByRole('link',{name:label,exact:true}).click();await expect(page).toHaveURL(new RegExp(path+'$'));
+  const navigation=mobile?page.getByRole('dialog',{name:'Navigation'}):page.locator('.desktop-navigation');
+  await navigation.getByRole('link',{name:label,exact:true}).click();await expect(page).toHaveURL(new RegExp(path+'$'));
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  }
  if(mobile){const trigger=page.getByRole('button',{name:'Open navigation'});await trigger.click();await page.keyboard.press('Escape');await expect(trigger).toBeFocused();await trigger.click();await page.screenshot({path:info.outputPath('menu.png')});}
  expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
 });
+
 test('catalog query is the source for reload, Back and Forward',async({page})=>{
  const f=await fixture(page);await page.goto('/explore?q=first&sort=oldest');await expect(page.locator('#catalog-search')).toHaveValue('first');
  await page.locator('#catalog-search').fill('second');await page.getByRole('button',{name:'Search',exact:true}).click();await expect(page).toHaveURL(/q=second/);

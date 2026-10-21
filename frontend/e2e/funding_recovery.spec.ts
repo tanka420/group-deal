@@ -1,3 +1,4 @@
+import {openAccountFunding} from './fixtures/funding-navigation';
 import {test,expect,Page} from '@playwright/test';
 import {installEmptyCatalog} from './fixtures/catalog';
 import {installBridgeServerFixture,confirmSourceWallet} from './fixtures/bridgeServer';
@@ -30,17 +31,16 @@ async function prepare(page:Page,{steps=[],version=1,language='vi',delay=0,missi
   if(delay&&reads.includes('eth_getTransactionReceipt'))await new Promise(done=>setTimeout(done,delay));
   await route.fulfill({json:result});
  });
- await page.goto('/');await expect(page.getByRole('button',{name:language==='vi'?/nạp usdc/i:/fund usdc/i})).toBeVisible();
- await page.getByRole('button',{name:language==='vi'?/nạp usdc/i:/fund usdc/i}).click();
- await page.getByRole('button',{name:'CCTP Bridge',exact:true}).click();
+ await page.goto('/wallet');await openAccountFunding(page);
+ await page.getByRole('button',{name:/^Bridge · (Sắp ra mắt \/ Hồ sơ cũ|Coming soon \/ Previous records)$/,exact:true}).click();
  return{raw,reads,writes,errors,dialog:page.getByRole('dialog')};
 }
 test('legacy unknown result stays reserved across reload and has no manual reset',async({page})=>{
- const f=await prepare(page);await expect(page.getByRole('button',{name:'Lấy báo giá bridge USDC vào Arc'})).toBeDisabled();
+ const f=await prepare(page);await expect(page.getByRole('button',{name:'Bridge mới · Sắp ra mắt'})).toBeDisabled();
  await f.dialog.click({position:{x:2,y:2}});await expect(f.dialog).toBeVisible();
  await expect(page.getByRole('button',{name:'Tôi đã kiểm tra: chưa gửi burn'})).toHaveCount(0);
  await page.getByRole('button',{name:'Kiểm tra trạng thái trên chain'}).click();await expect(page.getByRole('dialog').getByRole('status')).toContainText('Kết quả còn chưa rõ');
- await page.reload();await page.getByRole('button',{name:/nạp usdc/i}).click();await page.getByRole('button',{name:'CCTP Bridge',exact:true}).click();await expect(page.getByRole('button',{name:'Lấy báo giá bridge USDC vào Arc'})).toBeDisabled();
+ await page.reload();await openAccountFunding(page);await page.getByRole('button',{name:/^Bridge · (Sắp ra mắt \/ Hồ sơ cũ|Coming soon \/ Previous records)$/,exact:true}).click();await expect(page.getByRole('button',{name:'Bridge mới · Sắp ra mắt'})).toBeDisabled();
  expect(await page.evaluate(recipient=>localStorage.getItem('groupdeal_bridge:'+recipient),operation.recipient)).toBe(f.raw);expect(f.writes).toEqual([]);expect(f.errors).toEqual([]);
 });
 test('only verified burn exposes mint recovery and keeps source terms pinned',async({page})=>{
@@ -51,25 +51,25 @@ test('only verified burn exposes mint recovery and keeps source terms pinned',as
 });
 test('SDK success cannot pass without the exact Arc USDC transfer event',async({page})=>{
  const f=await prepare(page,{steps:[{name:'burn',state:'success',txHash:hashes.burn},{name:'mint',state:'success',txHash:hashes.mint}],missingTransfer:true});
- await page.getByRole('button',{name:'Kiểm tra trạng thái trên chain'}).click();await expect(page.getByRole('alert')).toContainText('bằng chứng chain chưa khớp');await expect(page.locator('[data-bridge-receipt=confirmed]')).toHaveCount(0);
- await expect(page.getByRole('button',{name:'Lấy báo giá bridge USDC vào Arc'})).toBeDisabled();await expect(page.getByText(/Receipt Arc xác nhận đã mint/)).toHaveCount(0);expect(f.writes).toEqual([]);expect(f.errors).toEqual([]);
+ await page.getByRole('button',{name:'Kiểm tra trạng thái trên chain'}).click();await expect(f.dialog.getByRole('alert')).toContainText('bằng chứng chain chưa khớp');await expect(page.locator('[data-bridge-receipt=confirmed]')).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Bridge mới · Sắp ra mắt'})).toBeDisabled();await expect(page.getByText(/Receipt Arc xác nhận đã mint/)).toHaveCount(0);expect(f.writes).toEqual([]);expect(f.errors).toEqual([]);
 });
 test('canonical receipts retain legacy history and require server admission before new signing',async({page})=>{
  const f=await prepare(page,{approveReverted:true,steps:[{name:'approve',state:'success',txHash:hashes.approve},{name:'burn',state:'success',txHash:hashes.burn},{name:'mint',state:'success',txHash:hashes.mint}]});
  await page.getByRole('button',{name:'Kiểm tra trạng thái trên chain'}).click();await expect(page.getByRole('dialog').getByRole('status')).toContainText('Receipt Arc xác nhận đã mint đúng USDC');await expect(page.locator('[data-bridge-receipt=confirmed]')).toHaveCount(2);await expect(page.locator('[data-bridge-write-kind=approve]')).toHaveAttribute('data-bridge-receipt','reverted');await expect(page.locator('[data-bridge-write-kind=approve]')).toContainText('receipt xác nhận giao dịch revert');
- await expect(page.getByRole('button',{name:'Lấy báo giá bridge USDC vào Arc'})).toBeDisabled();await expect(page.getByText('Hồ sơ trình duyệt cũ chưa được tiếp nhận trên server.',{exact:false})).toBeVisible();expect(await page.evaluate(recipient=>localStorage.getItem('groupdeal_bridge:'+recipient),operation.recipient)).toBe(f.raw);expect(f.writes).toEqual([]);expect(f.errors).toEqual([]);
+ await expect(page.getByRole('button',{name:'Bridge mới · Sắp ra mắt'})).toBeDisabled();await expect(page.getByText('Hồ sơ trình duyệt cũ chưa được tiếp nhận trên server.',{exact:false})).toBeVisible();expect(await page.evaluate(recipient=>localStorage.getItem('groupdeal_bridge:'+recipient),operation.recipient)).toBe(f.raw);expect(f.writes).toEqual([]);expect(f.errors).toEqual([]);
 });
 test('a wallet-history hash recovers unknown broadcast without a replacement burn',async({page})=>{
  const f=await prepare(page,{version:2});await page.getByLabel('Hash giao dịch cần đối chiếu',{exact:true}).fill(hashes.burn);await page.getByRole('button',{name:'Đối chiếu hash và phục hồi'}).click();
- await expect(page.getByRole('dialog').getByRole('status')).toContainText('Chain nguồn xác nhận burn');await page.reload();await page.getByRole('button',{name:/nạp usdc/i}).click();await page.getByRole('button',{name:'CCTP Bridge',exact:true}).click();
- await expect(page.getByRole('button',{name:'Lấy báo giá bridge USDC vào Arc'})).toBeDisabled();await page.getByRole('button',{name:'Kiểm tra trạng thái trên chain'}).click();await expect(page.getByRole('button',{name:'Tiếp tục attestation / mint'})).toBeVisible();await expect(page.getByRole('button',{name:'Tiếp tục attestation / mint'})).toBeDisabled();
+ await expect(page.getByRole('dialog').getByRole('status')).toContainText('Chain nguồn xác nhận burn');await page.reload();await openAccountFunding(page);await page.getByRole('button',{name:/^Bridge · (Sắp ra mắt \/ Hồ sơ cũ|Coming soon \/ Previous records)$/,exact:true}).click();
+ await expect(page.getByRole('button',{name:'Bridge mới · Sắp ra mắt'})).toBeDisabled();await page.getByRole('button',{name:'Kiểm tra trạng thái trên chain'}).click();await expect(page.getByRole('button',{name:'Tiếp tục attestation / mint'})).toBeVisible();await expect(page.getByRole('button',{name:'Tiếp tục attestation / mint'})).toBeDisabled();
  const record=await page.evaluate(recipient=>JSON.parse(localStorage.getItem('groupdeal_bridge:v2:'+recipient)!),operation.recipient);expect(record.writes).toHaveLength(1);expect(record.writes[0].hash).toBe(hashes.burn);expect(f.writes).toEqual([]);expect(f.errors).toEqual([]);
 });
 test('closing and reopening cannot display a late result from the earlier modal generation',async({page})=>{
  const f=await prepare(page,{steps:[{name:'burn',state:'success',txHash:hashes.burn},{name:'mint',state:'success',txHash:hashes.mint}],delay:800});
  await page.getByRole('button',{name:'Kiểm tra trạng thái trên chain'}).click();await expect.poll(()=>f.reads.includes('eth_getTransactionReceipt')).toBe(true);
- await page.getByRole('button',{name:'Đóng nạp USDC'}).click();await page.getByRole('button',{name:/nạp usdc/i}).click();await page.getByRole('button',{name:'CCTP Bridge',exact:true}).click();
- await expect(page.getByRole('button',{name:'Kiểm tra trạng thái trên chain'})).toBeEnabled({timeout:8000});await expect(page.getByText(/Receipt Arc xác nhận đã mint/)).toHaveCount(0);await expect(page.getByRole('button',{name:'Lấy báo giá bridge USDC vào Arc'})).toBeDisabled();expect(f.writes).toEqual([]);expect(f.errors).toEqual([]);
+ await page.getByRole('button',{name:'Đóng nạp USDC'}).click();await openAccountFunding(page);await page.getByRole('button',{name:/^Bridge · (Sắp ra mắt \/ Hồ sơ cũ|Coming soon \/ Previous records)$/,exact:true}).click();
+ await expect(page.getByRole('button',{name:'Kiểm tra trạng thái trên chain'})).toBeEnabled({timeout:8000});await expect(page.getByText(/Receipt Arc xác nhận đã mint/)).toHaveCount(0);await expect(page.getByRole('button',{name:'Bridge mới · Sắp ra mắt'})).toBeDisabled();expect(f.writes).toEqual([]);expect(f.errors).toEqual([]);
 });
 for(const language of ['vi','en'] as const)test('funding dialog keyboard, responsive and '+language,async({page},info)=>{
  const f=await prepare(page,{language});const close=f.dialog.getByRole('button',{name:language==='vi'?'Đóng nạp USDC':'Close funding'});
@@ -82,5 +82,5 @@ for(const language of ['vi','en'] as const)test('funding dialog keyboard, respon
  // Last enabled focus target is the chain-status button because an empty hash
  // cannot be submitted. Native dialog and explicit boundary retain focus.
  await expect(f.dialog.getByLabel(language==='vi'?'Hash giao dịch cần đối chiếu':'Transaction hash to verify',{exact:true})).toBeFocused();
- await page.keyboard.press('Tab');await expect(close).toBeFocused();await page.keyboard.press('Escape');await expect(f.dialog).toHaveCount(0);await expect(page.getByRole('button',{name:language==='vi'?/nạp usdc/i:/fund usdc/i})).toBeFocused();expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
+ await page.keyboard.press('Tab');await expect(close).toBeFocused();await page.keyboard.press('Escape');await expect(f.dialog).toHaveCount(0);await expect(page.locator('.account-pill-btn')).toBeFocused();expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
 });
