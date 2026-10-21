@@ -2,6 +2,8 @@
 
 Cập nhật 21/10/2026, Asia/Saigon. Phạm vi là bản Arc Testnet theo PLAN. Các quyết định hoãn trước đây đã được mở lại. Agent đã triển khai phần nguồn có thể tự làm, kiểm build/guard/dữ liệu và chuẩn bị vận hành; dự án chưa được ghi G5/G6 đạt khi các bằng chứng người dùng/provider dưới đây còn thiếu.
 
+Readback08:03 ngày21/10: runtime/public/ledger/backup khớp hồ sơ. Agent đã nối đúng Chrome và xác nhận seller24F đang đăng nhập ở Hồ sơ seller; không cần đăng nhập seller lại. Username còn trống, ba OAuth app chưa cấu hình. Realm quản trị riêng chưa đăng nhập. OneDrive chưa có cấu hình Microsoft/receipt, lịch vẫn tắt. H1 và H2 đang chờ thông tin/thao tác chính chủ; các bước sau consent vẫn do agent xử lý.
+
 ## Những phần đã làm
 
 | Phần | Kết quả có bằng chứng |

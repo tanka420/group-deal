@@ -2,6 +2,8 @@ Tiếp tục hoàn tất GroupDeal tại E:/apps/group-deal theo quyết định
 
 Đọc đầy đủ reports/PROMPT_CHAT_MOI_2026-10-21.md (tệp này), reports/HUONG_DAN_NGHIEM_THU_2026-10-21.md và phần Hiện hành của reports/ui-integration/2026-10-16/CURRENT_ROLLOUT.md, R1_R8_STATUS.md. Đọc reports/evidence/CURRENT_G5_PREPARATION_LATEST.json, xác minh SHA256/byteLength của CHECKS và mọi artifact theo files trước thao tác. Đọc WP28/WP29/mục9 reports/KE_HOACH_HOAN_TAT_DU_AN.md khi cần đối chiếu tiêu chí; lịch sử có dòng hoãn/owner1người đã được quyết định mới thay thế.
 
+Readback tiếp tục21Oct08:03ICT: nguồn sạch HEAD36673337fd073299759890177c624021f51c7a12 trước docs;389runtime/186public/PID1350200/NRestarts0 và counts/ledger/oldorders/order6/95held khớp bàn giao. Backup CURRENT, local3managed+1other;10scopedHTTPS đạt;14source-proofbranches/63files khớp. Chrome thật đã nối đúng: seller24F đang đăng nhập tại /seller/profile, username trống; admin realm riêng chưa login. Private-config fingerprint không đổi,3OAuthfalse/OneDriveconfigabsent/timerdisabled. Đã hỏi H1username và H2consent/restoretarget/keycustodian; chưa nhận trả lời. Không bắt sellerlogin lại, không tự coi quá hạn chờ là consent. Gói read-only không restart/giao dịch/CI; chưa canonicalfinancialreadback mới.
+
 Nguồn và quyền:
 - Chỉ sửa source tại E:/apps/group-deal/.cache/ci/c-322e58ff; branchcodex/license-key-csv-studio, remote github https://github.com/tanka420/group-deal.git. Không stage/reset checkout gốc bẩn. Kiểm git/source/runtime/hash trước mỗi gói; không overwrite artifact đóng.
 - Push/deploy vẫn được cấp. VPS tan-picks là writer ứng dụng/DB duy nhất; không app local dùng env/DB live, không reset/seed hoặc promote bản restore. Tôi tự OTP, consent OAuth, ký và gửi thao tác ví. Không đưa seed/private key/token/secret vào chat/bằng chứng.
@@ -34,7 +36,7 @@ Phụ thuộc người dùng còn lại — dùng H1–H6 trong hướng dẫn:
 6. Candidate cuối + Safecontrol mới (T và A hoặc N, không cần login2víGroupDeal), SafeemergencyUAT nếu còn thiếu, independentG6. Không đổi owner/quorum hay miễn điều kiện.
 
 Tài liệu và công cụ:
-- Bằng chứng hiện hành ở reports/evidence/onedrive-preparation/2026-10-20T22-15-48-272Z/CHECKS.json; authoritative hash/size đọc từ CURRENT_G5_PREPARATION_LATEST. G5 source-proof map và HUMAN_ACTIONS cùng thư mục. Rootreports giữ artifacts; sourcecheckout có tài liệu nhưng không giả định có toàn bộ evidence.
+- Bằng chứng hiện hành ở reports/evidence/completion-resume/2026-10-21T01-02-49-798Z/CHECKS.json; SHA256417caca52770b6a3ba6dbce32fcd281a2cb088d72edd1dc384beb111de32de3e/307615bytes/16artifacts; authoritative hash/size vẫn đọc từ CURRENT_G5_PREPARATION_LATEST. previousG5Reference giữ packet37artifacts và parent51artifacts đã kiểm. G5_SOURCE_PROOF_MAP và HUMAN_ACTIONS được kế thừa đúng timestamp từ reports/evidence/onedrive-preparation/2026-10-20T22-15-48-272Z; không giả rằng chúng được tạo mới trong gói readback. Rootreports giữ artifacts; sourcecheckout có tài liệu nhưng không giả định có toàn bộ evidence.
 - docs/seller-identity.md; docs/onedrive-backup.md; scripts/run_seller_identity_checks.cjs; scripts/hosted_offhost_backup*.cjs; scripts/observe_hosted_health.cjs; scripts/hosted_alerts.cjs; sdk/examples/receiver.cjs.
 - Observer cuối .cache/completion-handoff-native.cjs /completion-handoff-ops.cjs; clone đổi outputwx, currentPID/helper/source/public inventory trước lần chạy. Native scripts chỉ read-onlySqlite, không import store/app hoặc đọc private resource bytes/signature.
 

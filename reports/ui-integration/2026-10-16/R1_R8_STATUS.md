@@ -1,4 +1,14 @@
-## Hiện hành — 21/10/2026: triển khai xong gói độc lập; hướng dẫn6nhóm thao tác chính chủ
+## Hiện hành — 21/10/2026 08:03 ICT: readback tiếp tục đã kiểm, chờ H1–H6
+
+Đã đọc prompt/hướng dẫn hiện hành và WP28/WP29/mục9. Xác minh SHA-256/byteLength CHECKS trước cùng toàn bộ 37 artifact; packet cha cùng 51 artifact đạt. Checkout nguồn sạch tại E:/apps/group-deal/.cache/ci/c-322e58ff, branch codex/license-key-csv-studio, GitHub remote đúng; HEAD trước gói docs này 36673337fd073299759890177c624021f51c7a12. Delta so backend chạy chỉ là test định danh; frontend/ops/offhost/SDK đã ghim khớp nguồn. 14 nhánh source-proof map/63 file khớp; inventory không thay execution proof.
+
+Readback mới 2026-10-21T01:03:28–30Z: PID1350200/NRestarts0, 389 runtime/186 public file cùng inventory/index/launcher/nginx hash khớp; 19users/6campaigns/6orders/44ops/8grants/12inventory, ledger52/72/SHAee7087ef1992baf86b322aaf1259487d90fa0a17bf7c544c7ef5c16c3559ce17, oldorders1–5/SHAf864e1a7f21a123450f6d17111f2f0bbc5514557bb47d048b1cd521622b24ae9, order6/grants và95held giữ nguyên. Backup CURRENT/private-restore verified, local3managed+1other. 10 scoped HTTPS GET/guard/static hash đạt. Gói này chỉ đọc; không chạy app local, không restart/upgrade, không phát giao dịch hoặc chạy lại CI; chưa thu canonical financial reconciliation mới.
+
+Đã điều khiển đúng tab Chrome thật: seller24F đang đăng nhập tại /seller/profile, username trống; GitHub/X/Discord chưa cấu hình (private-config fingerprint không đổi). Realm /admin riêng đang chờ login. OneDrive vẫn chưa có rclone.conf/receipt; timer disabled và monitoring dropin pending. Đã hỏi chính chủ H1 username/app configuration và H2 Microsoft consent + restore target/key custodian; chưa có trả lời, không coi hết thời gian là consent. Tiếp tục H3–H6 khi có actor/budget/host thích hợp; không yêu cầu seller đăng nhập lại. Physical zoom200%, OAuth consent/provider, inbox, offhost restore/RPO/RTO và final Safe/G6 vẫn chưa đạt.
+
+CURRENT [CHECKS.json](E:/apps/group-deal/reports/evidence/completion-resume/2026-10-21T01-02-49-798Z/CHECKS.json), SHA256 417caca52770b6a3ba6dbce32fcd281a2cb088d72edd1dc384beb111de32de3e, 307615bytes/16artifacts; previousG5Reference trỏ packet37artifact đã kiểm. Prompt/hướng dẫn H1–H6 giữ nguyên quyền và dependency. **NOT_FROZEN/G5OPEN/G6OPEN/acceptanceEligible=false/wholeProjectAccepted=false.**
+
+## Trước readback08:03 ICT — 21/10/2026: triển khai xong gói độc lập; hướng dẫn6nhóm thao tác chính chủ
 
 Chỉ dẫn mới21Oct mở lại mọi phần từng hoãn. **Backend 937285063b76f7192ae30f4254b051c9910df8fa; frontend 22a45704b0fff52c93e7e28358e64bf3bd571c50; guardops 154bac4176aa8aa55fc8f88bb94920c79a87136f; OneDrive support d571b380921a2bc2377957ef60bd0d709bbfa5cc đã push/deploy.** Username seller trước đăng bán mới, buyer tùy chọn tại /account; OAuth3providers/uniqueID/unlink/publiclinks và messageVI/EN đã có.60identity/35ops/10upgradecases; build/typecheck/scopedHTTPS10; source literal1273files0findings và final182publicfiles re-scan0findings. R5–R7 source/UI đã khép trước giữ phạm vi; không ghi toàn bộ live/a11y đã đạt.
 
