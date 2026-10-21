@@ -16,7 +16,7 @@ import {SessionError} from '../services/sessionService';
 import {sellerResourceInventory,SellerResourceInventoryError} from '../services/sellerResourceInventory';
 import {ResourceMutationService,resourceMutationFailure} from '../services/resourceMutationService';
 
-export const resourceJsonErrorHandler:ErrorRequestHandler=(error,req,res,next)=>{if(/^\/api\/(?:delivery\/(?:versions\/[^/]+\/resources|resources\/[^/]+\/(?:keys|probe)|resource-commands\/[^/]+\/cancel)|campaigns\/(?:[^/]+\/)?test-delivery)$/.test(req.originalUrl.split('?')[0])&&(error?.type==='entity.parse.failed'||error?.type==='entity.too.large')){res.set({'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});res.status(error.type==='entity.too.large'?413:400).json({error:'RESOURCE_INPUT_INVALID'});return;}next(error);};
+export const resourceJsonErrorHandler:ErrorRequestHandler=(error,req,res,next)=>{if(/^\/api\/(?:delivery\/(?:versions\/[^/]+\/resources|resources\/[^/]+\/(?:keys|probe)|resource-commands\/[^/]+\/cancel)|campaigns\/(?:(?:[^/]+\/)?test-delivery|[^/]+\/provider-probe))$/.test(req.originalUrl.split('?')[0])&&(error?.type==='entity.parse.failed'||error?.type==='entity.too.large')){res.set({'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});res.status(error.type==='entity.too.large'?413:400).json({error:'RESOURCE_INPUT_INVALID'});return;}next(error);};
 
 export const deliveryRouter=Router();
 deliveryRouter.use((_req,res,next)=>{res.set({'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});next();});
@@ -38,8 +38,8 @@ deliveryRouter.post("/resources/:id/probe",requireRole("seller"),(req:Authentica
   try {resourceQuery(req);const {method}=z.object({method:z.enum(['FILE_LINK','LICENSE_KEY'])}).strict().parse(req.body);res.json(ResourceMutationService.probe(req.user!.userId,req.params.id,method,{proof:req.sessionProof!,commandId:req.get('Idempotency-Key')}));}catch(error){resourceMutationFailure(res,error);}
 });
 deliveryRouter.use(resourceJsonErrorHandler);
-deliveryRouter.post("/orders/:id/prepare",requireRole("seller"),(req:AuthenticatedRequest,res)=>{
-  try {const {idempotencyKey}=z.object({idempotencyKey:z.string().regex(/^[-A-Za-z0-9:_]{8,180}$/)}).strict().parse(req.body);res.json({operation:ResourceDeliveryService.prepare(req.user!.userId,req.params.id,idempotencyKey,req.sessionProof)});}catch(error){operationPreparationFailure(res,error);}
+deliveryRouter.post("/orders/:id/prepare",requireRole("seller"),async(req:AuthenticatedRequest,res)=>{
+  try {const {idempotencyKey}=z.object({idempotencyKey:z.string().regex(/^[-A-Za-z0-9:_]{8,180}$/)}).strict().parse(req.body);res.json({operation:await ResourceDeliveryService.prepare(req.user!.userId,req.params.id,idempotencyKey,req.sessionProof)});}catch(error){operationPreparationFailure(res,error);}
 });
 deliveryRouter.post("/operations/:id/retry",requireRole("seller"),async(req:AuthenticatedRequest,res)=>{
   try{const {idempotencyKey}=z.object({idempotencyKey:z.string().regex(/^[a-zA-Z0-9:_-]{8,180}$/)}).strict().parse(req.body);res.json({operation:await DeliveryRetryService.retry(req.user!.userId,req.params.id,idempotencyKey,req.sessionProof)});}catch(error){operationPreparationFailure(res,error);}

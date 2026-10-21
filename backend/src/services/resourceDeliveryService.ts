@@ -13,6 +13,7 @@ import { config } from "../config";
 import {SessionService,SessionProof} from './sessionService';
 import {buyerResourceView,ResourceAccessError} from './buyerResourceView';
 import {ResourceMutationService} from './resourceMutationService';
+import {ProviderDeliveryService} from './providerDeliveryService';
 
 const equal=(a:unknown,b:unknown)=>typeof a==="string"&&typeof b==="string"&&a.toLowerCase()===b.toLowerCase();
 const iface=new ethers.Interface(HUB_ABI);
@@ -25,6 +26,14 @@ export class ResourceDeliveryService {
    if(!operation.stagedEntitlementEncrypted||!snapshot)throw new Error();
    const payload=decryptEntitlement(operation.stagedEntitlementEncrypted),stage=JSON.parse(payload),proofHash=ethers.keccak256(ethers.toUtf8Bytes(payload));
    const parsed=iface.parseTransaction({data:operation.calldata});
+   if(campaign.deliveryMethod==='WEBHOOK'){
+    const probe=ProviderDeliveryService.assertProbe(sellerId,snapshot.productVersionId,graph.deliveryProbes[campaign.deliveryProbeId!],graph,operation.phase==='PREPARED'),p=probe.provider!;
+    const version=graph.productVersions[snapshot.productVersionId],license=graph.licenseVersions[snapshot.licenseVersionId],url=new URL(stage.downloadUrl),endpoint=new URL(p.endpoint);
+    if(operation.expectedFunction!=='recordDelivery'||operation.expectedEvent!=='DeliveryRecorded'||parsed?.name!=='recordDelivery'||parsed.args.campaignId!==BigInt(campaign.onchainCampaignId!)||parsed.args.orderId!==BigInt(order.onchainOrderId)||!equal(parsed.args.proofHash,proofHash)||!equal(operation.expectedEventArgs.proofHash,proofHash)||String(operation.expectedEventArgs.campaignId)!==String(campaign.onchainCampaignId)||String(operation.expectedEventArgs.orderId)!==String(order.onchainOrderId)
+     ||stage.version!==1||stage.method!=='WEBHOOK'||stage.providerProbeId!==probe.id||stage.subscriptionFingerprint!==p.subscriptionFingerprint||stage.orderId!==order.id||stage.campaignId!==campaign.id||stage.productVersionId!==snapshot.productVersionId||stage.licenseVersionId!==snapshot.licenseVersionId||stage.chainId!==operation.chainId||!equal(stage.hubAddress,operation.hubAddress)||!equal(stage.buyerPrincipal,order.buyerPrincipal)||stage.quantity!==order.quantity||stage.packageSha256!==probe.resourceSha256||stage.byteLength!==p.byteLength||!Number.isSafeInteger(stage.expiresAt)||stage.expiresAt<=(operation.phase==='PREPARED'&&!allowActivated?Date.now():Number.isSafeInteger(order.deliveryTimestamp)&&order.deliveryTimestamp!>0?order.deliveryTimestamp!*1000:operation.createdAt)
+     ||!version||version.sellerId!==sellerId||version.contentHash!==snapshot.productContentHash||!license||license.contentHash!==snapshot.licenseContentHash||license.seatsPerUnit!==1||url.origin!==endpoint.origin||url.protocol!=='https:'||url.username||url.password||url.search||url.hash||!/^\/entitlements\/[a-f0-9]{64}\/csv-studio\.zip$/.test(url.pathname)||Object.values(graph.resourceGrants).some(g=>g.orderId===order.id))throw Error();
+    return{operation,order,campaign,grants:[] as ResourceGrant[]};
+   }
    if(operation.expectedFunction!=="recordDelivery"||operation.expectedEvent!=="DeliveryRecorded"||parsed?.name!=="recordDelivery"||parsed.args.campaignId!==BigInt(campaign.onchainCampaignId!)||parsed.args.orderId!==BigInt(order.onchainOrderId)||!equal(parsed.args.proofHash,proofHash)||!equal(operation.expectedEventArgs.proofHash,proofHash)||String(operation.expectedEventArgs.campaignId)!==String(campaign.onchainCampaignId)||String(operation.expectedEventArgs.orderId)!==String(order.onchainOrderId)||stage.version!==1||stage.method!==campaign.deliveryMethod||!["FILE_LINK","LICENSE_KEY"].includes(stage.method)||!Array.isArray(stage.grants)||stage.grants.length!==order.quantity)throw new Error();
    const license=graph.licenseVersions[snapshot.licenseVersionId],version=graph.productVersions[snapshot.productVersionId];
    if(!license||!version||license.contentHash!==snapshot.licenseContentHash||version.contentHash!==snapshot.productContentHash||version.sellerId!==sellerId)throw new Error();
@@ -52,13 +61,17 @@ export class ResourceDeliveryService {
   public static probe(sellerId:string,resourceId:string,method:"FILE_LINK"|"LICENSE_KEY",options:Parameters<typeof ResourceMutationService.probe>[3]={}) {return ResourceMutationService.probe(sellerId,resourceId,method,options).probe;}
   public static assertProbe(sellerId:string,versionId:string,method:string,probeId:string|undefined,graph:OperationReadinessGraph=store.db) {
     const probe=probeId&&graph.deliveryProbes[probeId];
+    if(method==='WEBHOOK')return ProviderDeliveryService.assertProbe(sellerId,versionId,probe||undefined,graph);
     if(!probe||probe.sellerId!==sellerId||probe.productVersionId!==versionId||probe.method!==method)throw new Error("DELIVERY_PROBE_REQUIRED: test a real resource/provider for this product and delivery method");
     const resource=graph.resources[probe.resourceId];
     if(!resource||resource.sha256!==probe.resourceSha256)throw new Error("RESOURCE_INTEGRITY_FAILED");
     this.resourceBytes(resource);
     return probe;
   }
-  public static prepare(sellerId:string,orderId:string,idempotencyKey:string,proof?:SessionProof){return OperationPreparationService.deliver(sellerId,orderId,idempotencyKey,proof);}
+  public static prepare(sellerId:string,orderId:string,idempotencyKey:string,proof?:SessionProof){
+    const state=store.readOperationPreparationState({actorId:sellerId,action:'DELIVER',resourceId:orderId,idempotencyKey,...(proof?{sessionKey:proof.key}:{})}),order=state.graph.orders[orderId];
+    return order&&state.graph.campaigns[order.campaignId]?.deliveryMethod==='WEBHOOK'?OperationPreparationService.deliverProvider(sellerId,orderId,idempotencyKey,proof):OperationPreparationService.deliver(sellerId,orderId,idempotencyKey,proof);
+  }
   public static activate(sellerId:string,operationId:string,proof?:SessionProof):void {OperationCompletionService.projected(sellerId,operationId,proof);}
   private static buyerState(userId:string,proof?:SessionProof,orderId?:string,grantId?:string,includeResourceBytes=false){
     if(proof){const snapshot=store.readBuyerResourceState(userId,proof.key,orderId,grantId,includeResourceBytes);if(SessionService.assertCommitted(proof,snapshot.auth).id!==userId)throw new ResourceAccessError('RESOURCE_ACCESS_DENIED');return snapshot;}

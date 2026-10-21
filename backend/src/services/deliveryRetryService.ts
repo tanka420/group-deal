@@ -11,6 +11,7 @@ import {ResourceDeliveryService} from "./resourceDeliveryService";
 import {ArcReadProvider} from "./arcReadProvider";
 import {HUB_ABI} from "../contracts/hubAbi";
 import {decryptEntitlement} from "../utils/crypto";
+import {ProviderDeliveryService} from './providerDeliveryService';
 
 const iface=new ethers.Interface(HUB_ABI),equal=(a:unknown,b:unknown)=>typeof a==="string"&&typeof b==="string"&&a.toLowerCase()===b.toLowerCase();
 /** Reuse an order's exact staged entitlement after a freshly verified terminal wallet outcome. No revocation, financial projection or signing. */
@@ -45,6 +46,11 @@ export class DeliveryRetryService {
  static async retry(sellerId:string,previousId:string,key:string,proof?:SessionProof){return OperationPreparationService.retry(sellerId,previousId,key,proof);}
  static async validateReady(sellerId:string,id:string,graph?:OperationReadinessGraph){
   const binding=this.state(sellerId,id,graph),{operation}=this.assertReadyStage(sellerId,id,graph);
+  const scoped=this.scope(sellerId,id,graph);
+  if(scoped.campaign.deliveryMethod==='WEBHOOK'){
+   const current=await ProviderDeliveryService.resolve(sellerId,scoped.order.id,graph??store.db);
+   if(JSON.stringify(current)!==decryptEntitlement(operation.stagedEntitlementEncrypted!))throw Error('CONFLICT: provider entitlement changed; retain the exact staged delivery');
+  }
   const quote=await this.capability(structuredClone(operation),Math.max(config.deploymentBlock,operation.deliveryRetry?.terminal.blockNumber||0,operation.deliveryRetry?.capability.blockNumber||0),graph);
   if(this.state(sellerId,id,graph)!==binding)throw new Error("CONFLICT: delivery stage changed before signature reservation");
   this.assertReadyStage(sellerId,id,graph);return quote;

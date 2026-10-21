@@ -68,3 +68,21 @@ export async function postWebhookReview(target:string,body:string,headers:Record
   request.once('error',()=>finish());request.end(body);
  });
 }
+
+/** Private provider proofs retain DNS pinning and never follow redirects or expose remote errors. */
+export async function postWebhookProvider(target:string,body:string,headers:Record<string,string>):Promise<{body:string;signature:string}>{
+ const {url,address,family}=await resolveWebhookTarget(target);
+ return new Promise((resolve,reject)=>{
+  const transport=url.protocol==='https:'?https:http;
+  const lookup:any=(_hostname:string,options:any,callback:any)=>options?.all?callback(null,[{address,family}]):callback(null,address,family);
+  let settled=false;const finish=(value?:{body:string;signature:string})=>{if(settled)return;settled=true;clearTimeout(timer);if(value)resolve(value);else reject(Error('PROVIDER_TRANSPORT_UNAVAILABLE'));};
+  const request=transport.request(url,{method:'POST',agent:false,lookup,headers:{...headers,'Content-Length':String(Buffer.byteLength(body))}},response=>{
+   if(response.statusCode!==200||!/^application\/json(?:\s*;.*)?$/i.test(String(response.headers['content-type']??''))||response.headers['content-encoding']!==undefined){response.destroy();finish();return;}
+   const signature=String(response.headers['x-groupdeal-provider-signature']??'');
+   if(!/^sha256=[a-f0-9]{64}$/.test(signature)){response.destroy();finish();return;}
+   let size=0;const chunks:Buffer[]=[];response.on('data',(chunk:Buffer)=>{size+=chunk.length;if(size>8192){response.destroy();finish();}else chunks.push(chunk);});
+   response.once('error',()=>finish());response.once('aborted',()=>finish());response.once('end',()=>{try{finish({body:new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(chunks)),signature});}catch{finish();}});
+  });
+  const timer=setTimeout(()=>{request.destroy();finish();},5000);request.once('error',()=>finish());request.end(body);
+ });
+}

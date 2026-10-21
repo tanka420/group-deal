@@ -21,6 +21,7 @@ import {publicLeaf} from '../services/publicMetadata';
 import {z} from 'zod';
 import {ResourceMutationService,resourceMutationFailure} from '../services/resourceMutationService';
 import {CampaignAmendmentService,campaignAmendmentFailure} from '../services/campaignAmendmentService';
+import {ProviderDeliveryService,providerFailure} from '../services/providerDeliveryService';
 
 export const campaignRouter = Router();
 campaignRouter.use((_req,res,next)=>{res.setHeader("Cache-Control","no-store");next();});
@@ -88,6 +89,12 @@ campaignRouter.post("/draft", authMiddleware, requireRole("seller"), (req: Authe
 
 // Managed probes and campaign attachment commit under the same selected SQL authority.
 const privateProbe=(req:any,res:any,next:any)=>{res.set({'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});next();};
+campaignRouter.post('/:id/provider-probe',privateProbe,authMiddleware,requireRole('seller'),async(req:AuthenticatedRequest,res)=>{
+  try{if(Object.keys(req.query).length)throw new z.ZodError([]);res.json(await ProviderDeliveryService.probe(req.sessionProof!,req.params.id,req.body,req.get('Idempotency-Key')??''));}catch(error){providerFailure(res,error);}
+});
+campaignRouter.get('/:id/provider-probes/:commandId',privateProbe,authMiddleware,requireRole('seller'),(req:AuthenticatedRequest,res)=>{
+  try{if(Object.keys(req.query).length)throw new z.ZodError([]);res.json(ProviderDeliveryService.receipt(req.sessionProof!,req.params.id,req.params.commandId));}catch(error){providerFailure(res,error);}
+});
 campaignRouter.post("/test-delivery",privateProbe,authMiddleware,requireRole("seller"),(req:AuthenticatedRequest,res)=>{
   try{if(Object.keys(req.query).length)throw Error('VALIDATION: resource query is invalid');const {resourceId,deliveryMethod}=z.object({resourceId:z.string(),deliveryMethod:z.enum(['FILE_LINK','LICENSE_KEY'])}).strict().parse(req.body);const result=ResourceMutationService.probe(req.user!.userId,resourceId,deliveryMethod,{proof:req.sessionProof!,commandId:req.get('Idempotency-Key')});res.json({success:true,result:{success:true,probe:result.probe},receipt:result.receipt});}catch(error){resourceMutationFailure(res,error);}
 });

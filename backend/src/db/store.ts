@@ -863,6 +863,11 @@ export class TransactionalStore {
   public readPublicProjectionState(selection:import('./rowPersistence').PublicProjectionSelection,chainId:number,hubAddress:string){return this.rows.readPublicProjectionState(selection,chainId,hubAddress);}
   public readSellerResourceState(userId:string,key:string,versionId?:string){return this.rows.readSellerResourceState(userId,key,versionId);}
   public readResourceCommandState(userId:string,key:string,commandKey:string){return this.rows.readResourceCommandState(userId,key,commandKey);}
+  public readProviderMutationState(selection:import('./rowPersistence').ProviderMutationSelection){return this.rows.readProviderMutationState(selection);}
+  public mutateProviderProbe<T>(selection:import('./rowPersistence').ProviderMutationSelection,verify:(state:import('./rowPersistence').ProviderMutationState)=>{result:T;probe?:DatabaseSchema['deliveryProbes'][string]}):T{
+    if(this.batchDepth>0)throw Error('CONFLICT: provider command cannot join an unfinished transaction');const committed=this.rows.mutateProviderProbe(selection,this.data,verify);
+    for(const row of committed.records){const collection=(this.data as any)[row.collection]??={};collection[row.key]=row.value;}this.data.auditLogs.unshift(...committed.audit);return committed.result;
+  }
   public readProductCommandState(userId:string,key:string,commandKey:string){return this.rows.readProductCommandState(userId,key,commandKey);}
   public mutateResource<T>(selection:import('./rowPersistence').ResourceMutationSelection,command:(state:import('./rowPersistence').ResourceMutationState)=>import('./rowPersistence').ResourceMutationPlan<T>):T{
     if(this.batchDepth>0)throw Error('CONFLICT: resource command cannot join an unfinished transaction');const committed=this.rows.mutateResource(selection,this.data,command);

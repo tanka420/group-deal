@@ -13,6 +13,7 @@ import {OrderActionService,isOrderAction} from './orderActionService';
 import {DeliveryRetryService} from './deliveryRetryService';
 import {ProductService} from './productService';
 import {ResourceDeliveryService} from './resourceDeliveryService';
+import {ProviderDeliveryService} from './providerDeliveryService';
 import {campaignCalldata} from './campaignBindingService';
 export {OperationReadinessError} from '../domain/operationReadiness';
 type State=ReturnType<typeof store.readOperationReadinessState>;
@@ -26,7 +27,7 @@ export class OperationReadinessService{
   if(operation.action==='PUBLISH'){
     const campaign=graph.campaigns[operation.resourceId];if(!campaign||campaign.sellerId!==actor||!graph.users[actor].roles.includes('seller')||campaign.status!=='DRAFT'||campaign.onchainCampaignId!==undefined||campaignCalldata(campaign)!==operation.calldata)throw new OperationReadinessError('OPERATION_CONTEXT_CHANGED');
     ProductService.assertPublishable(actor,campaign.productSnapshot,Math.floor(Date.now()/1000)+campaign.durationSeconds+campaign.deliverySlaSeconds,campaign.productSnapshot?graph.productPolicies?.[campaign.productSnapshot.productVersionId]:undefined);
-    ResourceDeliveryService.assertProbe(actor,campaign.draftProductVersionId!,campaign.deliveryMethod,campaign.deliveryProbeId,graph);
+    if(campaign.deliveryMethod==='WEBHOOK')await ProviderDeliveryService.verifyProbe(actor,campaign.id,graph);else ResourceDeliveryService.assertProbe(actor,campaign.draftProductVersionId!,campaign.deliveryMethod,campaign.deliveryProbeId,graph);
   }else if(operation.action==='DELIVER'){
     const order=graph.orders[operation.resourceId],campaign=order&&graph.campaigns[order.campaignId];if(!order||!campaign||order.deliveryStatus!=='PENDING'||campaign.status!=='FINALIZED')throw new OperationReadinessError('OPERATION_CONTEXT_CHANGED');patch.deliveryQuote=await DeliveryRetryService.validateReady(actor,id,graph);
   }else if(['BUYER_CLAIM','SELLER_CLAIM'].includes(operation.action))patch.financialQuote=await ClaimOperationService.validateReady(actor,operation,graph);

@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "groupdeal-csv-studio-receiver",
+  "account_id": "26d1e0308af3e38f5348b223cd991260",
+  "main": "src/worker.mjs",
+  "compatibility_date": "2026-10-21",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": {
+    "enabled": false
+  },
+  "vars": {
+    "GROUPDEAL_API_URL": "https://groupdeal.tech",
+    "CSV_STUDIO_CAMPAIGN_ID": "draft_33044efa-bfab-4762-b394-42bbb3a5e517",
+    "CSV_STUDIO_HUB_ADDRESS": "0x2A7aECd1CE90f1284EB060488c8dDEF4b1bE0574",
+    "CSV_STUDIO_PRODUCT_VERSION_ID": "pv_bcd05b6a-bd8d-43d4-9a74-19e3e19fbe21",
+    "CSV_STUDIO_LICENSE_VERSION_ID": "lv_d4445036-8336-451a-8594-49b19ca6201c"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "groupdeal-csv-studio-inbox",
+      "database_id": "de241d11-29e9-4667-95ad-eb8f69308860",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

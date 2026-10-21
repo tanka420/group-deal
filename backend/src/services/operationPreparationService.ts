@@ -27,6 +27,7 @@ import { operationPublicDto } from '../domain/operationTracking';
 import { computeTermsHash, encryptEntitlement, decryptEntitlement } from '../utils/crypto';
 import type { TransactionOperation } from '../domain/operation';
 import type { ResourceGrant } from '../domain/delivery';
+import {ProviderDeliveryService} from './providerDeliveryService';
 type State = ReturnType<typeof store.readOperationPreparationState>;
 const iface = new ethers.Interface(HUB_ABI), buyInput = z.object({ campaignId: z.string().min(1).max(180), quantity: z.number().int().positive().safe(), walletAddress: z.string(), requireEarlySlot: z.boolean(), maxGrossAmount: z.string().regex(/^\d{1,78}$/), idempotencyKey: z.string().regex(/^[-A-Za-z0-9:_]{8,180}$/) }).strict();
 export class OperationPreparationService {
@@ -147,6 +148,17 @@ export class OperationPreparationService {
     catch (e) {
         throw this.safe(e);
     } }
+    static async deliverProvider(actor:string,orderId:string,key:string,proof?:SessionProof){try{
+      const s:PreparationSelection={actorId:actor,action:'DELIVER',resourceId:orderId,idempotencyKey:key},b=this.begin(s,proof),graph=b.state.graph,order=graph.orders[orderId],campaign=order&&graph.campaigns[order.campaignId];
+      if(!order||!campaign||campaign.sellerId!==actor||!b.state.auth.user?.roles.includes('seller'))throw new OperationPreparationError('OPERATION_PREPARATION_FORBIDDEN',403);
+      if(b.state.prior){this.base(b.state.prior,s,campaign.sellerPayoutWallet);if(b.state.prior.deliveryRetry)throw new OperationPreparationError('OPERATION_PREPARATION_KEY_CONFLICT');return operationPublicDto(b.state.prior);}
+      this.pending(b.state,s);
+      if(campaign.deliveryMethod!=='WEBHOOK'||campaign.status!=='FINALIZED'||order.deliveryStatus!=='PENDING'||!campaign.productSnapshot||order.chainId!==config.arcChainId||campaign.chainId!==config.arcChainId||order.hubAddress?.toLowerCase()!==config.hubAddress.toLowerCase()||campaign.hubAddress?.toLowerCase()!==config.hubAddress.toLowerCase()||!Number.isSafeInteger(order.onchainOrderId)||order.onchainOrderId<1||!campaign.onchainCampaignId||Object.keys(graph.resourceGrants).length)throw new OperationPreparationError('OPERATION_POLICY_UNAVAILABLE');
+      const content=JSON.stringify(await ProviderDeliveryService.resolve(actor,orderId,graph)),proofHash=ethers.keccak256(ethers.toUtf8Bytes(content));b.fresh();
+      const operation=buildOperation({userId:actor,action:'DELIVER',resourceId:orderId,principal:campaign.sellerPayoutWallet,idempotencyKey:key,calldata:iface.encodeFunctionData('recordDelivery',[campaign.onchainCampaignId,order.onchainOrderId,proofHash]),intentId:`delivery_${orderId}_${proofHash}`,expectedFunction:'recordDelivery',expectedEvent:'DeliveryRecorded',expectedEventArgs:{campaignId:campaign.onchainCampaignId,orderId:order.onchainOrderId,proofHash},stagedEntitlementEncrypted:encryptEntitlement(content)});
+      ResourceDeliveryService.assertStage(actor,operation.id,{...graph,operations:{[operation.id]:operation}});
+      return operationPublicDto(b.commit(current=>{if(current.prior){this.base(current.prior,s,campaign.sellerPayoutWallet);return{existing:current.prior};}this.pending(current,s);return{operation};}));
+    }catch(e){throw this.safe(e);}}
     static deliver(actor: string, orderId: string, key: string, proof?: SessionProof) {
         try {
             const s: PreparationSelection = { actorId: actor, action: 'DELIVER', resourceId: orderId, idempotencyKey: key }, b = this.begin(s, proof), graph = b.state.graph, order = graph.orders[orderId], campaign = order && graph.campaigns[order.campaignId];

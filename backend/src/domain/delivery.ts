@@ -12,8 +12,9 @@ export interface ResourceGrant {
   licenseKeyId?:string; state:"STAGED"|"ACTIVE"; activatedAt?:number; redeemedAt?:number;
 }
 export interface DeliveryProbe {
-  id:string; sellerId:string; productVersionId:string; method:"FILE_LINK"|"LICENSE_KEY";
+  id:string; sellerId:string; productVersionId:string; method:"FILE_LINK"|"LICENSE_KEY"|"WEBHOOK";
   resourceId:string; resourceSha256:string; checkedAt:number; evidenceHash:string;
+  provider?:{schema:'GroupDealProviderProbeV1';campaignId:string;licenseVersionId:string;subscriptionId:string;endpoint:string;subscriptionFingerprint:string;chainId:number;hubAddress:string;byteLength:number;expiresAt:number;commandId:string;requestSha256:string;responseSha256:string};
 }
 interface ResourceCommandBase {
  id:string;schema:'GroupDealResourceCommandV1';actorId:string;commandId:string;inputHash:string;

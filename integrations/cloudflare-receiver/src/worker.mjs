@@ -1,5 +1,6 @@
 import {GroupDealSDK} from '@groupdeal/sdk';
 import {downloadCsvStudio, fulfillCsvStudio, providerHealth} from './csv-studio-provider.mjs';
+import {providerControl} from './provider-control.mjs';
 
 const MAX_BODY = 1048576;
 const reply = (status, body) => new Response(JSON.stringify(body), {
@@ -65,6 +66,7 @@ export default {
       || !['identity', null].includes(request.headers.get('content-encoding'))) return reply(415, {error: 'UNSUPPORTED_MEDIA_TYPE'});
     try {
       const body = await rawBody(request);
+      if (request.headers.has('x-groupdeal-provider-signature')) return providerControl(request, env, body);
       const headers = {
         signature: request.headers.get('x-groupdeal-signature') || '',
         timestamp: request.headers.get('x-groupdeal-timestamp') || '',

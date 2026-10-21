@@ -45,3 +45,11 @@ Workers Free includes 100,000 requests/day and 10 ms CPU/request. D1 Free includ
 - [workers.dev routing](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/)
 
 Pinned SDK archive SHA-256: `474af3cedf3d15b91e77fe4d7b1ce285880ea69d17e9f4cdfe824d3685669d54`.
+
+## Application provider contract
+
+The application sends domain-separated HMAC requests to the registered webhook endpoint. `PROBE` binds a fresh nonce to the subscription, draft, product/license versions, Arc Testnet Hub and exact ZIP hash/size. `RESOLVE` additionally binds the order, buyer, quantity and commitment transaction to the durable grant. Both actions are read-only, expire after 60 seconds and use signed response bytes bound to the original request digest. Application session credentials never leave GroupDeal.
+
+The seller saves a normal WEBHOOK draft, then verifies the provider through the dedicated command. Native SQL commits the probe, draft attachment and audit together after rechecking the session and draft/subscription context. Publication and wallet signing remain separate actions. Delivery stages the private grant as encrypted content; canonical delivery verification controls buyer reveal. Retrying a delivery retains the exact staged content and rechecks provider availability. No managed resource or license key is fabricated for a provider order.
+
+`wrangler.provider-uat.jsonc` pins only the newly approved Webhook UAT tuple on the existing Workers Free receiver/D1. Apply migration 0002 before using this optional configuration; retain the existing two webhook secret bindings. The base configuration leaves provider fulfillment disabled. Do not replay historical orders or release restored work. Local tests and a signed provider challenge do not prove real producer event delivery, buyer use or full H5 acceptance.

@@ -17,6 +17,7 @@ import { useWeb3 } from "../context/Web3Context";
 import { displayUSDC } from "../services/orderAccounting";
 import {buyerOrderAmounts,orderMoney,deliveryStatusText,recordedDeadline,canCheckDeliverySla} from '../services/buyerOrderPresentation';
 import { BuyerResources } from "../components/BuyerResources";
+import {ProviderEntitlementContent} from '../components/ProviderEntitlementContent';
 import {
   KeyRound,
   CheckCircle2,
@@ -305,7 +306,7 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string}> = ({selectedOrd
                           color: "var(--text-primary)",
                         }}
                       >
-                        {revealedEntitlements[o.id]}
+                        <ProviderEntitlementContent content={revealedEntitlements[o.id]} orderId={o.id} buyerPrincipal={o.buyerPrincipal} quantity={o.quantity}/>
                       </div>
                     )}
                   </div>
