@@ -1,3 +1,17 @@
+## Hiện hành — 21/10/2026: đã sửa sao chép Webhook secret trên website
+
+Người dùng không sao chép được secret và gặp INVALID_SECRET_FORMAT_COPY_FROM_GROUPDEAL. Lệnh cũ dừng trước thao tác nạp secret. Native read-only xác minh endpoint đã lưu đúng cho seller24F, subscription wh_ba178b8a-b502-4375-b27b-6d4c8f76b384, không có restored hold; không cần Lưu endpoint hoặc OAuth Cloudflare lại. Không đọc secret thật.
+
+Đã thêm nút Sao chép secret và Hiện/Ẩn vào cụm secret hiện có; mặc định vẫn che. Clipboard được ghi bằng toàn bộ giá trị đang được phép xem, lỗi có cách chọn/sao chép thủ công; đổi account hoặc tải lại che secret và không nhận feedback muộn. Copy/reveal không gửi POST cấu hình hoặc lưu secret vào storage. Source frontend832643fbcc2bbd25874616b79702ef97e0698fa2 đã push và lên groupdeal.tech.
+
+Typecheck/build production đạt;8ca dev mới/account guard đạt,14regression khác đã đạt trước khi fixture dừng (22ca khác nhau được phủ, không gọi là một full-run22PASS);6ca bundle production đạt và1ca đổi account dev-only skip. Giữ4lượt FAIL fixture cũ/import React không cần thiết và bản sửa dùng sự kiện render hiện có; không sửa runtime để vượt test. Đã xem ảnh VI/EN375px, kiểm320/375/1440 không tràn; scan1292file không finding. HTTPS đối chiếu88file công khai đúng hash; .vite/manifest bị404 theo Nginx, health200/guestwebhook401. Giữ chẩn đoán verifier ban đầu đòi sai200 cho dotfile. Không fullCI.
+
+Frontend cập nhật89file gồm87asset hash mới và index/manifest; giữ asset cũ. Public directory có3852file trước sửa do asset lịch sử, không đánh đồng với inventory candidate182file+4Safe=186. Backend admitted389file/environment hashes/PID1461981/NRestarts0 và native counts20users/6campaigns/6orders/44operations/8grants/12inventory giữ; ledger53/74 SHA8f3fb6135cf46476f0aaf375b4864f1c1aee836f72514bedc1479a0aa5ba9ecb, hash đơn1–5 f864e1a7f21a123450f6d17111f2f0bbc5514557bb47d048b1cd521622b24ae9 và95held khớp trước/sau. Không restart, backend write, đọc masterkey/secret, replay, ký hoặc đổi billing.
+
+Tiếp theo human Ctrl+F5 tại seller/integrations → Sao chép secret → chạy node E:/apps/group-deal/.cache/connect-groupdeal-webhook.cjs → dán prompt ẩn. Nếu bị chặn clipboard dùng Hiện secret và chọn toàn bộ. Không gửi secret vào chat. Agent kiểm .cache/groupdeal-webhook-connected.json/native trước khi hỏi lặp. Secret Worker thật, event thật, entitlement và producer retry/DLQ vẫn chưa xác minh; Cloudflare Free giữ.
+
+Gói reports/evidence/webhook-secret-copy/2026-10-21T06-09-53-803Z/CHECKS.json; đọc hash/bytes từ CURRENT_G5_PREPARATION_LATEST/CURRENT_PROVIDER_H5_PREPARATION_LATEST sau đóng gói. **NOT_FROZEN / G5 OPEN / G6 OPEN / acceptanceEligible=false / wholeProjectAccepted=false.**
+
 ## Hiện hành — 21/10/2026: Cloudflare receiver đã triển khai trên Free; chờ nối seller
 
 Người dùng đã Allow OAuth, xác nhận Workers Free và yêu cầu chỉ tiếp tục khi không mất phí. Account26d1e0308af3e38f5348b223cd991260/tanka đã đối chiếu; OAuth chỉ có account:read/user:read/workers_scripts:write/d1:write/offline_access. Billing API403 nên gói Free dựa trên xác nhận chính chủ, không suy default_usage_model=standard thành gói trả phí hay miễn phí. Không tạo subscription billing, nâng gói, thêm thẻ hoặc mua domain.
