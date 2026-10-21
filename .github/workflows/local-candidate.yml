@@ -316,6 +316,7 @@ jobs:
           npm ci --prefix backend --no-audit --no-fund
           npm ci --prefix frontend --no-audit --no-fund
           npm ci --prefix sdk --no-audit --no-fund
+          npm ci --prefix integrations/cloudflare-receiver --no-audit --no-fund
       - name: Chromium for fixture journeys
         working-directory: frontend
         run: npx --no-install playwright install --with-deps chromium

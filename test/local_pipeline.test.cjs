@@ -36,6 +36,12 @@ async function main(){
  const probe=net.createServer();await new Promise((resolve,reject)=>{probe.once('error',reject);probe.listen(0,'127.0.0.1',resolve);});
  try{const port=probe.address().port,result=spawnSync(process.execPath,['scripts/run_browser_checks.cjs','--port='+port],{cwd:root,encoding:'utf8',timeout:10000});assert.ok(result.status===1&&/already occupied/.test(result.stderr),'Occupied server must fail before reuse');assert.ok(probe.listening,'Runner must not stop an existing server');}finally{await new Promise(resolve=>probe.close(resolve));}
  const workflow=fs.readFileSync(path.join(root,'.github/workflows/local-candidate.yml'),'utf8');assert.ok(!/pull_request_target|secrets\.|deploy:|arc-live/.test(workflow),'PR checks must have no privileged/live step');assert.ok(/persist-credentials: false/.test(workflow)&&/contents: read/.test(workflow));assert.ok(immutableActionReferences(workflow),'Every action use must have an immutable commit ref, across every job');
+ const localJob=workflow.slice(workflow.indexOf('\n  local:'),workflow.indexOf('\n  current-arc-delta:'));
+ assert.ok(localJob.includes('npm ci --prefix integrations/cloudflare-receiver --no-audit --no-fund'),'Full clean-checkout CI must install the provider workspace lockfile');
+ const receiverIndex=plan.steps.findIndex(s=>s.id==='provider-receiver'),contractIndex=plan.steps.findIndex(s=>s.id==='provider-contract');
+ assert.ok(receiverIndex>=0&&contractIndex>receiverIndex,'Provider conformance must use the Worker bundle built and tested in this run');
+ const backendScripts=JSON.parse(fs.readFileSync(path.join(root,'backend/package.json'),'utf8')).scripts;
+ assert.ok(backendScripts.test.includes('npm run test:provider-delivery')&&backendScripts['test:provider-delivery'].includes('test/provider_delivery.test.ts'),'Default backend regression must cover native provider delivery');
  const pinned=['actions/checkout','actions/setup-node','actions/upload-artifact'].map(action=>'      - uses: '+action+'@'+'a'.repeat(40)).join('\n');
  assert.ok(immutableActionReferences(Array(8).fill(pinned).join('\n')),'Multiple jobs may reuse correctly pinned actions');
  for(const floating of ['actions/checkout@main','actions/setup-node@v7','actions/upload-artifact@'+'a'.repeat(39),'${{ inputs.action }}'])assert.equal(immutableActionReferences(pinned+'\n      - uses: '+floating),false,'An extra unpinned use must fail even when the required three uses are pinned');

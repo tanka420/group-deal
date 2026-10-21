@@ -14,6 +14,7 @@ const steps=[
  ['projection','node',['scripts/run_contract_checks.cjs','projection']],
  ['backend-build','npm',['--prefix','backend','run','build']],
  ['backend','npm',['--prefix','backend','test']],
+ ['provider-delivery','npm',['--prefix','backend','run','test:provider-delivery']],
  ['public-api','npm',['--prefix','backend','run','test:public-api']],
  ['operational-health','node',['scripts/run_operational_health_checks.cjs']],
  ['recovery-drill','node',['scripts/run_recovery_drill_checks.cjs']],
@@ -85,6 +86,8 @@ const steps=[
  ['resource-cancellation','node',['scripts/run_resource_cancellation_checks.cjs','--regressions']],
  ['resource-cancellation-types','npm',['run','typecheck:resource-cancellation']],
  ['sdk','npm',['--prefix','sdk','test']],
+ ['provider-receiver','npm',['--prefix','integrations/cloudflare-receiver','test']],
+ ['provider-contract','npm',['--prefix','backend','run','test:provider-contract']],
  ['wallet-runtime','npm',['--prefix','frontend','run','test:wallet-runtime']],
  ['bridge-recovery-and-fees','node',['scripts/run_bridge_fee_checks.cjs']],
  ['purchase-budget','node',['scripts/run_purchase_budget_checks.cjs']],
@@ -112,7 +115,7 @@ function main(){
  // The full backend step already covers these regression suites. Run each wrapper
  // primary once; --only keeps its broader regression arguments for targeted work.
  const defaultPrimaryOnly=new Set(["circle-wallet-choice","circle-provider-results","circle-status","circle-challenge","circle-policy","circle-wallet","circle-auth","session-management","seller-profile-authority","wallet-binding-authority","wallet-authority","operator-badges"]);
- const fullSteps=steps.filter(s=>!['public-api','operational-health','recovery-drill','recovery-dependencies','recovery-inspection','shadow-recovery','recovery-auth','recovery-application','runtime-backup','legacy-review','restored-work','operator-legacy','buyer-resources','seller-workspace','product-inventory','public-metadata','public-projection','product-policy','product-mutation','product-commands','seller-resources','resource-mutation','resource-cancellation'].includes(s[0])).map(([id,command,args])=>[id,command,defaultPrimaryOnly.has(id)?args.filter(a=>a!=='--regressions'):args]),names=only?only.slice(7).split(','):fullSteps.map(s=>s[0]);
+ const fullSteps=steps.filter(s=>!['provider-delivery','public-api','operational-health','recovery-drill','recovery-dependencies','recovery-inspection','shadow-recovery','recovery-auth','recovery-application','runtime-backup','legacy-review','restored-work','operator-legacy','buyer-resources','seller-workspace','product-inventory','public-metadata','public-projection','product-policy','product-mutation','product-commands','seller-resources','resource-mutation','resource-cancellation'].includes(s[0])).map(([id,command,args])=>[id,command,defaultPrimaryOnly.has(id)?args.filter(a=>a!=='--regressions'):args]),names=only?only.slice(7).split(','):fullSteps.map(s=>s[0]);
  if(!names.length||new Set(names).size!==names.length||names.some(n=>!steps.some(s=>s[0]===n)))throw new Error('Unknown or duplicate local pipeline step');
  const selected=(only?steps:fullSteps).filter(s=>names.includes(s[0]));
  if(args.includes('--list')){console.log(JSON.stringify({layer:'LOCAL_REPRODUCIBLE',acceptanceEligible:false,steps:selected.map(([id,command,args])=>({id,command,args})),excluded:['cleanup','ABI source generation','Arc probe','deployment','live journey','database reset/seed']},null,2));return;}

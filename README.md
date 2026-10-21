@@ -4,7 +4,9 @@ Tên miền chính thức: [groupdeal.tech](https://groupdeal.tech). `www.groupd
 
 ## Cập nhật21/10/2026
 
-Đã triển khai username seller/buyer tùy chọn và liên kết X/GitHub/Discord qua OAuth; xem [định danh và API](docs/seller-identity.md). Đã cài hỗ trợ [OneDrive backup](docs/onedrive-backup.md); Microsoftconsent và3OAuthapps vẫn cần chủ tài khoản thực hiện. [Hướng dẫn nghiệm thu6nhóm](reports/HUONG_DAN_NGHIEM_THU_2026-10-21.md) và [prompt chat mới](reports/PROMPT_CHAT_MOI_2026-10-21.md) ghi source/runtime/CURRENT và các bước đúng principal. Source/build/scopedchecks đạt không thay G5/G6; candidatechưaFROZEN và dự ánchưanghiệmthu.
+GitHub và Discord đã được liên kết thật trong GroupDeal; X tạm hoãn theo yêu cầu người dùng vì chi phí. [OneDrive backup](docs/onedrive-backup.md) đã có consent, tải lên/tải ngược kiểm hash và lịch giám sát. Bản Circle email wallet đã đăng nhập và hoán đổi trên Arc Testnet. Luồng Webhook UAT đơn #7 đã hoàn tất từ mua, cấp quyền, tải và dùng CSV Studio đến xác nhận và rút tiền của buyer/seller. Xem [trạng thái hoàn thiện hiện tại](reports/HOAN_THIEN_DU_AN_HIEN_TAI_2026-10-21.md).
+
+Theo quyết định mới nhất, **kiểm thử retry/DLQ trên hệ thống thật sẽ làm sau**; chưa tính là đạt. Tiếp tục hoàn thiện tích hợp, pipeline và tài liệu của bản Arc Testnet. [Hướng dẫn nghiệm thu](reports/HUONG_DAN_NGHIEM_THU_2026-10-21.md) và [prompt bàn giao](reports/PROMPT_CHAT_MOI_2026-10-21.md) lưu bằng chứng và giới hạn hiện hành. G5/G6 vẫn mở; source/build đạt chưa đồng nghĩa dự án đã nghiệm thu hoặc được phát hành Mainnet.
 
 GroupDeal hiện là **release candidate trên Arc Testnet**, chưa hoàn tất nghiệm thu sản phẩm. Arc là lớp settlement và nguồn sự thật tài chính; ứng dụng hỗ trợ Circle User-Controlled Wallet, ví ngoài qua Reown AppKit và nạp USDC qua Circle Arc App Kit Bridge. Candidate mới là `GroupDealHub` tại `0x2A7a...0574`, dùng Safe 2-of-3 đã xác minh tại `0xdDB2...72e6`; deployment cũ `0x7d4b...9F9a` đã được dọn hết escrow và loại khỏi nghiệm thu. Xem [báo cáo tiến độ live](./reports/BAO_CAO_TIEN_DO_LIVE_ARC_30_09_2026.md) và [báo cáo checkout mới hơn](./reports/BAO_CAO_SUA_LOI_VA_CHECKOUT_03_10_2026.md). Credential/readiness đã có bằng chứng cấu hình; nghiệm thu cuối cần xác minh lại hiệu lực, quyền kiểm soát các principal độc lập, hành trình sản phẩm live G5 và rà soát độc lập G6.
 
@@ -31,7 +33,7 @@ $$\text{buyerAllocation} + \text{sellerGrossAllocation} + \text{stillUnallocated
 - Không thể phân bổ hay rút vượt quá số tiền đã cam kết trên chuỗi.
 
 ### 3. Bảo vệ Danh tính & Quyền Tài chính Bất biến (Buyer Principal Pinning)
-- **Campaign Identity**: Sinh bằng hàm băm từ account, campaign và secret theo mục đích; không đưa email hay PII lên chuỗi. Cùng địa chỉ ví vẫn có thể được liên kết công khai giữa các campaign. Persist mapping và version khi xoay secret là việc cần hoàn thiện trong kế hoạch.
+- **Campaign Identity**: Sinh bằng hàm băm từ account, campaign và secret theo mục đích; không đưa email hay PII lên chuỗi. Cùng địa chỉ ví vẫn có thể được liên kết công khai giữa các campaign. Mapping và version phải được giữ nguyên khi vận hành và xoay secret.
 - **Principal Pinning**: Cam kết nạp tiền đầu tiên ghim vĩnh viễn địa chỉ ví của người mua làm *Buyer Principal* duy nhất. Mọi khoản rebate, refund hay claim chỉ có thể được rút về ví này.
 - **Ràng buộc Ví Nguyên tử (1-to-1 Atomic Binding)**: Một ví EVM chỉ có thể liên kết chủ động với một tài khoản GroupDeal tại một thời điểm.
 
@@ -40,14 +42,14 @@ $$\text{buyerAllocation} + \text{sellerGrossAllocation} + \text{stillUnallocated
 - Chống tấn công phát lại (replay attack) bằng nonce tăng tuần tự trên hợp đồng.
 
 ### 5. Giao Hàng Số Bí Mật & Fallback Tranh Chấp Onchain
-- **Bảo mật Entitlement**: Mã license key, link tải riêng hay token kích hoạt được mã hóa **AES-256-GCM** offchain và kiểm quyền truy cập theo đơn hàng. Backend hiện có khả năng giải mã; chưa phải mã hóa đầu cuối chỉ buyer giải mã được. Adapter giao hàng thật và quản lý key version còn cần hoàn thiện.
+- **Bảo mật Entitlement**: Mã license key, link tải riêng hay token kích hoạt được mã hóa **AES-256-GCM** offchain và kiểm quyền truy cập theo đơn hàng. Backend hiện có khả năng giải mã; chưa phải mã hóa đầu cuối chỉ buyer giải mã được. Đã có giao hàng LICENSE_KEY, FILE_LINK và provider Webhook; quyền tải riêng của provider được giao trong nội dung mã hóa sau receipt onchain đã xác minh.
 - **SLA Giao hàng**: 24 giờ hoặc 48 giờ sau khi chốt chiến dịch. Quá hạn không có bằng chứng giao cho phép buyer gửi `claimDeliveryBreach` lên Arc; indexer chỉ cập nhật projection sau event onchain, không có worker DB tự hoàn tiền.
 - **Cửa sổ Tranh chấp 48h**: Sau khi nhận, người mua có 48h để xác nhận sớm hoặc mở tranh chấp.
-- **Direct Onchain Dispute Fallback**: Contract có hàm `openDispute(campaignId, orderId, reasonHash)` để buyer gọi trực tiếp. Luồng dự phòng độc lập cho cả external và Circle embedded khi app/backend/evidence service mất còn cần triển khai và kiểm chứng.
+- **Direct Onchain Dispute Fallback**: Contract có hàm `openDispute(campaignId, orderId, reasonHash)` để buyer gọi trực tiếp. Công cụ riêng tại `/fallback.html` hỗ trợ kiểm tra và chuẩn bị thao tác dự phòng; khả năng dùng khi app/backend/provider gián đoạn vẫn cần bằng chứng theo từng ví và tình huống.
 - **Trọng tài Operator**: Chỉ có quyền phân bổ chính xác khoản đang tranh chấp giữa buyer principal và seller payout wallet (tuân thủ 100% định luật bảo toàn).
 
 ### 6. Tích hợp & Mở rộng (Signed Webhooks & SDK)
-- **Webhook có chữ ký HMAC-SHA256**: Gửi thông báo kèm header `X-GroupDeal-Signature` và `X-GroupDeal-Timestamp`, kiểm cửa sổ thời gian 300 giây. Chống xử lý lặp còn cần dedup bằng event ID; receiver/retry/DLQ phải được kiểm thử đầy đủ.
+- **Webhook có chữ ký HMAC-SHA256**: Gửi thông báo kèm header `X-GroupDeal-Signature` và `X-GroupDeal-Timestamp`, kiểm cửa sổ thời gian 300 giây. Receiver D1 lưu và khử trùng theo subscription/event ID; backend có retry, DLQ và replay. Provider Cloudflare đã cấp quyền tải thật cho đơn #7. Kiểm thử lỗi/retry/DLQ trên hệ thống thật được người dùng hoãn; các kiểm tra mã nguồn cô lập vẫn được giữ trong pipeline.
 - **Public Read API**: `/api/v1/campaigns` và `/api/v1/campaigns/:id` cho các nền tảng đối tác.
 - **Embed Widget**: Iframe chỉ đọc cho người bán nhúng trực tiếp vào website bán hàng / landing page.
 
@@ -84,7 +86,7 @@ group-deal/
 
 ## 🧪 Chạy kiểm thử và candidate pipeline
 
-Pipeline local compile/typecheck contract, chạy reference model và contract → indexer → đối soát, backend, SDK packed consumer, build frontend và browser fixtures. Nó dùng credential tạm trong child process; không xóa build/cache, sinh lại ABI nguồn, reset/seed DB hoặc chạy Arc probe/deploy/live journey. Node fixture chặn cả RPC Arc fallback; browser vẫn dùng các RPC/wallet/provider fixtures đã khai báo, chưa phải hành trình live.
+Pipeline local compile/typecheck contract, chạy reference model và contract → indexer → đối soát, backend, SDK packed consumer, Worker/provider conformance, build frontend và browser fixtures. Nó dùng credential tạm trong child process; không xóa build/cache, sinh lại ABI nguồn, reset/seed DB hoặc chạy Arc probe/deploy/live journey. Node fixture chặn cả RPC Arc fallback; browser vẫn dùng các RPC/wallet/provider fixtures đã khai báo, chưa phải hành trình live.
 
 ```bash
 # Xem các bước; chưa chạy kiểm tra
@@ -115,15 +117,19 @@ Runner chỉ dùng server nó tạo, đóng sau khi kiểm tra và từ chối c
 
 Frontend tải riêng các trang deal/buyer/seller/operator/docs, giữ auth và checkpoint khi chuyển trang. Lỗi tải trang có trạng thái Việt/Anh và nút reload chủ động. Plus Jakarta Sans/JetBrains Mono được self-host bằng hai package variable pin5.3.0; OFL licenses nằm trong frontend/public/fonts. Không tải Google Fonts. `GROUPDEAL_BUNDLE_REPORT=label` khi build ghi emitted module graph/JS byte counts vào `.cache/bundle-label.json`, không source map/content hoặc báo đạt Core Web Vitals. Các phụ thuộc SDK có eval và chunk lớn vẫn cần kiểm CSP/provider thật; hai overrides gRPC/Undici cùng major không là kết luận audit đã sạch.
 
-Workflow `.github/workflows/local-candidate.yml` chuẩn bị clean checkout trên Ubuntu/Node24.11.1, cài cả bốn lockfile và Chromium, ghim Actions bằng commit SHA, dùng quyền contents:read và không giữ checkout credential. Artifact chỉ gồm JSON đã redacted, không upload DB, `.env`, entitlement hoặc browser traces. Workflow chưa có lượt GitHub PASS trên candidate cố định; các kiểm tra Windows/local không thay bằng chứng đó hoặc G5/G6.
+Workflow `.github/workflows/local-candidate.yml` chuẩn bị clean checkout trên Ubuntu/Node24.21.0, cài bốn workspace chính cùng workspace receiver Cloudflare theo lockfile và Chromium, ghim Actions bằng commit SHA, dùng quyền contents:read và không giữ checkout credential. Artifact chỉ gồm JSON đã redacted, không upload DB, `.env`, entitlement hoặc browser traces. Hồ sơ CI ở các commit trước giữ nguyên phạm vi; candidate cuối vẫn cần CI riêng và G5/G6.
 
 ---
 
 ## 🛠️ Hướng dẫn Khởi chạy Ứng dụng
 
-### Bản Testnet đã chuẩn bị trong workspace hiện tại
+### Website đang vận hành
 
-Chạy tại thư mục gốc với Node.js 24.11.1:
+Truy cập [groupdeal.tech](https://groupdeal.tech). Dịch vụ trên VPS là bản dữ liệu live hiện hành; xem [runbook Arc](reports/RUNBOOK_VAN_HAN_ARC.md) để vận hành. Các ca nghiệm thu đã hoàn tất và quyết định hoãn nằm trong [trạng thái hiện tại](reports/HOAN_THIEN_DU_AN_HIEN_TAI_2026-10-21.md).
+
+### Bản Testnet trong môi trường local riêng
+
+Lệnh sau dành cho môi trường local có dữ liệu và admission riêng, với Node.js 24; nó không phải cách khởi động lại bản live trên VPS:
 
 ```bash
 npm run start:testnet
@@ -131,10 +137,10 @@ npm run start:testnet
 
 Mở `http://127.0.0.1:5173`. Lệnh phục vụ frontend đã đóng gói với Circle/Reown được cấu hình và khởi động backend production trên bản dữ liệu phục hồi đã được admission; các hash source/package/runtime được kiểm trước khi mở cổng. Dừng bằng `Ctrl+C` để đóng API, indexer, worker và lease của lượt chạy.
 
-Đây là ứng dụng local kết nối Arc Testnet. Deployment dịch vụ, hành trình OTP/chữ ký của các principal độc lập, giao tài nguyên/provider thật và G5/G6 vẫn cần nghiệm thu. Hướng dẫn cài đặt/development bên dưới dành cho checkout mới; workspace có dữ liệu phục hồi dùng lệnh trên.
+Đây là ứng dụng local kết nối Arc Testnet. Hướng dẫn cài đặt/development bên dưới dành cho checkout mới; dữ liệu và secret của VPS không được sao chép vào môi trường kiểm tra. Các bằng chứng live đã có không thay nghiệm thu G5/G6 toàn bộ.
 
 ### 0. Cài đặt sau khi clone
-Yêu cầu Node.js 24 LTS và npm. Backend sử dụng `node:sqlite`; đợt kiểm tra gần nhất chạy trên Node.js `24.11.1` và npm `11.6.2`.
+Yêu cầu Node.js 24 LTS và npm. Backend sử dụng `node:sqlite`; CI ghim Node.js `24.21.0` và npm `11.6.2`.
 
 Chạy từ thư mục gốc để cài dependency theo các lockfile đã commit:
 
@@ -143,6 +149,7 @@ npm ci --prefix contracts
 npm ci --prefix backend
 npm ci --prefix frontend
 npm ci --prefix sdk
+npm ci --prefix integrations/cloudflare-receiver
 ```
 
 SDK được build bằng `npm run build:sdk` từ thư mục gốc và kiểm packed consumer bằng `npm --prefix sdk test`. Các tệp `.env` thật, dữ liệu runtime, dependency và build artifact được loại khỏi Git; cấu hình riêng trên máy theo các bước bên dưới.

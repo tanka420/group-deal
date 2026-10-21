@@ -1,3 +1,11 @@
+## Quyết định hiện hành — 21/10/2026: hoãn kiểm thử retry/DLQ, ưu tiên hoàn thiện dự án
+
+Người dùng yêu cầu: “ghi chú sẽ kiểm thử sau, giờ cần tiếp tục để hoàn thành dự án trước đã”. H5 retry/DLQ/redrive trên hệ thống thật chuyển sang **DEFERRED_BY_USER — kiểm thử sau**. Dừng chuẩn bị gây outage, tạo job lỗi, phát lại sự kiện hoặc tạo đơn mới cho mục đích này. Đây là hoãn, chưa phải PASS và không tự xóa tiêu chí nghiệm thu. Các fixture kiểm tra mã nguồn đang có vẫn được dùng khi cần xác minh thay đổi liên quan.
+
+Ưu tiên hiện tại: khép các điểm thiếu của mã nguồn, tích hợp, pipeline và tài liệu bàn giao bản Arc Testnet; giữ luồng order7 đã hoàn tất, các đơn cũ và95held. Không mở rộng Mainnet, không thêm dịch vụ trả phí. Không yêu cầu lại chữ ký/login/secret cho công việc đã hoàn tất. Luồng Webhook dương tính và hai khoản rút order7 giữ nguyên bằng chứng trong CURRENT_G5; các chỉ dẫn lịch sử đặt retry/DLQ làm bước tiếp theo đã được quyết định này thay thế.
+
+Qua rà soát có khoảng trống cụ thể: test provider backend và Worker Cloudflare/conformance đang chạy riêng, chưa nối vào pipeline chung; README vẫn nói consent/link/provider live chưa làm. Đã nối kiểm tra provider vào lệnh/pipeline hiện có và sửa README phản ánh đúng tính năng. Tooling guard, backend build,13ca provider delivery,16ca Worker,conformance actualbundle và quét1309file đạt; đây là5nhóm local được chọn, chưa full/remoteCI. Không sửa runtime tài chính hoặc phát giao dịch. G5/G6 vẫn OPEN, toàn dự án chưa tự được đánh dấu nghiệm thu.
+
 ## Hiện hành — 21/10/2026: Webhook UAT đơn #7 hoàn tất luồng thật và hai khoản rút
 
 Ngân sách testnet đã được user duyệt; không hỏi lại hoặc ký lại. Campaign native draft_33044efa-bfab-4762-b394-42bbb3a5e517/onchain6 WEBHOOK đã publish, buyer7477 mua2units/gross0.2USDC bằng approval đúng200000 tới Hub2A7a, soldout tựFINALIZED/finalprice0.08. Order7 CONFIRMED, rebate0.04 và seller0.16 đã được claim đủ. Cả7tx publish/approve/buy/deliver/confirm/buyerclaim/sellerclaim đều do human tự ký, exactcall/event/canonical/finalized/native projection đạt; agent không ký/broadcast. Tổng phí0.04969549775452USDCtestnet <0.5; gross+fees0.24969549775452 <0.7. Không tiền thật hoặc đổi billing; WorkersFree theo chính chủ.
