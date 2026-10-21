@@ -141,3 +141,8 @@ GHI CHÚ KHI TRIỂN KHAI
 ## Cập nhật21Oct2026 — H3 contact/support/inbox
 
 UAT tự OTP contact thành công, bật email; tạo một ticketACCOUNT mới và operator trả lời, hai command/revision2 khớp; thông báo trong app mở đúng ticket. Outbox nghiệp vụ mớiSENT và user xác nhận nhận trong inbox. Chỉ lưu masked/metadata, không đọc OTP/emailpayload. Ledger/oldorders/95held/runtime giữ. Gói reports/evidence/contact-uat/2026-10-21T04-01-07-252Z/CHECKS.json. Rights/badge còn phạm vi; đã chuẩn bị draftCSVStudioUAT riêng, chờ APP seller24F và human rights attestation/signature. Không sửa hai hồ sơAPPROVED/đơn cũ; G5/G6OPEN/NOT_FROZEN.
+
+
+## Cập nhật21Oct2026 — rightsUAT đã nộp, chờ ký
+
+Seller24F tạo một productDRAFT mới riêng và rightsrgt_3e3a1d09-5443-438e-8da6-6b443433bd12 SUBMITTED quaUI; hai command/audit, binding productVersion/license và licensehash so bản cũ đạt. Hai approval cũ/campaigns/orders/ledger/95held giữ. Tabadmin đã chuẩn bị đề xuấtAPPROVED đến09/11/2026; chưa ký/chưaPOSTreview. Humanoperator e48B tự kiểm và ký. Gói reports/evidence/rights-uat/2026-10-21T04-14-01-306Z/CHECKS.json. Khôngpublish/chaintransaction/badge; G5/G6OPEN/NOT_FROZEN.
