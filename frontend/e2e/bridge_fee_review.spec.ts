@@ -6,6 +6,11 @@ import {installBridgeServerFixture,confirmSourceWallet} from './fixtures/bridgeS
 import {bridgeFixture,operation,hashes} from '../test/fixtures/bridge';
 import {bridgeAbi,CIRCLE_BRIDGE_CONTRACT,CCTP_MESSAGE_TRANSMITTER} from '../src/services/bridgeRecovery';
 import {bridgeSources,type BridgeSource} from '../src/services/paymentSafety';
+// New bridge entry was intentionally disabled by fdd09de10e829573490f2fe9885dc23c8d283842.
+// Keep these historical new-transfer journeys for a future re-enable; they are SKIP, never PASS.
+// Current gate checks remain in app.spec.ts; existing-burn mint recovery remains active separately.
+test.skip(true,'New bridge is Coming soon in the current product; these journeys require the removed new-transfer entry.');
+
 const oracle=new ethers.Interface(['function getL1Fee(bytes) view returns (uint256)','function getOperatorFee(uint256) view returns (uint256)']);
 async function fixture(page:Page,{language='vi',source='Ethereum_Sepolia',proofCapture}:{language?:'vi'|'en';source?:BridgeSource;proofCapture?:(name:string)=>string}={}){
  const f=bridgeFixture({...operation,source}),chains=new AppKit().getSupportedChains('bridge').filter(c=>[source,'Arc_Testnet'].includes(String(c.chain))),state={price:1000000000n,native:10n**18n,token:100000000n,invalid:false},errors:string[]=[];

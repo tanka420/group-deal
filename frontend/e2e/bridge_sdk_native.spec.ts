@@ -10,6 +10,11 @@ import {bridgeSources} from '../src/services/paymentSafety';
 import {signerHoldMessage} from '../src/services/signerHoldMessage';
 import {messageText} from '../src/utils/uiMessage';
 
+// New bridge entry was intentionally disabled by fdd09de10e829573490f2fe9885dc23c8d283842.
+// Keep these historical new-transfer journeys for a future re-enable; they are SKIP, never PASS.
+// Current gate checks remain in app.spec.ts; existing-burn mint recovery remains active separately.
+test.skip(true,'New bridge is Coming soon in the current product; these journeys require the removed new-transfer entry.');
+
 const fixtureObservations=new Map<Page,any>();
 test.afterEach(async({page},info)=>{const f=fixtureObservations.get(page);if(f){let wallet:any;try{wallet=await f.state();}catch{}const path=info.outputPath('native-sdk-observations.json');writeFileSync(path,JSON.stringify({wallet,errors:f.errors,unexpected:f.unexpected,rpcMethods:f.rpcMethods,sdkLoads:f.sdkLoads,denied:f.denied},null,2)+'\n');await info.attach('native-sdk-observations',{contentType:'application/json',path});fixtureObservations.delete(page);}});
 async function nativeFixture(page:Page,language:'vi'|'en'){
