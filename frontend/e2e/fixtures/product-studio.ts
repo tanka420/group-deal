@@ -22,6 +22,7 @@ export async function fixture(page:Page,language:'vi'|'en'='en'){
  await page.goto('/#seller');await page.getByRole('button',{name:language==='en'?'Products & licenses':'Sản phẩm & license',exact:true}).click();await expect(page.getByRole('heading',{name:product.version.title,exact:true})).toBeVisible();return state;
 }
 export async function fillCreate(page:Page,title='Requested studio product'){
+ if(!await page.locator('#product-title').isVisible())await studio(page).getByRole('button',{name:/^(Create product|Tạo sản phẩm)$/,exact:true}).click();
  for(const [id,value] of Object.entries({title,vendor:'Studio fixture',category:'Documents',thumbnailUrl:'https://asset.example.test/new.png',edition:'New edition',seats:'2',regions:'Worldwide',supportDays:'30',description:'Seller content stays in its original language',supportPolicy:'Retained seller support policy',usageTerms:'Retained seller license terms'}))await page.locator('#product-'+id).fill(value);
 }
 export async function switchToken(page:Page){const fresh=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/auth/me'&&r.request().headers().authorization==='Bearer studio-current-session');await page.evaluate(()=>{const oldValue=localStorage.getItem('groupdeal_token');localStorage.setItem('groupdeal_token','studio-current-session');dispatchEvent(new StorageEvent('storage',{key:'groupdeal_token',oldValue,newValue:'studio-current-session',storageArea:localStorage}))});await (await fresh).finished();}
