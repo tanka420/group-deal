@@ -1,0 +1,1910 @@
+{
+  "schemaVersion": 1,
+  "name": "VPS baseline 2026-10-22",
+  "observedAt": "2026-10-22T07:23:54.342568+00:00",
+  "frontendSourceCommit": "5e7a012c790084a6c7ff59dfc3e9f31a4764b3f2",
+  "backendSourceCommit": "4b5af7604df53be680e7af9986d45810ac4d26e2",
+  "toolingParentCommit": "5178ef6206b766ae32ffc2daba7da8a5c58581a3",
+  "productionRelease": "47d853f79ff5c2b1c8ac7f0f8163ca613fb82d9a",
+  "sourceScopes": [
+    {
+      "label": "frontend runtime and public source",
+      "commit": "5e7a012c790084a6c7ff59dfc3e9f31a4764b3f2",
+      "paths": [
+        "frontend"
+      ]
+    },
+    {
+      "label": "backend runtime source",
+      "commit": "4b5af7604df53be680e7af9986d45810ac4d26e2",
+      "paths": [
+        "backend/src"
+      ]
+    },
+    {
+      "label": "shared runtime, SDK and contracts",
+      "commit": "5e7a012c790084a6c7ff59dfc3e9f31a4764b3f2",
+      "paths": [
+        "shared",
+        "sdk/src",
+        "contracts/contracts",
+        "backend/package.json",
+        "backend/package-lock.json"
+      ]
+    }
+  ],
+  "artifacts": {
+    "frontend": [
+      {
+        "path": ".vite/manifest.json",
+        "sha256": "2c5d1685a8e9c373a4d6f00dc730edae8cf729e19744a3e9f2049a7cc63b147e",
+        "byteLength": 61785
+      },
+      {
+        "path": "assets/_esm-xaKeq6TB.js",
+        "sha256": "fa06081e0a3c84b70ba6051c8a526646b1830856554ec08f0a75277132c07355",
+        "byteLength": 110446
+      },
+      {
+        "path": "assets/AccountPage-dGTyvglF.js",
+        "sha256": "10c098669f165b046fb1af920476afc876eab424cc82aeb73d032f97e2fcd564",
+        "byteLength": 25240
+      },
+      {
+        "path": "assets/adapter-viem-v2-u917ZVkt.js",
+        "sha256": "2f35c5924d4dc1b4bbb0ba76cecedb79b00b294e58b2740695d76ba5679d43ab",
+        "byteLength": 247762
+      },
+      {
+        "path": "assets/address-CVnff-HU.js",
+        "sha256": "526fed41fae01d19c22f8d452670032c0086099cddbb1f989accb13129bf02b1",
+        "byteLength": 4820
+      },
+      {
+        "path": "assets/ApiController-CHMWdCCA.js",
+        "sha256": "16f4305b3b3ea4a40d710d63dd798fbe439671abf327ff02f373075f2abba15a",
+        "byteLength": 145536
+      },
+      {
+        "path": "assets/app-DmFZPjG_.css",
+        "sha256": "987695d407e4e8e7483111f975ae4eb0547f05b3774fd5a5985b7152eba1083c",
+        "byteLength": 99548
+      },
+      {
+        "path": "assets/app-kit-CuDjUIc-.js",
+        "sha256": "48818abb32dd3db39b8c0511dcfdb8059dedb6c9084c76d2fbf80b4b7eac63ce",
+        "byteLength": 946579
+      },
+      {
+        "path": "assets/app-Uhb3cECJ.js",
+        "sha256": "668476c31bd8d5c6234e4166f474088d1e858eb865805081e384b5d075612c1b",
+        "byteLength": 493094
+      },
+      {
+        "path": "assets/arc-testnet-D5Q46SXr.js",
+        "sha256": "df41443ce43a028f613081b36a005fe94dd009cc79ae37def69b8b228a01f766",
+        "byteLength": 51929
+      },
+      {
+        "path": "assets/arrow-down-BgjY9L_a.js",
+        "sha256": "d9473595c613fe03a88850d6c3b5610c0cf201b2914d74d9d1ba4c940fc10b55",
+        "byteLength": 164
+      },
+      {
+        "path": "assets/browser-ChB5u1JL.js",
+        "sha256": "22119ba20a026805e29167583c1aec5ff965385f303b5e284ae398a63a1894be",
+        "byteLength": 22392
+      },
+      {
+        "path": "assets/browser-DVKgFEve.js",
+        "sha256": "d9efc87fa8899b6be6367f41f68622d62d9f90b1c2b9cc5c86fadc175aea0fff",
+        "byteLength": 158889
+      },
+      {
+        "path": "assets/BuyerDashboard-BEj1689d.js",
+        "sha256": "8fbc11089f4f113af6bbd7debf7a38dc34b7091cd1e444f61b67854027144827",
+        "byteLength": 42531
+      },
+      {
+        "path": "assets/CampaignAmendments-Cr1V56Rp.js",
+        "sha256": "a3e0fed0f9a01b804834cf82a6b20d4d465ffe3b5a6716bb27706763ee2f8ef0",
+        "byteLength": 7992
+      },
+      {
+        "path": "assets/CampaignDetailPage-BqDfW9XX.js",
+        "sha256": "fc80b4c8d38a3101dc81b5172845f7ef92cdeceddcbe3ee53898902896b26a86",
+        "byteLength": 59454
+      },
+      {
+        "path": "assets/ccip-BOc6fHZy.js",
+        "sha256": "d7567254add6adec2069ab7f3f3757a431ef77e22629596320a935088ec63c14",
+        "byteLength": 4696
+      },
+      {
+        "path": "assets/chains-CiWhyxDa.js",
+        "sha256": "09cfc859932dd470fb03e75cba6293d3302e7838dca2d29e3207283ec4f114fa",
+        "byteLength": 516959
+      },
+      {
+        "path": "assets/ConstantsUtil-BMNeGbTU.js",
+        "sha256": "c3231103aec59d86889626d58d81954291da136899098f27b076eb3493aaf936",
+        "byteLength": 2064
+      },
+      {
+        "path": "assets/ConstantsUtil-Crz3hGZ-.js",
+        "sha256": "baf89167ef3464490fdade1269bb97ac6d7f108d0e69d6dff12983fb0f6c2e0b",
+        "byteLength": 490
+      },
+      {
+        "path": "assets/contracts-x97sY0TC.js",
+        "sha256": "a4b34458da70db2072cc010f24ed8297bdb075caab31b87dd9c174af162a3bb9",
+        "byteLength": 23601
+      },
+      {
+        "path": "assets/createLucideIcon-jMmlS054.js",
+        "sha256": "4470b3703c632c20d86b944b832defb480a3a0ea47bb703e1c57aaf47136e232",
+        "byteLength": 930
+      },
+      {
+        "path": "assets/data-capture-D6_Rg9eU.js",
+        "sha256": "0e3b6b5f9bec414033c5810a203d821827c13ae35c6328b791937656cfaee8bb",
+        "byteLength": 12758
+      },
+      {
+        "path": "assets/DeveloperDocs-M5-Cwa-a.js",
+        "sha256": "21ece60411974de987655490c4ba7cee6a08aac0b2b5430930bf4f69644c9287",
+        "byteLength": 18280
+      },
+      {
+        "path": "assets/dijkstra-Jf158s7w.js",
+        "sha256": "b0f32d6b2ee68eb9ffd4a1f707d6dc3e272b3678f8189ac5187b5bd4aade37a1",
+        "byteLength": 1172
+      },
+      {
+        "path": "assets/dist-BDee1qRQ.js",
+        "sha256": "21fa0a304b968c68e47889fb35887d2d496cea48f258ee7f98bd1395b16ec4ae",
+        "byteLength": 1859
+      },
+      {
+        "path": "assets/dist-CoS6E-3x.js",
+        "sha256": "cce179e6001063ba572410a73c843457967a4cc88fe45a8337ade05bdcb2dd24",
+        "byteLength": 933
+      },
+      {
+        "path": "assets/dist-CtmOR2D3.js",
+        "sha256": "d24d53a2e5a36040502088aaaf31c68e8369f463240ecbcff14206513cae791e",
+        "byteLength": 219058
+      },
+      {
+        "path": "assets/dist-GpSsmTdm.js",
+        "sha256": "6e0eca14e1503df95cede2d31d703acbd30fa5294f17ec7f9e590a661df49a56",
+        "byteLength": 232816
+      },
+      {
+        "path": "assets/email-COjEm0fD.js",
+        "sha256": "66a387420c02beb9796b2a169578409c37c494d4dfb5bdf1cbfcc29643bc83e5",
+        "byteLength": 10555
+      },
+      {
+        "path": "assets/embedded-wallet-BJ809lsB.js",
+        "sha256": "a41f70d2cb9decb252dfb49120564716b257415f019e951253c75e8726e259f8",
+        "byteLength": 23383
+      },
+      {
+        "path": "assets/esm-NKhUvvw1.js",
+        "sha256": "4d729b9108a6df47ce0d72160811a7399a1b31f74108e15ef79798261e14768b",
+        "byteLength": 28547
+      },
+      {
+        "path": "assets/esm-Z-1vOYNx.js",
+        "sha256": "2778e23f5f2b68f55edf27fcdc5051263182dd95207c1b5fa9ae1c0abfa7a322",
+        "byteLength": 9169
+      },
+      {
+        "path": "assets/ExchangeController-l_wp-_XN.js",
+        "sha256": "4bd7b4640f8f438cadbcf5331f48b3957b32f01dd3d3eda1494f0240c1d9f720",
+        "byteLength": 4711
+      },
+      {
+        "path": "assets/exports-BVuMLQeV.js",
+        "sha256": "6493e9b0cbb2478f6c264df14655e6cd4752135d92bb1af7ee90958d0d21c31c",
+        "byteLength": 77505
+      },
+      {
+        "path": "assets/exports-DlH5kwYr.js",
+        "sha256": "36174eb834ddedeea7de015fff2f9c846f8e36f223ced2d03c7ca66011a56013",
+        "byteLength": 220275
+      },
+      {
+        "path": "assets/fallback-B-e2ggON.css",
+        "sha256": "0315a175bdc7cf5bce20d2fc268dccf23daf6fa877cc86a1e9dcc19b0fe0fe0d",
+        "byteLength": 2511
+      },
+      {
+        "path": "assets/fallback-CokWaSvS.js",
+        "sha256": "f7b6382145bd3c1fd0f0c8c231444797a8c435223512756b79b1263f55d66258",
+        "byteLength": 28596
+      },
+      {
+        "path": "assets/features-CqpmPf_i.js",
+        "sha256": "3f17bcca382c345946a2fb65a1be367ccc6a6df9d6603cb20b2d3b300c954824",
+        "byteLength": 5821
+      },
+      {
+        "path": "assets/file-text-Af9avPSw.js",
+        "sha256": "c7c6bbf68f3f4ea20119b9b9193ab87c821bf1159ad5cd2e03185f924b5a209a",
+        "byteLength": 332
+      },
+      {
+        "path": "assets/HelpersUtil-DUS3izpd.js",
+        "sha256": "0073d6c628c8c7d343f96a25f3bd6b544175631f2b3e9ddb6b3d6c207f868de3",
+        "byteLength": 3237
+      },
+      {
+        "path": "assets/hubAbi-BsiMTeT7.js",
+        "sha256": "057ebdd991ae7d53c20e9c3f3af231fa4e8c5be3853116c7b411efb17beb6f3f",
+        "byteLength": 22606
+      },
+      {
+        "path": "assets/index.browser.esm-CSoYDUP9.js",
+        "sha256": "b89573fd879fe441fa279e225a6f9275b0f8b781c38754782955d10eef3d40a5",
+        "byteLength": 2630
+      },
+      {
+        "path": "assets/jetbrains-mono-cyrillic-wght-normal-D73BlboJ.woff2",
+        "sha256": "d274604c40757f98f07df623a8b8fb5194508a6fa4f5413a7a107f09e3b7452a",
+        "byteLength": 12108
+      },
+      {
+        "path": "assets/jetbrains-mono-greek-wght-normal-Bw9x6K1M.woff2",
+        "sha256": "ee863198077f3093ffa81c072581cc4bd608a04e60a8a9c0b846396ce4f14109",
+        "byteLength": 9004
+      },
+      {
+        "path": "assets/jetbrains-mono-latin-ext-wght-normal-DBQx-q_a.woff2",
+        "sha256": "79bfdab9ba467e26eea4122e6f2567e188dd8a09a8c730d501fc487c4ab99c6e",
+        "byteLength": 15196
+      },
+      {
+        "path": "assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2",
+        "sha256": "18be452724bfdc236c074ca94a249a7f41a86752c7d04ab258ce9ed5651f6a7e",
+        "byteLength": 40404
+      },
+      {
+        "path": "assets/jetbrains-mono-vietnamese-wght-normal-Bt-aOZkq.woff2",
+        "sha256": "2288795da89dd97e648954b96e22b4501bd85dfc453264460b252f888b582ca2",
+        "byteLength": 7504
+      },
+      {
+        "path": "assets/LanguageContext-9bo5uizs.js",
+        "sha256": "b8893fa62843b17c17f155a30f45d70082c843c3bfc54588a1f7a1ffa65e14e6",
+        "byteLength": 14672
+      },
+      {
+        "path": "assets/MathUtil-B2UslVSw.js",
+        "sha256": "fb8b38a9ca5258be772abd49f82e17077146832762b6d108fec138d974811598",
+        "byteLength": 227
+      },
+      {
+        "path": "assets/native-Yc8Q2VDe.js",
+        "sha256": "7a743e22bd3e78336c244911c8b3981146787e5209fa761b0be79827e32450ff",
+        "byteLength": 421
+      },
+      {
+        "path": "assets/NavigationUtil-CLCRNDHF.js",
+        "sha256": "2d7cbe15ee2d4e66fa77e2777c182b89fb9976fc34609d0bfc3223340d21dc67",
+        "byteLength": 66
+      },
+      {
+        "path": "assets/NotificationsPage-DAfImJ4D.js",
+        "sha256": "ecd3ef620169935ba9f8a16cdf6b4b2340e7214ecee693c49e7a30ca71d7aa93",
+        "byteLength": 712
+      },
+      {
+        "path": "assets/onramp-CPozAnew.js",
+        "sha256": "5b7e873995614998c7203d3e6b7fee4f1641614c5c1fa01eb4d2c45f7a4ddf4e",
+        "byteLength": 23584
+      },
+      {
+        "path": "assets/op-stack-CzSrh5ao.js",
+        "sha256": "18e5c7e299eccc8e52cc010df7846566e3747ab9eb5493a64fca1da6df6e7dc8",
+        "byteLength": 53309
+      },
+      {
+        "path": "assets/OperatorPortal-BHIm_x2x.js",
+        "sha256": "54f1b042af4f9861318718beefb8ea14cea077bc6be7d9e50f4c0b9aa22395c1",
+        "byteLength": 152449
+      },
+      {
+        "path": "assets/OperatorPortal-BsWK_-M6.css",
+        "sha256": "7b92da5de4369592a89fc9994341922a922c80e656fc797ba7519fc24059d898",
+        "byteLength": 3866
+      },
+      {
+        "path": "assets/OrderDisputeSummary-BMPR1Eo5.js",
+        "sha256": "c1e33f4a22e20f99c8478d86d07ded9da904454e0f969b45180c9a26f7aaf52c",
+        "byteLength": 14957
+      },
+      {
+        "path": "assets/orderList-BluFSE9T.js",
+        "sha256": "f98f66b7fcd50e72c7ab666b7aed37fa60ff28ed011fcbcf17d4e1b69ce9a839",
+        "byteLength": 39743
+      },
+      {
+        "path": "assets/OrderReference-CC_ykc51.css",
+        "sha256": "1c23e77326ff9c8e20c68a5d222fde0f103cac9e603a97ac015d8429adcdcf95",
+        "byteLength": 3332
+      },
+      {
+        "path": "assets/OrderReference-Dao5Vry8.js",
+        "sha256": "97eb6625b960d807dcdce10789cde16f64fb1fb0d57e58215fd6273f91c62398",
+        "byteLength": 1031
+      },
+      {
+        "path": "assets/parseTransaction-Ew0is5lN.js",
+        "sha256": "33a11935b2ca1fd38c109e5ff153c0f5e005dc090b89806e3972989fe8ed072b",
+        "byteLength": 183461
+      },
+      {
+        "path": "assets/pay-with-exchange-B9vENmfZ.js",
+        "sha256": "e0d1f450bcf3ea2e4314b56ff82d5f62822197b49eecdc0ae7f49c67c954f846",
+        "byteLength": 15796
+      },
+      {
+        "path": "assets/PhArrowCircleDown-D97G-BOA.js",
+        "sha256": "cd09b715605e95df6b765f4d383ba5ab17ba932a4aa0f14b5e5b2d02eda92752",
+        "byteLength": 2786
+      },
+      {
+        "path": "assets/PhArrowClockwise-DVgyFuez.js",
+        "sha256": "dc366b1772ee8c49d66c398eb66f8d839e5c1b06af69d997b82016874f286692",
+        "byteLength": 2560
+      },
+      {
+        "path": "assets/PhArrowDown-87b1BizM.js",
+        "sha256": "27e5d16e5a4bc15932e679bfb5f4dcbe7ed2e512b97e68c50a32359f971c154d",
+        "byteLength": 2070
+      },
+      {
+        "path": "assets/PhArrowLeft-Da0MfnbK.js",
+        "sha256": "4868784de27eab23916c7f137a249d6bb85f57a9c1bfabeb139408a7e71eeb97",
+        "byteLength": 2093
+      },
+      {
+        "path": "assets/PhArrowRight-AdrIL4DW.js",
+        "sha256": "f4b30a6f49cd9d22288edf119a888dd9179aa7cea98e5b40e304310b039d7014",
+        "byteLength": 2085
+      },
+      {
+        "path": "assets/PhArrowsClockwise-BXRn1GEl.js",
+        "sha256": "622675d81c93ba0dee2566b01c94af8bcd77ed677ea663e49dfebb11e4cc10b7",
+        "byteLength": 3841
+      },
+      {
+        "path": "assets/PhArrowsDownUp-DM09Jo_3.js",
+        "sha256": "c6281b624825aa2ab97d014acd639d62392be82467e5ddda6c4bc210e3118917",
+        "byteLength": 2902
+      },
+      {
+        "path": "assets/PhArrowsLeftRight-MuKBLUoF.js",
+        "sha256": "6634d3e90724cdbf3a2be9c7f0cf6643cad46ebf3b931179b8ee624cd14cc816",
+        "byteLength": 2779
+      },
+      {
+        "path": "assets/PhArrowSquareOut-Bk2CMG3I.js",
+        "sha256": "14fc0e87f52ca49578ecbf0cd35c18f284ea63e8b5f46bfff56490a01e3eaf24",
+        "byteLength": 2899
+      },
+      {
+        "path": "assets/PhArrowUp-4sgyKPGx.js",
+        "sha256": "901d5735350a65b0de28e9954bbecc5a39c58945b4f7982dc00fe11986a98360",
+        "byteLength": 2145
+      },
+      {
+        "path": "assets/PhArrowUpRight-BNghD2zq.js",
+        "sha256": "6b2478c0ab886ee1ad426fef8458b63c6b96cf90ecc376d3db088709ec59b8ad",
+        "byteLength": 2037
+      },
+      {
+        "path": "assets/PhBank-fHbgCqqZ.js",
+        "sha256": "05ad25db4d5c40ff9b8e7208a6dc178d1408cb2baa6e1d2f80619a2476041adb",
+        "byteLength": 2913
+      },
+      {
+        "path": "assets/PhBrowser-2-9m-AkM.js",
+        "sha256": "627bbdfca082ba1041075395286227072771a708d61681e5f5c30e19623da287",
+        "byteLength": 2188
+      },
+      {
+        "path": "assets/PhCaretDown-BDNabFuL.js",
+        "sha256": "79d4bd82b1271f8206e6a0a042a18ed7ce554df853b064bd190e4bf6d479e5c8",
+        "byteLength": 1917
+      },
+      {
+        "path": "assets/PhCaretLeft-CI460R-A.js",
+        "sha256": "c250bc414dfe7d12f84e6d8f53074476e4887b57edbf647acccd1cb6cf3c66bc",
+        "byteLength": 1857
+      },
+      {
+        "path": "assets/PhCaretRight-D7ZS3Ls8.js",
+        "sha256": "b30aafe7979f880158bfe56f9b944e5cf23fb9452204233f753a6d4da26cbeb4",
+        "byteLength": 1933
+      },
+      {
+        "path": "assets/PhCaretUp-C-iIfyvO.js",
+        "sha256": "72b76a67cf5128f2d1a272a7cdb5d18c3f984f2b3c86b47b0b7521696ac0b850",
+        "byteLength": 1997
+      },
+      {
+        "path": "assets/PhCheck-DxQXn57r.js",
+        "sha256": "37ecda917a0bfb4d7cf7af7a9b2e9f6f73b5b2108b8ccd77a7ea487fc9f5bc95",
+        "byteLength": 2083
+      },
+      {
+        "path": "assets/PhCircleHalf-MJZeRBGF.js",
+        "sha256": "3f27ef95ce05e937e470cb04051e439250a2763c782a37e09a29616dd65ed35d",
+        "byteLength": 2692
+      },
+      {
+        "path": "assets/PhClock-x3MS3Mwi.js",
+        "sha256": "f79ab5edd36435e9c65c99da94bbb7c157ba5a1326a7ed8f2a076dd5e6517665",
+        "byteLength": 2346
+      },
+      {
+        "path": "assets/PhCompass-hYn3HhGN.js",
+        "sha256": "44835318adbddced2b8741bef9200fd63ef8845615b58d3b7f379d2c40dcfd31",
+        "byteLength": 2957
+      },
+      {
+        "path": "assets/PhCopy-CWNYcABI.js",
+        "sha256": "d7eb4ae280560ba237746660ec1a7857762683b2cd4f9c67f48ad18cbab0af97",
+        "byteLength": 2336
+      },
+      {
+        "path": "assets/PhCreditCard-Fy4pzwtt.js",
+        "sha256": "dc47a94f844e4c8e5024c5d97aee9c8af8380c8bd9c6ca0a007aee37f34edfaf",
+        "byteLength": 2907
+      },
+      {
+        "path": "assets/PhCurrencyDollar-BgiaenCi.js",
+        "sha256": "d905c156afd1057385231ff4642a367013e914718140023eff5507a5085cec66",
+        "byteLength": 3220
+      },
+      {
+        "path": "assets/PhDesktop-CxrzCSv5.js",
+        "sha256": "bb2c6a7bdeb0db9964583c14a5fd3ca0d3482bfa24ad19f4f78a91832b85fbd1",
+        "byteLength": 2759
+      },
+      {
+        "path": "assets/PhDeviceMobile-CsyA5Goi.js",
+        "sha256": "ebee60a4e68437d10d236e97ad784923477dc31c0a807a199095b588fd5218b5",
+        "byteLength": 2546
+      },
+      {
+        "path": "assets/PhDotsThree-D-k1BiYg.js",
+        "sha256": "44aac5f93b7bb5d8070ae6633c26b96d8c0fe1eed463bd447984951c64e325a3",
+        "byteLength": 2225
+      },
+      {
+        "path": "assets/PhEnvelope-D8kzeNox.js",
+        "sha256": "3316c1d210323046fbdfb2d9e78d978e4dd75533f565c499b97adb177da943be",
+        "byteLength": 2661
+      },
+      {
+        "path": "assets/PhFunnelSimple-CfQs5DAW.js",
+        "sha256": "3502aae6dafbbd5351a34cb9ac5bb64472424b249048114fb4cc062816501d9b",
+        "byteLength": 2338
+      },
+      {
+        "path": "assets/PhGlobe-DvmSc9_A.js",
+        "sha256": "33e7bb782b63b7dc38f3340701a1d584d862edf73593e8cb9b650cd19fd8add8",
+        "byteLength": 5696
+      },
+      {
+        "path": "assets/PhIdentificationCard-CfkZm-5K.js",
+        "sha256": "6218b0f322cf3c8c2af96c26a85b63da423775bcc533c7efc2c13731f7f0de4f",
+        "byteLength": 4194
+      },
+      {
+        "path": "assets/PhImage-Cf0J2ZfJ.js",
+        "sha256": "ddf43011bd78bef2746ef70d776c8b682729d7bdc610a885897b2434a8f47352",
+        "byteLength": 3408
+      },
+      {
+        "path": "assets/PhInfo-Bwi51-2X.js",
+        "sha256": "4b7077bedb91db53925c2afc0bcfff248197bb4fe5b545a0982cf69b810ea0d1",
+        "byteLength": 2749
+      },
+      {
+        "path": "assets/PhLightbulb-C4FZV7Es.js",
+        "sha256": "b2ee668c43f5fdd144710466fa52e8a02f1a3c6e963242c2727689797f05aa57",
+        "byteLength": 4889
+      },
+      {
+        "path": "assets/PhMagnifyingGlass-C9u8jSCJ.js",
+        "sha256": "f69ca45eb15552a1ed51226a263441383a8e5265de1a1eae5bce43e4eae58544",
+        "byteLength": 2188
+      },
+      {
+        "path": "assets/PhPaperPlaneRight-zxQVvPLX.js",
+        "sha256": "359848290c59314a6c46c3743238953002ff290da378b8c42a5aa1dc4483c95a",
+        "byteLength": 3068
+      },
+      {
+        "path": "assets/PhPlus-C4UoW-2n.js",
+        "sha256": "bd70992a36b2efa5b78a5a9fdde3d43fba54b72fd39e51e07fdeb40677bfd508",
+        "byteLength": 2081
+      },
+      {
+        "path": "assets/PhPower-CFyWDmgD.js",
+        "sha256": "5c34232cf6b7445b9dc9d393c7a8a4c5a46da714b1d92ea13a90c6e58c845df1",
+        "byteLength": 2752
+      },
+      {
+        "path": "assets/PhPuzzlePiece-BjoNVfST.js",
+        "sha256": "5de7abab17011e53a5976ffd28150749b7a56d3e47900a84ad5a587c0902087a",
+        "byteLength": 5349
+      },
+      {
+        "path": "assets/PhQrCode-CP3tFauY.js",
+        "sha256": "1683fbf10ebe5595ef81a6903675cd9ee43fd8af4a9a3f0cad48de272b7ec086",
+        "byteLength": 4898
+      },
+      {
+        "path": "assets/PhQuestion-wOWJBd3G.js",
+        "sha256": "ddc24c7bae410a0b4fd0ac7cacab703d04b7d6688126f1cc7f595a7d0f88c266",
+        "byteLength": 3288
+      },
+      {
+        "path": "assets/PhQuestionMark-CV0k9C0Y.js",
+        "sha256": "73d0b7642fdcf147a2d7e5a778d676a879499f92892572b691d131fa237bc3cc",
+        "byteLength": 2817
+      },
+      {
+        "path": "assets/PhSealCheck-vIKzREuN.js",
+        "sha256": "c2f0c81cbccdb1c3f6efd8c6f460616124ac50f6c639e16e8d53c3856d0a4073",
+        "byteLength": 12077
+      },
+      {
+        "path": "assets/PhSignOut-CxELV-i0.js",
+        "sha256": "60d6c11e5fbcf0ad99521f23d4be0bc65179bb629304b8cd1164b9eea3c296f7",
+        "byteLength": 2739
+      },
+      {
+        "path": "assets/PhSpinner-CGDmbzUd.js",
+        "sha256": "189ce08a86580ed0bcb3389c622792ffd27a989d1b62d068bcf8408c1090d30f",
+        "byteLength": 4425
+      },
+      {
+        "path": "assets/PhTrash-C9PD0SAt.js",
+        "sha256": "8e2f1fa24b05306a29a7cf5dc36eb3ee823600f581eb15f1d06f43bbcc18a020",
+        "byteLength": 3090
+      },
+      {
+        "path": "assets/PhUser-0sWNXQeZ.js",
+        "sha256": "a1ae0d2970df48bb8f91a16e79ead755ee4fea5d413a4f316661415d9ab0b2ee",
+        "byteLength": 2658
+      },
+      {
+        "path": "assets/PhVault-6JTskUcC.js",
+        "sha256": "8debca15c8ee281939b675438f3b06e155a9d354cbe8f855eb2d000b7e026c53",
+        "byteLength": 2938
+      },
+      {
+        "path": "assets/PhWallet-DzNiREN9.js",
+        "sha256": "628ebc58c49aa32e27adfcef7985b08d11900c42f88405f2778abbf9003d7c5d",
+        "byteLength": 2803
+      },
+      {
+        "path": "assets/PhWarning-CoKs3gz6.js",
+        "sha256": "51ed3f9e9ee32aac473f334a55f829868080adf922bc7c14ae28c0ce66d57c7b",
+        "byteLength": 3880
+      },
+      {
+        "path": "assets/PhWarningCircle-BXHw1fCt.js",
+        "sha256": "b047ffc981e413a9702fefb07c1e1ca78fc07713bc13b4650475b02598cef24a",
+        "byteLength": 2404
+      },
+      {
+        "path": "assets/PhX-DX0SFIqC.js",
+        "sha256": "12130c71a9c6d2bbfbac031f668467daed3b201c37057591c5cff6aaec3e0dd7",
+        "byteLength": 2471
+      },
+      {
+        "path": "assets/plus-jakarta-sans-latin-ext-wght-normal-DmpS2jIq.woff2",
+        "sha256": "38e3b8fd8045048eb311d90170a4429ed2c8f405852dc3d91b5af8452758703f",
+        "byteLength": 21728
+      },
+      {
+        "path": "assets/plus-jakarta-sans-latin-wght-normal-eXO_dkmS.woff2",
+        "sha256": "153fc85b70298beeb1d61a5f723331649e7f23bb77302a66e61cb3e2fbdb5e79",
+        "byteLength": 27348
+      },
+      {
+        "path": "assets/plus-jakarta-sans-vietnamese-wght-normal-qRpaaN48.woff2",
+        "sha256": "b275d1258601dda240fc6a1d4a6cad56e691d898f5cdf1b0e4fd6ca0022d8e40",
+        "byteLength": 8352
+      },
+      {
+        "path": "assets/property-DuZ9DLP4.js",
+        "sha256": "dc46afe280b5fff73b371305e3a3fd4119e6f34ac2f42463bc16f2c7be4bdae2",
+        "byteLength": 16177
+      },
+      {
+        "path": "assets/provider-browser-BSABY0ZV.js",
+        "sha256": "b57ecf894cbd24a8e84eede30e656e049951ff7b9bdc2993ed5a9c36a842d01b",
+        "byteLength": 210804
+      },
+      {
+        "path": "assets/PublicSellerProfile-D6iheTLz.js",
+        "sha256": "a25667a438d1a27deb0ae0717e1a185d0685f3753b6dcbae0a2ff4f247c20fda",
+        "byteLength": 14807
+      },
+      {
+        "path": "assets/receive-C1ONlK8G.js",
+        "sha256": "0a0ca3309ff897d0477fe8ee0538db5cc46b83f6ec3a2653e222084d169206c4",
+        "byteLength": 6532
+      },
+      {
+        "path": "assets/ref-5soT4e2G.js",
+        "sha256": "ff6f5b17511bb8e0a989203d13992cad016dabedca59de14ea47ab6916ded12e",
+        "byteLength": 1891
+      },
+      {
+        "path": "assets/ReownEnabledProvider-C7I5kpkv.js",
+        "sha256": "c1a03f5b44079de91560cc82861f317afb206bb17715111500a0ba739b0dd5a4",
+        "byteLength": 948063
+      },
+      {
+        "path": "assets/scale-CUq2T0uh.js",
+        "sha256": "8785ee2c424092f42178da308f162d6acc62c4a33c5e5324c7e5b372b93a0869",
+        "byteLength": 368
+      },
+      {
+        "path": "assets/secp256k1-B7Chn_As.js",
+        "sha256": "546a0960d0548a0410077bd24cf1bf1b3b20475dbe54603858cea9e42205e510",
+        "byteLength": 22876
+      },
+      {
+        "path": "assets/SellerDashboard-0r1rMVsL.js",
+        "sha256": "edaec6f7d84d39e1769452da7b5d69e15d833aff8e5393e66ba129d351fd2d2b",
+        "byteLength": 183168
+      },
+      {
+        "path": "assets/SellerDashboard-DepOaUUJ.css",
+        "sha256": "2a865fd7e59be546c1ba251453f2728ead53988231fb1a5f2edc50c9b9b2802c",
+        "byteLength": 8338
+      },
+      {
+        "path": "assets/SellerFollowControl-DtQVwGDp.js",
+        "sha256": "88c3d9e4c9c629e16205db31e53299187b63c3d7f56187e69675e4e921e8ed81",
+        "byteLength": 11008
+      },
+      {
+        "path": "assets/send-BfKxwTY3.js",
+        "sha256": "83bb6840ea712fe127ca47f80b49bd1f28b14dad3fbcd9a4abbabaf63cd981ce",
+        "byteLength": 33284
+      },
+      {
+        "path": "assets/SIWXUtil-DHw_CGaJ.js",
+        "sha256": "1d6fba4bb930dd9ff468fce0f1286849cd92d913ebf6a4760ca048de15bd0e33",
+        "byteLength": 493809
+      },
+      {
+        "path": "assets/socials-DnU2Y7Uh.js",
+        "sha256": "38d56377d3d4c7ff0fd0be858c1dd1b99a1311e4ad6262eb4cec53439293df21",
+        "byteLength": 17962
+      },
+      {
+        "path": "assets/src-BNRBI48W.js",
+        "sha256": "a4befbe39884e785c4feb0698dd97250162c2cf6ab62689753fbb6bd5d27590a",
+        "byteLength": 212304
+      },
+      {
+        "path": "assets/SupportPage-SEuSfu6z.js",
+        "sha256": "90c2fec87fe7936e88187eac7fc11f8cc8ac599359fe1cb40db9cd702649be2d",
+        "byteLength": 27559
+      },
+      {
+        "path": "assets/SwapController-CFa5Q9JF.js",
+        "sha256": "1b4c4b9db8634e20b573bef381b82a903897ad7cbfda845f06d982558cf113ca",
+        "byteLength": 14213
+      },
+      {
+        "path": "assets/swaps-R4w-J8fR.js",
+        "sha256": "8d4252af3dc6a5997de88d2ebabff257cafee0250a79d4402fe38dccbbfa3b1c",
+        "byteLength": 55299
+      },
+      {
+        "path": "assets/transactions-D3Ft4Rpe.js",
+        "sha256": "b710b0dbc8ac4125bb8bce0c86d54bf1b951c5da728b8564015e2d8ce1a6617f",
+        "byteLength": 979
+      },
+      {
+        "path": "assets/uiMessage-Dl7q888U.js",
+        "sha256": "f79a8479b04b551f343ffcfbaea89bd1c54ab9c9964391e2303b7bdf2049d8de",
+        "byteLength": 1731
+      },
+      {
+        "path": "assets/utils-C0JIVrln.js",
+        "sha256": "b6615fe0ce376f1e2715bed305546b98717562c4ea6873b8d8b9c7eb6d35ac6d",
+        "byteLength": 7197
+      },
+      {
+        "path": "assets/verifyHash-CIBaJeKC.js",
+        "sha256": "265f64166b1a7b9dc0ad5511e2b59323ef5bc446505204b9fa3dd5d53d072c8e",
+        "byteLength": 35440
+      },
+      {
+        "path": "assets/w3m-activity-list-oA4_G8Wp.js",
+        "sha256": "8d7acaed08b97c3977ed08b89da7cbab236e47f8f946b08c17e4077532de46c3",
+        "byteLength": 34700
+      },
+      {
+        "path": "assets/w3m-email-otp-widget-B9QRQ17k.js",
+        "sha256": "3108f7c01378fc62a1560a92008bba662d3d293c958c426859eb434e18ecf29d",
+        "byteLength": 9699
+      },
+      {
+        "path": "assets/w3m-modal-enQUc6Jf.js",
+        "sha256": "3f5c2d07e35449385a5f36da0ced3d1804c042d4a51f8a317a0562d4b1e3f839",
+        "byteLength": 47309
+      },
+      {
+        "path": "assets/w3m-onramp-providers-footer-BfIdsXWf.js",
+        "sha256": "53811ab9d43bd1fdbd840ed1d6c3559120523380c6467e35908a2275e29a2a12",
+        "byteLength": 4899
+      },
+      {
+        "path": "assets/w3m-tooltip-CN_0tm2K.js",
+        "sha256": "4d17ecb744498b85bff092e47e392e4da7656a800ebd6d171462bfe40e983e10",
+        "byteLength": 5523
+      },
+      {
+        "path": "assets/WalletPage-Cy2KBDCd.css",
+        "sha256": "cdcd7558b36d9d61696ffe3b0fc0d4702fb23b04c48ba76112b6e32fa03d8f6e",
+        "byteLength": 6497
+      },
+      {
+        "path": "assets/WalletPage-DBq6POuA.js",
+        "sha256": "24d35dde536a72b31548e210d39d7fdaa1b16b2cbf2b54aab01a39c3a592e83b",
+        "byteLength": 57997
+      },
+      {
+        "path": "assets/WebCryptoP256-t-rbDas7.js",
+        "sha256": "5bb2f1162752e89bf50d34796a12470bb5dd0cdc8ab4115fc29eed7b49f0c303",
+        "byteLength": 114517
+      },
+      {
+        "path": "assets/wui-avatar-ELsjVVVX.js",
+        "sha256": "5f79ad8f03fdc7e0a7e012f1ef54137a4edaf784e21014787923ba36b4976868",
+        "byteLength": 2482
+      },
+      {
+        "path": "assets/wui-button-C-Ee-INW.js",
+        "sha256": "bc907cd3dd770b487b96d28ac8df96f1fc17a1af40cb842242c84621cba91944",
+        "byteLength": 5655
+      },
+      {
+        "path": "assets/wui-email-input-D4YwE430.js",
+        "sha256": "14cef775b30c88255a92e7baa79477f3bf6ec1c6f4703e0864d003ed165f3a05",
+        "byteLength": 1324
+      },
+      {
+        "path": "assets/wui-icon-BgljQr7n.js",
+        "sha256": "27e15bd91355c04d538023b8a11b1e8515a113c407adbf52d0eca922c19acb23",
+        "byteLength": 31
+      },
+      {
+        "path": "assets/wui-icon-box-C1zGFFfB.js",
+        "sha256": "d1c798a23e9d8ed3e12b2208be9495a80e5a334ded3ec32297b2daa8b15e62ac",
+        "byteLength": 2921
+      },
+      {
+        "path": "assets/wui-icon-box-C2hCjAe_.js",
+        "sha256": "9795f64545b1e832727d765781505f539c0d91a0eb10de71d58173ca936e82e4",
+        "byteLength": 35
+      },
+      {
+        "path": "assets/wui-icon-link-oK9cHEDE.js",
+        "sha256": "db5200ead04204e1113abd1d2b70daad327cb47c2e38529c7a4870830b5fb757",
+        "byteLength": 2773
+      },
+      {
+        "path": "assets/wui-image-CGDZZU-g.js",
+        "sha256": "b16064950579bc609df902805439a3892ded8da7139e212fc648394acf028837",
+        "byteLength": 3061
+      },
+      {
+        "path": "assets/wui-image-Oiqj53jb.js",
+        "sha256": "8c6a193e78c923d5dd51fb4b4218f0b502857a4a5a597e86741f0df5685ff18d",
+        "byteLength": 32
+      },
+      {
+        "path": "assets/wui-input-amount-B1F4yDEw.js",
+        "sha256": "591d23dd3a1a802096d011968a9297253e44a6fdde82cad3dd2509761a9398ef",
+        "byteLength": 4067
+      },
+      {
+        "path": "assets/wui-input-text-CTnU6QpH.js",
+        "sha256": "581934a7f25184effc30b37605212252a6dad9c316e6bbd174fa11564a753dc2",
+        "byteLength": 37
+      },
+      {
+        "path": "assets/wui-input-text-zPJLQgFH.js",
+        "sha256": "43d64597052d727a460edcea0d35d4baf6cb9c62967f3ba966b1c3844fe08d67",
+        "byteLength": 6245
+      },
+      {
+        "path": "assets/wui-link-DSRHmrN1.js",
+        "sha256": "745a3554c570cf1f3e212568804c00ab9e8c6d12e83fd40333c51ba5d2f69394",
+        "byteLength": 2979
+      },
+      {
+        "path": "assets/wui-list-item-ttOup99T.js",
+        "sha256": "7276a03c45399e72a9ed25f5a10721dbfbe7156130d257c381a5a2715f0e1c7e",
+        "byteLength": 3703
+      },
+      {
+        "path": "assets/wui-list-social-I8ea-w4x.js",
+        "sha256": "847341b772b306c2ba682edc95385ae92003c0c9bf980f94a2a35816b582ef57",
+        "byteLength": 4063
+      },
+      {
+        "path": "assets/wui-list-token-W_5gIUuE.js",
+        "sha256": "e91059f6378f3e139c046bd42eb6d185155d319d5286f7da2ed6717c42caf56d",
+        "byteLength": 3559
+      },
+      {
+        "path": "assets/wui-list-wallet-QC4L75ap.js",
+        "sha256": "606047044e9f9bd11c2a9ec2f93fd640b809d746ff82fdb0af8f87a6b55ee604",
+        "byteLength": 17075
+      },
+      {
+        "path": "assets/wui-loading-spinner-l-CRfjbW.js",
+        "sha256": "9e2f26ba9882bc06f3acd69aab0a927795d32d2a8d2e749604b32e272cc8cf79",
+        "byteLength": 42
+      },
+      {
+        "path": "assets/wui-loading-spinner-uelMAFdd.js",
+        "sha256": "74b76b8e26293fa634b37132a4752cf57434ebb309c271c2c737b1ad9f8e033d",
+        "byteLength": 4809
+      },
+      {
+        "path": "assets/wui-loading-thumbnail-BlUrEm-1.js",
+        "sha256": "6e0c08631af058a798ddc62d9ab74768616b91d95b17b2fed77a78123af59a27",
+        "byteLength": 7747
+      },
+      {
+        "path": "assets/wui-qr-code-ShrZNk_l.js",
+        "sha256": "c9e830c6381f9be498d728bc7255a397e2a3bea66159a0d3436f3fcd7e126268",
+        "byteLength": 28059
+      },
+      {
+        "path": "assets/wui-separator-C7nam2n9.js",
+        "sha256": "85d096ce199d03408e874fe0e3f895b69d8502840bcd0655f77ab4e0722e66c4",
+        "byteLength": 1509
+      },
+      {
+        "path": "assets/wui-shimmer-D8IXXKCn.js",
+        "sha256": "8b279cd91f8204e2556c5681e0a868472b6a48a22ae1805955da1c691cc43577",
+        "byteLength": 34
+      },
+      {
+        "path": "assets/wui-shimmer-DV4WBT5h.js",
+        "sha256": "28ec9dc0ae08a0ca8caaea07f03bfcf1c2d81085a71b2ef06bf9a846376ece85",
+        "byteLength": 1538
+      },
+      {
+        "path": "assets/wui-text-wJb2M-4A.js",
+        "sha256": "3b3817c6e447e97a841e46bc084bb97aa442e7577d8657fa3a7c3ede2a0f46c5",
+        "byteLength": 60426
+      },
+      {
+        "path": "assets/wui-token-button-C0UVgjhX.js",
+        "sha256": "50bb8e996d0243f667ed7c261a5dbf85a90cbb9b30bb15395af696fd4b877922",
+        "byteLength": 4704
+      },
+      {
+        "path": "assets/wui-visual-CiQ-umEA.js",
+        "sha256": "8f3ab70af5663e21fd8680d84dd7396bafd3a3c23f9175862278ef929e726823",
+        "byteLength": 46004
+      },
+      {
+        "path": "assets/wui-wallet-switch-DoeSnryt.js",
+        "sha256": "c97f6db3ffe8bcb46ee00964dddaf84731ddf53cf0ec60ccdd614b5eda9e8a4d",
+        "byteLength": 10136
+      },
+      {
+        "path": "assets/zoraTestnet-CVfWY-bw.js",
+        "sha256": "957704828f1c8d1f5659dd76450e8f88fdd383fb5b8afe7406af2cece84e710a",
+        "byteLength": 22051
+      },
+      {
+        "path": "fallback.html",
+        "sha256": "d8585e24fd69b446da367ba5bae22047156f5661e29eb416aeb84e3ec3860bc5",
+        "byteLength": 3894
+      },
+      {
+        "path": "fonts/JetBrains-Mono-OFL.txt",
+        "sha256": "403581b69dac5cff4079205e01c6b467e56af449ecbd7247693ddb1baafa005b",
+        "byteLength": 4524
+      },
+      {
+        "path": "fonts/Plus-Jakarta-Sans-OFL.txt",
+        "sha256": "e07fd1167c2aaaa6fb965dd66e1e73b13c9c95b76b2d648b6e938780f30b37af",
+        "byteLength": 4534
+      },
+      {
+        "path": "index.html",
+        "sha256": "ee4002f52ce034165b1a0a77d6251154d124cde1e8b1daeae6dc2283e5eaa152",
+        "byteLength": 1240
+      },
+      {
+        "path": "logo.svg",
+        "sha256": "de23c5091a8c11e22b5c09996a0014b33e3579969034ea33747cf5c439ed5cb1",
+        "byteLength": 1580
+      }
+    ],
+    "backend": [
+      {
+        "path": "backend/dist/accounting/referenceModel.js",
+        "sha256": "c09c2620093ab17246dca0984c8d8ec6f1da8cfea1ec6e8c911a7221743aff53",
+        "byteLength": 5440
+      },
+      {
+        "path": "backend/dist/config.js",
+        "sha256": "dbbfccfbab9fe38e480dfe83aff349d0c140b92cb4fe7978b19571d8d56b023f",
+        "byteLength": 7789
+      },
+      {
+        "path": "backend/dist/contracts/hubAbi.js",
+        "sha256": "144e82e4f941c6a16a1896743576d0772489eb6adc67f15d27bc1f626b4b94e3",
+        "byteLength": 92293
+      },
+      {
+        "path": "backend/dist/db/legacyReviewMetadata.js",
+        "sha256": "787d54b3e0812e3e27915e1b6b73ce400b8799c5fc20ce47c87ab10578928981",
+        "byteLength": 4893
+      },
+      {
+        "path": "backend/dist/db/operatorAccountAccessRead.js",
+        "sha256": "a413802b421d62d4591855f4e51e375241a87378a388670d81753401c44db2aa",
+        "byteLength": 2789
+      },
+      {
+        "path": "backend/dist/db/operatorAccountRead.js",
+        "sha256": "c852eb6866cca13c9d87c8fdb9647b837f1c3bcd7d043384f7bc6e9ab760ce47",
+        "byteLength": 4538
+      },
+      {
+        "path": "backend/dist/db/operatorDealRead.js",
+        "sha256": "9211b31e31be5679b1bba811b8ab756c06ef9a1b8c7e40d8442f7d4e2336cc4a",
+        "byteLength": 6403
+      },
+      {
+        "path": "backend/dist/db/rowPersistence.js",
+        "sha256": "fc6862bf689f10b776514bcc6c42bf63efd374bef9f1331446cc48386b06321a",
+        "byteLength": 494443
+      },
+      {
+        "path": "backend/dist/db/store.js",
+        "sha256": "3b9604848d4b334316abe5240f625adb46da6f9aadf224fa2267917226245676",
+        "byteLength": 51811
+      },
+      {
+        "path": "backend/dist/domain/accountAccess.js",
+        "sha256": "acf89831ba935a1eee640c2c23a4360d845987b41a097f5cae5454fb20019f78",
+        "byteLength": 3056
+      },
+      {
+        "path": "backend/dist/domain/authRecovery.js",
+        "sha256": "e13ac63b93aa7ff8090fb34fbcfbe8dc3fa05a6a8ce77c095d45e6866802abab",
+        "byteLength": 977
+      },
+      {
+        "path": "backend/dist/domain/bridgeClosure.js",
+        "sha256": "2d5e7f97879061636f3a417da552ef828515534deb1e5d95ab164a2a69568cd1",
+        "byteLength": 3934
+      },
+      {
+        "path": "backend/dist/domain/bridgeReceipt.js",
+        "sha256": "38bb5467c2f1b3aeb61760afc78d93430e1b0acb9e5bf60606a40e23a7ed9a0b",
+        "byteLength": 18072
+      },
+      {
+        "path": "backend/dist/domain/bridgeRequest.js",
+        "sha256": "9218bcec7205e0a20c82ed18199301de691fe2d8759d076a60ba545a12fc3242",
+        "byteLength": 14554
+      },
+      {
+        "path": "backend/dist/domain/bridgeTransfer.js",
+        "sha256": "49741594bad255c7e1657acd4c2b2ce941b89595cb78b2fc9c20368bc422981a",
+        "byteLength": 13053
+      },
+      {
+        "path": "backend/dist/domain/circleAuthentication.js",
+        "sha256": "2dfadc9369014c0072d2fbeec20b9901af1da110fb332c1587ae7f14b0539674",
+        "byteLength": 6992
+      },
+      {
+        "path": "backend/dist/domain/circleChallenge.js",
+        "sha256": "88fd2cf34ece9120b81a66fc471bb76f444d9ad94a1cea0f5a02f486578e25b9",
+        "byteLength": 5299
+      },
+      {
+        "path": "backend/dist/domain/circleStatus.js",
+        "sha256": "b84441dc38e4db02df9eb944b6fc21a6386117fff08f7ac5f3023240ac53f78a",
+        "byteLength": 7069
+      },
+      {
+        "path": "backend/dist/domain/circleTransactionPolicy.js",
+        "sha256": "580b0cecd005596b8e958eeed0632acba851e295c01d3b39a37f88c9f9b441e2",
+        "byteLength": 24344
+      },
+      {
+        "path": "backend/dist/domain/circleWalletAuthority.js",
+        "sha256": "b6a03f7127f5be52f7320c69b9b7209798b2f41fd4a3a8d0956721815aac6a92",
+        "byteLength": 5559
+      },
+      {
+        "path": "backend/dist/domain/delivery.js",
+        "sha256": "d43aa81f5bc89faa359e0f97c814ba25155591ff078fbb9bfd40f8c7c9683230",
+        "byteLength": 77
+      },
+      {
+        "path": "backend/dist/domain/disputeMetadata.js",
+        "sha256": "1e7b40ba43122a477fea0dc61c8adf70ae546406cfd9a440f6491f4232c75888",
+        "byteLength": 3294
+      },
+      {
+        "path": "backend/dist/domain/financialProjection.js",
+        "sha256": "0b3ac42a57bd155c2045e13f6ab734c0cf6aa64967d96d9fbccf42ae6a04bf07",
+        "byteLength": 3704
+      },
+      {
+        "path": "backend/dist/domain/internalTestArchive.js",
+        "sha256": "a4a3d1142ec77d135b29b2975dac75c96ff9b50e7aec9332918d4573360fdb49",
+        "byteLength": 7970
+      },
+      {
+        "path": "backend/dist/domain/operation.js",
+        "sha256": "d43aa81f5bc89faa359e0f97c814ba25155591ff078fbb9bfd40f8c7c9683230",
+        "byteLength": 77
+      },
+      {
+        "path": "backend/dist/domain/operationCompletion.js",
+        "sha256": "fdb21ecb310dbf21e1a12e41534b82671de42aa0d6d331f0a1d8519d7520dc41",
+        "byteLength": 6677
+      },
+      {
+        "path": "backend/dist/domain/operationPreparation.js",
+        "sha256": "c52e1081f71c40479a57f54b7f81dc9ea9490336ea585436005ddeb05fabc22e",
+        "byteLength": 2907
+      },
+      {
+        "path": "backend/dist/domain/operationReadiness.js",
+        "sha256": "d4d720391cde80ea7f538288af820fa3c3fdfc624675ed357a98633004e83a64",
+        "byteLength": 5274
+      },
+      {
+        "path": "backend/dist/domain/operationReplacement.js",
+        "sha256": "67baaa455e0501ae69689fb82c8c3bbbb8c980d5758f3dd3b9353b959ac8b7b1",
+        "byteLength": 6443
+      },
+      {
+        "path": "backend/dist/domain/operationTracking.js",
+        "sha256": "7193b08422b9e59d479f246fa26c206cf564999e59a836e42649ebc7ac80d595",
+        "byteLength": 5158
+      },
+      {
+        "path": "backend/dist/domain/operationVerification.js",
+        "sha256": "09ab4751ba06429bf37a50b5f1c4dd2c7738071764598627411e8042d83bd22f",
+        "byteLength": 4773
+      },
+      {
+        "path": "backend/dist/domain/operations.js",
+        "sha256": "a82edbef13a2b11128afe94c7c5acb38e403b3cabc8b5016d07eb618cc1e61cb",
+        "byteLength": 762
+      },
+      {
+        "path": "backend/dist/domain/operatorCapability.js",
+        "sha256": "048a9bce584cae62b4e9b25208ac24358bc33a5cd4fedcf5003219032e10f3e9",
+        "byteLength": 3972
+      },
+      {
+        "path": "backend/dist/domain/operatorEnrollment.js",
+        "sha256": "2dd0a36c502c3c51b78bf232e02ab53787e412bcfd083ecdb116d00f931d7334",
+        "byteLength": 7283
+      },
+      {
+        "path": "backend/dist/domain/orderReview.js",
+        "sha256": "4dad70c52a25572ce54986cdb4279d8027265b2ccade636e376e8692f88c1ad3",
+        "byteLength": 7383
+      },
+      {
+        "path": "backend/dist/domain/product.js",
+        "sha256": "c1d60f55d2246759bf80d2ee733a6b98d21f53eb9ad31bcfb034b94f8222a0f0",
+        "byteLength": 8949
+      },
+      {
+        "path": "backend/dist/domain/productMedia.js",
+        "sha256": "6d042a0e341da071980f4b811d7b855e351ad24be8b5bc3b84d8c0ca9e4f2d4c",
+        "byteLength": 3703
+      },
+      {
+        "path": "backend/dist/domain/providerContract.js",
+        "sha256": "78880c2aebfdba985a62ec0373271b7a592c705cb8ba9127cb965b4a6783bd0c",
+        "byteLength": 4496
+      },
+      {
+        "path": "backend/dist/domain/receiptConsumption.js",
+        "sha256": "b91b123392330548afd1ab6fb1783ee6222956d92089aa241b195f9b8a2ee7f4",
+        "byteLength": 7788
+      },
+      {
+        "path": "backend/dist/domain/recoveredWorkHoldPolicy.js",
+        "sha256": "34abf667f644c12d9d6d6c15d09d98cccf72f6fba5e930ce9677b172d638ebed",
+        "byteLength": 2259
+      },
+      {
+        "path": "backend/dist/domain/restoredWork.js",
+        "sha256": "65faf2659e727ccd08969fd8e21871251990dc9b476330e26003a3a35cd24404",
+        "byteLength": 3233
+      },
+      {
+        "path": "backend/dist/domain/runtimeUpgrade.js",
+        "sha256": "de0201360dbae9db3b26a18f62e991f6409a8546e1d8b03f13742839edc7f4fc",
+        "byteLength": 7777
+      },
+      {
+        "path": "backend/dist/domain/sellerBadge.js",
+        "sha256": "4775cef687917871798291e6e59ad18bae159e3e0c9a648783bb2b89d4067868",
+        "byteLength": 6336
+      },
+      {
+        "path": "backend/dist/domain/sellerFollow.js",
+        "sha256": "a008e8a683438da16dcde132438161c8fabe1b36e3669e72dc74264d21a75500",
+        "byteLength": 1758
+      },
+      {
+        "path": "backend/dist/domain/sellerIdentity.js",
+        "sha256": "52778c61d3f295b59aa48cc1b69736088cee826a41393101dee199d50f645059",
+        "byteLength": 4365
+      },
+      {
+        "path": "backend/dist/domain/sellerInventory.js",
+        "sha256": "7945399943daedaf61cf4127c36ae72f5a5d36c26d2cabc478c6cdf4dd94a9f0",
+        "byteLength": 1941
+      },
+      {
+        "path": "backend/dist/domain/sellerProfile.js",
+        "sha256": "d43aa81f5bc89faa359e0f97c814ba25155591ff078fbb9bfd40f8c7c9683230",
+        "byteLength": 77
+      },
+      {
+        "path": "backend/dist/domain/sessionRealm.js",
+        "sha256": "41438d700ca2f660a88f013f384d54179a0021270438f44bb1a4116e9d2987c4",
+        "byteLength": 646
+      },
+      {
+        "path": "backend/dist/domain/signerReservation.js",
+        "sha256": "ac55bf13208bc1462883be834b21b3a277902e7a84d7709143457b58d4504088",
+        "byteLength": 36246
+      },
+      {
+        "path": "backend/dist/domain/support.js",
+        "sha256": "315abe2fa740e185541f53f3dc7ead6180c5f21eb849fc5d236f8c0e6b5613c4",
+        "byteLength": 5417
+      },
+      {
+        "path": "backend/dist/domain/walletAuthentication.js",
+        "sha256": "b270331a27219f68bd1f403bbe5f18253f31b8f1b77ac6f95c68c5f720d0b2e8",
+        "byteLength": 4330
+      },
+      {
+        "path": "backend/dist/domain/walletBinding.js",
+        "sha256": "d43aa81f5bc89faa359e0f97c814ba25155591ff078fbb9bfd40f8c7c9683230",
+        "byteLength": 77
+      },
+      {
+        "path": "backend/dist/domain/walletCircleRejection.js",
+        "sha256": "52c78aa6b30faa39c1f16b4ef33197db25f7fd13e35eb54522951885df136094",
+        "byteLength": 4410
+      },
+      {
+        "path": "backend/dist/domain/walletFlow.js",
+        "sha256": "117270e0247560b6f705a6550b2520442fe8d9824b468c096966e45af21af3c3",
+        "byteLength": 10878
+      },
+      {
+        "path": "backend/dist/domain/walletQuote.js",
+        "sha256": "77d2dbb8c72df729f087feb2906a30ce151b1a1714518b50febfeaf8fc60c8f9",
+        "byteLength": 9618
+      },
+      {
+        "path": "backend/dist/domain/walletReceipt.js",
+        "sha256": "90562e94e5bd8c712931607f479af4d4305c5b77c6fb236a9f8b92a1c8c703b2",
+        "byteLength": 7448
+      },
+      {
+        "path": "backend/dist/domain/webhookRecovery.js",
+        "sha256": "3e0fa4aecd0ffbbbd5317b013b4a441fdf92275da6ff369c49817e90a5b1dfcb",
+        "byteLength": 1729
+      },
+      {
+        "path": "backend/dist/index.js",
+        "sha256": "42d82a6bb45d922415fecef550117f75fe65242da3b1dce62388d7487b33b922",
+        "byteLength": 17869
+      },
+      {
+        "path": "backend/dist/middleware/auth.js",
+        "sha256": "5108e0f74e444fa523455aaf78b5bc61879729a83e5d941d29a1b965d733afc0",
+        "byteLength": 4218
+      },
+      {
+        "path": "backend/dist/middleware/publicRateLimit.js",
+        "sha256": "8807037d04e4e7c92e3c81340d2b6aa7af2fd364803d9ddfcad3b9b0c57b655d",
+        "byteLength": 1754
+      },
+      {
+        "path": "backend/dist/recoveryInspection.js",
+        "sha256": "1d206fa1d5830763118cb6ada952a33bbb3f7437cfdb2fb3289132f291d9f8f3",
+        "byteLength": 2136
+      },
+      {
+        "path": "backend/dist/routes/authRoutes.js",
+        "sha256": "d409e0c95aa814babfa13f2feeb0c6b7a92a48e3a23a7c1ad56a4ade02010d29",
+        "byteLength": 23848
+      },
+      {
+        "path": "backend/dist/routes/bridgeRoutes.js",
+        "sha256": "0a3c045799d02861f49631b60a47ab5cf2ff51515c9cc53693f67f174198f69b",
+        "byteLength": 10177
+      },
+      {
+        "path": "backend/dist/routes/campaignRoutes.js",
+        "sha256": "b29fbc4f609182d8d1d95e950d297c116755e3a7ef24a8f1dd3cd2577f80634a",
+        "byteLength": 11869
+      },
+      {
+        "path": "backend/dist/routes/circleRoutes.js",
+        "sha256": "f55f7ff1b9c18e1d6262604d357535669fc45594ee9bd14e0e48de87cd56bbc5",
+        "byteLength": 10302
+      },
+      {
+        "path": "backend/dist/routes/deliveryRoutes.js",
+        "sha256": "b664861123797a15ce64651c27c3b10775b2425080b65566377585af9c333de1",
+        "byteLength": 11630
+      },
+      {
+        "path": "backend/dist/routes/faucetRoutes.js",
+        "sha256": "11f8486b4b90b8fd2db58aa57e33e37766caa7d2fb09446ff2c7d9ed577e6578",
+        "byteLength": 3334
+      },
+      {
+        "path": "backend/dist/routes/followRoutes.js",
+        "sha256": "e6fc291982d60a1afa8271af0c204e0217592b354787b1cc6ed35e4dead41aad",
+        "byteLength": 2123
+      },
+      {
+        "path": "backend/dist/routes/notificationRoutes.js",
+        "sha256": "1dd441bfac3971d6de91aa0c5cd78000998ab58fe1177afd9701ffc9976ea867",
+        "byteLength": 4260
+      },
+      {
+        "path": "backend/dist/routes/operationRoutes.js",
+        "sha256": "97fb109dd8211e6391b24c761768fa58eb65f13098a8b16fb0c0be5ca3b0e21e",
+        "byteLength": 10814
+      },
+      {
+        "path": "backend/dist/routes/operatorRoutes.js",
+        "sha256": "caf1d0f911898af088c8ba5a566fdbc520b5d0eb6d5e383d640f8fd0e016eecc",
+        "byteLength": 19004
+      },
+      {
+        "path": "backend/dist/routes/orderRoutes.js",
+        "sha256": "5576aff8f703dd91e14c6c80f422e260b261abae99e6bf84f126fc5cb992e840",
+        "byteLength": 8576
+      },
+      {
+        "path": "backend/dist/routes/productMediaRoutes.js",
+        "sha256": "a6ef6a3f1146b75d0630b86de6154d567e3c993915563ce431f433bc54863ab1",
+        "byteLength": 2536
+      },
+      {
+        "path": "backend/dist/routes/productRoutes.js",
+        "sha256": "dffce17d56eb30e31f31364ef9eae553948034d1e9ec622b7f060135f6c4566d",
+        "byteLength": 8192
+      },
+      {
+        "path": "backend/dist/routes/publicRoutes.js",
+        "sha256": "6a3e417801fd5d345ea285387c23fe9726d5e56480d698a7e7241a5627b52193",
+        "byteLength": 6580
+      },
+      {
+        "path": "backend/dist/routes/sellerIdentityRoutes.js",
+        "sha256": "0d9144ecc072e66113ed64290f0ee671b36f7901aee94be7d696ddf42a047dd8",
+        "byteLength": 3458
+      },
+      {
+        "path": "backend/dist/routes/sellerRoutes.js",
+        "sha256": "9456ba04cebe05ceffe3bbfdebc4f2b26598b02dbeff4b110a7a21ce15177e8a",
+        "byteLength": 11957
+      },
+      {
+        "path": "backend/dist/routes/supportRoutes.js",
+        "sha256": "39238c3faaf1d457fb1134461c42e35fb204e80822e3e07ad26e89b76bb491da",
+        "byteLength": 5233
+      },
+      {
+        "path": "backend/dist/routes/walletFlowRoutes.js",
+        "sha256": "29e6eb3dfbbfafe13de9293b78f101cd3119cd8f8cb6aeebcff99f05124145ec",
+        "byteLength": 7603
+      },
+      {
+        "path": "backend/dist/routes/walletRoutes.js",
+        "sha256": "aaf4af52ffec9c9d7995ebf2f4c3ae1cc538166f87881d36228e44da6a2c8c23",
+        "byteLength": 891
+      },
+      {
+        "path": "backend/dist/services/arcReadProvider.js",
+        "sha256": "cfa4f30ef0692b5908517dd29375585aa69aa01932af29ae1fa3d10634597c6b",
+        "byteLength": 5031
+      },
+      {
+        "path": "backend/dist/services/arcReadRpc.js",
+        "sha256": "3e787a4d2b850f1c058fb71c48188575186a9c8ba20c1dce773da7813889c67e",
+        "byteLength": 2059
+      },
+      {
+        "path": "backend/dist/services/authService.js",
+        "sha256": "e9d5d13b7730b61d99a4fd89166fb5c143ea568ed3b0d4dec9949523472aff82",
+        "byteLength": 32094
+      },
+      {
+        "path": "backend/dist/services/authorizationService.js",
+        "sha256": "f08c909685f727b09a8639220e5cde1fb1c27c38c0592cc6eb037abbfd71401c",
+        "byteLength": 13389
+      },
+      {
+        "path": "backend/dist/services/backupService.js",
+        "sha256": "ee34b138f2ed9aaf4ad77753a0f6135f6367fb57e87f9aa32763f435f2c2c6d9",
+        "byteLength": 9015
+      },
+      {
+        "path": "backend/dist/services/bridgeReadRpc.js",
+        "sha256": "eadad9d5712c127388c51678524bae0f22527f83708a941088f40d92d0831f81",
+        "byteLength": 7716
+      },
+      {
+        "path": "backend/dist/services/bridgeTransferRegistry.js",
+        "sha256": "1c367f62df8df1b10a0934cf6e6cf251e94ef68929e480e12b753e4387ce5dfb",
+        "byteLength": 12988
+      },
+      {
+        "path": "backend/dist/services/buyExpiryService.js",
+        "sha256": "f9fd457124142865126aeff29463be88a5d0b98e0bf45973eced725a0da3bd59",
+        "byteLength": 10230
+      },
+      {
+        "path": "backend/dist/services/buyOperationService.js",
+        "sha256": "7e416790804b4dd3d9ba61cb0f1391661fad336d866a27abf5994fa13cd4094c",
+        "byteLength": 6701
+      },
+      {
+        "path": "backend/dist/services/buyerResourceView.js",
+        "sha256": "d10fc64fa7eff91d09a0df935a2ffc220985952ba1ec14e196aee1833cdfd451",
+        "byteLength": 2822
+      },
+      {
+        "path": "backend/dist/services/campaignAmendmentService.js",
+        "sha256": "fd8532232d23d23274f90338935c5b884fe5157b9b5def824df8af41c41300a7",
+        "byteLength": 5811
+      },
+      {
+        "path": "backend/dist/services/campaignBindingService.js",
+        "sha256": "7e2dd21ac36c013d4f3f4917e6a6f83d5e8d509e188145452552edd37248c6f9",
+        "byteLength": 1284
+      },
+      {
+        "path": "backend/dist/services/campaignDraftView.js",
+        "sha256": "f192b772ba9fcddd3543d2df3b5b1b1675220195b2df0bda229a749893535f1a",
+        "byteLength": 6079
+      },
+      {
+        "path": "backend/dist/services/campaignDto.js",
+        "sha256": "43e5b8e6ce3eb962d2e8a86963c7410ef4a6af4a768a2e1b32100f62da0ca8a7",
+        "byteLength": 3467
+      },
+      {
+        "path": "backend/dist/services/campaignEditorService.js",
+        "sha256": "bd094a768070ffbae41680963224c22cbea5a6d253d0be51bf61073ff012fb79",
+        "byteLength": 11131
+      },
+      {
+        "path": "backend/dist/services/campaignReplacementService.js",
+        "sha256": "da05433818fa20bbf828d27b7c7119fdcb084c635b9d48a35b1fe2f71607d867",
+        "byteLength": 8422
+      },
+      {
+        "path": "backend/dist/services/circleWalletService.js",
+        "sha256": "25ab51bfe1097188dc613995fe4e82d5aa7229b0e553e60a0667052088ca8827",
+        "byteLength": 41256
+      },
+      {
+        "path": "backend/dist/services/claimOperationService.js",
+        "sha256": "ac7c18308c7b806cfc486d9c7d5736d3bbc66b3bb4d27656ce143754951b425c",
+        "byteLength": 8421
+      },
+      {
+        "path": "backend/dist/services/contactIdentity.js",
+        "sha256": "ad3a5760e95173efc9c03726e574604419d7fed72c7658ad5021478f4885e813",
+        "byteLength": 3812
+      },
+      {
+        "path": "backend/dist/services/contactService.js",
+        "sha256": "41d85a7b45ae37533bb5c37a748fdeada44c5fa8d0884f3749a137378b684db7",
+        "byteLength": 15713
+      },
+      {
+        "path": "backend/dist/services/deliveryRetryService.js",
+        "sha256": "6b922ba9d577a73e5d2e1c7876ea41e8d1ad3730cbc29f47e9c1578268012118",
+        "byteLength": 7436
+      },
+      {
+        "path": "backend/dist/services/deliveryService.js",
+        "sha256": "2b57a39ee9ddeb047501a50fa9873696cea19069156637c32ccda563afa1b2fd",
+        "byteLength": 9023
+      },
+      {
+        "path": "backend/dist/services/deploymentBindings.js",
+        "sha256": "0dd844308fe53af01349559066227876d010c3060d505a96efdf1f0ca2af2931",
+        "byteLength": 1760
+      },
+      {
+        "path": "backend/dist/services/disputeMetadataService.js",
+        "sha256": "8687ef00c5d34829694902782cc45caf54ca20eb319aed49d6de36c471f5a34c",
+        "byteLength": 16175
+      },
+      {
+        "path": "backend/dist/services/disputeService.js",
+        "sha256": "47f83b81d254579c2588370706b34566f570f169af25cd601636ca5fad7be050",
+        "byteLength": 5186
+      },
+      {
+        "path": "backend/dist/services/eventEvidence.js",
+        "sha256": "36bc2a1ff228f2c006e5247bde82464f5adaab09d80db96ffb44edb0f8d91429",
+        "byteLength": 3880
+      },
+      {
+        "path": "backend/dist/services/eventNotifications.js",
+        "sha256": "bbc056aa3117babab6ba8458d7dff0c5a3e039be693ccaf10662dc7f940f1c4f",
+        "byteLength": 8202
+      },
+      {
+        "path": "backend/dist/services/followNotifications.js",
+        "sha256": "9042fbca8fde276cad02b50c1337ec79e7f35639b97195d42a96f83a7f409bd6",
+        "byteLength": 5392
+      },
+      {
+        "path": "backend/dist/services/indexerService.js",
+        "sha256": "2648be5c4fc77a337d6b3b93f0ad7228ee6ea590a5f192982133b90abb75378d",
+        "byteLength": 53689
+      },
+      {
+        "path": "backend/dist/services/internalTestArchiveRecovery.js",
+        "sha256": "c67f8c850e9c0ef8f186336b0dda1c74d56545d1616391f7ec1fe630514f1cbe",
+        "byteLength": 11986
+      },
+      {
+        "path": "backend/dist/services/legacyDataReview.js",
+        "sha256": "f03b7eb2313863d3016531deb4333117532a3089dbb53a661f821de10ca1fd91",
+        "byteLength": 9173
+      },
+      {
+        "path": "backend/dist/services/legacyReviewPreparation.js",
+        "sha256": "f5f282c557470809b1950f2949eeea809ef4f1415e0a2f3759bbc4df4fe21588",
+        "byteLength": 10551
+      },
+      {
+        "path": "backend/dist/services/manifestValidator.js",
+        "sha256": "7bf5043c4a62367ca231b4b75acee2ab9b3dcce9d02f01e1252ff397c25d0f4c",
+        "byteLength": 7728
+      },
+      {
+        "path": "backend/dist/services/notificationInboxService.js",
+        "sha256": "164861679e8f847556e81810d513a49570668b2e517dcc124b4ce09900d89587",
+        "byteLength": 9299
+      },
+      {
+        "path": "backend/dist/services/notificationService.js",
+        "sha256": "668f51d69d3fd35ae14574afb8327581b8cca0d3a0ad064cdbbda1e7c3355687",
+        "byteLength": 37070
+      },
+      {
+        "path": "backend/dist/services/notificationSource.js",
+        "sha256": "b351f2a260aa6a4299f945aa66002571d96359ca78fa2c96710297fb87152603",
+        "byteLength": 6569
+      },
+      {
+        "path": "backend/dist/services/onchainService.js",
+        "sha256": "f85a4bceeedd2fba7a5b841a4379298e32f4af4778affd518157a4644630995d",
+        "byteLength": 1479
+      },
+      {
+        "path": "backend/dist/services/operationCompletionService.js",
+        "sha256": "50310f87db2d36be526bfecc559038d4767c0eb3f0db69cdb868b784c16be395",
+        "byteLength": 33831
+      },
+      {
+        "path": "backend/dist/services/operationHistory.js",
+        "sha256": "377c2f56f00dc70aa76eeb0487356bcb19f20283ac705f5dfd2d062946ccf380",
+        "byteLength": 2690
+      },
+      {
+        "path": "backend/dist/services/operationPreparationService.js",
+        "sha256": "31a64c8f3a379a5f763f3780497bd925d19325acfd96d5cb5f1382c6c88aa191",
+        "byteLength": 31630
+      },
+      {
+        "path": "backend/dist/services/operationReadinessService.js",
+        "sha256": "7ad943e0caef2579a2b4c58d3aa6aa0136eb4caa4a4b8025711fbc183dac436e",
+        "byteLength": 9130
+      },
+      {
+        "path": "backend/dist/services/operationReplacementService.js",
+        "sha256": "4f9960f64f4f7113b9e563da303318d0d92da1dc17baf6163f89b31acb1ef0cc",
+        "byteLength": 18491
+      },
+      {
+        "path": "backend/dist/services/operationService.js",
+        "sha256": "c8db557fd95806236140219c688ec2e2ac1ded59512467f960f77ae9f4eee417",
+        "byteLength": 1836
+      },
+      {
+        "path": "backend/dist/services/operationTrackingService.js",
+        "sha256": "0cbfa9af8d310dbf730a75bdf78fb0430eb7f30a73c199ddd1c02f85a9262dcd",
+        "byteLength": 4823
+      },
+      {
+        "path": "backend/dist/services/operationVerificationService.js",
+        "sha256": "801f1e555e61ad2dbad859d67dd342477e55695cbb973bc2796b9eab0c2cd7ea",
+        "byteLength": 6821
+      },
+      {
+        "path": "backend/dist/services/operationalHealth.js",
+        "sha256": "63c1c33aa2b8a1665e5fedcbda3501bb6dc0794b6d46094c0328b3b7a8e269ab",
+        "byteLength": 6338
+      },
+      {
+        "path": "backend/dist/services/operationalSignals.js",
+        "sha256": "f3fdfd8ba1933deb03beb6184f40bf59bffe07cdc2698e4a92fed86f90e8df3e",
+        "byteLength": 3393
+      },
+      {
+        "path": "backend/dist/services/operatorAccountAccessService.js",
+        "sha256": "d49cc5353d970e63a45af85f16b02c358f6520b20ce966ac90dde4741cc2a9cf",
+        "byteLength": 8616
+      },
+      {
+        "path": "backend/dist/services/operatorAdministrationService.js",
+        "sha256": "d78b93ea3b2b2f120e1087cf8565a55fab4ca3427fd8fb4070d496f0ad5401d5",
+        "byteLength": 11084
+      },
+      {
+        "path": "backend/dist/services/operatorAuditService.js",
+        "sha256": "aabb5103cf06ec51efd65d6733f77b82d6eee1ce74c0c5933337943cf0ad277d",
+        "byteLength": 7512
+      },
+      {
+        "path": "backend/dist/services/operatorAuthority.js",
+        "sha256": "49f1b8d7e8e07aae955e7a7c58f23f48ab6ae9780b7a8ab0db1a11f7c9a8e33b",
+        "byteLength": 6279
+      },
+      {
+        "path": "backend/dist/services/operatorBadgeService.js",
+        "sha256": "8e9f893408cccab922bd8777c4aeabb2a3f4d16ea8f1c29ffae0c881b4ba838c",
+        "byteLength": 14254
+      },
+      {
+        "path": "backend/dist/services/operatorDealSections.js",
+        "sha256": "4a19f14ee8e17ee38a304eaad3fef4c03243664e82dbaf5b068046c13699a415",
+        "byteLength": 6971
+      },
+      {
+        "path": "backend/dist/services/operatorDealView.js",
+        "sha256": "fabd27f42bbcfe075d7bb1b8f96eadaa047a3848f694a95c6753af495df2ad0f",
+        "byteLength": 4341
+      },
+      {
+        "path": "backend/dist/services/operatorEnrollment.js",
+        "sha256": "9dda198c12d21baa64aee8f8661fd55c560ca2208ed022972c7a820dee717b54",
+        "byteLength": 14629
+      },
+      {
+        "path": "backend/dist/services/operatorLegacyReview.js",
+        "sha256": "aab88d7da3c76ae5ff59faa2b6fe717847d12878c370deac3cd526cdb17b8b50",
+        "byteLength": 5156
+      },
+      {
+        "path": "backend/dist/services/orderActionService.js",
+        "sha256": "487914b0867451359acefafe56f2d9f4c13a1faa144bd98563f5bb7b21a62f23",
+        "byteLength": 12091
+      },
+      {
+        "path": "backend/dist/services/orderDto.js",
+        "sha256": "7b8ac8e919488cdee9b7ab7d83c028c009149a51dc3947fdc59284324fc321a1",
+        "byteLength": 2392
+      },
+      {
+        "path": "backend/dist/services/orderReviewService.js",
+        "sha256": "34144024d02a0e7aee68ccc6b3a89af281a5210a8c05357ec6dcabfbcb3ca987",
+        "byteLength": 5152
+      },
+      {
+        "path": "backend/dist/services/orderThreadService.js",
+        "sha256": "2121099c67d30ec3a620d8f42212dcd1436537f2e9b0db2f32234e5f88162102",
+        "byteLength": 6637
+      },
+      {
+        "path": "backend/dist/services/productMediaService.js",
+        "sha256": "b8ed9175d23b569ec38dd19551c216b8a9aea93bd9280cafb187a6b894513a5c",
+        "byteLength": 3218
+      },
+      {
+        "path": "backend/dist/services/productService.js",
+        "sha256": "1b268542d6aebb87e82d35539e0d5af0bbf8854429bf8c02e2f7a7262f320717",
+        "byteLength": 26101
+      },
+      {
+        "path": "backend/dist/services/projectionScope.js",
+        "sha256": "e4daa5994ec37a62845a26258ba1dce00ac0769455a813196111c21bf923893a",
+        "byteLength": 2250
+      },
+      {
+        "path": "backend/dist/services/providerDeliveryService.js",
+        "sha256": "32a06c3039ae9cbada7f15398145bcf6f5d271479a3eba2eac1b4011c4c9877f",
+        "byteLength": 13938
+      },
+      {
+        "path": "backend/dist/services/publicCampaign.js",
+        "sha256": "d6f523e27d4b50484c929b8f54e90fa191673b17db936300717ab6e5358c112d",
+        "byteLength": 6251
+      },
+      {
+        "path": "backend/dist/services/publicCatalog.js",
+        "sha256": "cfbb60ef5c2bf7db722f12aae5089ca0225d6c4e6b435cce4291f62e6850418a",
+        "byteLength": 1751
+      },
+      {
+        "path": "backend/dist/services/publicHealth.js",
+        "sha256": "fd808395a13810cc35a3196df4944e8d85adc29d908cff592ccaefb89cc14f9f",
+        "byteLength": 964
+      },
+      {
+        "path": "backend/dist/services/publicMetadata.js",
+        "sha256": "cdc33d941385e1e466ba3369ba7411efb3c1f48d75565c4d5f50f983625f0443",
+        "byteLength": 1503
+      },
+      {
+        "path": "backend/dist/services/publicPagination.js",
+        "sha256": "811a9f8aa62fc6bfb20177f46915b16fb74aa6959d785d8090624646fbdb9f5b",
+        "byteLength": 7110
+      },
+      {
+        "path": "backend/dist/services/publicSeller.js",
+        "sha256": "47f3aa71f0956747de8013b3f5de4e6199dc4fc1654dc86f15396f9ee0c0a349",
+        "byteLength": 3462
+      },
+      {
+        "path": "backend/dist/services/publicSellerIdentity.js",
+        "sha256": "5ed48696b8f59aaa1d5a62d89f98c9c604acf6cee4411bfbaf65669162965f91",
+        "byteLength": 1006
+      },
+      {
+        "path": "backend/dist/services/publicWidgetHtml.js",
+        "sha256": "31707b4b40dd327a503b653bdfee3248b234f487a79161fd677167f8ac41a59d",
+        "byteLength": 8064
+      },
+      {
+        "path": "backend/dist/services/reconciliationService.js",
+        "sha256": "816e4b86b971c705eeada9b42cb89daa568e2c8740576b6cec019134149eeac5",
+        "byteLength": 15760
+      },
+      {
+        "path": "backend/dist/services/recoveryApplication.js",
+        "sha256": "b8f16e5283fdbcd3b27f3d76b8b7038e41091cf1dd596756567d11f2844877f6",
+        "byteLength": 28602
+      },
+      {
+        "path": "backend/dist/services/recoveryDrillService.js",
+        "sha256": "385062690aa7adec0806d85d633d22f9b29455997a149d8a67cedfc150351aad",
+        "byteLength": 18059
+      },
+      {
+        "path": "backend/dist/services/recoveryInspection.js",
+        "sha256": "6d223b53d863a69d903bf4a544182f5503ab74947c744382d6b56d21cf31b571",
+        "byteLength": 12377
+      },
+      {
+        "path": "backend/dist/services/recoverySessionBarrier.js",
+        "sha256": "d914963e2ea2249f0e201a71bd4e7a6f6cf89886dc4911e09f2228115c604daf",
+        "byteLength": 5544
+      },
+      {
+        "path": "backend/dist/services/resourceDeliveryService.js",
+        "sha256": "2aafbbca5d85cb67fe7faa771a6093e6865fb10656acc8942eb9a86c760f6620",
+        "byteLength": 17863
+      },
+      {
+        "path": "backend/dist/services/resourceMutationService.js",
+        "sha256": "f9593c36c4819f1cab23153bb5d1a985c0a842f20781e6a0003861f7b8c27d55",
+        "byteLength": 19869
+      },
+      {
+        "path": "backend/dist/services/restoredWorkBarrier.js",
+        "sha256": "a4970915bb62f15a9f0f2bd4762f2896184cd68f6f27fc2a8f81c3fcd6c24bf2",
+        "byteLength": 2706
+      },
+      {
+        "path": "backend/dist/services/restoredWorkPreparation.js",
+        "sha256": "4eb26de7ceedc5a802d10f39954c20039142136669e5f55e678a34e5829aa5ef",
+        "byteLength": 12988
+      },
+      {
+        "path": "backend/dist/services/restoredWorkReview.js",
+        "sha256": "9fd44d6fc3877c937e1a3bef139eda1a2eb9776444a1e390b269682386895e78",
+        "byteLength": 1500
+      },
+      {
+        "path": "backend/dist/services/runtimeBackup.js",
+        "sha256": "d5cde9cdf6131aaaff01426dfeab5b42a857683fb23c3fb48e09c89d5b55f7ef",
+        "byteLength": 14718
+      },
+      {
+        "path": "backend/dist/services/runtimeSecurity.js",
+        "sha256": "da390c1df0179e2b15ec9171690d114d0d84a1e4172b11afb1f08feff44e9fd7",
+        "byteLength": 3286
+      },
+      {
+        "path": "backend/dist/services/runtimeUpgradePreparation.js",
+        "sha256": "15a9e8ece4d04d7fd1dc57133b045b52a138ae49fc0245463cca8567da6177c1",
+        "byteLength": 17218
+      },
+      {
+        "path": "backend/dist/services/runtimeUpgradeSource.js",
+        "sha256": "25f73231841f89986e30086d61b26f77f0ac9f9701f2fff20caa0daaf6a334b5",
+        "byteLength": 15050
+      },
+      {
+        "path": "backend/dist/services/sellerFollowService.js",
+        "sha256": "c2765e1296b67956d3db62875c685146e7145233f7dd9ee14603f04b2717b8f7",
+        "byteLength": 11949
+      },
+      {
+        "path": "backend/dist/services/sellerIdentityService.js",
+        "sha256": "8735f50c0c7e0ca2a3c8b4754afb000c877eb0fcd97297c5855971c62ee44e5a",
+        "byteLength": 16251
+      },
+      {
+        "path": "backend/dist/services/sellerProfileService.js",
+        "sha256": "3d9c1f5266ecfa1502cf774637263bb8d4535c6bd60596c1582359eab0a718c5",
+        "byteLength": 18687
+      },
+      {
+        "path": "backend/dist/services/sellerResourceInventory.js",
+        "sha256": "54f709b31dc19eea45f7e7de41e2b95449c104625a310cf1f9f2e14741d4510c",
+        "byteLength": 3628
+      },
+      {
+        "path": "backend/dist/services/sessionService.js",
+        "sha256": "5d8dca7336ab3bd92aee587665c0793460551965c6f114f1029a3bd126657abb",
+        "byteLength": 23780
+      },
+      {
+        "path": "backend/dist/services/shadowPreparation.js",
+        "sha256": "fbd2c5890d564a74cde742760f12158186b62b9abf48aef383ad4c7914efe9a4",
+        "byteLength": 23690
+      },
+      {
+        "path": "backend/dist/services/signerReservationRegistry.js",
+        "sha256": "03f217b46dc0cb9f673ad01f04e34b8dc72d4bb02b43466b5b213cf536f24989",
+        "byteLength": 2932
+      },
+      {
+        "path": "backend/dist/services/supportAttachment.js",
+        "sha256": "3c1954b7a44f7c9f4822d18d39973eab82748987031394f03ec23038630e897f",
+        "byteLength": 5810
+      },
+      {
+        "path": "backend/dist/services/supportRetention.js",
+        "sha256": "65c8928ef93d7d058685f7fb3f082d87bf87ce20085c3dd6d5d15d591674f615",
+        "byteLength": 872
+      },
+      {
+        "path": "backend/dist/services/supportService.js",
+        "sha256": "f5153778e34004a9f41237b269100f870c2dafc803b21816f342145692f2d159",
+        "byteLength": 26186
+      },
+      {
+        "path": "backend/dist/services/transactionVerifier.js",
+        "sha256": "87de5bcf7301f0ec1a6c4037ab98e4d432f4ed9bd8ae79718a79604985712888",
+        "byteLength": 11804
+      },
+      {
+        "path": "backend/dist/services/verifiedStartup.js",
+        "sha256": "e695e84330aa347560067192daa746a7614e7118403305d691109e21ae23680f",
+        "byteLength": 1014
+      },
+      {
+        "path": "backend/dist/services/walletBindingService.js",
+        "sha256": "c4e0b7163b6ee3829b4c3d59d004dbc566e912467facfdcc1b59399cf462379a",
+        "byteLength": 19762
+      },
+      {
+        "path": "backend/dist/services/walletCircleProvider.js",
+        "sha256": "bdaa755a62c8cf28d3210506a0ba1ee8710058e10a45d713faaa71e06be8e15a",
+        "byteLength": 8256
+      },
+      {
+        "path": "backend/dist/services/walletFlowService.js",
+        "sha256": "f949c10cde7eaefbfc62edda191f84d97b2c31757a944342c45021b579704ec7",
+        "byteLength": 49023
+      },
+      {
+        "path": "backend/dist/services/walletSwapService.js",
+        "sha256": "fe3bbcea0174001afb544b437db40bdb718e5a341f4126162ecf190bf418f97a",
+        "byteLength": 2576
+      },
+      {
+        "path": "backend/dist/services/webhookPayload.js",
+        "sha256": "78eb4dd6a39906d4521ea6cf1f0a52babc1a2bc1053888bf86b0423db4cfa307",
+        "byteLength": 1160
+      },
+      {
+        "path": "backend/dist/services/webhookRecoveryPolicy.js",
+        "sha256": "d568c11055424a85f2c08d57063e831c0705243be9be4bc5741e88ecab0802a3",
+        "byteLength": 4358
+      },
+      {
+        "path": "backend/dist/services/webhookRecoveryService.js",
+        "sha256": "fd1a3d4aee1e5734396edda2dd2d3cdae35830806b69762696d955b08c507fac",
+        "byteLength": 15789
+      },
+      {
+        "path": "backend/dist/services/webhookSecret.js",
+        "sha256": "e6b5b5a5d48fc32a47d8741dd6f63441e64e0ce9437581f50f32d6728f728e21",
+        "byteLength": 2009
+      },
+      {
+        "path": "backend/dist/services/webhookService.js",
+        "sha256": "45cf77f6b27993ce3c0971ed23b7dae5a98de1d89e81d03715a850c707b82152",
+        "byteLength": 16072
+      },
+      {
+        "path": "backend/dist/services/webhookTransport.js",
+        "sha256": "e1e8d41b2203e5ec9198fbdef1cb6ca4d0d9827143808c8df280e153affd274a",
+        "byteLength": 10453
+      },
+      {
+        "path": "backend/dist/utils/crypto.js",
+        "sha256": "527bb420dd808a53e997c2e013a208e312f1bfac0cee9b829df96083c0cf2530",
+        "byteLength": 6268
+      }
+    ]
+  },
+  "verificationScope": {
+    "databaseOpened": false,
+    "secretsRead": false,
+    "productionChanged": false,
+    "fullCiRerun": false,
+    "uiArchiveIntegrated": false
+  },
+  "notes": [
+    "Frontend and backend on the VPS were released separately.",
+    "Backend package test commands and tests retain later tooling; runtime dependency versions are unchanged.",
+    "Frontend artifacts are the existing production-configured release, verified against fresh VPS hashes; this is not a new frontend build.",
+    "Backend was rebuilt locally; LF source checkout rules prevent Windows CRLF drift."
+  ]
+}

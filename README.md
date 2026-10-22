@@ -2,6 +2,10 @@
 
 Tên miền chính thức: [groupdeal.tech](https://groupdeal.tech). `www.groupdeal.tech` và hostname cũ chuyển hướng về domain chính. Xem [cấu hình domain và quy trình chuyển đổi](docs/domain-migration.md).
 
+## Bản nền VPS 22/10/2026
+
+Thư mục làm việc chính là repository này; các clone trong `.cache/ci/` chỉ giữ làm lịch sử. Bản nền theo VPS gồm frontend `5e7a012` và backend runtime `4b5af76`. Các thay đổi giao diện từ checkout cũ đã được lưu riêng, chưa nhập vào bản nền. Xem [quy trình và kết quả đồng bộ](docs/vps-baseline-2026-10-22.md), [dấu vân tay bản phát hành](docs/vps-baseline-2026-10-22.json) và `AGENTS.md` trước khi sửa tiếp. Kiểm tra nguồn bằng `node scripts/verify_vps_baseline.cjs`.
+
 ## Cập nhật21/10/2026
 
 Full CI Ubuntu trên source 5e7a012 đã đạt 77/77 bước; browser mặc định 989 PASS/67 SKIP, các mode riêng và provider/Worker/conformance đạt. Frontend đã cập nhật, backend giữ 4b5af76. Xem [kết quả CI và phát hành](reports/HOAN_THIEN_CI_2026-10-21.md); các sửa dependency backup/recovery chưa rollout backend.

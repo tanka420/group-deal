@@ -1,0 +1,8 @@
+# Working source and release baseline
+
+- Work from this repository root, `E:/apps/group-deal` on the current machine. Do not edit or build a new candidate in `.cache/ci/*`; those are historical CI clones.
+- Before editing, inspect the current branch, worktree changes, and `docs/vps-baseline-2026-10-22.json`. The baseline intentionally combines frontend source `5e7a012` with backend runtime source `4b5af76`, matching the VPS observed on 22 October 2026. Repository tooling and tests retain the later source history.
+- The preserved UI work in `local-preservation/2026-10-22-before-vps-sync/` and Git stash `61708ada734f2050673e2736a59e792cc186ab1e` has NOT been integrated into this baseline. Reapply only requested changes after comparing them against current source; do not restore the old checkout wholesale.
+- For a baseline check, run `node scripts/verify_vps_baseline.cjs`; add `--artifacts` only when the recorded release artifacts are available. This verifies the historical baseline, not arbitrary future changes. A matching baseline is not full product acceptance or a new full-CI result.
+- For subsequent work: edit locally, review the diff, run checks appropriate to the change, commit and push to GitHub, then build/deploy the approved exact commit or its recorded artifact. Record frontend and backend versions separately if only one is released. Do not deploy an uncommitted checkout or treat a local sample preview as production evidence.
+- Keep credentials, runtime databases, local archives, and generated private evidence out of Git. Baseline synchronization does not authorize moving production data, restarting services, or deploying changes. Follow the user's current scope for those actions.

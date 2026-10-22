@@ -39,3 +39,11 @@ Thumbs.db
 /frontend/build/*
 !/frontend/build/bundleInventory.ts
 !/frontend/build/circleBrowserJwt.ts
+
+# Local archives and generated evidence (source reports remain tracked).
+/local-preservation/
+/reports/evidence/
+/reports/ui-integration/
+/reports/ui-review/
+/reports/baseline-sync/
+/.playwright-cli/
