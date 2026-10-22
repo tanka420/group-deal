@@ -131,7 +131,9 @@ export class IndexerProjection {
     } finally { this.signals.finish(observationStarted,observationSucceeded);this.isSyncing = false; }
   }
 
-  public async syncThroughBlock(targetBlock: number): Promise<void> {
+  public async syncThroughBlock(targetBlock: number, options:{rangeSize?:number}={}): Promise<void> {
+    const rangeSize=options.rangeSize??500;
+    if(!Number.isSafeInteger(rangeSize)||rangeSize<1||rangeSize>5000)throw new Error("Invalid bounded sync range size");
     const batch = this.syncQueue.then(async () => {
       if (!this.provider) throw new Error("Projection provider is unavailable");
       const state=this.projection.readFinancialProjectionState({wholeScope:true}).graph;
@@ -141,8 +143,8 @@ export class IndexerProjection {
       if (targetBlock < last) throw new Error("RPC head is behind the durable indexer cursor");
       if (state.syncState.lastIndexedBlockHash && (await readCanonicalBlock(this.provider,last)).hash.toLowerCase() !== state.syncState.lastIndexedBlockHash.toLowerCase())
         throw new Error("EVENT_EVIDENCE_INVALID: durable cursor block hash changed; prepare a shadow rebuild");
-      for (let from = last+1; from <= targetBlock; from += 500) {
-        const to = Math.min(from+499,targetBlock);
+      for (let from = last+1; from <= targetBlock; from += rangeSize) {
+        const to = Math.min(from+rangeSize-1,targetBlock);
         await this.processBlockRange(from,to);
       }
     });

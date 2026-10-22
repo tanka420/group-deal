@@ -7,6 +7,9 @@ async function main(){
  await free(4000);await free(5173);fs.mkdirSync(directory,{recursive:true});
  const dotenv=require('../backend/node_modules/dotenv'),configured=dotenv.parse(fs.readFileSync(path.join(root,'backend/.env'))),env={...process.env,...configured,NODE_ENV:'development',GROUPDEAL_LOCAL_DEVELOPMENT:'1',PORT:'4000',ALLOWED_ORIGINS:'http://127.0.0.1:5173,http://localhost:5173',SMTP_HOST:'',SMTP_USER:'',SMTP_APP_PASSWORD:''};
  delete env.GROUPDEAL_RECOVERY_MODE;delete env.GROUPDEAL_ENABLE_LOCAL_FIXTURES;
+ // Fresh local databases need historical chain evidence before the API may open.
+ // Keep successful checkpoints across transient RPC failures and subsequent runs.
+ await new Promise((resolve,reject)=>{const prepare=cp.spawn(process.execPath,[path.join(root,'scripts/prepare_local_workspace.cjs')],{cwd:path.join(root,'backend'),env,windowsHide:true,stdio:'inherit'}),cancel=()=>prepare.kill('SIGTERM');process.once('SIGINT',cancel);process.once('SIGTERM',cancel);const cleanup=()=>{process.removeListener('SIGINT',cancel);process.removeListener('SIGTERM',cancel);};prepare.once('error',error=>{cleanup();reject(error);});prepare.once('exit',code=>{cleanup();code===0?resolve():reject(Error('LOCAL_CHAIN_PREPARATION_FAILED'));});});
  const log=fs.openSync(path.join(directory,'backend.log'),'a'),backend=cp.spawn(process.execPath,[path.join(root,'backend/dist/index.js')],{cwd:path.join(root,'backend'),env,windowsHide:true,stdio:['ignore',log,log]});fs.closeSync(log);
  let frontend,stopping=false;const stop=()=>{if(stopping)return;stopping=true;frontend?.closeAllConnections();frontend?.close();if(backend.exitCode===null)backend.kill('SIGTERM');};process.once('SIGINT',stop);process.once('SIGTERM',stop);
  backend.once('exit',code=>{stop();if(code)process.exitCode=code;});
