@@ -1,3 +1,8 @@
+import {useCursorPage} from '../hooks/useCursorPage';
+import {useAppSearch} from '../hooks/useAppSearch';
+import {readOrderFilters} from '../services/orderList';
+import {readPagination,type PaginationInfo} from '../components/ListPagination';
+import {readSummary,type OrderSummary} from '../services/workspaceView';
 import {ManagedOrderAction,ManagedOrderActionHandle} from "../components/ManagedOrderAction";
 import {PriceDisplay} from "../components/DealPresentation";
 import {DialogSurface} from "../components/DialogSurface";
@@ -42,6 +47,8 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string}> = ({selectedOrd
     hubAddress,
   } = useWeb3();
 
+  const search=useAppSearch(),filters=readOrderFilters(),pager=useCursorPage(JSON.stringify([user?.id,token,selectedOrderId,search])),[pagination,setPagination]=useState<PaginationInfo>({limit:20,nextCursor:null}),[summary,setSummary]=useState<OrderSummary|null>(null);
+  const query=new URLSearchParams({limit:'20'});if(selectedOrderId)query.set('orderId',selectedOrderId);else{for(const [k,v]of Object.entries(filters))if(v)query.set(k,v);if(pager.cursor)query.set('cursor',pager.cursor);}
   const orderAction=useRef<ManagedOrderActionHandle>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,13 +95,12 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string}> = ({selectedOrd
     const owner={userId:user?.id,token};setOrdersOwner(owner);setLoading(true);setLoadError(null);setOrders([]);
     if(!user?.id||!token){setLoading(false);return;}
     const epoch=getSessionEpoch(),timer=setTimeout(()=>controller.abort(),15000),current=()=>dataController.current===controller&&scopeRef.current.userId===owner.userId&&scopeRef.current.token===owner.token&&getSessionEpoch()===epoch;
-    fetch('/api/orders/buyer',{signal:controller.signal,headers:{Authorization:'Bearer '+token},redirect:'error',cache:'no-store'})
-      .then(async r=>{if(!r.ok)throw Error('ORDER_VIEW_UNAVAILABLE');return r.json();})
-      .then(data=>{if(controller.signal.aborted||!current())return;if(!Array.isArray(data.orders)||data.buyerAccountId!==undefined&&data.buyerAccountId!==owner.userId||data.orders.some((o:any)=>!o||typeof o.id!=='string'||!/^[-A-Za-z0-9_]{1,128}$/.test(o.id)||['constructor','__proto__','prototype'].includes(o.id)||o.buyerAccountId!==undefined&&o.buyerAccountId!==owner.userId)||new Set(data.orders.map((o:any)=>o.id)).size!==data.orders.length)throw Error('ORDER_VIEW_INVALID');setOrders(data.orders);for(const o of data.orders){const saved=reviewDrafts.current.get(o.id);if(o.review)reviewDrafts.current.delete(o.id);else if(saved)saved.uncertain=false;}})
+    Promise.all([fetch('/api/orders/buyer?'+query,{signal:controller.signal,headers:{Authorization:'Bearer '+token},redirect:'error',cache:'no-store'}).then(async r=>{if(!r.ok)throw Error('ORDER_VIEW_UNAVAILABLE');return r.json();}),fetch('/api/orders/summary',{signal:controller.signal,headers:{Authorization:'Bearer '+token},redirect:'error',cache:'no-store'}).then(async r=>r.ok?r.json():null).catch(()=>null)]).then(([data,overview])=>({data,overview}))
+      .then(({data,overview})=>{if(controller.signal.aborted||!current())return;if(!Array.isArray(data.orders)||data.buyerAccountId!==undefined&&data.buyerAccountId!==owner.userId||data.orders.some((o:any)=>!o||typeof o.id!=='string'||!/^[-A-Za-z0-9_]{1,128}$/.test(o.id)||['constructor','__proto__','prototype'].includes(o.id)||o.buyerAccountId!==undefined&&o.buyerAccountId!==owner.userId)||new Set(data.orders.map((o:any)=>o.id)).size!==data.orders.length)throw Error('ORDER_VIEW_INVALID');setPagination(readPagination(data.pagination));try{setSummary(overview?readSummary(overview,owner.userId!) as OrderSummary:null);}catch{setSummary(null);}setOrders(data.orders);for(const o of data.orders){const saved=reviewDrafts.current.get(o.id);if(o.review)reviewDrafts.current.delete(o.id);else if(saved)saved.uncertain=false;}})
       .catch(()=>{if(current())setLoadError('ORDER_VIEW_UNAVAILABLE');})
       .finally(()=>{clearTimeout(timer);if(current())setLoading(false);});
   };
-  useEffect(()=>{fetchOrders();return()=>{dataController.current?.abort();dataController.current=null;};},[user?.id,token,account]);
+  useEffect(()=>{fetchOrders();return()=>{dataController.current?.abort();dataController.current=null;};},[user?.id,token,account,selectedOrderId,search,pager.cursor]);
   useEffect(()=>{setDisputeModalOrder(null);setDisputeFieldErrors({});setReviewError(false);setDisputeReason('');setDisputeEvidence('');setReviewModalOrder(null);setIsSubmittingReview(false);setIsSubmittingDispute(false);setReviewComment('');reviewDrafts.current.clear();disputeDrafts.current.clear();},[user?.id,token]);
 
   // Decrypt entitlement secret
@@ -152,6 +158,7 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string}> = ({selectedOrd
   let totalClaimableRefunds = 0n;
   let amountsKnown=!!user?.id&&!!token&&ordersVisible&&!loading&&!loadError;
   (selectedOrderId?detailOrders:visibleOrders).forEach(o=>{const amounts=buyerOrderAmounts(o);if(amounts.remaining===null){amountsKnown=false;return;}totalClaimableRebates+=amounts.unpaidRebate;totalClaimableRefunds+=amounts.unpaidRefund;});
+  if(!selectedOrderId){amountsKnown=amountsKnown&&summary?.claimableRebate!==null&&summary?.claimableRebate!==undefined&&summary?.claimableRefund!==null&&summary?.claimableRefund!==undefined;totalClaimableRebates=BigInt(summary?.claimableRebate??'0');totalClaimableRefunds=BigInt(summary?.claimableRefund??'0');}
   if(selectedOrderId&&!detailOrders.length)amountsKnown=false;
   return (
     <div className="app-page buyer-dashboard">
@@ -206,7 +213,7 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string}> = ({selectedOrd
             {text("Bạn chưa có đơn cam kết mua nào. Khám phá các deal đang mở để bắt đầu.","You have no purchase commitments yet. Explore open deals to get started.")}
           </p>
         </div>
-      ) : !selectedOrderId ? <OrderList orders={visibleOrders}/> : !detailOrders.length ? <p role="status">{text('Không tìm thấy đơn trong tài khoản này. Kiểm tra mã đơn và tài khoản đăng nhập.','This order was not found in your account. Check the order ID and signed-in account.')}</p> : (
+      ) : !selectedOrderId ? <OrderList orders={visibleOrders} pagination={pagination} page={pager.page} pending={loading} onPrevious={pager.previous} onNext={()=>pager.next(pagination.nextCursor)}/> : !detailOrders.length ? <p role="status">{text('Không tìm thấy đơn trong tài khoản này. Kiểm tra mã đơn và tài khoản đăng nhập.','This order was not found in your account. Check the order ID and signed-in account.')}</p> : (
         <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
           {detailOrders.map((o) => {
             const lockedPrice=orderMoney(o.lockedUnitPrice)??text("Chưa xác minh","Unverified");

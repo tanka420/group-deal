@@ -1,4 +1,4 @@
-export const operatorPaths={DEALS:'deals',DISPUTES:'disputes',VERIFICATIONS:'verifications',RECONCILIATION:'reconciliation',LOGS:'audit',OUTBOX:'outbox',OPERATIONS:'operations',LEGACY:'recovery',USERS:'users',PERMISSIONS:'permissions',SETTINGS:'settings',SUPPORT:'support'} as const;
+export const operatorPaths={ACCESS:'access',DEALS:'deals',DISPUTES:'disputes',VERIFICATIONS:'verifications',RECONCILIATION:'reconciliation',LOGS:'audit',OUTBOX:'outbox',OPERATIONS:'operations',LEGACY:'recovery',USERS:'users',PERMISSIONS:'permissions',SETTINGS:'settings',SUPPORT:'support'} as const;
 export type OperatorSection=keyof typeof operatorPaths;
 export function operatorSection(path=window.location.pathname):OperatorSection {const part=path.split('/')[2];return (Object.keys(operatorPaths) as OperatorSection[]).find(k=>operatorPaths[k]===part)??'DISPUTES';}
 export function operatorPath(section:OperatorSection){return '/admin/'+operatorPaths[section];}

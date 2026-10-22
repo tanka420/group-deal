@@ -8,6 +8,7 @@ import "./styles/masterScreens.css";
 import "./styles/application.css";
 import "./styles/navigation.css";
 import "./styles/workspace-layout.css";
+import "./styles/workspace-refinements.css";
 import { ExternalWalletProvider } from "./context/ExternalWalletContext";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

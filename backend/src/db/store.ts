@@ -857,6 +857,8 @@ export class TransactionalStore {
   public mutateCampaignReplacement<T>(selection:import('./rowPersistence').CampaignReplacementSelection,command:(state:import('./rowPersistence').CampaignReplacementState)=>import('./rowPersistence').CampaignReplacementPlan<T>):T{
     if(this.batchDepth>0)throw Error('CONFLICT: replacement cannot join an unfinished transaction');const committed=this.rows.mutateCampaignReplacement(selection,this.data,command);for(const r of committed.records)(this.data as any)[r.collection][r.key]=r.value;this.data.auditLogs.unshift(...committed.audit);return committed.result;
   }
+  public readOwnedProductVersion(userId:string,key:string,productId:string,versionId:string){return this.rows.readOwnedProductVersion(userId,key,productId,versionId);}
+  public readWorkspacePage(userId:string,key:string,selection:import('../services/workspaceQuery').WorkspaceSelection){return this.rows.readWorkspacePage(userId,key,selection);}
   public readSellerInventoryState(userId:string,key:string,includeOrders=true){return this.rows.readSellerInventoryState(userId,key,includeOrders);}
   public readProductImage(id:string){return this.rows.readProductImage(id);}
   public readProductInventoryState(userId:string,key:string,review=false){return this.rows.readProductInventoryState(userId,key,review);}
@@ -1097,6 +1099,13 @@ let defaultStore: TransactionalStore | undefined;
 export function admitDefaultRecoveryStore(candidate:TransactionalStore):void{
   if(defaultStore||process.env.GROUPDEAL_RECOVERY_MODE!=="1"||!(candidate instanceof TransactionalStore)||!candidate.isIsolated)throw new Error("RECOVERY_STORAGE_ADMISSION_REJECTED");
   defaultStore=candidate;
+}
+/** Explicit local development uses a separate persistent database, never backend/data. */
+export function admitLocalDevelopmentStore():void{
+  if(defaultStore||process.env.GROUPDEAL_LOCAL_DEVELOPMENT!=='1'||process.env.NODE_ENV==='production'||process.env.GROUPDEAL_RECOVERY_MODE!==undefined)throw new Error('LOCAL_DEVELOPMENT_STORAGE_REJECTED');
+  const directory=path.resolve(__dirname,'../../../.cache/local-workspace');
+  // Source and compiled files have the same depth under backend/{src,dist}/db.
+  const candidate=new TransactionalStore(directory);if(!candidate.isIsolated){candidate.close();throw new Error('LOCAL_DEVELOPMENT_STORAGE_REJECTED');}defaultStore=candidate;
 }
 // Importing the persistence class for a shadow migration must not open the active database.
 export const store: TransactionalStore = new Proxy({} as TransactionalStore, {

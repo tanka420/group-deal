@@ -60,7 +60,7 @@ export class SellerIdentityRegistry {
     } }
     private configuration(p: SocialProvider) { const c = this.deps.credentials(p); if (!c)
         throw new SellerIdentityError('SOCIAL_PROVIDER_NOT_CONFIGURED', 503); return c; }
-    public status(proof: SessionProof) { const s = this.database.readSellerIdentity(proof.account.id, proof.key); this.actor(proof, s); return { identity: readSellerIdentity(s.identity, proof.account.id), providers: socialProvider.options.map(provider => ({ provider, configured: Boolean(this.deps.credentials(provider)) })), serverTime: Date.now() }; }
+    public status(proof: SessionProof) { const s = this.database.readSellerIdentity(proof.account.id, proof.key); this.actor(proof, s); return { identity: readSellerIdentity(s.identity, proof.account.id), suggestedUsername:'user_'+digest(proof.account.id).slice(0,16), providers: socialProvider.options.map(provider => ({ provider, configured: Boolean(this.deps.credentials(provider)) })), serverTime: Date.now() }; }
     public publicIdentity(id: string) { if (!idSchema.safeParse(id).success)
         throw new SellerIdentityError('SELLER_NOT_FOUND', 404); const s = this.database.readSellerIdentity(id, ''); if (!s.auth.user?.roles.includes('seller') || !s.auth.user.sellerProfile)
         throw new SellerIdentityError('SELLER_NOT_FOUND', 404); const i = readSellerIdentity(s.identity, id); return { sellerId: id, username: i.username ?? null, links: Object.values(i.links), projection: 'VERIFIED_LINKS_AT_RECORDED_TIME', serverTime: Date.now() }; }

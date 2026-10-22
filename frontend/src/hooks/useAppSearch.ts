@@ -1,0 +1,2 @@
+import {useEffect,useState} from 'react';
+export function useAppSearch(){const [search,setSearch]=useState(()=>window.location.search);useEffect(()=>{const sync=()=>setSearch(window.location.search);window.addEventListener('groupdeal:navigate',sync);window.addEventListener('popstate',sync);return()=>{window.removeEventListener('groupdeal:navigate',sync);window.removeEventListener('popstate',sync);};},[]);return search;}

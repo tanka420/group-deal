@@ -2,7 +2,7 @@ import deployment from '../../../shared/contracts.json';
 import {PublicSeller,readPublicSeller} from '../../../shared/publicSeller.mjs';
 import {PublicWidget,readPublicWidget} from '../../../shared/publicWidget.mjs';
 export type {PublicSeller};
-export interface SellerDeal {card:PublicWidget;thumbnailUrl:string|null;edition:string;supportPolicy:string;}
+export interface SellerDeal {card:PublicWidget;openingPriceBaseUnits:string|null;participantCount:number|null;thumbnailUrl:string|null;edition:string;supportPolicy:string;}
 export interface SellerDealPage {deals:SellerDeal[];nextCursor:string|null;}
 const scope={chainId:deployment.chainId,hubAddress:deployment.contracts.GroupDealHub.address};
 export class PublicSellerUnavailable extends Error {constructor(public readonly status:number){super('PUBLIC_SELLER_UNAVAILABLE');}}
@@ -19,6 +19,7 @@ export async function getSellerDeals(id:string,cursor:string|null,signal:AbortSi
  if(!Array.isArray(data.campaigns)||data.campaigns.length>12||p?.limit!==12||p.sort!=='newest'||typeof p.hasMore!=='boolean'||(p.hasMore?typeof p.nextCursor!=='string'||!/^[A-Za-z0-9_-]{1,512}$/.test(p.nextCursor)||p.nextCursor===cursor||data.campaigns.length!==12:p.nextCursor!==null))throw new Error('PUBLIC_SELLER_INVALID');
  const ids=new Set<string>(),deals:SellerDeal[]=data.campaigns.map((c:any)=>{
   if(!validId(c?.id)||ids.has(c.id)||c.seller?.id!==id||c.visibility!=='PUBLIC')throw new Error('PUBLIC_SELLER_INVALID');ids.add(c.id);const card=readPublicWidget(c.card,c.id,scope);if(card.visibility!=='PUBLIC')throw new Error('PUBLIC_SELLER_INVALID');
-  return {card,thumbnailUrl:imageUrl(c.thumbnailUrl),edition:typeof c.product?.license?.edition==='string'&&c.product.license.edition.length<=80?c.product.license.edition:'',supportPolicy:typeof c.product?.supportPolicy==='string'&&c.product.supportPolicy.length<=2000?c.product.supportPolicy:''};
+  const opening=c.tiers?.[0]?.price??null,participants=c.totalBuyerCount??null;if(opening!==null&&(typeof opening!=='string'||!/^\d{1,78}$/.test(opening)||BigInt(opening)<=0n)||participants!==null&&(!Number.isSafeInteger(participants)||participants<0))throw new Error('PUBLIC_SELLER_INVALID');
+  return {card,openingPriceBaseUnits:opening,participantCount:participants,thumbnailUrl:imageUrl(c.thumbnailUrl),edition:typeof c.product?.license?.edition==='string'&&c.product.license.edition.length<=80?c.product.license.edition:'',supportPolicy:typeof c.product?.supportPolicy==='string'&&c.product.supportPolicy.length<=2000?c.product.supportPolicy:''};
  });return {deals,nextCursor:p.nextCursor};
 }

@@ -1,0 +1,7 @@
+import {catalogUSDC} from '../services/catalog';
+/** Group price comparison only; personal early rebates remain with the order quote. */
+export function DealPriceSummary({opening,current,participants,language,priceLabel}:{opening:string|null;current:string;participants:number|null;language:'vi'|'en';priceLabel?:string}){
+ const en=language==='en',valid=opening!==null&&/^\d{1,78}$/.test(opening)&&BigInt(opening)>0n&&/^\d{1,78}$/.test(current)&&BigInt(current)<=BigInt(opening),tenths=valid?((BigInt(opening!)-BigInt(current))*1000n+BigInt(opening!)/2n)/BigInt(opening!):null;
+ const discount=tenths===null?null:new Intl.NumberFormat(en?'en-GB':'vi-VN',{maximumFractionDigits:1}).format(Number(tenths)/10);
+ return <div className="deal-price-summary"><div className="opening-price"><span>{en?'Opening price':'Giá mở bán'}</span><span>{opening?catalogUSDC(opening,language)+' USDC':'—'}</span>{discount!==null&&<span className="price-discount">−{discount}%</span>}</div><div className="catalog-price"><span>{priceLabel??(en?'Current group price':'Giá nhóm hiện tại')}</span><strong className="amount-value">{catalogUSDC(current,language)} <small>USDC</small></strong><p>{en?'Per unit, before personal rebates':'Mỗi đơn vị, trước rebate riêng'}</p></div><p className="deal-participants">{participants===null?'—':new Intl.NumberFormat(en?'en-GB':'vi-VN').format(participants)} {en?'participating accounts':'tài khoản đã tham gia'}</p></div>;
+}

@@ -1,9 +1,11 @@
 import { Router } from "express";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth";
+import {workspaceList,workspaceFailure} from '../services/workspaceView';
 
 export const walletRouter = Router();
 
 walletRouter.use(authMiddleware);
+walletRouter.get('/activity',(req:AuthenticatedRequest,res)=>{res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');try{res.json(workspaceList(req.sessionProof!,req.query,'wallet-trades'));}catch(error){workspaceFailure(res,error);}});
 
 /**
  * Arbitrary message signing endpoint is permanently removed to comply with

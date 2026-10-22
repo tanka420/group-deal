@@ -1,3 +1,5 @@
+import {SiteFooter} from './components/SiteFooter';
+import {PolicyPage} from './pages/PolicyPage';
 import {AdminWorkspace} from './components/AdminWorkspace';
 import {AdminHeader} from './components/AdminHeader';
 
@@ -46,7 +48,7 @@ const MainApp: React.FC = () => {
   const { language } = useLanguage();
   const [route, setRoute] = useState<AppRoute>(readAppRoute);
   const catalogReturn = useRef('/explore');
-  const currentTab = route.kind === "tab" ? route.tab : route.kind === "seller-section" ? "seller" : route.kind === "order" ? "orders" : route.kind === "support" ? route.path : ['operator-deal','operator-section','operator-user','operator-support'].includes(route.kind) ? "operator" : route.kind === "not-found" ? "not-found" : "explore";
+  const currentTab = route.kind === "tab" ? route.tab : route.kind === "seller-section" ? "seller" : route.kind === "order" ? "orders" : route.kind === "policy" ? "policy" : route.kind === "support" ? route.path : ['operator-deal','operator-section','operator-user','operator-support'].includes(route.kind) ? "operator" : route.kind === "not-found" ? "not-found" : "explore";
   const selectedCampaignId = route.kind === "campaign" ? route.id : null;
   const selectedSellerId = route.kind === "public-seller" ? route.id : null;
   const selectedOperatorDeal = route.kind === "operator-deal" ? { id: route.id, view: route.view } : null;
@@ -128,6 +130,7 @@ const MainApp: React.FC = () => {
           />
         ) : (
           <>
+            {route.kind === "policy" && <PolicyPage section={route.section}/>}
             {currentTab === "home" && <HomePage onSelectCampaign={handleSelectCampaign}/>}
             {currentTab === "explore" && (
               <ExplorePage onSelectCampaign={handleSelectCampaign} />
@@ -199,7 +202,7 @@ const MainApp: React.FC = () => {
         }}
       />
 
-      <footer className="app-footer"><div className="app-footer-inner"><div><strong>GroupDeal</strong> · {language==="en"?"Digital group buying on Arc Testnet":"Mua chung sản phẩm số trên Arc Testnet"}</div><div className="app-footer-links"><span>Chain ID: 5042002</span><span>USDC Native Gas</span><a href="https://testnet.arcscan.app" target="_blank" rel="noreferrer">ArcScan Explorer</a></div></div></footer>
+      <SiteFooter compact={['seller','operator'].includes(currentTab)}/>
     </div>
   );
 };

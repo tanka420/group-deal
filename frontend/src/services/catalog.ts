@@ -10,7 +10,7 @@ export function catalogPriceError(value:CatalogFilters):'minPrice'|'maxPrice'|'r
  if(max&&catalogPriceUnits(max)===null)return 'maxPrice';
  return min&&max&&catalogPriceUnits(min)!>catalogPriceUnits(max)!?'range':null;
 }
-export type CatalogDeal={card:PublicWidget;description:string;category:string;thumbnailUrl:string|null;deliverySlaSeconds:number;earlyRebateEnabled:boolean;rightsApproved:boolean;product:{vendor:string;edition:string;seatsPerUnit:number;usageScope:'PERSONAL'|'COMMERCIAL';durationDays:number|null}|null;seller:{displayName:string;profilePath:string|null}};
+export type CatalogDeal={card:PublicWidget;openingPriceBaseUnits:string|null;participantCount:number|null;description:string;category:string;thumbnailUrl:string|null;deliverySlaSeconds:number;earlyRebateEnabled:boolean;rightsApproved:boolean;product:{vendor:string;edition:string;seatsPerUnit:number;usageScope:'PERSONAL'|'COMMERCIAL';durationDays:number|null}|null;seller:{displayName:string;profilePath:string|null}};
 export type CatalogPage={hubAddress:string;deals:CatalogDeal[];categories:{value:string;label:string;campaignCount:number}[];nextCursor:string|null;summary:{campaignCount:number;openCampaignCount:number;totalGrossCommitted:string;fetchedAt:number}};
 const validText=(value:unknown,max:number):value is string=>typeof value==='string'&&value.length<=max;
 const integer=(value:unknown):value is number=>Number.isSafeInteger(value)&&Number(value)>=0;
@@ -56,7 +56,8 @@ export function readCatalog(value:unknown,filters:CatalogFilters,cursor:string|n
   if(c.product!==null){const x=c.product,license=x?.license;if(!validText(x?.vendor,180)||!validText(license?.edition,180)||!integer(license.seatsPerUnit)||license.seatsPerUnit===0||!['PERSONAL','COMMERCIAL'].includes(license.usageScope)||license.durationDays!==null&&(!integer(license.durationDays)||license.durationDays===0))fail();product={vendor:x.vendor,edition:license.edition,seatsPerUnit:license.seatsPerUnit,usageScope:license.usageScope,durationDays:license.durationDays};}
   const path=c.seller.profilePath;
   if(path!==undefined&&path!==null&&(typeof path!=='string'||!/^#seller-profile-[A-Za-z0-9_-]{1,128}$/.test(path)))fail();
-  return {card,description:c.description,category:c.category,thumbnailUrl:imageUrl(c.thumbnailUrl),deliverySlaSeconds:c.deliverySlaSeconds,earlyRebateEnabled:c.earlyRebateEnabled,rightsApproved:c.rights.status==='APPROVED',product,seller:{displayName:c.seller.displayName,profilePath:path??null}};
+  const opening=c.tiers?.[0]?.price??null,participants=c.totalBuyerCount??null;if(opening!==null&&(!validText(opening,78)||!/^\d+$/.test(opening)||BigInt(opening)<=0n)||participants!==null&&!integer(participants))fail();
+  return {card,openingPriceBaseUnits:opening,participantCount:participants,description:c.description,category:c.category,thumbnailUrl:imageUrl(c.thumbnailUrl),deliverySlaSeconds:c.deliverySlaSeconds,earlyRebateEnabled:c.earlyRebateEnabled,rightsApproved:c.rights.status==='APPROVED',product,seller:{displayName:c.seller.displayName,profilePath:path??null}};
  });
  return {hubAddress:ethers.getAddress(v.hubAddress),deals,categories,nextCursor:next,summary:{campaignCount:s.campaignCount,openCampaignCount:s.openCampaignCount,totalGrossCommitted:s.totalGrossCommitted,fetchedAt:p.fetchedAt}};
 }

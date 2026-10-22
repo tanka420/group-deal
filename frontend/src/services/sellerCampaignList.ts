@@ -1,5 +1,5 @@
 export type CampaignSort='START_DESC'|'END_ASC'|'TITLE';
-export type CampaignListItem={id:string;title?:unknown;status?:unknown;visibility?:unknown;metric?:unknown;startTime?:unknown;endTime?:unknown;durationSeconds?:unknown;deliverySlaSeconds?:unknown;onchainCampaignId?:unknown;totalBuyerCount?:unknown;totalUnitsCommitted?:unknown;currentUnlockedTier?:unknown;tiers?:unknown;projectionOrigin?:unknown;replacementFor?:{campaignId?:string}};
+export type CampaignListItem={id:string;title?:unknown;status?:unknown;visibility?:unknown;metric?:unknown;startTime?:unknown;endTime?:unknown;durationSeconds?:unknown;deliverySlaSeconds?:unknown;onchainCampaignId?:unknown;totalBuyerCount?:unknown;totalUnitsCommitted?:unknown;currentUnlockedTier?:unknown;tiers?:unknown;projectionOrigin?:unknown;productSnapshot?:{productId:string;productVersionId:string};replacementFor?:{campaignId?:string}};
 /** Campaign API dates are Unix seconds; missing dates never become Jan 1970. */
 export function campaignTime(value:unknown):number|null{return typeof value==='number'&&Number.isSafeInteger(value)&&value>0&&value<=253402300799?value*1000:null;}
 export function campaignCount(c:CampaignListItem):number|null{const v=c.metric==='BUYER_COUNT'?c.totalBuyerCount:c.metric==='UNITS_COUNT'?c.totalUnitsCommitted:undefined;return typeof v==='number'&&Number.isSafeInteger(v)&&v>=0?v:null;}

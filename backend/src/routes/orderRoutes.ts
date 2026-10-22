@@ -3,6 +3,7 @@ import {OperationPreparationService,operationPreparationFailure} from '../servic
 import {z as disputeZ} from 'zod';
 import {DisputeMetadataError,openMetadata} from '../domain/disputeMetadata';
 import { Router } from "express";
+import {workspaceList,workspaceFailure,buyerSummary} from '../services/workspaceView';
 import { store } from "../db/store";
 import { authMiddleware, optionalOperator, AuthenticatedRequest } from "../middleware/auth";
 import { BuyOperationService } from "../services/buyOperationService";
@@ -31,9 +32,10 @@ orderRouter.post("/authorize", (_req,res,next)=>{res.set({'Cache-Control':'priva
 });
 
 // GET buyer's orders
+orderRouter.get('/summary',authMiddleware,(req:AuthenticatedRequest,res)=>{res.setHeader('Cache-Control','private, no-store');try{if(Object.keys(req.query).length){res.status(400).json({error:'WORKSPACE_INPUT_INVALID'});return;}res.json(buyerSummary(req.sessionProof!));}catch(error){workspaceFailure(res,error);}});
 orderRouter.get("/buyer", authMiddleware, (req: AuthenticatedRequest, res) => {
   try{
-    if(Object.keys(req.query).length){res.status(400).json({error:'ORDER_VIEW_INPUT_INVALID'});return;}
+    if(Object.keys(req.query).length){try{res.setHeader('Cache-Control','private, no-store');res.json(workspaceList(req.sessionProof!,req.query,'buyer-orders'));}catch(error){workspaceFailure(res,error);}return;}
     const userId=req.user!.userId,proof=req.sessionProof!;const state=store.readBuyerOrderState(userId,proof.key);if(SessionService.assertCommitted(proof,state.auth).id!==userId)throw new SessionError('AUTH_SESSION_INACTIVE',401);
     const orders=state.orders.map(({order,campaign,hasEntitlement,managedResourceDelivery})=>({...orderDto(order),hasEntitlement,managedResourceDelivery,campaignTitle:campaign?.title||'Campaign',campaignThumbnail:campaign?.thumbnailUrl||'',campaignStatus:campaign?.status||'UNKNOWN',sellerPayoutWallet:campaign?.sellerPayoutWallet,onchainCampaignId:campaign?.onchainCampaignId,finalizedAt:campaign?.finalizedAt,deliverySlaSeconds:campaign?.deliverySlaSeconds}));
     res.json({buyerAccountId:userId,serverTime:Date.now(),projection:{source:'INDEXER',financialStateChainVerified:false},orders});

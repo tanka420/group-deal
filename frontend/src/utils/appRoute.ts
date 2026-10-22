@@ -4,10 +4,11 @@ export type OperatorDealSelection = { id: string; view: OperatorDealView };
 export type AppRoute =
   | { kind: "tab"; tab: "home" | "explore" | "orders" | "seller" | "operator" | "docs" | "wallet" | "account" | "notifications" }
   | { kind: "campaign" | "public-seller" | "order"; id: string }
-  | { kind: "seller-section"; view: "orders"|"revenue"|"disputes"|"products"|"profile"|"integrations"|"transactions"|"create" }
+  | { kind: "seller-section"; view: "campaigns"|"orders"|"revenue"|"disputes"|"products"|"profile"|"integrations"|"transactions"|"create" }
   | {kind:"operator-section";view:string}
   | {kind:"operator-user";id:string}
   | {kind:"operator-support";path:string}
+  | {kind:"policy";section:string}
   | { kind: "support"; path: string }
   | ({ kind: "operator-deal" } & OperatorDealSelection)
   | { kind: "not-found" };
@@ -24,18 +25,19 @@ export function parseAppHash(hash: string): AppRoute {
     case "#account": return { kind: "tab", tab: "account" };
     case "#notifications": return { kind: "tab", tab: "notifications" };
   }
-  const operatorSection=/^#operator\/(deals|disputes|verifications|reconciliation|audit|outbox|operations|recovery|users|permissions|settings|support)$/.exec(hash);
+  const operatorSection=/^#operator\/(deals|disputes|verifications|reconciliation|audit|outbox|operations|recovery|users|permissions|settings|support|access)$/.exec(hash);
   if(operatorSection)return {kind:'operator-section',view:operatorSection[1]};
   const operatorUser=/^#operator\/users\/([A-Za-z0-9_-]{1,128})$/.exec(hash);if(operatorUser)return {kind:'operator-user',id:operatorUser[1]};
   const operatorSupport=/^#operator\/support\/(tickets\/tkt_[a-f0-9-]{36}|orders\/[A-Za-z0-9_-]{1,180})$/.exec(hash);if(operatorSupport)return {kind:'operator-support',path:operatorSupport[1]};
   const operatorDeal = /^#operator\/deals\/([A-Za-z0-9_-]{1,180})(?:\/(overview|orders|transactions|settlement|refunds|disputes|audit))?$/.exec(hash);
-  const seller=/^#seller\/(orders|revenue|disputes|products|profile|integrations|transactions|create)$/.exec(hash);
+  const seller=/^#seller\/(campaigns|orders|revenue|disputes|products|profile|integrations|transactions|create)$/.exec(hash);
   if(seller)return {kind:'seller-section',view:seller[1] as Extract<AppRoute,{kind:'seller-section'}>['view']};
   if(/^#order-[A-Za-z0-9_-]{1,180}$/.test(hash))return {kind:'order',id:hash.slice(7)};
   if (operatorDeal) return { kind: "operator-deal", id: operatorDeal[1], view: (operatorDeal[2] || "overview").toUpperCase() as OperatorDealView };
   if (/^#campaign-[A-Za-z0-9_-]{1,180}$/.test(hash)) return { kind: "campaign", id: hash.slice("#campaign-".length) };
   if (/^#seller-profile-[A-Za-z0-9_-]{1,128}$/.test(hash)) return { kind: "public-seller", id: hash.slice("#seller-profile-".length) };
   if (hash === "#support" || /^#support-ticket-tkt_[a-f0-9-]{36}$/.test(hash) || /^#support-order-[A-Za-z0-9_-]{1,180}$/.test(hash)) return { kind: "support", path: hash.slice(1) };
+  const policy=/^#policy-(how|terms|privacy|delivery|refunds|help)$/.exec(hash);if(policy)return {kind:'policy',section:policy[1]};
   return { kind: "not-found" };
 }
 
@@ -45,6 +47,7 @@ export function operatorDealHash(selection: OperatorDealSelection | null): strin
 
 export function routePath(route: AppRoute): string {
   if (route.kind === "tab") return route.tab === "operator" ? "/admin" : route.tab==='home'?'/':"/" + route.tab;
+  if(route.kind==='policy')return '/policies/'+route.section;
   if (route.kind === "campaign") return "/deals/" + route.id;
   if (route.kind === "order") return "/orders/" + route.id;
   if (route.kind === "seller-section") return '/seller/'+route.view;
@@ -59,6 +62,7 @@ export function routePath(route: AppRoute): string {
 
 export function parseAppPath(path: string): AppRoute {
   if (path === "/") return parseAppHash("#home");
+  if(path.startsWith('/policies/'))return parseAppHash('#policy-'+path.slice(10));
   const normalized = path.replace(/\/$/, "");
   if (normalized === "/admin") return parseAppHash("#operator");
   if (normalized.startsWith('/seller/')) return parseAppHash('#'+normalized.slice(1));

@@ -34,7 +34,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-export const OperatorPortal: React.FC<{dealSelection?:OperatorDealSelection|null;onDealSelectionChange?:(selection:OperatorDealSelection|null)=>void}> = ({dealSelection,onDealSelectionChange}) => {
+export const OperatorPortal: React.FC<{accountPanel?:React.ReactNode;dealSelection?:OperatorDealSelection|null;onDealSelectionChange?:(selection:OperatorDealSelection|null)=>void}> = ({accountPanel,dealSelection,onDealSelectionChange}) => {
   const { t,language } = useLanguage();
   const { user,token } = useAuth();
   const { account } = useWeb3();
@@ -119,6 +119,7 @@ export const OperatorPortal: React.FC<{dealSelection?:OperatorDealSelection|null
       <OperatorWorkspaceNavigation active={activeTab} disputeCount={!loading&&!loadError?disputes.length:'—'} expanded={navigationExpanded} onToggle={()=>setNavigationExpanded(value=>!value)} onChange={section=>{selectSection(section);requestAnimationFrame(()=>focusPageElement(workspaceContent.current));}}/>
       <div ref={workspaceContent} id="operator-workspace-content" className="operator-workspace-content" role="region" aria-label={language==='en'?'Operator workspace content':'Nội dung workspace operator'} tabIndex={-1} data-section={activeTab}>
 
+      {activeTab==='ACCESS'&&accountPanel}
       {/* DISPUTES TAB */}
       {activeTab === "DEALS" && <OperatorDealDetail selection={dealSelection} onSelectionChange={onDealSelectionChange} onReconcile={() => selectSection("RECONCILIATION")} onDisputes={() => selectSection("DISPUTES")} onAudit={() => selectSection("LOGS")} onReviewDispute={order=>{setBuyerSplitPercent(50);setArbitrationNotes("");setSelectedDispute(order);}}/>}
       {activeTab === "OUTBOX"&&token&&user&&<OperatorEmailOutbox key={'outbox:'+user.id} token={token} userId={user.id}/>}

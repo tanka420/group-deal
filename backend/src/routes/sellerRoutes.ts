@@ -12,6 +12,7 @@ import {sellerCampaignOverview} from '../domain/sellerInventory';
 import {CampaignReplacementService,campaignReplacementFailure,CampaignReplacementError} from '../services/campaignReplacementService';
 
 import {OrderReviewService,OrderReviewError} from '../services/orderReviewService';
+import {workspaceList,workspaceFailure,sellerOverview} from '../services/workspaceView';
 
 export const sellerRouter = Router();
 sellerRouter.use(['/campaigns','/orders'],(_req,res,next)=>{res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');next();});
@@ -26,16 +27,17 @@ sellerRouter.get('/campaigns/:id/replacement-template',authMiddleware,requireRol
 sellerRouter.post('/campaigns/:id/replacement-draft',authMiddleware,requireRole('seller'),(req:AuthenticatedRequest,res)=>{try{if(Object.keys(req.query).length)throw new CampaignReplacementError('REPLACEMENT_INPUT_INVALID',400);const result=CampaignReplacementService.create(req.sessionProof!,req.params.id,req.body,req.get('Idempotency-Key'));res.status(result.replayed?200:201).json(result);}catch(error){campaignReplacementFailure(res,error);}});
 // GET seller's campaigns
 sellerRouter.get("/campaigns", authMiddleware, requireRole("seller"), (req: AuthenticatedRequest, res) => {
-  if(Object.keys(req.query).length){res.status(400).json({error:'SELLER_INVENTORY_INPUT_INVALID'});return;}
+  if(Object.keys(req.query).length){try{res.json(workspaceList(req.sessionProof!,req.query,'seller-campaigns'));}catch(error){workspaceFailure(res,error);}return;}
   try{const {snapshot,account}=inventory(req,false);res.json({sellerAccountId:account.id,serverTime:Date.now(),revision:snapshot.revision,projection:{source:'INDEXER',financialStateChainVerified:false},campaigns:snapshot.campaigns.map(sellerCampaignOverview)});}catch(error){inventoryFailure(res,error);}
 });
 
 // GET seller's orders
 sellerRouter.get("/orders", authMiddleware, requireRole("seller"), (req: AuthenticatedRequest, res) => {
-  if(Object.keys(req.query).length){res.status(400).json({error:'SELLER_INVENTORY_INPUT_INVALID'});return;}
+  if(Object.keys(req.query).length){try{res.json(workspaceList(req.sessionProof!,req.query,'seller-orders'));}catch(error){workspaceFailure(res,error);}return;}
   try{const {snapshot,account}=inventory(req,true),orders=snapshot.orders.map(({order,campaign,hasEntitlement})=>({...orderDto(order),hasEntitlement,sellerAccountId:account.id,sellerPayoutWallet:campaign.sellerPayoutWallet,campaignTitle:campaign.title,campaignStatus:campaign.status??'UNKNOWN'}));res.json({sellerAccountId:account.id,serverTime:Date.now(),revision:snapshot.revision,projection:{source:'INDEXER',financialStateChainVerified:false},orders});}catch(error){inventoryFailure(res,error);}
 });
 
+sellerRouter.get('/overview',authMiddleware,requireRole('seller'),(req:AuthenticatedRequest,res)=>{res.setHeader('Cache-Control','private, no-store');try{if(Object.keys(req.query).length){res.status(400).json({error:'WORKSPACE_INPUT_INVALID'});return;}res.json(sellerOverview(req.sessionProof!));}catch(error){workspaceFailure(res,error);}});
 // POST fulfill order with encrypted entitlement
 sellerRouter.post("/orders/:id/deliver", authMiddleware, requireRole("seller"), async (req: AuthenticatedRequest, res) => {
   try {

@@ -1,0 +1,10 @@
+import {useEffect,useState} from 'react';
+import {useAuth} from '../context/AuthContext';
+import {useLanguage} from '../context/LanguageContext';
+export function PinnedProductVersion({productId,versionId}:{productId:string;versionId:string}){
+ const {user,token}=useAuth(),{language}=useLanguage(),en=language==='en',scope=JSON.stringify([user?.id,token,productId,versionId]);
+ const [view,setView]=useState<{scope:string;value:any}|null>(null),[error,setError]=useState(false);
+ useEffect(()=>{setError(false);if(!user||!token)return;const c=new AbortController();void fetch('/api/products/'+encodeURIComponent(productId)+'/versions/'+encodeURIComponent(versionId),{headers:{Authorization:'Bearer '+token},signal:c.signal,cache:'no-store',redirect:'error'}).then(async r=>{if(!r.ok)throw Error();return r.json();}).then(v=>{if(c.signal.aborted)return;if(v.sellerAccountId!==user.id||v.product?.id!==productId||v.version?.id!==versionId||v.version?.productId!==productId||v.version?.sellerId!==user.id||v.license?.id!==v.version?.licenseVersionId||v.license?.productId!==productId||typeof v.version.title!=='string'||typeof v.license.edition!=='string'||typeof v.license.usageTerms!=='string'||!Number.isSafeInteger(v.license.seatsPerUnit))throw Error();setView({scope,value:v});}).catch(()=>{if(!c.signal.aborted)setError(true);});return()=>c.abort();},[scope]);
+ const value=view?.scope===scope?view.value:null;
+ return <section className="glass-card pinned-version"><h2>{en?'Pinned product version':'Phiên bản sản phẩm đã ghim'}</h2>{error?<p role="alert">{en?'This version is unavailable for this account.':'Chưa đọc được phiên bản này trong tài khoản hiện tại.'}</p>:value?<><h3>{value.version.title}</h3><p>{value.license.edition} · {value.license.seatsPerUnit} {en?'seats per unit':'chỗ mỗi đơn vị'}</p><p>{value.license.usageTerms}</p><p className="muted address-value">{versionId}</p><p className="muted">{en?'Read-only purchased version. The editor below manages the latest version.':'Phiên bản gắn với đơn được giữ nguyên. Phần quản lý bên dưới dùng phiên bản mới nhất.'}</p></>:<p role="status">{en?'Loading version…':'Đang tải phiên bản…'}</p>}</section>;
+}

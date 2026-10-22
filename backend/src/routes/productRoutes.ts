@@ -4,6 +4,7 @@ import { store } from "../db/store";
 import { authMiddleware, AuthenticatedRequest, requireRole } from "../middleware/auth";
 import { ProductService } from "../services/productService";
 import {z,ZodError} from 'zod';
+import {workspaceList,workspaceFailure} from '../services/workspaceView';
 import {StorageConflict,LegacyWriterConflict} from '../db/rowPersistence';
 import {SessionService,SessionError} from '../services/sessionService';
 import {productInventory,productVersionInventory,licenseVersionInventory,rightsInventory,reviewedProductInventory} from '../domain/product';
@@ -17,9 +18,14 @@ productRouter.use((req,res,next)=>{if(req.method==='POST'&&Object.keys(req.query
 const inventoryFailure=(res:any,error:unknown)=>{if(error instanceof SessionError||error instanceof AccountAccessError){res.status(error.status).json({error:error.code});return;}res.status(503).json({error:'PRODUCT_INVENTORY_UNAVAILABLE'})};
 const inventory=(req:AuthenticatedRequest,review:boolean)=>{const proof=req.sessionProof!,snapshot=store.readProductInventoryState(req.user!.userId,proof.key,review),account=review?SessionService.assertOperatorCommitted(proof,snapshot.auth):SessionService.assertCommitted(proof,snapshot.auth);if(!account.roles.includes(review?'operator':'seller'))throw new SessionError(review?'OPERATOR_ROLE_REQUIRED':'SELLER_ROLE_REQUIRED',403);return {snapshot,account}};
 productRouter.get("/mine",requireRole("seller"),(req:AuthenticatedRequest,res)=>{
-  if(Object.keys(req.query).length){res.status(400).json({error:'PRODUCT_INVENTORY_INPUT_INVALID'});return;}
+  if(Object.keys(req.query).length){try{res.json(workspaceList(req.sessionProof!,req.query,'seller-products'));}catch(error){workspaceFailure(res,error);}return;}
   try{const {snapshot,account}=inventory(req,false),products=snapshot.products.map(p=>({...productInventory(p.product),version:productVersionInventory(p.version),license:licenseVersionInventory(p.license),rights:p.rights.map(rightsInventory)}));res.json({sellerAccountId:account.id,serverTime:Date.now(),revision:snapshot.revision,products})}catch(error){inventoryFailure(res,error)}
 });
+productRouter.get('/:id/versions/:versionId',requireRole('seller'),(req:AuthenticatedRequest,res)=>{try{
+ const id=z.string().regex(/^[-A-Za-z0-9_:]{1,180}$/);if(Object.keys(req.query).length||!id.safeParse(req.params.id).success||!id.safeParse(req.params.versionId).success){res.status(400).json({error:'PRODUCT_INPUT_INVALID'});return;}
+ const s=store.readOwnedProductVersion(req.user!.userId,req.sessionProof!.key,req.params.id,req.params.versionId),account=SessionService.assertCommitted(req.sessionProof!,s.auth);if(!s.version||!s.license||!s.product){res.status(404).json({error:'PRODUCT_VERSION_NOT_FOUND'});return;}
+ res.json({sellerAccountId:account.id,product:productInventory(s.product),version:productVersionInventory(s.version),license:licenseVersionInventory(s.license)});
+ }catch(error){inventoryFailure(res,error);}});
 function failure(res:any,error:unknown) {
   if(error instanceof SessionError||error instanceof AccountAccessError){res.status(error.status).json({error:error.code});return;}
   const message=error instanceof Error?error.message:'';

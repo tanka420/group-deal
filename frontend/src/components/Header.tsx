@@ -1,3 +1,5 @@
+import {useAccountHandle} from '../hooks/useAccountHandle';
+import {Wallet,Settings,LifeBuoy} from 'lucide-react';
 import { PrimaryNavigation } from "./PrimaryNavigation";
 import { DialogSurface } from "./DialogSurface";
 import { Menu } from "lucide-react";
@@ -107,10 +109,8 @@ export const Header: React.FC<HeaderProps> = ({
 
   const isSeller = user?.roles?.includes("seller");
   const isOperator = user?.roles?.includes("operator");
-  const accountLabel =
-    user?.sellerProfile?.displayName ||
-    user?.email?.split("@")[0] ||
-    (account ? truncate(account, 6) : language === "en" ? "Wallet account" : "Tài khoản ví");
+  const handle=useAccountHandle(user?.id,token);
+  const accountLabel=handle?'@'+handle:(language==='en'?'Account':'Tài khoản');
 
   return (
     <header className="header" ref={headerRef}>
@@ -227,7 +227,7 @@ export const Header: React.FC<HeaderProps> = ({
               {isDropdownOpen && (
                 <div className="account-dropdown-menu" id="header-account" role="region" aria-label={language==="en"?"Account menu":"Menu tài khoản"}><div className="popover-scroll">
                   {/* User Profile Header */}
-                  <div className="dropdown-user-header">
+                  <div className="dropdown-user-header"><strong>{accountLabel}</strong>
                     <div className="dropdown-email">
                       {user.email || (user.loginMethod === "CIRCLE_EMAIL" ? (language === "en" ? "Circle email sign-in" : "Đăng nhập email qua Circle") : (language === "en" ? "EVM wallet sign-in" : "Đăng nhập bằng chữ ký ví EVM"))}
                     </div>
@@ -282,9 +282,9 @@ export const Header: React.FC<HeaderProps> = ({
 
                   <div className="dropdown-menu-list">
                     <button className="dropdown-menu-item" onClick={()=>{accountButtonRef.current?.focus();setIsDropdownOpen(false);setIsFundingModalOpen(true);}}><Coins size={16} aria-hidden="true"/>{language==='en'?'Fund USDC':'Nạp USDC'}</button>
-                    <button className="dropdown-menu-item" onClick={()=>go('account')}>{language==='en'?'Account settings':'Cài đặt tài khoản'}</button>
-                    <button className="dropdown-menu-item" onClick={()=>go('wallet')}>{language==='en'?'Wallet':'Ví'}</button>
-                    <button className="dropdown-menu-item" onClick={()=>go('support')}>{language==='en'?'Support':'Hỗ trợ'}</button>
+                    <button className="dropdown-menu-item" onClick={()=>go('wallet')}><Wallet size={16} aria-hidden="true"/>{language==='en'?'Wallet':'Ví'}</button>
+                    <button className="dropdown-menu-item" onClick={()=>go('account')}><Settings size={16} aria-hidden="true"/>{language==='en'?'Account settings':'Cài đặt tài khoản'}</button>
+                    <button className="dropdown-menu-item" onClick={()=>go('support')}><LifeBuoy size={16} aria-hidden="true"/>{language==='en'?'Support':'Hỗ trợ'}</button>
                   </div>
                   <div className="dropdown-menu-list">
                     {/* Buyer Orders */}
@@ -324,20 +324,6 @@ export const Header: React.FC<HeaderProps> = ({
                       >
                         <Sparkles size={16} />
                         <span>{language==='en'?'Set up seller profile':'Đăng ký mở Kênh Người Bán'}</span>
-                      </button>
-                    )}
-
-                    {/* Operator Portal: STRICTLY for Admin / Operator */}
-                    {user && (
-                      <button
-                        className="dropdown-menu-item highlight-operator"
-                        onClick={() => {
-                          onTabChange("operator");
-                          setIsDropdownOpen(false);
-                        }}
-                      >
-                        <ShieldAlert size={16} />
-                        <span>{isOperator?t("operatorPortal"):(language==="en"?"Operator access":"Quyền operator")}</span>
                       </button>
                     )}
 

@@ -10,5 +10,5 @@ export function ownedProductFixture(item, sellerId) {
   };
 }
 export function productInventoryFixture(items, sellerId) {
-  return {sellerAccountId: sellerId, serverTime: Date.now(), revision: 1, products: items.map(item => ownedProductFixture(item, sellerId))};
+  return {sellerAccountId: sellerId, serverTime: Date.now(), revision: 1, products: items.map(item => ownedProductFixture(item, sellerId)), pagination: {limit: 20, total: items.length, nextCursor: null}};
 }

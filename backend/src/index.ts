@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import {productMediaRouter} from "./routes/productMediaRoutes";
 import { config } from "./config";
-import { store, CampaignRecord,admitDefaultRecoveryStore } from "./db/store";
+import { store, CampaignRecord,admitDefaultRecoveryStore,admitLocalDevelopmentStore } from "./db/store";
 import { authRouter } from "./routes/authRoutes";
 import { campaignRouter } from "./routes/campaignRoutes";
 import { orderRouter } from "./routes/orderRoutes";
@@ -260,6 +260,8 @@ function initializeInitialState() {
 
 type LocalStartupFixture={verifyManifest?:()=>Promise<unknown>;selectRecovery?:()=>ReturnType<typeof selectRecoveryApplication>;readProvider?:any;startWorkers?:()=>()=>void};
 export async function startServer(fixture?:LocalStartupFixture) {
+  const localDevelopment=process.env.GROUPDEAL_LOCAL_DEVELOPMENT==='1';
+  if(localDevelopment&&(config.isProduction||fixture||process.env.GROUPDEAL_RECOVERY_MODE!==undefined))throw new Error('LOCAL_DEVELOPMENT_SCOPE_REQUIRED');
   if(fixture&&(process.env.NODE_ENV!=='test'||config.arcChainId!==31337))throw new Error('STARTUP_FIXTURE_SCOPE_REQUIRED');
   validateRuntimeSecurity();
   try {
@@ -270,6 +272,7 @@ export async function startServer(fixture?:LocalStartupFixture) {
     console.warn("[Startup] Local deployment manifest is unavailable");
   }
   const recovery=(fixture?.selectRecovery||selectRecoveryApplication)();
+  if(localDevelopment)admitLocalDevelopmentStore();
   if(recovery)try{admitDefaultRecoveryStore(recovery.database);}catch(error){recovery.close();throw error;}
   if(fixture?.readProvider)IndexerService.setProvider(fixture.readProvider);
   if (!recovery&&!config.isProduction && config.arcChainId===31337 && process.env.GROUPDEAL_ENABLE_LOCAL_FIXTURES==="1") initializeInitialState();
@@ -279,9 +282,10 @@ export async function startServer(fixture?:LocalStartupFixture) {
     const block=await provider.getBlockNumber();await IndexerService.syncThroughBlock(block);
     const report=await ReconciliationService.runReconciliation({fixedBlockNumber:block,customProvider:provider,projectionStore:store});
     if(report.status!=='HEALTHY'||!report.perOrderVerified||!report.coverageVerified||!report.onchainBalanceVerified||!report.conservationLawPassed||report.blockNumber!==block||report.projectionBlock!==block||(await provider.getBlock(block))?.hash?.toLowerCase()!==report.blockHash.toLowerCase())throw new Error('RECOVERY_APPLICATION_FRESH_RECONCILIATION_REQUIRED');
-  },listen:()=>new Promise((resolve,reject)=>{const server=app.listen(config.port);server.once('error',reject);server.once('listening',()=>{server.removeListener('error',reject);console.log('GroupDeal API listening on port',config.port,'chain',config.arcChainId);resolve(server);});}),startWorkers:()=>{
+  },listen:()=>new Promise((resolve,reject)=>{const server=localDevelopment?app.listen(config.port,'127.0.0.1'):app.listen(config.port);server.once('error',reject);server.once('listening',()=>{server.removeListener('error',reject);console.log('GroupDeal API listening on port',config.port,'chain',config.arcChainId);resolve(server);});}),startWorkers:()=>{
     if(fixture?.startWorkers)return fixture.startWorkers();
     const stopReconciliation=ReconciliationService.startObservingCurrent();
+    if(localDevelopment)return stopReconciliation;
     // All intervals start only after the API port has been reserved successfully.
     const timers=[setInterval(() => { void import('./services/supportRetention').then(({supportRetentionSweep})=>supportRetentionSweep()).catch(()=>console.warn('[SUPPORT RETENTION] Processing failed')); },3600000),setInterval(() => { void NotificationService.processEmailOutbox().catch(() => console.warn('EMAIL_OUTBOX_PROCESSING_FAILED')); },15000),setInterval(() => { void WebhookService.processQueue().catch(() => console.warn('WEBHOOK_OUTBOX_PROCESSING_FAILED')); },5000)];return()=>{stopReconciliation();timers.forEach(clearInterval);};
   },releaseStorage:()=>recovery?.close()});

@@ -5,7 +5,7 @@ import {useExternalWallet} from '../context/ExternalWalletContext';
 import {useLanguage} from '../context/LanguageContext';
 import {useOperationScope} from '../hooks/useOperationScope';
 import {enrollmentRequest,readEnrollmentStatus,readEnrollmentChallenge,readEnrollmentCheckpoint,enrollmentCheckpointKey,enrollmentDigest,enrollmentReadback,operatorDeployment,OperatorAccessError,type EnrollmentStatus,type EnrollmentChallenge,type EnrollmentCheckpoint} from '../services/operatorEnrollment';
-export function OperatorAccess({children,onBack}:{children:ReactNode;onBack:()=>void}){
+export function OperatorAccess({children,onBack,sessionPanel}:{children:ReactNode|((panel:ReactNode)=>ReactNode);onBack:()=>void;sessionPanel?:ReactNode}){
  const {user,token,isLoading,refreshUser,getSessionEpoch}=useAuth(),external=useExternalWallet(),{language}=useLanguage(),en=language==='en',text=(vi:string,english:string)=>en?english:vi;
  const identity=JSON.stringify([user?.id,token,user?.activeWallet,external.address,external.chainId]),scope=useOperationScope(identity),key=enrollmentCheckpointKey(user?.id??'none',user?.activeWallet??null);
  const [status,setStatus]=useState<EnrollmentStatus|null>(null),[challenge,setChallenge]=useState<EnrollmentChallenge|null>(null),[pending,setPending]=useState<EnrollmentCheckpoint|null>(null),[phase,setPhase]=useState<'IDLE'|'READING'|'PREPARING'|'SIGNING'|'SUBMITTING'>('IDLE'),[error,setError]=useState<unknown>(null),[storageInvalid,setStorageInvalid]=useState(false),[now,setNow]=useState(Date.now());
@@ -62,7 +62,7 @@ export function OperatorAccess({children,onBack}:{children:ReactNode;onBack:()=>
    </>}
   </section>
  </>;
- return <div className="operator-access-page">{authorized?<details className="operator-access-details"><summary>{text('Quyền operator đã xác minh','Operator access verified')}</summary>{accessPanel}</details>:accessPanel}
-  {authorized&&<Suspense fallback={<p role="status">{text('Đang tải workspace operator…','Loading the operator workspace…')}</p>}>{children}</Suspense>}
+ return <div className="operator-access-page">{!authorized&&<>{sessionPanel}{accessPanel}</>}
+  {authorized&&<Suspense fallback={<p role="status">{text('Đang tải workspace operator…','Loading the operator workspace…')}</p>}>{typeof children==='function'?children(accessPanel):children}</Suspense>}
  </div>;
 }
