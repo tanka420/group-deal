@@ -23,8 +23,8 @@ async function base(page:Page,role="seller",language:"vi"|"en"="vi") {
   await page.route("**/api/admin-auth/operator/enrollment",r=>r.fulfill({json:operatorFixtureStatus("operator",operatorFixtureWallet,true,true,Date.now())}));
   await page.route("**/api/notifications",r=>r.fulfill({json:{notifications:[],unread:0}}));
   await page.route("**/api/seller/campaign-drafts",r=>r.fulfill({json:{drafts:[],pagination:{nextCursor:null}}}));
-  await page.route("**/api/seller/campaigns",r=>r.fulfill({json:{campaigns:[]}}));
-  await page.route("**/api/seller/orders",r=>r.fulfill({json:{orders:[]}}));
+  await page.route("**/api/seller/campaigns**",r=>r.fulfill({json:{pagination:{limit:20,nextCursor:null},campaigns:[]}}));
+  await page.route("**/api/seller/orders**",r=>r.fulfill({json:{pagination:{limit:20,nextCursor:null},orders:[]}}));
   await page.route("**/api/seller/webhooks",r=>r.fulfill({json:{webhook:null}}));
   await page.route("**/api/transactions",r=>r.fulfill({json:{operations:[]}}));
 }
@@ -71,7 +71,7 @@ test("seller reviews product/license, stages a publish intent and recovers its b
   await page.route("**/api/transactions/op-fixture/submit",r=>{phase="SUBMITTED";return r.fulfill({status:202,json:{operation:{...operation,phase,txHash:hash}}});});
   await page.route("**/api/transactions/op-fixture/recover",r=>{expect(r.request().postDataJSON().txHash).toBe(hash);recoveries++;phase=recoveries===1?"UNKNOWN":"PROJECTED";return r.fulfill(recoveries===1?{status:409,json:{error:"Receipt chưa xác minh"}}:{json:{operation:{...operation,phase,txHash:hash}}});});
   await page.route("**/api/transactions",r=>r.fulfill({json:{operations:phase==="PREPARED"?[]:[{...operation,phase,txHash:hash}]}}));
-  await page.goto("/#seller");await page.getByRole("button",{name:/Tạo chiến dịch mới/}).first().click();
+  await page.goto("/seller/campaigns");await page.getByRole("button",{name:/Tạo chiến dịch mới/}).first().click();
   await expect(page.getByRole("heading",{name:"Sản phẩm, license và quyền phân phối"})).toBeVisible();await noOverflow(page);
   await expect(page.getByText("Chiến dịch đang mở")).toHaveCount(0);await expect(page.getByRole("button",{name:"← Quay lại quản lý deal"})).toBeVisible();
   await page.getByRole("button",{name:"Dùng phiên bản này"}).click();await expect(page.getByText("Đã duyệt cho phiên bản này và đủ thời hạn giao hàng")).toBeVisible();
@@ -80,15 +80,15 @@ test("seller reviews product/license, stages a publish intent and recovers its b
   await page.getByRole("button",{name:"Lưu draft và kiểm tra điều khoản"}).click();await expect(page.getByRole("heading",{name:"Điều khoản đã được ghim"})).toBeVisible();await noOverflow(page);
   await page.screenshot({path:testInfo.outputPath("seller-create-local.png"),fullPage:true});
   await page.getByRole("button",{name:"Ký và xuất bản trên Arc Testnet"}).click();await expect(page.getByRole("alert")).toContainText("Receipt chưa xác minh");
-  await page.goto("/seller/transactions");await page.getByRole("button",{name:"Kiểm tra receipt và phục hồi"}).click();await expect(page.getByRole("heading",{name:/Đã ghép dữ liệu/})).toBeVisible();
+  await page.goto("/seller/transactions");await page.locator(".transaction-row>summary").first().click();await page.getByRole("button",{name:"Kiểm tra receipt và phục hồi"}).click();await expect(page.getByRole("heading",{name:/Đã ghép dữ liệu/})).toBeVisible();
   expect(await page.evaluate(()=>localStorage.getItem("fixture-broadcasts"))).toBe("1");
   expect(await page.evaluate(()=>localStorage.getItem("fixture-preflights"))).toBe("1");
 });
 
 test("seller and operator API errors do not render empty-success or zero financial counters",async({page})=>{
   await base(page);
-  await page.route("**/api/seller/campaigns",route=>route.fulfill({status:503,json:{error:"Offline"}}));
-  await page.goto("/#seller");await expect(page.getByRole("alert")).toContainText("Không tải được dữ liệu");
+  await page.route("**/api/seller/campaigns**",route=>route.fulfill({status:503,json:{error:"Offline"}}));
+  await page.goto("/seller/campaigns");await expect(page.getByRole("alert")).toContainText("Không tải được dữ liệu");
   await expect(page.getByText("Bạn chưa có chiến dịch nào.",{exact:false})).toHaveCount(0);await expect(page.getByText("Doanh thu có thể rút (Proceeds)")).toHaveCount(0);
   await noOverflow(page);
   await page.evaluate(()=>localStorage.setItem("groupdeal_admin_token","isolated-admin-browser-fixture"));await page.route("**/api/admin-auth/me",route=>route.fulfill({json:{user:{id:"operator",email:null,roles:["operator"],loginMethod:"EVM_WALLET",activeWallet:operatorFixtureWallet}}}));
@@ -100,14 +100,14 @@ test("seller and operator API errors do not render empty-success or zero financi
 test("seller claim uses a reviewed server intent and reports success after receipt projection",async({page})=>{
   await base(page);let phase="PREPARED",started=false;
   const claim={...operation,id:"op-seller-claim",action:"SELLER_CLAIM",resourceId:"stable",financialQuote:{kind:"READ_ONLY_SIMULATION",blockNumber:125,blockHash:hash,amountBaseUnits:"50000000"}};
-  await page.route("**/api/seller/campaigns",r=>r.fulfill({json:{campaigns:[{id:"stable",title:"Seller claim fixture",thumbnailUrl:version.thumbnailUrl,category:"Documents",sellerPayoutWallet:wallet,status:"FINALIZED",onchainCampaignId:1,tiers:[{threshold:1,price:"100000000"},{threshold:10,price:"80000000"}],currentUnlockedTier:0,metric:"BUYER_COUNT",totalBuyerCount:1,totalUnitsCommitted:1}]}}));
-  await page.route("**/api/seller/orders",r=>r.fulfill({json:{orders:[{id:"internal-order",campaignId:"stable",campaignTitle:"Seller claim fixture",buyerPrincipal:wallet,quantity:1,lockedUnitPrice:'100000000',committedGross:"100000000",rebateAllocated:'50000000',buyerRefundAllocated:'0',sellerAllocated:"50000000",sellerClaimedAmount:phase==="PROJECTED"?"50000000":"0",sellerClaimable:phase==="PROJECTED"?"0":"50000000",accountingVerified:true,deliveryStatus:"CONFIRMED"}]}}));
+  await page.route("**/api/seller/campaigns**",r=>r.fulfill({json:{pagination:{limit:20,nextCursor:null},campaigns:[{id:"stable",title:"Seller claim fixture",thumbnailUrl:version.thumbnailUrl,category:"Documents",sellerPayoutWallet:wallet,status:"FINALIZED",onchainCampaignId:1,tiers:[{threshold:1,price:"100000000"},{threshold:10,price:"80000000"}],currentUnlockedTier:0,metric:"BUYER_COUNT",totalBuyerCount:1,totalUnitsCommitted:1}]}}));
+  await page.route("**/api/seller/orders**",r=>r.fulfill({json:{pagination:{limit:20,nextCursor:null},orders:[{id:"internal-order",campaignId:"stable",campaignTitle:"Seller claim fixture",buyerPrincipal:wallet,quantity:1,lockedUnitPrice:'100000000',committedGross:"100000000",rebateAllocated:'50000000',buyerRefundAllocated:'0',sellerAllocated:"50000000",sellerClaimedAmount:phase==="PROJECTED"?"50000000":"0",sellerClaimable:phase==="PROJECTED"?"0":"50000000",accountingVerified:true,deliveryStatus:"CONFIRMED"}]}}));
   await page.route("**/api/transactions",r=>r.fulfill({json:{operations:started?[{...claim,phase,...(phase==="PREPARED"?{}:{txHash:hash})}]:[]}}));
   await page.route("**/api/transactions/claims/prepare",r=>{expect(r.request().postDataJSON()).toMatchObject({action:"SELLER_CLAIM",campaignId:"stable",orderIds:["internal-order"]});started=true;return r.fulfill({json:{operation:{...claim,phase}}});});
   await page.route("**/api/transactions/op-seller-claim/ready",r=>{phase="AWAITING_SIGNATURE";return r.fulfill({json:{operation:{...claim,phase}}});});
   await page.route("**/api/transactions/op-seller-claim/submit",r=>{phase="SUBMITTED";return r.fulfill({status:202,json:{operation:{...claim,phase,txHash:hash}}});});
   await page.route("**/api/transactions/op-seller-claim/recover",r=>{expect(r.request().postDataJSON().txHash).toBe(hash);phase="PROJECTED";return r.fulfill({json:{operation:{...claim,phase,txHash:hash}}});});
-  await page.goto("/#seller");await page.getByRole("button",{name:/Đơn hàng & Giao quyền truy cập/}).click();await page.getByRole("button",{name:"Rút $50 USDC"}).click();
+  await page.goto("/seller/campaigns");await page.getByRole("button",{name:/Đơn hàng & Giao quyền truy cập/}).click();await page.getByRole("button",{name:"Rút $50 USDC"}).click();
   await expect(page.getByRole("heading",{name:"Kiểm tra khoản rút trên Arc"})).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem("fixture-broadcasts"))).toBeNull();
   await page.getByRole("button",{name:"Ký rút tiền đã kiểm tra"}).click();await expect(page.getByRole("dialog")).not.toBeVisible();await expect(page.getByRole("button",{name:"Rút $50 USDC"})).toHaveCount(0);
   expect(await page.evaluate(()=>localStorage.getItem("fixture-broadcasts"))).toBe("1");
@@ -116,16 +116,16 @@ test("seller claim uses a reviewed server intent and reports success after recei
 test("seller fulfillment preserves its staged intent on HTTP 200 until the delivery projection is complete",async({page})=>{
  await base(page);let recovered=0,delivered=false;const delivery={...operation,id:"op-delivery-partial",action:"DELIVER",resourceId:"delivery-order",phase:"SUBMITTED",txHash:hash,expectedEventArgs:{proofHash:hash}};
  const checkpoint="groupdeal_operation:seller:op-delivery-partial";await page.addInitScript(({checkpoint,hash})=>localStorage.setItem(checkpoint,JSON.stringify({id:"op-delivery-partial",txHash:hash,phase:"SUBMITTED"})),{checkpoint,hash});
- await page.route("**/api/seller/orders",r=>r.fulfill({json:{orders:[{id:"delivery-order",campaignId:"stable",campaignTitle:"Delivery recovery fixture",buyerPrincipal:wallet,quantity:1,committedGross:"100000000",rebateAllocated:"0",sellerAllocated:"0",sellerClaimedAmount:"0",sellerClaimable:"0",accountingVerified:true,deliveryStatus:delivered?"DELIVERED":"PENDING"}]}}));
+ await page.route("**/api/seller/orders**",r=>r.fulfill({json:{pagination:{limit:20,nextCursor:null},orders:[{id:"delivery-order",campaignId:"stable",campaignTitle:"Delivery recovery fixture",buyerPrincipal:wallet,quantity:1,committedGross:"100000000",rebateAllocated:"0",sellerAllocated:"0",sellerClaimedAmount:"0",sellerClaimable:"0",accountingVerified:true,deliveryStatus:delivered?"DELIVERED":"PENDING"}]}}));
  await page.route(/\/api\/transactions(?:\?.*)?$/,r=>r.fulfill({json:{operations:[delivery]}}));
  await page.route("**/api/transactions/op-delivery-partial/recover",r=>{expect(r.request().postDataJSON()).toEqual({txHash:hash});recovered++;delivered=recovered===2;return r.fulfill({json:{operation:{...delivery,phase:delivered?"PROJECTED":"RECEIPT_VERIFIED"}}});});
- await page.goto("/#seller");await page.getByRole("button",{name:/Đơn hàng & Giao quyền truy cập/}).click();await page.getByRole("button",{name:"Giao tài nguyên",exact:true}).click();
+ await page.goto("/seller/campaigns");await page.getByRole("button",{name:/Đơn hàng & Giao quyền truy cập/}).click();await page.getByRole("button",{name:"Giao tài nguyên",exact:true}).click();
  await page.getByRole("button",{name:"Xác minh receipt và mở quyền tải",exact:true}).click();await expect(page.getByRole("dialog")).toBeVisible();await expect(page.getByRole("dialog").getByRole("alert")).toContainText("projection");expect(await page.evaluate(checkpoint=>localStorage.getItem(checkpoint),checkpoint)).not.toBeNull();expect(delivered).toBe(false);
  await page.getByRole("button",{name:"Xác minh receipt và mở quyền tải",exact:true}).click();await expect(page.getByRole("dialog")).not.toBeVisible();expect(await page.evaluate(checkpoint=>localStorage.getItem(checkpoint),checkpoint)).toBeNull();expect(await page.evaluate(()=>localStorage.getItem("fixture-broadcasts"))).toBeNull();expect(recovered).toBe(2);
 });
 test("buyer activates a managed license and downloads actual returned bytes; private entitlement is never rendered",async({page})=>{
   await base(page,"buyer");let redeemed=false;
-  await page.route("**/api/orders/buyer",r=>r.fulfill({json:{orders:[{id:"1",campaignId:"stable",campaignTitle:version.title,quantity:1,lockedUnitPrice:"105000000",committedGross:"105000000",rebateAllocated:"16000000",buyerRefundAllocated:"0",buyerClaimedAmount:"0",buyerClaimable:"16000000",accountingVerified:true,deliveryStatus:"DELIVERED",hasEntitlement:true,managedResourceDelivery:true,buyerPrincipal:wallet}]}}));
+  await page.route("**/api/orders/buyer**",r=>r.fulfill({json:{pagination:{limit:20,nextCursor:null},orders:[{id:"1",campaignId:"stable",campaignTitle:version.title,quantity:1,lockedUnitPrice:"105000000",committedGross:"105000000",rebateAllocated:"16000000",buyerRefundAllocated:"0",buyerClaimedAmount:"0",buyerClaimable:"16000000",accountingVerified:true,deliveryStatus:"DELIVERED",hasEntitlement:true,managedResourceDelivery:true,buyerPrincipal:wallet}]}}));
   const sha256=createHash('sha256').update('Complete protected content').digest('hex'),activatedAt=Date.now()-1000,expiresAt=Math.floor(Date.now()/1000)+600;
   await page.route("**/api/delivery/orders/1/grants",r=>r.fulfill({json:{orderId:'1',buyerAccountId:'buyer',serverTime:Date.now(),grants:[{id:"grant",unitIndex:0,seatsPerUnit:1,requiresRedemption:!redeemed,canRedeem:!redeemed,downloadReady:redeemed,accessStatus:redeemed?'DOWNLOAD_READY':'AWAITING_REDEMPTION',fileName:"actual-resource.txt",mimeType:'text/plain',byteLength:26,sha256,activatedAt,redeemedAt:redeemed?Date.now():null,licenseExpiresAt:null,activationDeadline:null}]}}));
   await page.route("**/api/orders/1/entitlement",r=>r.fulfill({json:{entitlement:JSON.stringify({version:1,method:'LICENSE_KEY',grants:[{id:"grant",unitIndex:0,seatsPerUnit:1,licenseKey:"private-fixture-key"}]})}}));
@@ -154,7 +154,7 @@ test("integration docs describe durable inbox, receipt SDK and JSON widget accur
 });
 
 test("transaction history loads older pages without duplicate entries and preserves narrow-screen layout",async({page})=>{
-  await base(page,"buyer");await page.route("**/api/orders/buyer",r=>r.fulfill({json:{orders:[]}}));
+  await base(page,"buyer");await page.route("**/api/orders/buyer**",r=>r.fulfill({json:{pagination:{limit:20,nextCursor:null},orders:[]}}));
   const operations=Array.from({length:25},(_,i)=>({...operation,id:`history-${i}`,resourceId:`deal-${i}`,phase:"PROJECTED"}));
   await page.route(/\/api\/transactions(?:\?.*)?$/,r=>{const cursor=new URL(r.request().url()).searchParams.get("cursor");return r.fulfill({json:{operations:cursor?operations.slice(19):operations.slice(0,20),pagination:{nextCursor:cursor?null:"fixture-older-page"}}});});
   await page.goto("/#orders");await expect(page.getByRole("heading",{name:"Xuất bản deal · Đã ghép dữ liệu"})).toHaveCount(20);await page.getByRole("button",{name:"Tải thêm lịch sử"}).click();await expect(page.getByRole("heading",{name:"Xuất bản deal · Đã ghép dữ liệu"})).toHaveCount(25);await expect(page.getByRole("button",{name:"Tải thêm lịch sử"})).toHaveCount(0);await noOverflow(page);
@@ -185,9 +185,9 @@ async function orderActionFixture(page:Page,action:string,unknown=false){
   await page.route("**/api/transactions/op-order-action/ready",r=>{phase="AWAITING_SIGNATURE";return r.fulfill({json:{operation:dto()}});});
   await page.route("**/api/transactions/op-order-action/submit",r=>{expect(r.request().postDataJSON()).toEqual({txHash:hash});phase="SUBMITTED";return r.fulfill({status:202,json:{operation:dto()}});});
   await page.route("**/api/transactions/op-order-action/recover",r=>{expect(r.request().postDataJSON()).toEqual({txHash:hash});recoveries++;phase=unknown&&recoveries===1?"UNKNOWN":"PROJECTED";return r.fulfill(phase==="UNKNOWN"?{status:409,json:{error:"Order receipt chưa xác minh"}}:{json:{operation:dto()}});});
-  await page.route("**/api/orders/buyer",r=>r.fulfill({json:{orders:[order()]}}));
-  await page.route("**/api/seller/orders",r=>r.fulfill({json:{orders:[order()]}}));
-  await page.route("**/api/seller/campaigns",r=>r.fulfill({json:{campaigns:[{id:"stable",title:"Durable order fixture",thumbnailUrl:version.thumbnailUrl,category:"Documents",sellerPayoutWallet:wallet,status:"FINALIZED",onchainCampaignId:42,tiers:[{threshold:1,price:"100000000"}],currentUnlockedTier:0,metric:"BUYER_COUNT",totalBuyerCount:1,totalUnitsCommitted:1}]}}));
+  await page.route("**/api/orders/buyer**",r=>r.fulfill({json:{pagination:{limit:20,nextCursor:null},orders:[order()]}}));
+  await page.route("**/api/seller/orders**",r=>r.fulfill({json:{pagination:{limit:20,nextCursor:null},orders:[order()]}}));
+  await page.route("**/api/seller/campaigns**",r=>r.fulfill({json:{pagination:{limit:20,nextCursor:null},campaigns:[{id:"stable",title:"Durable order fixture",thumbnailUrl:version.thumbnailUrl,category:"Documents",sellerPayoutWallet:wallet,status:"FINALIZED",onchainCampaignId:42,tiers:[{threshold:1,price:"100000000"}],currentUnlockedTier:0,metric:"BUYER_COUNT",totalBuyerCount:1,totalUnitsCommitted:1}]}}));
   await page.route("**/api/operator/disputes",r=>r.fulfill({json:{disputes:phase==="PROJECTED"?[]:[order()]}}));
   for(const [path,body] of [["sellers",{sellers:[]}],["reconciliation",{report:null}],["audit-logs",{logs:[]}]] as const)await page.route("**/api/operator/"+path,r=>r.fulfill({json:body}));
   await page.goto(role==="buyer"?"/orders/order-action":"/#"+role);
@@ -199,7 +199,7 @@ test("buyer confirm reserves an intent before signing and recovers UNKNOWN acros
   await page.getByRole("button",{name:"Xác nhận đã nhận sản phẩm",exact:true}).click();
   await expect(page.getByRole("dialog")).toContainText("kết thúc quyền mở tranh chấp");expect(await page.evaluate(()=>localStorage.getItem("fixture-broadcasts"))).toBeNull();
   await noOverflow(page);await page.getByRole("button",{name:"Ký thao tác đã kiểm tra"}).focus();await expect(page.getByRole("button",{name:"Ký thao tác đã kiểm tra"})).toBeFocused();await page.keyboard.press("Enter");
-  await expect(page.getByRole("alert")).toContainText("Chưa xác minh được receipt; intent được giữ để phục hồi.");await page.reload();await page.getByRole("button",{name:"Kiểm tra receipt và phục hồi",exact:true}).click();
+  await expect(page.getByRole("alert")).toContainText("Chưa xác minh được receipt; intent được giữ để phục hồi.");await page.reload();await page.locator(".transaction-row>summary").first().click();await page.getByRole("button",{name:"Kiểm tra receipt và phục hồi",exact:true}).click();
   await expect(page.getByRole("heading",{name:/Xác nhận nhận hàng · Đã ghép dữ liệu/})).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem("fixture-broadcasts"))).toBe("1");
 });
 
@@ -209,7 +209,7 @@ test("buyer stages dispute evidence before a wallet call and recovers it without
    await page.getByRole("button",{name:"Kiểm tra và lưu bằng chứng"}).click();await expect(page.getByRole("dialog")).toHaveCount(1);await expect(page.getByRole("dialog")).toContainText("Bằng chứng riêng được lưu trước chữ ký");
   expect(await page.evaluate(()=>localStorage.getItem("fixture-broadcasts"))).toBeNull();await page.getByRole("button",{name:"Ký thao tác đã kiểm tra"}).click();await expect(page.getByRole("alert")).toContainText("Chưa xác minh được receipt; intent được giữ để phục hồi.");
   expect(await page.evaluate(()=>JSON.stringify(localStorage))).not.toMatch(/Private fixture issue|private-evidence/);
-  await page.reload();await page.getByRole("button",{name:"Kiểm tra receipt và phục hồi",exact:true}).click();await expect(page.getByRole("heading",{name:/Mở tranh chấp · Đã ghép dữ liệu/})).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem("fixture-broadcasts"))).toBe("1");await noOverflow(page);
+  await page.reload();await page.locator(".transaction-row>summary").first().click();await page.getByRole("button",{name:"Kiểm tra receipt và phục hồi",exact:true}).click();await expect(page.getByRole("heading",{name:/Mở tranh chấp · Đã ghép dữ liệu/})).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem("fixture-broadcasts"))).toBe("1");await noOverflow(page);
 });
 
 test("operator reviews chain-provided shares independently of a tiny DB projection before signing",async({page},testInfo)=>{

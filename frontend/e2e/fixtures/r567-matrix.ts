@@ -1,3 +1,4 @@
+import {workspaceOrderPage} from './workspace-page';
 import {type Page} from '@playwright/test';
 import {masterFixture} from './master-deal.mjs';
 import {productInventoryFixture} from './product-inventory';
@@ -41,9 +42,9 @@ export async function r567Fixture(page:Page,language='vi',roles=['buyer','seller
   else if(p==='/api/notifications/preferences')value={userId:'fixture',preferences:{inApp:true,email:false},contactStatus:'MISSING'};
   else if(p==='/api/auth/wallets')value={userId:'fixture',activeWallet:null,serverTime:now,wallets:[{address:data.seller.payoutWallet,kind:'EXTERNAL',selected:false,canSignIn:true}],pagination:{nextCursor:null}};
   else if(p==='/api/transactions')value={operations:[],pagination:{nextCursor:null}};
-  else if(p==='/api/orders/buyer')value={orders:orders.map(o=>({...o,accountingVerified:state.verified,buyerClaimable:state.verified?o.buyerClaimable:null}))};
-  else if(p==='/api/seller/campaigns')value={campaigns:[data.campaign]};
-  else if(p==='/api/seller/orders')value={orders};
+  else if(p==='/api/orders/buyer')value=workspaceOrderPage(url.href,orders.map(o=>({...o,accountingVerified:state.verified,buyerClaimable:state.verified?o.buyerClaimable:null})));
+  else if(p==='/api/seller/campaigns')value={pagination:{limit:20,nextCursor:null},campaigns:[data.campaign]};
+  else if(p==='/api/seller/orders')value={pagination:{limit:20,nextCursor:null},orders};
   else if(p==='/api/seller/webhooks')value={webhook:{id:'webhook-ui-fixture',sellerId:'fixture',targetUrl:'https://fixture.invalid/webhook',logs:[]}};
   else if(p==='/api/products/mine')value=productInventoryFixture([data.product],'fixture');
   else if(p==='/api/products/rights/review')value={rights:[]};
@@ -53,7 +54,7 @@ export async function r567Fixture(page:Page,language='vi',roles=['buyer','seller
   else if(p==='/api/operator/sellers')value={sellers:[{id:'studio',email:null,sellerProfile:data.seller}]};
   else if(p==='/api/operator/audit-logs')value=auditFixture('fixture',now);
   else if(p==='/api/operator/email-outbox')value={jobs:[],providerConfigured:false,pagination:{nextCursor:null}};
-  else if(p==='/api/operator/deals')value={campaigns:[data.detail.campaign],pagination:{nextCursor:null}};
+  else if(p==='/api/operator/deals')value={pagination:{limit:20,nextCursor:null},campaigns:[data.detail.campaign],pagination:{nextCursor:null}};
   else if(p==='/api/operator/deals/master')value=data.detail;
   else if(p==='/api/operator/reconciliation')value={report:{status:state.healthy?'HEALTHY':'UNVERIFIED',blockNumber:125,blockHash:'0x'+'56'.repeat(32),conservationLawPassed:true,perOrderVerified:state.healthy,coverageVerified:state.healthy,onchainBalanceVerified:state.healthy,totalGrossCommittedUSDC:'4710.0',totalRebatesAllocatedUSDC:'350.0',totalSellerProceedsUSDC:'4360.0',totalRefundsAllocatedUSDC:'0.0',totalBuyerClaimedUSDC:'10.0',totalSellerClaimedUSDC:'0.0',expectedEscrowLiabilitiesUSDC:'4700.0',onchainHubBalanceUSDC:'4700.0',discrepancies:state.healthy?[]:['LOCAL UI FIXTURE: missing chain verification']}};
   else if(p==='/api/support/tickets')value={userId:'fixture',tickets:[ticket],pagination:{limit:20,nextCursor:null}};

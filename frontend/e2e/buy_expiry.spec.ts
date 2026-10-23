@@ -23,7 +23,7 @@ async function fixture(page:Page,options:{checkout?:boolean;existingExpiry?:bool
  await page.route(/https:\/\/rpc(?:\.[a-z]+)?\.testnet\.arc\.io\/?/,r=>{const input=r.request().postDataJSON(),reply=(p:any)=>({jsonrpc:"2.0",id:p.id,result:p.method==="eth_chainId"?"0x4cef52":p.method==="eth_getBalance"?"0x8ac7230489e80000":"0x3b9aca00"});return r.fulfill({json:Array.isArray(input)?input.map(reply):reply(input)});});
  await page.route("**/api/auth/me",r=>r.fulfill({json:{user:{id:"buyer",roles:["buyer"],activeWallet:principal,loginMethod:"EVM_WALLET",email:null}}}));
  await page.route("**/api/notifications",r=>r.fulfill({json:{notifications:[],unread:0}}));
- await page.route("**/api/orders/buyer",r=>r.fulfill({json:{orders:[]}}));
+ await page.route("**/api/orders/buyer**",r=>r.fulfill({json:{pagination:{limit:20,nextCursor:null},orders:[]}}));
  await page.route("**/api/campaigns/expiry",r=>r.fulfill({json:{campaign,seller:{displayName:"Fixture seller"}}}));
  await page.route(/\/api\/transactions(?:\?.*)?$/,r=>r.fulfill({json:{operations:[operation()],pagination:{nextCursor:null}}}));
  await page.route("**/api/transactions/op-expiry",r=>r.fulfill({json:{operation:operation()}}));
@@ -43,7 +43,7 @@ async function fixture(page:Page,options:{checkout?:boolean;existingExpiry?:bool
  await page.route("**/api/transactions/op-fresh/ready",r=>r.fulfill({status:409,json:{error:"Local fixture stops before any wallet signing"}}));
  await page.goto(options.checkout?"/#campaign-expiry":"/#orders");
  if(options.checkout)await expect(page.getByRole("heading",{name:"Expiry deal fixture"})).toBeVisible();
- else await expect(page.getByRole("heading",{name:/Cam kết mua.*Đang chờ chữ ký/})).toBeVisible();
+ else {await page.locator(".transaction-row>summary").first().click();await expect(page.getByRole("heading",{name:/Cam kết mua.*Đang chờ chữ ký/})).toBeVisible();}
  return state;
 }
 
@@ -52,7 +52,7 @@ test("history checks BUY expiry explicitly without a connected wallet or an orde
  await expect(page.getByRole("heading",{name:/Chứng thực mua đã hết hạn, nonce chưa sử dụng/})).toBeVisible();expect(state.expiries).toBe(1);expect(state.recoveries).toBe(0);expect(await page.evaluate(key=>localStorage.getItem(key),checkpoint)).toBeNull();
  await expect(page.getByRole("button",{name:/Ký intent/})).toHaveCount(0);await expect(page.getByRole("button",{name:"Kiểm tra chứng thực hết hạn trên chain"})).toHaveCount(0);await expect(page.getByText(/Lượt mua này không tạo đơn/)).toBeVisible();expect(await page.evaluate(()=>(window as any).unexpectedSign)).toBeUndefined();
  for(const width of [320,375,1440]){await page.setViewportSize({width,height:700});expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);}
- await page.setViewportSize({width:375,height:700});await page.screenshot({path:info.outputPath("buy-expired-history.png"),fullPage:true});await page.reload();await expect(page.getByRole("heading",{name:/Chứng thực mua đã hết hạn/})).toBeVisible();expect(state.expiries).toBe(1);
+ await page.setViewportSize({width:375,height:700});await page.screenshot({path:info.outputPath("buy-expired-history.png"),fullPage:true});await page.reload();await page.locator(".transaction-row>summary").first().click();await expect(page.getByRole("heading",{name:/Chứng thực mua đã hết hạn/})).toBeVisible();expect(state.expiries).toBe(1);
 });
 for(const mode of ["pending","missing-proof","wrong-id","nonce-changed"])test(`history retains BUY checkpoint for ${mode} expiry response`,async({page})=>{
  const state=await fixture(page);state.mode=mode;const before=await page.evaluate(key=>localStorage.getItem(key),checkpoint);await page.getByRole("button",{name:"Kiểm tra chứng thực hết hạn trên chain"}).click();await expect(page.getByRole("alert")).toBeVisible();expect(await page.evaluate(key=>localStorage.getItem(key),checkpoint)).toBe(before);expect(state.expiries).toBe(1);expect(state.recoveries).toBe(0);expect(await page.evaluate(()=>(window as any).unexpectedSign)).toBeUndefined();

@@ -11,7 +11,7 @@ async function history(page:Page){
  await page.route("**/src/context/Web3Context.tsx*",r=>r.fulfill({contentType:"application/javascript",body:`export const Web3Provider=({children})=>children;export const useWeb3=()=>({account:null,usdcBalance:"0",walletMode:"NONE",preflightPreparedOperation:async()=>{},broadcastPreparedOperation:async()=>{window.unexpectedSign=true;throw new Error("Unexpected signature")}});`}));
  await page.route("**/api/auth/me",r=>r.fulfill({json:{user:{id:"buyer",roles:["buyer"],activeWallet:principal,email:null,loginMethod:"EVM_WALLET"}}}));
  await page.route("**/api/notifications",r=>r.fulfill({json:{notifications:[],unread:0}}));
- await page.route("**/api/orders/buyer",r=>r.fulfill({json:{orders:[]}}));
+ await page.route("**/api/orders/buyer**",r=>r.fulfill({json:{pagination:{limit:20,nextCursor:null},orders:[]}}));
  await page.route("**/api/transactions",r=>r.fulfill({json:{operations:[operation()],pagination:{nextCursor:null}}}));
  await page.route("**/api/transactions/op-replacement/recover",r=>{expect(r.request().postDataJSON()).toEqual({txHash:state.txHash});state.recoveries++;if(state.phase!=="PROJECTED")state.phase="RECEIPT_VERIFIED";return r.fulfill({json:{operation:operation()}});});
  await page.route("**/api/transactions/op-replacement/replace",r=>{
@@ -19,7 +19,7 @@ async function history(page:Page){
   if(state.reject)return r.fulfill({status:409,json:{error:"CONFLICT: replacement nonce is unverified"}});
   const kind=state.phase==="SUPERSEDED"?"NONCE_CONSUMED":"SAME_CALL";state.replacements=[{previousTxHash:original,txHash:replacement,nonce:7,blockNumber:64644320,blockHash:original,kind,verifiedAt:0}];if(kind==="SAME_CALL"){state.txHash=replacement;state.phase="SUBMITTED";}return r.fulfill({json:{operation:operation()}});
  });
- await page.goto("/#orders");await expect(page.getByRole("heading",{name:"Lịch sử và phục hồi giao dịch"})).toBeVisible();await expect(page.getByRole("heading",{name:/Rút rebate và tiền hoàn.*Đã gửi; chờ xác minh/})).toBeVisible();return state;
+ await page.goto("/#orders");await expect(page.getByRole("heading",{name:"Lịch sử và phục hồi giao dịch"})).toBeVisible();await page.locator(".transaction-row>summary").first().click();await expect(page.getByRole("heading",{name:/Rút rebate và tiền hoàn.*Đã gửi; chờ xác minh/})).toBeVisible();return state;
 }
 
 test("history retains its broadcast checkpoint when HTTP 200 is only a partial projection",async({page})=>{
@@ -27,7 +27,7 @@ test("history retains its broadcast checkpoint when HTTP 200 is only a partial p
  await page.getByRole("button",{name:"Kiểm tra receipt và phục hồi",exact:true}).click();
  await expect(page.getByRole("heading",{name:/Receipt đã xác minh; chờ ghép dữ liệu/})).toBeVisible();
  expect(await page.evaluate(key=>localStorage.getItem(key),key)).toBe(checkpoint);
- await page.reload();await page.getByRole("button",{name:"Kiểm tra receipt và phục hồi",exact:true}).click();await expect(page.getByRole("button",{name:"Kiểm tra receipt và phục hồi",exact:true})).toBeEnabled();expect(state.recoveries).toBe(2);
+ await page.reload();await page.locator(".transaction-row>summary").first().click();await page.getByRole("button",{name:"Kiểm tra receipt và phục hồi",exact:true}).click();await expect(page.getByRole("button",{name:"Kiểm tra receipt và phục hồi",exact:true})).toBeEnabled();expect(state.recoveries).toBe(2);
  state.phase="PROJECTED";await page.getByRole("button",{name:"Kiểm tra receipt và phục hồi",exact:true}).click();await expect(page.getByRole("heading",{name:/Đã ghép dữ liệu/})).toBeVisible();expect(await page.evaluate(key=>localStorage.getItem(key),key)).toBeNull();expect(await page.evaluate(()=>(window as any).unexpectedSign)).toBeUndefined();
 });
 
@@ -38,7 +38,7 @@ test("history imports a verified same-call replacement without a wallet and keep
  expect(JSON.parse(await page.evaluate(key=>localStorage.getItem(key),key)||"null").txHash).toBe(replacement);expect(state.recoveries).toBe(1);
  for(const width of [320,375,1440]){await page.setViewportSize({width,height:700});expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);}
  await page.setViewportSize({width:375,height:700});await page.screenshot({path:info.outputPath("replacement-partial-history.png"),fullPage:true});
- await page.reload();await expect(page.getByRole("button",{name:"Kiểm tra receipt và phục hồi",exact:true})).toBeEnabled();state.phase="PROJECTED";await page.getByRole("button",{name:"Kiểm tra receipt và phục hồi",exact:true}).click();await expect(page.getByRole("heading",{name:/Đã ghép dữ liệu/})).toBeVisible();expect(await page.evaluate(key=>localStorage.getItem(key),key)).toBeNull();expect(await page.evaluate(()=>(window as any).unexpectedSign)).toBeUndefined();
+ await page.reload();await page.locator(".transaction-row>summary").first().click();await expect(page.getByRole("button",{name:"Kiểm tra receipt và phục hồi",exact:true})).toBeEnabled();state.phase="PROJECTED";await page.getByRole("button",{name:"Kiểm tra receipt và phục hồi",exact:true}).click();await expect(page.getByRole("heading",{name:/Đã ghép dữ liệu/})).toBeVisible();expect(await page.evaluate(key=>localStorage.getItem(key),key)).toBeNull();expect(await page.evaluate(()=>(window as any).unexpectedSign)).toBeUndefined();
 });
 
 test("history preserves the original checkpoint when replacement proof is rejected",async({page})=>{

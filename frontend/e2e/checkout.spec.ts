@@ -85,7 +85,7 @@ async function fixture(page: Page, options: { funded?: boolean; indexerOffline?:
   await page.route("**/api/transactions/durable-buy-fixture/ready",route=>{state.phase="AWAITING_SIGNATURE";return route.fulfill({json:{operation:{...operation,phase:state.phase}}});});
   await page.route("**/api/transactions/durable-buy-fixture/submit",route=>{expect(route.request().postDataJSON().txHash).toBe(hash);state.phase="SUBMITTED";return route.fulfill({status:202,json:{operation:{...operation,phase:state.phase,txHash:hash}}});});
   await page.route("**/api/transactions/durable-buy-fixture/recover",route=>{expect(route.request().postDataJSON().txHash).toBe(hash);state.recoveries++;state.phase=options.walletReverted?(options.verifiedRevert?"REVERTED":"UNKNOWN"):state.indexerOffline?"UNKNOWN":state.partialProjection?"RECEIPT_VERIFIED":"PROJECTED";return route.fulfill(!["PROJECTED","RECEIPT_VERIFIED"].includes(state.phase)?{status:409,json:{error:state.phase==="REVERTED"?"TRANSACTION_REVERTED: Đã kiểm tra receipt trên chain":"Receipt đã gửi; indexer đang chờ phục hồi"}}:{json:{operation:{...operation,phase:state.phase,txHash:hash,...(state.phase==="PROJECTED"?{projectedOrderId:"2"}:{})}}});});
-  await page.route("**/api/orders/buyer", route => {
+  await page.route("**/api/orders/buyer**", route => {
     state.indexedReads++;
     if (state.indexerOffline) return route.fulfill({ status: 503, body: "offline" });
     return route.fulfill({ contentType: "application/json", body: JSON.stringify({ orders: state.indexedReads === 1 ? [] : [

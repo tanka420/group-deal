@@ -57,9 +57,9 @@ test("renders Arc identity and keeps unavailable sign-in actions disabled", asyn
 
   await page.goto("/");
   const footer=page.getByRole('contentinfo');
-  await expect(footer).toContainText('Mua chung sản phẩm số trên Arc Testnet');
-  await expect(footer.getByText('Chain ID: 5042002',{exact:true})).toBeVisible();
-  await expect(footer.getByText('USDC Native Gas',{exact:true})).toBeVisible();
+  await expect(footer).toContainText('Arc Testnet');
+  await expect(footer.getByRole('link',{name:'Điều khoản sử dụng',exact:true})).toHaveAttribute('href','/policies/terms');
+  await expect(footer.getByRole('link',{name:'Ticket hỗ trợ',exact:true})).toHaveAttribute('href','/support');
 
   await page.getByRole("button", { name: /đăng nhập/i }).click();
   const walletLogin = page.getByRole("button", { name: "Đăng nhập bằng ví hiện chưa sẵn sàng", exact: true });

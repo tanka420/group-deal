@@ -13,18 +13,18 @@ async function fixture(page:Page,signedIn=false,language='en'){
   if(url.pathname==='/api/health')return r.fulfill({json:{hubAddress:'0x1111111111111111111111111111111111111111',usdcAddress:'0x3600000000000000000000000000000000000000'}});
   if(url.pathname==='/api/notifications')return r.fulfill({json:{notifications:[],unread:0}});
   if(url.pathname==='/api/notifications/preferences')return r.fulfill({json:{userId:'nav-fixture',preferences:{inApp:true,email:false},contactStatus:'MISSING'}});
-  return r.fulfill({json:{orders:[],operations:[],tickets:[],wallets:[],sessions:[],follows:[],pagination:{nextCursor:null}}});
+  return r.fulfill({json:{pagination:{limit:20,nextCursor:null},orders:[],operations:[],tickets:[],wallets:[],sessions:[],follows:[],pagination:{nextCursor:null}}});
  });return {errors,writes};
 }
 for(const width of [375,768,1440])test(`buyer navigation remains reachable at ${width}px`,async({page},info)=>{
  const f=await fixture(page,true);await page.setViewportSize({width,height:850});await page.goto('/explore');
  const account=page.locator('.account-pill-btn');
- for(const [label,path] of [['My Orders','/orders'],['Wallet','/wallet'],['Account settings','/account'],['Support','/support']]){
+ for(const [label,path] of [['Wallet','/wallet'],['Account settings','/account'],['Support','/support']]){
   await account.click();await page.locator('#header-account').getByRole('button',{name:label,exact:true}).click();
   await expect(page).toHaveURL(new RegExp(path+'$'));expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  }
- const mobile=width<768;
- for(const [label,path] of [['Home','/'],['Explore','/explore']]){
+ const mobile=width<1200;
+ for(const [label,path] of [['Home','/'],['Explore','/explore'],['Orders','/orders'],['Wallet','/wallet'],['Account','/account']]){
   if(mobile)await page.getByRole('button',{name:'Open navigation'}).click();
   const navigation=mobile?page.getByRole('dialog',{name:'Navigation'}):page.locator('.desktop-navigation');
   await navigation.getByRole('link',{name:label,exact:true}).click();await expect(page).toHaveURL(new RegExp(path+'$'));
