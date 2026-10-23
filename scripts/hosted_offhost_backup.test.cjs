@@ -65,3 +65,24 @@ test('foreign-owner historical manifests and malformed listings fail before remo
  for(const listing of [[{Name:'../escape',IsDir:false,Size:1}],[{Name:'file',IsDir:true,Size:1}],[{Name:'file',IsDir:false,Size:-1}],{}]){f.transport.list=async()=>Buffer.from(JSON.stringify(listing));await assert.rejects(()=>organizeExisting(f),/OFFHOST_REMOTE_LIST_INVALID/);}
  assert.equal(f.copied.length,0);
 });
+
+
+function seedExtraLegacy(f,offset){const metadata={...f.metadata,timestamp:f.now+offset,archive:`backup_${f.now+offset}_${crypto.randomUUID()}.enc`},bytes=crypto.randomBytes(256);metadata.sha256=hash(bytes);metadata.byteLength=bytes.length;const base=layoutFor(metadata).baseDirectory;f.remote.set(base+metadata.archive,bytes);f.remote.set(base+metadata.archive+'.json',Buffer.from(JSON.stringify(metadata)));return metadata;}
+
+test('bounded concurrent organization retries transient reads/copies and waits for complete verified pairs',async t=>{
+ const f=fixture(t);seedLegacy(f);seedExtraLegacy(f,1);seedExtraLegacy(f,2);let active=0,maximum=0,transient=0;const copy=f.transport.copyRemote;
+ f.transport.copyRemote=async(...args)=>{if(transient++<2)throw Error('OFFHOST_TRANSPORT_UNAVAILABLE');active++;maximum=Math.max(maximum,active);try{await new Promise(resolve=>setTimeout(resolve,5));await copy(...args);}finally{active--;}};
+ const r=await organizeExisting({...f,concurrency:2,retryDelays:[0,0,0]});assert.equal(r.archivesOrganized,3);assert.equal(r.uploadedObjects,6);assert.ok(maximum<=2);assert.equal(active,0);assert.ok(transient>=5);
+ assert.equal(JSON.parse(fs.readFileSync(path.join(f.offhostDirectory,'LAYOUT-PROGRESS.json'))).records.length,3);
+});
+
+test('failed organization checkpoints verified pairs and resume reuses only matching source-manifest proof',async t=>{
+ const f=fixture(t),base=seedLegacy(f),second=seedExtraLegacy(f,1),read=f.transport.read;
+ f.transport.read=async p=>{if(p===base+second.archive+'.json')throw Error('fixture hard failure');return read(p);};
+ await assert.rejects(()=>organizeExisting({...f,concurrency:1}),/fixture hard failure/);
+ const checkpoint=path.join(f.offhostDirectory,'LAYOUT-PROGRESS.json');assert.equal(JSON.parse(fs.readFileSync(checkpoint)).records.length,1);assert.equal(fs.existsSync(path.join(f.offhostDirectory,'LAYOUT-MIGRATION.json')),false);
+ f.transport.read=read;const digest=f.transport.digest,first=layoutFor(f.metadata);f.transport.digest=async p=>{assert.notEqual(p,first.directory+first.archive);return digest(p);};
+ const r=await organizeExisting({...f,resume:true,concurrency:1});assert.equal(r.archivesOrganized,2);assert.equal(r.resumedVerifiedArchives,1);assert.equal(r.uploadedObjects,2);
+ const before=fs.readFileSync(path.join(f.offhostDirectory,'LAYOUT-MIGRATION.json'));f.remote.set(base+f.metadata.archive+'.json',Buffer.from(JSON.stringify({...f.metadata,sourceCommit:'b'.repeat(40)})));
+ await assert.rejects(()=>organizeExisting({...f,resume:true}),/OFFHOST_MIGRATION_CHECKPOINT_INVALID/);assert.ok(fs.readFileSync(path.join(f.offhostDirectory,'LAYOUT-MIGRATION.json')).equals(before));
+});

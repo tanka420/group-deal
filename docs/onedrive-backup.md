@@ -27,6 +27,8 @@ Helper có chế độ `--organize-existing` để đọc các archive/manifest 
 
 Archive thiếu manifest được ghi riêng trong `unpairedArchivesPreserved`, giữ nguyên và **không** được coi là backup đã xác minh đầy đủ. Không tự tạo manifest mang trạng thái verified cho những file này. Lần kiểm kê đầu 23/10 thấy 60 archive, 56 manifest; kết quả áp dụng thực tế lấy từ receipt migration, không coi con số kiểm kê là kết quả migration.
 
+Tác vụ xử lý tối đa 4 archive song song, thử lại có giới hạn khi gặp lỗi truyền tải OneDrive. `LAYOUT-PROGRESS.json` lưu từng cặp đã kiểm đủ hash; lần tiếp tục chỉ tái sử dụng bằng chứng nếu manifest nguồn, tên đích, kích thước và hash vẫn khớp, giữ nguyên thời điểm kiểm ban đầu. Lỗi hash/scope không được coi là lỗi truyền tải để thử lại.
+
 Receipt riêng tại `operations/offhost/LAYOUT-MIGRATION.json` chứa ánh xạ tên cũ → thư mục/tên mới và hash. `LATEST.json` chỉ được cập nhật bởi luồng upload backup hiện hành sau khi round-trip đạt; việc tổ chức lịch sử không được làm mới giả thời điểm backup.
 
 ## Vận hành và giữ bản
@@ -50,4 +52,4 @@ Kiểm tra phần bị tác động:
 node --test scripts/hosted_offhost_backup.test.cjs scripts/hosted_backup.test.cjs scripts/observe_hosted_health.test.cjs scripts/hosted_alerts.test.cjs
 ```
 
-44 kiểm tra đã đạt trong gói chuẩn hóa ngày 23/10; fixture không liên hệ Microsoft/SMTP, không tạo dữ liệu ứng dụng hoặc khôi phục database vận hành.
+46 kiểm tra đã đạt trong gói chuẩn hóa ngày 23/10; fixture không liên hệ Microsoft/SMTP, không tạo dữ liệu ứng dụng hoặc khôi phục database vận hành.

@@ -61,32 +61,49 @@ async function publishLatest({stateDirectory,offhostDirectory,configFile,transpo
     commitReceipt(offhostDirectory,'LATEST.json',receipt);return receipt;
   }finally{fs.unlinkSync(staged);}
 }
-async function organizeExisting({stateDirectory,offhostDirectory,configFile,transport,onProgress}){
+async function organizeExisting({stateDirectory,offhostDirectory,configFile,transport,onProgress,resume=false,concurrency=4,retryDelays=[1000,3000,10000]}){
+  if(!Number.isInteger(concurrency)||concurrency<1||concurrency>4||!Array.isArray(retryDelays)||retryDelays.length>3||retryDelays.some(v=>!Number.isInteger(v)||v<0||v>10000))fail('OFFHOST_MIGRATION_OPTIONS_INVALID');
+  async function retry(action){for(let attempt=0;;attempt++)try{return await action();}catch(error){if(error?.message!=='OFFHOST_TRANSPORT_UNAVAILABLE'||attempt>=retryDelays.length)throw error;await new Promise(resolve=>setTimeout(resolve,retryDelays[attempt]));}}
   checkDirectories(stateDirectory,offhostDirectory);
   const owner=json(path.join(stateDirectory,'OWNER.json'));if(owner.schema!=='GroupDealManagedBackupV1'||!ownerPattern.test(owner.ownerId??''))fail('OFFHOST_SOURCE_SCOPE');
-  const binding=configuration(configFile),base='gd_onedrive:GroupDeal/ArcTestnet/'+owner.ownerId+'/',client=transport??rcloneTransport(configFile),files=JSON.parse((await client.list(base)).toString('utf8'));
+  const binding=configuration(configFile),base='gd_onedrive:GroupDeal/ArcTestnet/'+owner.ownerId+'/',client=transport??rcloneTransport(configFile),files=JSON.parse((await retry(()=>client.list(base))).toString('utf8'));
   if(!Array.isArray(files)||files.length>10000||files.some(f=>!f||f.IsDir!==false||typeof f.Name!=='string'||f.Name.includes('/')||f.Name.includes('\\')||!Number.isSafeInteger(f.Size)||f.Size<0)||new Set(files.map(f=>f.Name)).size!==files.length)fail('OFFHOST_REMOTE_LIST_INVALID');
-  const names=new Set(files.map(f=>f.Name)),records=[],unpaired=[];let uploadedObjects=0;
-  for(const file of files.filter(f=>legacyArchivePattern.test(f.Name)).sort((a,b)=>a.Name.localeCompare(b.Name))){
-    if(configuration(configFile)!==binding)fail('OFFHOST_DRIVE_CHANGED');
-    if(!names.has(file.Name+'.json')){unpaired.push(file.Name);continue;}
-    const sourceBytes=await client.read(base+file.Name+'.json',65536),metadata=JSON.parse(sourceBytes.toString('utf8'));
-    if(metadata.schema!=='GroupDealManagedBackupV1'||metadata.ownerId!==owner.ownerId||metadata.archive!==file.Name||metadata.byteLength!==file.Size||file.Size>256*1024*1024||metadata.verified!==true||metadata.privateRestoreVerified!==true||metadata.sourceReadOnly!==true||metadata.auditAndSqliteIntegrity!==true||metadata.sourceRowsPreserved!==true||!/^[a-f0-9]{40}$/.test(metadata.sourceCommit??''))fail('OFFHOST_LEGACY_METADATA_INVALID');
-    const layout=layoutFor(metadata),staged=stageManifest(offhostDirectory,metadata,sourceBytes);
-    try{
-      const objects=[{name:layout.archive,source:base+file.Name,byteLength:file.Size,sha256:metadata.sha256},{name:layout.manifest,file:staged,byteLength:regular(staged).size,sha256:sha(fs.readFileSync(staged))}];
-      for(const object of objects){
-        if(configuration(configFile)!==binding)fail('OFFHOST_DRIVE_CHANGED');
-        if(!await client.exists(layout.directory+object.name)){if(object.source)await client.copyRemote(object.source,layout.directory+object.name);else await client.copy(object.file,layout.directory+object.name);uploadedObjects++;}
-        const received=await client.digest(layout.directory+object.name,object.byteLength);
-        if(received.byteLength!==object.byteLength||received.sha256!==object.sha256)fail('OFFHOST_ROUNDTRIP_MISMATCH');
-      }
-      records.push({sourceArchive:file.Name,directory:layout.directory,archive:layout.archive,manifest:layout.manifest,sha256:metadata.sha256,byteLength:file.Size});
-      onProgress?.({archivesOrganized:records.length,legacyArchives:files.filter(f=>legacyArchivePattern.test(f.Name)).length});
-    }finally{fs.unlinkSync(staged);}
+  const names=new Set(files.map(f=>f.Name)),records=new Map(),unpaired=[],archives=files.filter(f=>legacyArchivePattern.test(f.Name)).sort((a,b)=>a.Name.localeCompare(b.Name)),progressFile=path.join(offhostDirectory,'LAYOUT-PROGRESS.json');let uploadedObjects=0,resumedVerifiedArchives=0;
+  if(resume&&fs.existsSync(progressFile)){
+    const prior=json(progressFile);if(prior.schemaVersion!==1||prior.layoutVersion!==2||prior.ownerId!==owner.ownerId||!Array.isArray(prior.records)||prior.records.length>1000||new Set(prior.records.map(r=>r.sourceArchive)).size!==prior.records.length)fail('OFFHOST_MIGRATION_CHECKPOINT_INVALID');
+    for(const record of prior.records){if(!legacyArchivePattern.test(record.sourceArchive??'')||!/^[a-f0-9]{64}$/.test(record.sourceManifestSha256??'')||!Number.isFinite(Date.parse(record.verifiedAt)))fail('OFFHOST_MIGRATION_CHECKPOINT_INVALID');records.set(record.sourceArchive,record);}
   }
+  function checkpoint(){commitReceipt(offhostDirectory,'LAYOUT-PROGRESS.json',{schemaVersion:1,layoutVersion:2,result:'OFFHOST_LAYOUT_PROGRESS_ONLY',ownerId:owner.ownerId,recordedAt:new Date().toISOString(),records:[...records.values()]});}
+  async function organize(file){
+    if(configuration(configFile)!==binding)fail('OFFHOST_DRIVE_CHANGED');
+    if(!names.has(file.Name+'.json')){unpaired.push(file.Name);return;}
+    const sourceBytes=await retry(()=>client.read(base+file.Name+'.json',65536)),metadata=JSON.parse(sourceBytes.toString('utf8'));
+    if(metadata.schema!=='GroupDealManagedBackupV1'||metadata.ownerId!==owner.ownerId||metadata.archive!==file.Name||metadata.byteLength!==file.Size||file.Size>256*1024*1024||metadata.verified!==true||metadata.privateRestoreVerified!==true||metadata.sourceReadOnly!==true||metadata.auditAndSqliteIntegrity!==true||metadata.sourceRowsPreserved!==true||!/^[a-f0-9]{40}$/.test(metadata.sourceCommit??''))fail('OFFHOST_LEGACY_METADATA_INVALID');
+    const layout=layoutFor(metadata),prior=records.get(file.Name);
+    if(resume&&prior){
+      if(prior.directory!==layout.directory||prior.archive!==layout.archive||prior.manifest!==layout.manifest||prior.sha256!==metadata.sha256||prior.byteLength!==file.Size||prior.sourceManifestSha256!==sha(sourceBytes))fail('OFFHOST_MIGRATION_CHECKPOINT_INVALID');
+      resumedVerifiedArchives++;onProgress?.({archivesOrganized:records.size,legacyArchives:archives.length,resumedVerifiedArchives});return;
+    }
+    await retry(async()=>{
+      const staged=stageManifest(offhostDirectory,metadata,sourceBytes);
+      try{
+        const objects=[{name:layout.archive,source:base+file.Name,byteLength:file.Size,sha256:metadata.sha256},{name:layout.manifest,file:staged,byteLength:regular(staged).size,sha256:sha(fs.readFileSync(staged))}];
+        for(const object of objects){
+          if(configuration(configFile)!==binding)fail('OFFHOST_DRIVE_CHANGED');
+          if(!await client.exists(layout.directory+object.name)){if(object.source)await client.copyRemote(object.source,layout.directory+object.name);else await client.copy(object.file,layout.directory+object.name);uploadedObjects++;}
+          const received=await client.digest(layout.directory+object.name,object.byteLength);
+          if(received.byteLength!==object.byteLength||received.sha256!==object.sha256)fail('OFFHOST_ROUNDTRIP_MISMATCH');
+        }
+      }finally{fs.unlinkSync(staged);}
+    });
+    records.set(file.Name,{sourceArchive:file.Name,directory:layout.directory,archive:layout.archive,manifest:layout.manifest,sha256:metadata.sha256,byteLength:file.Size,sourceManifestSha256:sha(sourceBytes),verifiedAt:new Date().toISOString()});checkpoint();
+    onProgress?.({archivesOrganized:records.size,legacyArchives:archives.length,resumedVerifiedArchives});
+  }
+  let next=0,failure;
+  async function worker(){while(!failure&&next<archives.length){const file=archives[next++];try{await organize(file);}catch(error){failure=error;}}}
+  await Promise.all(Array.from({length:Math.min(concurrency,archives.length)},worker));if(failure)throw failure;
   if(configuration(configFile)!==binding)fail('OFFHOST_DRIVE_CHANGED');
-  const receipt={schemaVersion:1,result:'OFFHOST_LAYOUT_ORGANIZED',layoutVersion:2,recordedAt:new Date().toISOString(),ownerId:owner.ownerId,archivesOrganized:records.length,uploadedObjects,records,unpairedArchivesPreserved:unpaired,legacyObjectsDeleted:0,databaseOpened:false,credentialsUploaded:false,restorationPerformed:false};
+  const receipt={schemaVersion:1,result:'OFFHOST_LAYOUT_ORGANIZED',layoutVersion:2,recordedAt:new Date().toISOString(),ownerId:owner.ownerId,archivesOrganized:records.size,uploadedObjects,resumedVerifiedArchives,records:[...records.values()].sort((a,b)=>a.sourceArchive.localeCompare(b.sourceArchive)),unpairedArchivesPreserved:unpaired.sort(),legacyObjectsDeleted:0,databaseOpened:false,credentialsUploaded:false,restorationPerformed:false};
   commitReceipt(offhostDirectory,'LAYOUT-MIGRATION.json',receipt);return receipt;
 }
 function observeOffhost(file,now=Date.now()){
@@ -97,7 +114,7 @@ function observeOffhost(file,now=Date.now()){
 }
 async function main(){
   const args=process.argv.slice(2),organize=args.length===7&&args[6]==='--organize-existing';if(process.platform!=='linux'||(!organize&&args.length!==6)||args[0]!=='--state-directory'||args[2]!=='--offhost-directory'||args[4]!=='--config-file')fail('OFFHOST_ARGUMENTS_INVALID');
-  const r=await(organize?organizeExisting:publishLatest)({stateDirectory:args[1],offhostDirectory:args[3],configFile:args[5],onProgress:progress=>console.error(JSON.stringify({stage:'OFFHOST_LAYOUT_PROGRESS',...progress}))});console.log(JSON.stringify(r));
+  const r=await(organize?organizeExisting:publishLatest)({stateDirectory:args[1],offhostDirectory:args[3],configFile:args[5],resume:true,onProgress:progress=>console.error(JSON.stringify({stage:'OFFHOST_LAYOUT_PROGRESS',...progress}))});console.log(JSON.stringify(r));
 }
 if(require.main===module)main().catch(e=>{console.log(JSON.stringify({status:'ATTENTION',code:/^OFFHOST_[A-Z_]+$/.test(e.message??'')?e.message:'OFFHOST_STAGE_UNAVAILABLE',privateValuesLogged:false}));process.exitCode=1;});
 module.exports={publishLatest,organizeExisting,observeOffhost,remoteStatExists};
