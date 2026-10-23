@@ -38,7 +38,7 @@ async function fixture(page:Page,language="vi",signedIn=true) {
   await page.route("**/api/seller/campaigns**",r=>r.fulfill({json:{pagination:{limit:20,nextCursor:null},campaigns:[]}}));
   await page.route("**/api/seller/orders**",r=>r.fulfill({json:{pagination:{limit:20,nextCursor:null},orders:[]}}));
   await page.route("**/api/seller/webhooks",r=>r.fulfill({json:{webhook:null}}));
-  await page.route("**/api/products/mine",r=>r.fulfill({json:productInventoryFixture([data.product],'fixture')}));
+  await page.route("**/api/products/mine**",r=>r.fulfill({json:productInventoryFixture([data.product],'fixture')}));
   await page.route("**/api/delivery/resources?*",r=>r.fulfill({json:{resources:[]}}));
   await page.route("**/api/operator/disputes",r=>r.fulfill({json:{disputes:[]}}));
   await page.route("**/api/operator/sellers",r=>r.fulfill({json:{sellers:[]}}));

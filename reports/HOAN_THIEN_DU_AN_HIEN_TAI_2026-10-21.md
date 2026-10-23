@@ -1,8 +1,8 @@
-# Trạng thái hiện hành — 23/10/2026
+# Trạng thái hiện hành — 24/10/2026
 
 - OneDrive đã hoạt động; không còn việc cấu hình hoặc xây lại backup. Gói hiện tại chỉ chuẩn hóa thư mục/tên file cloud, bảo toàn ciphertext và lịch sử; xem [quy tắc OneDrive](../docs/onedrive-backup.md).
 - Gói UI trên bản nền VPS đã hoàn tất ở source `6f443f9` và đã bàn giao local. Các phần đã sửa/kiểm tra đạt được chốt; không mở thêm đợt kiểm thử toàn bộ luồng nghiệp vụ giữ nguyên.
-- Phạm vi phát hành hiện tại là helper OneDrive và tài liệu kế hoạch. Không ghép phát hành frontend/backend hoặc sửa danh sách dependency backup/recovery của runtime vào gói này.
+- Người dùng đã mở phạm vi phát hành UI mới lên GitHub và VPS, yêu cầu full Actions xanh. Gói này gồm frontend, API phân trang/tổng quan và danh sách dependency recovery cần thiết; quy trình nâng runtime giữ dữ liệu, đối soát và 95 tác vụ đang giữ. Xem [gói UI](../docs/workspace-ui-2026-10-22.md). Trạng thái kích hoạt thực tế phải lấy từ `operations/WORKSPACE-RELEASE.json` trên VPS; trạng thái source/local ở trên không thay thế biên bản đó.
 - Bảng [các mục từng hoãn](./KE_HOACH_PHAT_TRIEN_SAU_BAN_DAU.md) đã sửa các trạng thái OAuth/Circle/OneDrive lỗi thời. Restore/RPO-RTO giữ miễn; retry/DLQ live và X giữ hoãn.
 - Hồ sơ G5/G6 lịch sử vẫn giữ trạng thái/phạm vi cũ; hoàn tất gói này không phải một chứng nhận nghiệm thu toàn dự án.
 

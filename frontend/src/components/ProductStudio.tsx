@@ -71,6 +71,8 @@ export function ProductStudio({onSelect,active=true}:{onSelect?:(product:Product
   useEffect(()=>{if(!active)setArchiveTarget(null);},[active]);
   selectedRef.current=selected;
   const blocked=!user||!token||!seller||busy||mediaBusy||loading||!!pending;
+  const rejectedFocus=useRef<{identity:string;id:string;message:UiMessage}|null>(null);
+  useLayoutEffect(()=>{const target=rejectedFocus.current;if(target&&target.identity!==identity)rejectedFocus.current=null;else if(target&&!blocked){rejectedFocus.current=null;focusFirstError({[target.id]:target.message})}});
   const resourcePending=!!pending&&(pending.kind==='UPLOAD'||pending.kind==='KEYS');
   const selectedReady=!!selected&&selected.status!=='ARCHIVED'&&items.some(p=>p.id===selected.id&&p.version.id===selected.version.id&&p.status!=='ARCHIVED');
   const forgetPending=()=>{clearProductPending(user!.id);pendingRef.current=null;setPending(null)};
@@ -128,7 +130,7 @@ export function ProductStudio({onSelect,active=true}:{onSelect?:(product:Product
     try{await action(context)}catch(e){if(ticket.current()){
       const rejected=started&&!acknowledged&&e instanceof ProductRequestFailure&&(postPath.startsWith('/api/products')&&e.metadataInputRejected||e.resourceInputRejected);
       if(rejected){try{forgetPending()}catch{setError(productUnconfirmed().displayMessage);return;}}
-      if(rejected&&postPath.startsWith('/api/delivery/')){const id=postPath.endsWith('/keys')?'resource-keys':'resource-file',message=id==='resource-file'?uiMessage('File chưa được chấp nhận. Kiểm tra nội dung và định dạng trước khi thử lại.','The file was not accepted. Check its content and format before retrying.'):uiMessage('Kho mã chưa được chấp nhận. Kiểm tra mã trước khi thử lại.','The codes were not accepted. Check them before retrying.');setResourceRejected({id,message});requestAnimationFrame(()=>{if(ticket.current())focusFirstError({[id]:message})});}
+      if(rejected&&postPath.startsWith('/api/delivery/')){const id=postPath.endsWith('/keys')?'resource-keys':'resource-file',message=id==='resource-file'?uiMessage('File chưa được chấp nhận. Kiểm tra nội dung và định dạng trước khi thử lại.','The file was not accepted. Check its content and format before retrying.'):uiMessage('Kho mã chưa được chấp nhận. Kiểm tra mã trước khi thử lại.','The codes were not accepted. Check them before retrying.');rejectedFocus.current={identity,id,message};setResourceRejected({id,message});}
       setError(started&&!acknowledged&&!rejected?productUnconfirmed().displayMessage:managedOperationError(e,uiMessage('Thao tác chưa hoàn tất. Giữ nội dung và kiểm tra lại.','The action has not completed. Keep your content and check again.')));
     }}finally{if(ticket.current()){setBusy(false);ticket.finish()}}
   };

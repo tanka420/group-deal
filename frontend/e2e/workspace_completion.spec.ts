@@ -1,38 +1,18 @@
 import {test,expect,type Page} from '@playwright/test';
-import fs from 'node:fs';
+import {spawn,type ChildProcess} from 'node:child_process';
+import {createRequire} from 'node:module';
 import path from 'node:path';
-import os from 'node:os';
+import {waitForOwnedPorts} from './fixtures/owned-port';
+const require=createRequire(import.meta.url),root=path.resolve(process.cwd(),'..');
 const wallet='0x'+'1'.repeat(40),buyerWallet='0x'+'2'.repeat(40);
-let server:any,origin:string,sellerToken:string,buyerToken:string;
-
+let child:ChildProcess,port:number,origin:string,sellerToken:string,buyerToken:string;
 test.beforeAll(async()=>{
- process.env.GROUPDEAL_RECOVERY_MODE='1';
- const {store,TransactionalStore,admitDefaultRecoveryStore}=await import('../../backend/src/db/store');
- admitDefaultRecoveryStore(new TransactionalStore(fs.mkdtempSync(path.join(os.tmpdir(),'groupdeal-test-browser-workspace-'))));
- const {config}=await import('../../backend/src/config'),{SessionService}=await import('../../backend/src/services/sessionService');
- const {ProductService}=await import('../../backend/src/services/productService'),{productInput}=await import('../../backend/test/fixtures/product');
- const {OperationService}=await import('../../backend/src/services/operationService');
- const {ethers}=await import('../../backend/node_modules/ethers/lib.esm/index.js'),{HUB_ABI}=await import('../../backend/src/contracts/hubAbi');
- const time=Date.parse('2026-10-22T01:00:00Z');
- store.transaction(()=>{
-  store.db.users.seller={id:'seller',email:'seller@fixture.invalid',roles:['buyer','seller'],createdAt:time,loginMethod:'EVM_WALLET',activeWallet:wallet};
-  store.db.users.buyer={id:'buyer',email:'buyer@fixture.invalid',roles:['buyer'],createdAt:time,loginMethod:'EVM_WALLET',activeWallet:buyerWallet};
-  for(let i=0;i<24;i++){const id='campaign_'+String(i).padStart(3,'0');store.db.campaigns[id]={id,sellerId:'seller',sellerPayoutWallet:wallet,title:'Chiến dịch kiểm thử '+i,status:'FINALIZED',visibility:'UNLISTED',metric:'UNITS_COUNT',tiers:[{threshold:1,price:'1000000'}],currentUnlockedTier:0,createdAt:time,startTime:1700000000,endTime:1700100000,finalizedAt:1700100000,deliverySlaSeconds:86400,totalBuyerCount:8,totalUnitsCommitted:26,totalGrossCommitted:'1000000'} as any;}
-  for(let i=0;i<24;i++){const id='order_'+String(i).padStart(3,'0');store.db.orders[id]={id,campaignId:'campaign_000',buyerAccountId:'buyer',buyerPrincipal:buyerWallet,quantity:1,lockedUnitPrice:'1000000',committedGross:'1000000',rebateAllocated:'100000',buyerRefundAllocated:'0',sellerAllocated:'900000',sellerClaimedAmount:'300000',buyerClaimedAmount:'0',chainId:config.arcChainId,hubAddress:config.hubAddress,protocolVersion:config.protocolVersion,deliveryStatus:'CONFIRMED',createdAt:time+i} as any;}
- });
- sellerToken=SessionService.issue(store.db.users.seller);buyerToken=SessionService.issue(store.db.users.buyer);
- for(let i=0;i<23;i++)ProductService.createVersion('seller',{...productInput,title:'Sản phẩm kiểm thử '+i});
- const iface=new ethers.Interface(HUB_ABI);
- for(let i=0;i<24;i++){const op=OperationService.prepare({userId:'buyer',action:'BUYER_CLAIM',resourceId:'campaign_000',principal:buyerWallet,idempotencyKey:'history:'+i,intentId:'history:'+i,calldata:iface.encodeFunctionData('claimBuyerFunds',[1,[1]]),expectedFunction:'claimBuyerFunds',expectedEvent:'FundsClaimed',expectedEventArgs:{claimType:0}});op.createdAt=time+i;}
- store.save();
- const {default:express}=await import('../../backend/node_modules/express/index.js');
- const app=express();app.use(express.json());
- const routes=[['/api/auth','authRoutes','authRouter'],['/api/seller','sellerRoutes','sellerRouter'],['/api/seller/identity','sellerIdentityRoutes','sellerIdentityRouter'],['/api/orders','orderRoutes','orderRouter'],['/api/products','productRoutes','productRouter'],['/api/transactions','operationRoutes','operationRouter'],['/api/wallet','walletRoutes','walletRouter'],['/api/notifications','notificationRoutes','notificationRouter']] as const;
- for(const [mount,file,name]of routes){const module=await import('../../backend/src/routes/'+file);app.use(mount,(module as any)[name]);}
- app.use((_req:any,res:any)=>res.status(404).json({error:'LOCAL_FIXTURE_ROUTE_UNAVAILABLE'}));
- server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));origin='http://127.0.0.1:'+server.address().port;
+ const {localCheckEnvironment}=require(path.join(root,'scripts/local_check_runtime.cjs'));
+ child=spawn(process.execPath,[path.join(root,'backend/node_modules/tsx/dist/cli.mjs'),path.join(root,'backend/test/workspace_browser_server.test.ts')],{cwd:path.join(root,'backend'),env:localCheckEnvironment(root),windowsHide:true,stdio:['ignore','pipe','pipe']});
+ const ready=await new Promise<any>((resolve,reject)=>{let output='';const timer=setTimeout(()=>reject(Error('Owned workspace API not ready')),12000);child.once('error',()=>{clearTimeout(timer);reject(Error('Owned workspace API could not start'))});child.once('exit',()=>{clearTimeout(timer);reject(Error('Owned workspace API exited before ready'))});child.stdout!.on('data',b=>{output+=b.toString();const line=output.split(/\r?\n/).find(l=>l.startsWith('{"localFixture"'));if(line){clearTimeout(timer);resolve(JSON.parse(line))}})});
+ expect(ready.isolated).toBe(true);expect(ready.runtime).toBe(process.env.GROUPDEAL_BROWSER_MODE==='preview'?'COMPILED_BACKEND':'TSX_BACKEND');port=ready.port;origin='http://127.0.0.1:'+port;sellerToken=ready.sellerToken;buyerToken=ready.buyerToken;
 });
-test.afterAll(async()=>{if(server)await new Promise<void>(r=>server.close(()=>r()));const {store}=await import('../../backend/src/db/store');store.close();});
+test.afterAll(async()=>{if(child?.exitCode===null&&!child.signalCode)await new Promise<void>(resolve=>{child.once('exit',()=>resolve());child.kill('SIGTERM')});if(port)await waitForOwnedPorts([port]);});
 async function setup(page:Page,role:'buyer'|'seller'='seller'){
  const token=role==='seller'?sellerToken:buyerToken,account=role==='seller'?wallet:buyerWallet;
  await page.addInitScript(token=>{localStorage.setItem('groupdeal_token',token);localStorage.setItem('groupdeal_lang','vi');},token);

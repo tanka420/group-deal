@@ -32,6 +32,7 @@ The SPA route allowlists include `/seller/campaigns`, `/admin/access`, and the s
 - Frontend unit route round trips and frontend/backend TypeScript/build checks.
 - Browser checks: `workspace_completion`, `catalog`, `history_session_scope`, `transaction_history_locale`, `operator_access`, `operator_navigation`, `admin_session`, and `product_studio_scope`. Browser data and wallet stubs are explicitly isolated test fixtures. They are not production or real-transaction acceptance evidence.
 - Responsive checks include narrow mobile layouts and wide desktop workspaces. Screenshots and traces are private local artifacts under `.cache/`.
+- CI browser fixtures use the paginated API contract and explicitly select the transfer/swap tab when exercising those existing flows. The workspace SQL browser fixture runs in its own child process for consistent TypeScript loading on Windows and Linux. Definitive resource-input rejection returns focus after the form is enabled again; long transaction status badges wrap at 200% text size.
 
 ## Local application for user testing
 

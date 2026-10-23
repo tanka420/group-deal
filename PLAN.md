@@ -1,4 +1,4 @@
-> **Trạng thái hiện hành 23/10/2026:** Tiếp tục repository/bản nền VPS theo AGENTS.md và yêu cầu hiện hành, không tự khởi tạo codebase mới từ đặc tả gốc bên dưới. Gói UI ngày 22/10 đã hoàn tất ở source/local; OneDrive đã vận hành và gói chuẩn hóa thư mục/tên file đã triển khai. Phần đã xong không mở lại. Xem [trạng thái kế hoạch](reports/HOAN_THIEN_DU_AN_HIEN_TAI_2026-10-21.md) và [quy tắc OneDrive](docs/onedrive-backup.md). Các ghi chú lịch sử giữ đúng thời điểm.
+> **Trạng thái hiện hành 24/10/2026:** Tiếp tục repository/bản nền VPS theo AGENTS.md và yêu cầu hiện hành, không tự khởi tạo codebase mới từ đặc tả gốc bên dưới. Gói UI ngày 22/10 đã hoàn tất ở source/local; người dùng đã yêu cầu phát hành GitHub và VPS, đồng thời xử lý Actions đến xanh. Xem [gói phát hành UI](docs/workspace-ui-2026-10-22.md) để phân biệt source, CI và biên bản kích hoạt VPS. OneDrive và gói chuẩn hóa thư mục/tên file đã triển khai, không mở lại phần đã xong. Xem [trạng thái kế hoạch](reports/HOAN_THIEN_DU_AN_HIEN_TAI_2026-10-21.md) và [quy tắc OneDrive](docs/onedrive-backup.md). Các ghi chú lịch sử giữ đúng thời điểm.
 
 GROUPDEAL — YÊU CẦU XÂY DỰNG DỰ ÁN MỚI
 

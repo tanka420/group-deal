@@ -58,7 +58,7 @@ test("buyer claim with unknown receipt survives reload and recovers the same bro
   await ordersFixture(page,true,true);await page.getByRole("button",{name:"Rút $89 USDC"}).click();await page.getByRole("button",{name:"Ký rút tiền đã kiểm tra"}).click();
   await expect(page.getByRole("alert").filter({hasText:"Chưa xác minh được receipt; giữ intent để phục hồi."})).toBeVisible();
   for(const width of [320,375,430,768,1024,1280,1440]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);}
-  await page.reload();await page.getByRole("button",{name:"Kiểm tra receipt và phục hồi",exact:true}).click();
+  await page.reload();await page.locator(".transaction-row>summary").first().click();await page.getByRole("button",{name:"Kiểm tra receipt và phục hồi",exact:true}).click();
   await expect(page.getByRole("heading",{name:/Rút rebate và tiền hoàn.*Đã ghép dữ liệu/})).toBeVisible();
   expect(await page.evaluate(()=>localStorage.getItem("fixture-claim-broadcasts"))).toBe("1");
 });

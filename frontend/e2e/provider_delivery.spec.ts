@@ -15,7 +15,7 @@ async function fixture(page:Page,language='vi',mode='normal'){
  await base(page,language);const data=masterFixture(),product=data.product;
  const input={title:'Provider draft',description:'Provider fixture description',category:'Software',thumbnailUrl:product.version.thumbnailUrl,productVersionId:product.version.id,metric:'BUYER_COUNT',tiers:[{threshold:1,priceUSDC:'0.1'},{threshold:2,priceUSDC:'0.08'}],maxPerAccount:1,inventoryLimit:2,durationDays:1,deliverySlaHours:24,earlyRebateEnabled:false,earlySlotsCount:0,earlyRebateAmountUSDC:'0',earlyRebateBps:0,visibility:'UNLISTED',deliveryMethod:'WEBHOOK',deliveryContentTemplate:''};
  const view={draft:{id:'provider_draft',version:3,protocolVersion:1,resourceId:null,input},product,publication:null};let posts=0,publish=0,reads=0;const receipts=new Map<string,any>();
- await page.route('**/api/products/mine',r=>r.fulfill({json:productInventoryFixture([product],'seller')}));
+ await page.route('**/api/products/mine**',r=>r.fulfill({json:productInventoryFixture([product],'seller')}));
  await page.route('**/api/seller/campaign-drafts',r=>r.fulfill({json:{drafts:[{id:view.draft.id,title:input.title,draftVersion:3,publicationLocked:false}],pagination:{nextCursor:null}}}));
  await page.route('**/api/seller/campaign-drafts/provider_draft',r=>{reads++;return r.fulfill({json:mode==='changed'&&reads>2?{...view,draft:{...view.draft,version:4}}:view});});
  await page.route('**/api/campaigns/provider_draft/provider-probes/*',r=>{const key=new URL(r.request().url()).pathname.split('/').pop()!;return receipts.has(key)?r.fulfill({json:receipts.get(key)}):r.fulfill({status:404,json:{error:'PROVIDER_PROOF_NOT_FOUND'}});});
