@@ -1,43 +1,53 @@
 # Backup OneDrive
 
-## Trạng thái21/10/2026
+## Trạng thái hiện hành — 23/10/2026
 
-Remote gd_onedrive đã cấu hình, first ciphertext/manifest round-trip verified; timer phút10 mỗi giờ và health-probe offhost đã bật. Không cần Microsoft consent lại. Receipt trong operations/offhost/LATEST.json là nguồn quan sát hiện hành. Đã sửa lỗi rclone1.60/OneDrive trả exit0/null cho object thiếu: parser kiểm JSON/name/IsDir/size, null nghĩa là cần upload; kết quả sai dạng bị chặn.12offhosttests đạt trước deploy. Không thay quy tắc chỉ thêm mới hoặc tải ngược so hash.
+OneDrive **đã hoạt động**: `gd_onedrive` đã có consent, upload/tải ngược kiểm SHA-256, lịch phút 10 mỗi giờ và giám sát độ mới. Không còn công việc cấu hình, consent hoặc xây lại chức năng backup. Lượt 23/10 chỉ chuẩn hóa cấu trúc thư mục, quy tắc tên file và tài liệu; không thay ứng dụng, database, khóa hoặc chính sách giữ backup.
 
+## Cấu trúc thư mục và tên file — layout v2
 
-Giữ 3 archive mã hóa đã kiểm trên VPS. Bản trên OneDrive dùng tên riêng theo owner của bộ backup và chỉ thêm mới; job không xóa remote, không sync/move, không tải `.env`, khóa giải mã hoặc cấu hình OAuth lên cloud. Cần theo dõi dung lượng OneDrive vì chưa bật dọn tự động trên cloud.
+```text
+GroupDeal/
+  ArcTestnet/
+    <owner-id>/
+      YYYY/MM/DD/
+        groupdeal-arc-testnet-backup-YYYYMMDDTHHmmssSSSZ-<sha256-16>.enc
+        groupdeal-arc-testnet-backup-YYYYMMDDTHHmmssSSSZ-<sha256-16>.manifest.json
+```
 
-`hosted_offhost_backup.cjs` chỉ nhận `LATEST.json` hợp lệ của bộ backup cục bộ, yêu cầu private restore đã đạt và ciphertext còn đúng hash. Sau upload, nó tải ngược archive và manifest để so kích thước/SHA-256 rồi mới ghi receipt offhost. Lặp cùng bản không ghi đè; nội dung remote khác hash bị từ chối. Nó không mở DB ứng dụng và không bật writer/worker.
+- `owner-id` là định danh ổn định của bộ backup, giữ tách biệt các bộ và môi trường.
+- Ngày/thời điểm là **UTC của lúc tạo backup**, không phải lúc upload hoặc sắp xếp lại. `SSS` là mili giây; `Z` biểu thị UTC. Ví dụ ngày 23/10/2026: `2026/10/23/groupdeal-arc-testnet-backup-20261023T140001501Z-0123456789abcdef.enc`.
+- Tên chỉ dùng ký tự ASCII, không khoảng trắng, dấu tiếng Việt, email, tên người dùng hoặc secret. Phần cuối là 16 ký tự đầu SHA-256 của ciphertext; kiểm chứng luôn dùng **toàn bộ SHA-256**, không chỉ tiền tố tên.
+- Archive vẫn là nguyên ciphertext đã có. Manifest `GroupDealOffhostManifestV2` ghi tên archive mới, thời điểm, kích thước, SHA-256 đầy đủ, `sourceArchive`, hash và nội dung metadata của manifest nguồn. Không giải mã dữ liệu để đổi tên.
+- Đường dẫn/tên được tính xác định từ metadata: chạy lại cùng backup không tạo bản trùng hoặc ghi đè file khác nội dung.
 
-## Phần người giữ tài khoản Microsoft thực hiện
+## Tổ chức các bản cũ
 
-1. Mở PowerShell trên máy có trình duyệt, chạy `ssh -L 53682:127.0.0.1:53682 tan-picks`. Giữ cửa sổ này mở. Tunnel chỉ nghe loopback, không mở cổng public của VPS.
-2. Trong shell VPS vừa mở, chạy:
+Helper có chế độ `--organize-existing` để đọc các archive/manifest cũ tại gốc `<owner-id>`, tạo bản sao vào layout v2 và tải ngược kiểm kích thước/SHA-256. Các đối tượng cũ được giữ nguyên để bảo toàn lịch sử và các receipt đã ghi trước đây; không `sync`, `move` hoặc xóa OneDrive.
 
-   ```sh
-   sudo -u ubuntu /usr/bin/rclone config --config /home/ubuntu/groupdeal/operations/offhost/rclone.conf
-   ```
+Archive thiếu manifest được ghi riêng trong `unpairedArchivesPreserved`, giữ nguyên và **không** được coi là backup đã xác minh đầy đủ. Không tự tạo manifest mang trạng thái verified cho những file này. Lần kiểm kê đầu 23/10 thấy 60 archive, 56 manifest; kết quả áp dụng thực tế lấy từ receipt migration, không coi con số kiểm kê là kết quả migration.
 
-3. Nếu đã chọn Advanced config=y, access_scopes=3 như log ngày21Oct thì hợp lệ; giữ mặc định tại encoding> và tiếp tục auto-config=y. Không cần cấu hình lại. Lần tạo mới đơn giản làm như sau. Chọn tạo remote mới, tên chính xác **gd_onedrive**, storage **Microsoft OneDrive** (`onedrive`). Để trống client ID/secret để dùng ứng dụng rclone; không chọn advanced config. Chọn đúng cloud vùng tài khoản, thường Microsoft Cloud Global.
-4. Khi hỏi auto config / dùng trình duyệt, chọn **Yes** vì đã có SSH tunnel. Mở URL `http://127.0.0.1:53682/auth?...` do rclone hiện trong trình duyệt máy Windows, tự đăng nhập Microsoft và đọc quyền trước khi đồng ý. Không gửi URL, code, token, password hoặc nội dung config vào chat.
-5. Chọn đúng OneDrive của mình trong danh sách do rclone đọc, xác nhận cấu hình và thoát. Báo **“Đã cấu hình gd_onedrive”**. Nếu lỗi, chỉ gửi mã lỗi đã bỏ thông tin bí mật. Agent sẽ tự kiểm mode/drive binding, upload/hash và bật lịch sau khi lần đầu đạt.
+Receipt riêng tại `operations/offhost/LAYOUT-MIGRATION.json` chứa ánh xạ tên cũ → thư mục/tên mới và hash. `LATEST.json` chỉ được cập nhật bởi luồng upload backup hiện hành sau khi round-trip đạt; việc tổ chức lịch sử không được làm mới giả thời điểm backup.
 
-Không cần cài rclone trên Windows với cách dùng SSH tunnel này. Nếu cổng local53682 đang được dùng, dừng và để agent đổi cách xác thực; không mở listener public hoặc bỏ kiểm TLS.
+## Vận hành và giữ bản
 
-## Các bước agent thực hiện sau khi cấu hình
+- VPS vẫn giữ 3 archive managed đã xác minh. Tên file cục bộ `backup_<timestamp>_<uuid>.enc` không đổi; layout v2 chỉ áp dụng kho OneDrive.
+- Kho cloud tiếp tục chính sách **chỉ thêm mới, không tự xóa**. Theo dõi dung lượng, nhất là khi giữ bản cũ cùng các bản đã tổ chức. Không tải `.env`, khóa giải mã hoặc `rclone.conf` lên OneDrive.
+- Helper dùng đúng cấu hình OneDrive riêng, ghim drive identity; không nhận process-level `RCLONE_*` override. Sai scope, hash, drive hoặc nội dung xung đột sẽ dừng và giữ receipt thành công trước đó.
+- Upload định kỳ vẫn dùng `operations/backups/backup.lock`. Tác vụ tổ chức lịch sử dùng `operations/offhost/layout.lock` riêng: nó chỉ đọc các bản cũ trên cloud và `OWNER.json`, không đọc/xóa archive local hoặc cập nhật `LATEST.json`, nên không chặn lịch backup. Phát hành helper và xác minh một upload layout v2 trước khi tổ chức lịch sử; các upload tiếp theo chỉ tạo tên mới ở thư mục ngày.
+- Probe đọc được receipt v1 cũ và v2 mới; backup quá 90 phút hoặc offhost quá 150 phút vẫn báo ATTENTION theo chính sách hiện có.
+- Bộ helper triển khai trên VPS phải gồm cả `hosted_offhost_backup.cjs` và `offhost_backup_layout.cjs`, đặt cạnh `hosted_backup.cjs`. Không cần restart backend để thay helper này.
 
-- Kiểm source/runtime/CURRENT/hash và file config600, ownerubuntu. Không in token. Remote phải đúng typeonedrive và drive ID cố định; token refresh được phép, đổi drive giữa chừng bị từ chối.
-- Chạy `sudo systemctl start groupdeal-offhost-backup.service`. Đọc receipt `/home/ubuntu/groupdeal/operations/offhost/LATEST.json` để xác nhận round-trip2file. Giữ 3 bản managed cục bộ và archive không được quản lý.
-- Khi đạt, bật `sudo systemctl enable --now groupdeal-offhost-backup.timer`. Lịch vào phút10 mỗi giờ, sau backup local mỗi giờ. Chưa có consent/receipt thì timer được cài nhưng giữ disabled; đây là phụ thuộc đăng nhập, không phải quyết định hoãn phạm vi.
-- Sau lần đầu đạt, cài `scripts/systemd/groupdeal-health-probe-offhost.conf` thành `/etc/systemd/system/groupdeal-health-probe.service.d/offhost.conf`, daemon-reload và kiểm probe. Không bật trước khi upload đầu đạt. Lúc đã bật, receipt thiếu, sai hoặc quá150phút phải tạo ATTENTION và đi qua policy cảnh báo hiện có; không coi healthHTTP200 là bằng chứng offsite tốt.
-- Ghi version/hash rclone, source/hash helpers, archive/manifest/remote round-trip và CURRENT. Không dùng thời gian upload làm RTO hoặc khẳng định offhost private restore đã đạt.
+## Phạm vi đã miễn/hoãn
 
-## Phạm vi nghiệm thu hiện hành
+Diễn tập restore thủ công và đo RPO/RTO đã được người dùng miễn. Retry/DLQ nghiệp vụ live đang hoãn. Chuẩn hóa kho OneDrive không mở lại các công việc đó và không thay đổi nghĩa vụ transaction recovery/reconciliation.
 
-Quyết định trực tiếp của người dùng21/10/2026: bỏ diễn tập phục hồi backup và đo RPO/RTO khỏi điều kiện nghiệm thu. Không còn yêu cầu chọn máy/thư mục phục hồi hoặc người nhập khóa. Đây là yêu cầu được miễn theo user, không phải bằng chứng đã phục hồi thành công. Giữ backup mã hóa, kiểm private-restore tự động hiện có, OneDrive consent/upload/tải ngược so hash, lịch và giám sát; không thay đổi các nghĩa vụ transaction recovery/reconciliation, G5/G6 khác.
+Hướng dẫn consent/cấu hình cũ trong báo cáo ngày 21/10 là tài liệu xử lý khi phải cấu hình lại, không phải việc đang chờ. Không yêu cầu Microsoft consent lại cho bộ hiện hành.
 
-Hướng dẫn chi tiết tiếp tục phiên rclone tại reports/HUONG_DAN_NGHIEM_THU_2026-10-21.md, mục H2. Backup nằm trong OneDrive/Tệp của tôi/GroupDeal/ArcTestnet/5d27a82a-100e-41cb-b6a0-d8326e1538f1 sau upload thành công đầu tiên.
+Kiểm tra phần bị tác động:
 
-Kiểm nguồn: `node --test scripts/hosted_offhost_backup.test.cjs scripts/hosted_backup.test.cjs scripts/observe_hosted_health.test.cjs scripts/hosted_alerts.test.cjs`. Fixture không liên hệ Microsoft/SMTP và không tải backup thật.
+```sh
+node --test scripts/hosted_offhost_backup.test.cjs scripts/hosted_backup.test.cjs scripts/observe_hosted_health.test.cjs scripts/hosted_alerts.test.cjs
+```
 
-Tài liệu chính thức: [OneDrive backend](https://rclone.org/onedrive/), [headless / SSH tunnel](https://rclone.org/remote_setup/), [copyto](https://rclone.org/commands/rclone_copyto/), [cat](https://rclone.org/commands/rclone_cat/).
+44 kiểm tra đã đạt trong gói chuẩn hóa ngày 23/10; fixture không liên hệ Microsoft/SMTP, không tạo dữ liệu ứng dụng hoặc khôi phục database vận hành.

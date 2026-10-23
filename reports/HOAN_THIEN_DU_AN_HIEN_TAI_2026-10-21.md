@@ -1,3 +1,15 @@
+# Trạng thái hiện hành — 23/10/2026
+
+- OneDrive đã hoạt động; không còn việc cấu hình hoặc xây lại backup. Gói hiện tại chỉ chuẩn hóa thư mục/tên file cloud, bảo toàn ciphertext và lịch sử; xem [quy tắc OneDrive](../docs/onedrive-backup.md).
+- Gói UI trên bản nền VPS đã hoàn tất ở source `6f443f9` và đã bàn giao local. Các phần đã sửa/kiểm tra đạt được chốt; không mở thêm đợt kiểm thử toàn bộ luồng nghiệp vụ giữ nguyên.
+- Phạm vi phát hành hiện tại là helper OneDrive và tài liệu kế hoạch. Không ghép phát hành frontend/backend hoặc sửa danh sách dependency backup/recovery của runtime vào gói này.
+- Bảng [các mục từng hoãn](./KE_HOACH_PHAT_TRIEN_SAU_BAN_DAU.md) đã sửa các trạng thái OAuth/Circle/OneDrive lỗi thời. Restore/RPO-RTO giữ miễn; retry/DLQ live và X giữ hoãn.
+- Hồ sơ G5/G6 lịch sử vẫn giữ trạng thái/phạm vi cũ; hoàn tất gói này không phải một chứng nhận nghiệm thu toàn dự án.
+
+Phần dưới là bản ghi ngày 21/10 theo đúng thời điểm, không dùng các bước tiếp theo đã cũ để mở lại công việc đã xong.
+
+---
+
 # Trạng thái hoàn thiện GroupDeal — 21/10/2026
 
 Full CI 5e7a012 đã PASS và frontend đã cập nhật; xem [báo cáo hiện tại](./HOAN_THIEN_CI_2026-10-21.md). Chưa chốt nghiệm thu toàn dự án.

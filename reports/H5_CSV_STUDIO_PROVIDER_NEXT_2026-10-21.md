@@ -1,3 +1,5 @@
+> **Cập nhật 23/10/2026:** OneDrive đã vận hành; gói hiện tại chỉ chuẩn hóa thư mục/tên file backup và cập nhật kế hoạch. Gói UI ngày 22/10 đã hoàn tất ở source/local. Các mục đã xong không mở lại; restore/RPO-RTO giữ miễn, retry/DLQ live và X giữ hoãn. Xem [trạng thái hiện hành](./HOAN_THIEN_DU_AN_HIEN_TAI_2026-10-21.md) và [quy tắc kho OneDrive](../docs/onedrive-backup.md). Các ghi chú ngày cũ bên dưới giữ để truy vết.
+
 ## Hiện hành — 21/10/2026: full CI PASS, frontend cập nhật
 
 Full CI [39610131943](https://github.com/tanka420/group-deal/actions/runs/39610131943) đã đạt 77/77 bước trên source 5e7a012c790084a6c7ff59dfc3e9f31a4764b3f2 (Ubuntu 24.04/Node 24.21.0). Browser mặc định 989 PASS/67 SKIP; các mode riêng và provider/Worker/conformance đạt. Frontend source này đã lên groupdeal.tech; 181 tệp HTTPS đúng hash, health 200/metadata 404/guest webhook 401. Backend vẫn 4b5af76, PID1590135/restarts0; 393 runtime, 7 đơn, ledger và 95 held được đối chiếu giữ nguyên. Không restart hay phát giao dịch.

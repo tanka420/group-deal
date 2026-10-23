@@ -1,13 +1,19 @@
-# Các mục trước đây hoãn — trạng thái21/10/2026
+# Trạng thái các mục từng hoãn — cập nhật 23/10/2026
 
-Quyết định người dùng21Oct mở lại toàn bộ các mục dưới. Đây không còn là backlog được hoãn sau bản đầu. Phạm vi nghiệm thu vẫn là bản Arc Testnet theo PLAN.
+Bảng này thay các trạng thái lỗi thời ngày 21/10. Phần đã có kết quả được chốt theo đúng phạm vi; không tự mở lại luồng vận hành hoặc các giao dịch đã hoàn tất.
 
-| Mục | Trạng thái thật | Bước chính chủ cần có |
+| Mục | Trạng thái hiện hành | Việc còn lại trong phạm vi này |
 |---|---|---|
-| Username seller / buyer tùy chọn | Backend9372850/frontend22a4570 đã deploy;60kiểm định danh và UI scoped đạt | Chọn username thật, UAT authenticated |
-| X/GitHub/Discord | OAuthPKCE/unique stableID/unlink/publiclinks đã có;3app hiện chưa cấu hình/consent | Tạo app, nhập6giá trị private và tựconsent |
-| Circle | Source hiện hành và quote minh họa chỉ đọc đã kiểm; chưa thêm OTP/giao dịch mới trong gói | Đúng Circleprincipal/OTP, lượng/budget và tựký |
-| Admin live | Được người dùng mở lại, không còn chỉ ngoại lệ FILE_LINK | Operatorlogin/step-up, targetUAT/inbox đúng người |
-| OneDrive / offhost | Helper/rclone/unit/monitoring support đã cài; không config/upload, timerdisabled, RPO/RTOchưađo | Microsoftconsent, chọn target/phương thức nhập khóa riêng |
+| Username | Đã triển khai; hiển thị `@handle`, chỉ tạo một lần, không đổi | Không yêu cầu chọn lại username đã có |
+| GitHub/Discord | Đã cấu hình và liên kết thật | Không cấu hình hoặc consent lại cho phần đã xong |
+| X | Hoãn theo người dùng vì chi phí | Không mở dịch vụ hoặc phát sinh chi phí |
+| Circle | Đã có đăng nhập ví email và hoán đổi Testnet được ghi nhận | Không lặp các giao dịch đã xong |
+| Admin/quyền/ticket/email | Các hành trình đã ghi nhận giữ nguyên kết quả; phần operator có tab riêng trong gói UI mới | Chỉ xử lý lỗi hoặc yêu cầu mới cụ thể |
+| OneDrive | Kết nối, upload/tải ngược SHA-256, lịch và giám sát đã hoạt động | Gói 23/10 chuẩn hóa thư mục/tên file; xem docs/onedrive-backup.md và receipt triển khai |
+| Giao hàng | LICENSE_KEY, FILE_LINK và WEBHOOK đã có các hành trình thật đã ghi nhận | Không mua/giao/xác nhận/claim lại các đơn đã xong |
+| Gói UI ngày 22/10 | Đã thực hiện trên bản nền VPS; kiểm tra phần thay đổi đạt, đã bàn giao local | Phát hành ứng dụng là gói riêng, không ghép vào thay đổi helper OneDrive |
+| Restore/RPO-RTO | Người dùng đã miễn diễn tập thủ công và đo chỉ số | Không mở lại |
+| Retry/DLQ live | Người dùng đã hoãn | Không gây outage, replay hoặc tạo đơn mới |
+| G5/G6 tổng thể | Hồ sơ cũ vẫn ghi OPEN, không phải toàn bộ chức năng chưa làm | Giữ phạm vi hồ sơ; không tự biến thành yêu cầu kiểm thử lại toàn bộ |
 
-Hướng dẫn chi tiết: reports/HUONG_DAN_NGHIEM_THU_2026-10-21.md. Prompt tiếp tục: reports/PROMPT_CHAT_MOI_2026-10-21.md. CURRENT trỏ reports/evidence/onedrive-preparation/2026-10-20T22-15-48-272Z/CHECKS.json, SHA2567ec11bc83eaa5539148d957c41bc50875ee58dbdb4099c51c09470d42d016e34. G5/G6 vẫnOPEN/NOT_FROZEN; không lấy source/build thay liveproof. FILE_LINK#6 đã rút đủ/escrow0, không làm lại; giữ95held và3backupmanagedcục bộ.
+Nguồn: reports/HOAN_THIEN_DU_AN_HIEN_TAI_2026-10-21.md, docs/workspace-ui-2026-10-22.md, docs/onedrive-backup.md. GitHub và VPS cần ghi riêng commit helper/tài liệu với frontend/backend đang phục vụ.
