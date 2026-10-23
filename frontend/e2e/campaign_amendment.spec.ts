@@ -9,12 +9,12 @@ async function fixture(page:Page,language:'vi'|'en'='vi'){
  await page.route('**/*circle-fin_w3s-pw-web-sdk.js*',r=>r.fulfill({contentType:'application/javascript',body:'export class W3SSdk{updateConfigs(){}};'}));
  await page.route('**/src/context/Web3Context.tsx*',r=>r.fulfill({contentType:'application/javascript',body:'export const Web3Provider=({children})=>children;export const useWeb3=()=>({account:null,walletMode:"NONE",preflightPreparedOperation:async()=>{},broadcastPreparedOperation:async()=>{throw new Error("LOCAL_FIXTURE_UNEXPECTED_SIGNATURE")}});'}));
  await page.route('**/api/auth/me',r=>r.fulfill({json:{user:{id:'seller',email:null,roles:['seller','buyer'],loginMethod:'EVM_WALLET',activeWallet:null,sellerProfile:data.seller}}}));
- for(const [route,json]of [['notifications',{notifications:[],unread:0}],['transactions',{operations:[],pagination:{nextCursor:null}}],['seller/campaigns',{campaigns:[campaign]}],['seller/orders',{orders:[]}],['seller/webhooks',{webhook:null}]]as const)await page.route('**/api/'+route,r=>r.fulfill({json}));
+ for(const [route,json]of [['notifications',{notifications:[],unread:0}],['transactions',{operations:[],pagination:{nextCursor:null}}],['seller/campaigns',{pagination:{limit:20,nextCursor:null},campaigns:[campaign]}],['seller/orders',{pagination:{limit:20,nextCursor:null},orders:[]}],['seller/webhooks',{webhook:null}]]as const)await page.route('**/api/'+route+'**',r=>r.fulfill({json}));
  await page.route('**/api/campaigns/original-campaign/amendments',r=>r.fulfill({json:{campaignId:campaign.id,amendments:campaign.amendments}}));
  await page.route('**/api/campaigns/original-campaign',r=>r.fulfill({json:{campaign,seller:data.seller}}));
  return{data,campaign};
 }
-async function open(page:Page){await page.goto('/#seller');await page.getByRole('button',{name:/Ghi chú và lịch sử|Clarifications and history/}).click();await expect(page.getByRole('textbox',{name:/Ghi chú bổ sung|Public clarification/})).toBeVisible();}
+async function open(page:Page){await page.goto('/seller/campaigns');await page.getByRole('button',{name:/Ghi chú và lịch sử|Clarifications and history/}).click();await expect(page.getByRole('textbox',{name:/Ghi chú bổ sung|Public clarification/})).toBeVisible();}
 async function checkpoint(page:Page){return page.evaluate(()=>Object.keys(sessionStorage).filter(k=>k.startsWith('groupdeal_amendment:')).map(k=>({key:k,value:sessionStorage.getItem(k)})));}
 test('amendment Vietnamese explicit public note records history without changing campaign terms',async({page},info)=>{
  const {campaign}=await fixture(page),posts:any[]=[];

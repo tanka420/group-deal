@@ -1,3 +1,4 @@
+import {installHandleFixture} from './fixtures/account-handle';
 import {test,expect,Page} from "@playwright/test";
 import {ethers} from "ethers";
 const a=ethers.Wallet.createRandom(),b=ethers.Wallet.createRandom(),c=ethers.Wallet.createRandom();
@@ -8,7 +9,7 @@ async function fixture(page:Page,language="vi",saved=false){
  const id="aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
  await page.addInitScript(({language,saved,id,source,target})=>{localStorage.setItem("groupdeal_lang",language);localStorage.setItem("groupdeal_token","fixture-wallet-session");localStorage.setItem("groupdeal_operation_checkpoints","fixture-financial-checkpoint");if(saved)localStorage.setItem("groupdeal_wallet_intent_fixture",JSON.stringify({id,userId:"fixture",sourceWallet:source,targetWallet:target,origin:location.origin}));},{language,saved,id,source:a.address,target:b.address});
  await page.route("**/api/**",r=>r.fulfill({json:{campaigns:[],notifications:[],unread:0}}));
- await page.route("**/api/auth/me",r=>r.fulfill({json:{user}}));
+ await installHandleFixture(page,request=>request.headers().authorization?.endsWith('fixture-new-wallet-session')?{...user,id:'other',email:'other@example.test'}:user);await page.route("**/api/auth/me",r=>r.fulfill({json:{user}}));
  await page.route("**/*circle-fin_w3s-pw-web-sdk.js*",r=>r.fulfill({contentType:"application/javascript",body:'export class W3SSdk{updateConfigs(){} getDeviceId(){return Promise.reject(new Error("Local fixture"))}}'}));
  await page.route("**/api/auth/wallets?**",r=>r.fulfill({json:{userId:user.id,activeWallet:a.address,wallets:[{address:a.address,kind:"EXTERNAL",selected:true,canSignIn:true}],pagination:{nextCursor:null},serverTime:Date.now()}}));
  return id;

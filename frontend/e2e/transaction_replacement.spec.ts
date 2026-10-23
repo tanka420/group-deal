@@ -12,7 +12,7 @@ async function history(page:Page){
  await page.route("**/api/auth/me",r=>r.fulfill({json:{user:{id:"buyer",roles:["buyer"],activeWallet:principal,email:null,loginMethod:"EVM_WALLET"}}}));
  await page.route("**/api/notifications",r=>r.fulfill({json:{notifications:[],unread:0}}));
  await page.route("**/api/orders/buyer**",r=>r.fulfill({json:{pagination:{limit:20,nextCursor:null},orders:[]}}));
- await page.route("**/api/transactions",r=>r.fulfill({json:{operations:[operation()],pagination:{nextCursor:null}}}));
+ await page.route(/\/api\/transactions(?:\?.*)?$/,r=>r.fulfill({json:{operations:[operation()],pagination:{nextCursor:null}}}));
  await page.route("**/api/transactions/op-replacement/recover",r=>{expect(r.request().postDataJSON()).toEqual({txHash:state.txHash});state.recoveries++;if(state.phase!=="PROJECTED")state.phase="RECEIPT_VERIFIED";return r.fulfill({json:{operation:operation()}});});
  await page.route("**/api/transactions/op-replacement/replace",r=>{
   expect(r.request().postDataJSON()).toEqual({previousTxHash:original,txHash:replacement});

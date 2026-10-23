@@ -207,13 +207,7 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string}> = ({selectedOrd
         <div style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)" }}>
           {text("Đang tải danh sách đơn hàng…","Loading orders…")}
         </div>
-      ) : loadError ? null : visibleOrders.length === 0 ? (
-        <div className="glass-card" style={{ textAlign: "center", padding: "4rem 2rem" }}>
-          <p style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>
-            {text("Bạn chưa có đơn cam kết mua nào. Khám phá các deal đang mở để bắt đầu.","You have no purchase commitments yet. Explore open deals to get started.")}
-          </p>
-        </div>
-      ) : !selectedOrderId ? <OrderList orders={visibleOrders} pagination={pagination} page={pager.page} pending={loading} onPrevious={pager.previous} onNext={()=>pager.next(pagination.nextCursor)}/> : !detailOrders.length ? <p role="status">{text('Không tìm thấy đơn trong tài khoản này. Kiểm tra mã đơn và tài khoản đăng nhập.','This order was not found in your account. Check the order ID and signed-in account.')}</p> : (
+      ) : loadError ? null : !selectedOrderId ? <OrderList orders={visibleOrders} pagination={pagination} page={pager.page} pending={loading} onPrevious={pager.previous} onNext={()=>pager.next(pagination.nextCursor)}/> : !detailOrders.length ? <p role="status">{text('Không tìm thấy đơn trong tài khoản này. Kiểm tra mã đơn và tài khoản đăng nhập.','This order was not found in your account. Check the order ID and signed-in account.')}</p> : (
         <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
           {detailOrders.map((o) => {
             const lockedPrice=orderMoney(o.lockedUnitPrice)??text("Chưa xác minh","Unverified");

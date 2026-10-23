@@ -1,6 +1,12 @@
 # Workspace UI on the synchronized VPS baseline
 
-Base: `cace5849462095116300eae0887a7ee2036dcfa3`. Work was performed in the main repository. The historical VPS manifest remains unchanged; it does not describe this new candidate. No VPS deployment or production-data transfer is part of this change.
+Base: `cace5849462095116300eae0887a7ee2036dcfa3`. Work was performed in the main repository. The historical VPS manifest remains unchanged; it does not describe this new candidate. The user authorized GitHub publication and VPS deployment on 23 October 2026.
+
+## Release procedure
+
+Release the exact committed candidate after its full GitHub Actions run succeeds. Record both frontend and backend source commits, because the new UI uses the workspace pagination and overview APIs. The native runtime-upgrade procedure takes an authenticated live backup, preserves the live records and existing work holds, and performs fresh reconciliation before application admission. Authentication is refreshed by that existing admission procedure; users sign in again after the backend upgrade.
+
+The SPA route allowlists include `/seller/campaigns`, `/admin/access`, and the six published policy pages. Validate nginx before activation, retain the previous entry files and configuration for rollback, and preserve old immutable assets and the Safe owner page. The release receipt is stored privately on the VPS at `/home/ubuntu/groupdeal/operations/WORKSPACE-RELEASE.json`; it is the evidence of actual activation. No production database or private release evidence belongs in Git.
 
 ## Product decisions
 

@@ -5,4 +5,8 @@ for(const test of tests){
  const result=spawnSync(process.execPath,[path.join(root,'backend/node_modules/tsx/dist/cli.mjs'),path.join(root,'backend/test/'+test+'.test.ts')],{cwd:root,env:localCheckEnvironment(root),stdio:'inherit',windowsHide:true});
  if(result.status!==0)process.exit(result.status??1);
 }
+for(const test of ['app_route','seller_campaign_list','order_list']){
+ const result=spawnSync(process.execPath,[path.join(root,'backend/node_modules/tsx/dist/cli.mjs'),path.join(root,'frontend/test/'+test+'.test.ts')],{cwd:root,env:localCheckEnvironment(root),stdio:'inherit',windowsHide:true});
+ if(result.status!==0)process.exit(result.status??1);
+}
 console.log('PASS workspace checks: isolated local data; no production acceptance.');

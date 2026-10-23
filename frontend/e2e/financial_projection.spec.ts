@@ -17,12 +17,12 @@ async function ordersFixture(page: Page, verified = true, unknownReceipt=false) 
       preflightPreparedOperation:async()=>{},broadcastPreparedOperation:async(operation,onBroadcast)=>{window.fixtureClaims={campaignId:1,orderIds:[1]};localStorage.setItem("fixture-claim-broadcasts",String(Number(localStorage.getItem("fixture-claim-broadcasts")||0)+1));await onBroadcast("${claimHash}");return {txHash:"${claimHash}"}},refreshBalance:async()=>{}});`}));
   await page.route("**/api/auth/me", r=>r.fulfill({contentType:"application/json",body:JSON.stringify({user:{id:"buyer",email:null,roles:["buyer"],activeWallet:buyer,loginMethod:"EVM_WALLET"}})}));
   await page.route("**/api/notifications", r=>r.fulfill({contentType:"application/json",body:'{"notifications":[],"unread":0}'}));
-  await page.route("**/api/transactions",r=>r.fulfill({json:{operations:started?[{...operation,phase,...(phase==="PREPARED"?{}:{txHash:claimHash})}]:[]}}));
+  await page.route(/\/api\/transactions(?:\?.*)?$/,r=>r.fulfill({json:{operations:started?[{...operation,phase,...(phase==="PREPARED"?{}:{txHash:claimHash})}]:[]}}));
   await page.route("**/api/transactions/claims/prepare",r=>{expect(r.request().postDataJSON()).toMatchObject({action:"BUYER_CLAIM",campaignId:"stable",orderIds:["1"]});started=true;return r.fulfill({json:{operation:{...operation,phase}}});});
   await page.route("**/api/transactions/op_claim_fixture/ready",r=>{phase="AWAITING_SIGNATURE";return r.fulfill({json:{operation:{...operation,phase}}});});
   await page.route("**/api/transactions/op_claim_fixture/submit",r=>{expect(r.request().postDataJSON().txHash).toBe(claimHash);phase="SUBMITTED";return r.fulfill({status:202,json:{operation:{...operation,phase,txHash:claimHash}}});});
   await page.route("**/api/transactions/op_claim_fixture/recover",r=>{recoveries++;phase=unknownReceipt&&recoveries===1?"UNKNOWN":"PROJECTED";return r.fulfill(phase==="UNKNOWN"?{status:409,json:{error:"Claim receipt chưa xác minh"}}:{json:{operation:{...operation,phase,txHash:claimHash}}});});
-  await page.route("**/api/orders/buyer**", r=>r.fulfill({contentType:"application/json",body:JSON.stringify({orders:[{
+  await page.route("**/api/orders/buyer**", r=>r.fulfill({contentType:"application/json",body:JSON.stringify({pagination:{limit:20,nextCursor:null},orders:[{
     id:"1",onchainOrderId:1,onchainCampaignId:1,campaignId:"stable",campaignTitle:"Cumulative claim fixture",buyerPrincipal:buyer,
     quantity:1,lockedUnitPrice:"105000000",committedGross:"105000000",rebateAllocated:"16000000",buyerRefundAllocated:"89000000",sellerAllocated:"0",
     buyerClaimed:true,buyerClaimedAmount:verified ? "16000000":undefined,buyerClaimable:verified ? "89000000":null,

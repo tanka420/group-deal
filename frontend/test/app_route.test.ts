@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {parseAppHash,parseAppPath,routePath} from '../src/utils/appRoute';
 import {sellerSections,sellerSection,sellerPath,type SellerSection} from '../src/services/sellerNavigation';
 import {operatorPaths,operatorSection,operatorPath,type OperatorSection} from '../src/services/operatorNavigation';
@@ -10,3 +11,12 @@ for(const [legacy,path] of pairs){assert.equal(routePath(parseAppHash(legacy)),p
 const invalid=['/api/users','/assets/missing.js','//evil.example','/deals/a/b','/deals/%2F','/support/tickets/bad','/admin/deals/a/bad','/seller/not-supported','/admin/users/a/b','/admin/users/%2F','/admin/unknown','/admin/support/tickets/bad'];
 for(const path of invalid)assert.equal(parseAppPath(path).kind,'not-found',path);
 console.log(`Route checks passed: ${pairs.length} legacy round trips, ${invalid.length} rejected paths.`);
+const nginxFiles=['../../config/nginx/groupdeal-app-routes.conf','../../config/nginx/groupdeal.tech.conf'];
+for(const file of nginxFiles){
+ const source=fs.readFileSync(new URL(file,import.meta.url),'utf8');
+ const pattern=source.match(/^location ~ "([^"]+)" \{/m)?.[1];assert.ok(pattern,'Missing SPA route allowlist');
+ const routes=new RegExp(pattern!);
+ for(const route of [...pairs.map(([,p])=>p),...['how','terms','privacy','delivery','refunds','help'].map(p=>'/policies/'+p)].filter(p=>p!=='/'))assert.ok(routes.test(route),'NGINX_SPA_ROUTE_MISSING '+route);
+ for(const route of ['/api/orders','/assets/missing.js','/.env','/seller/not-supported','/policies/unknown','/admin/private'])assert.equal(routes.test(route),false,'NGINX_NON_APP_ROUTE_ALLOWED '+route);
+}
+console.log('Nginx SPA allowlists cover application routes and preserve API/asset 404 handling.');

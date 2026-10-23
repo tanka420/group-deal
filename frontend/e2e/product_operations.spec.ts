@@ -26,7 +26,7 @@ async function base(page:Page,role="seller",language:"vi"|"en"="vi") {
   await page.route("**/api/seller/campaigns**",r=>r.fulfill({json:{pagination:{limit:20,nextCursor:null},campaigns:[]}}));
   await page.route("**/api/seller/orders**",r=>r.fulfill({json:{pagination:{limit:20,nextCursor:null},orders:[]}}));
   await page.route("**/api/seller/webhooks",r=>r.fulfill({json:{webhook:null}}));
-  await page.route("**/api/transactions",r=>r.fulfill({json:{operations:[]}}));
+  await page.route(/\/api\/transactions(?:\?.*)?$/,r=>r.fulfill({json:{operations:[]}}));
 }
 async function noOverflow(page:Page) {
   for(const width of [320,375,430,768,1024,1280,1440]){
@@ -70,7 +70,7 @@ test("seller reviews product/license, stages a publish intent and recovers its b
   await page.route("**/api/transactions/op-fixture/ready",r=>r.fulfill({json:{operation}}));
   await page.route("**/api/transactions/op-fixture/submit",r=>{phase="SUBMITTED";return r.fulfill({status:202,json:{operation:{...operation,phase,txHash:hash}}});});
   await page.route("**/api/transactions/op-fixture/recover",r=>{expect(r.request().postDataJSON().txHash).toBe(hash);recoveries++;phase=recoveries===1?"UNKNOWN":"PROJECTED";return r.fulfill(recoveries===1?{status:409,json:{error:"Receipt chưa xác minh"}}:{json:{operation:{...operation,phase,txHash:hash}}});});
-  await page.route("**/api/transactions",r=>r.fulfill({json:{operations:phase==="PREPARED"?[]:[{...operation,phase,txHash:hash}]}}));
+  await page.route(/\/api\/transactions(?:\?.*)?$/,r=>r.fulfill({json:{operations:phase==="PREPARED"?[]:[{...operation,phase,txHash:hash}]}}));
   await page.goto("/seller/campaigns");await page.getByRole("button",{name:/Tạo chiến dịch mới/}).first().click();
   await expect(page.getByRole("heading",{name:"Sản phẩm, license và quyền phân phối"})).toBeVisible();await noOverflow(page);
   await expect(page.getByText("Chiến dịch đang mở")).toHaveCount(0);await expect(page.getByRole("button",{name:"← Quay lại quản lý deal"})).toBeVisible();
@@ -102,7 +102,7 @@ test("seller claim uses a reviewed server intent and reports success after recei
   const claim={...operation,id:"op-seller-claim",action:"SELLER_CLAIM",resourceId:"stable",financialQuote:{kind:"READ_ONLY_SIMULATION",blockNumber:125,blockHash:hash,amountBaseUnits:"50000000"}};
   await page.route("**/api/seller/campaigns**",r=>r.fulfill({json:{pagination:{limit:20,nextCursor:null},campaigns:[{id:"stable",title:"Seller claim fixture",thumbnailUrl:version.thumbnailUrl,category:"Documents",sellerPayoutWallet:wallet,status:"FINALIZED",onchainCampaignId:1,tiers:[{threshold:1,price:"100000000"},{threshold:10,price:"80000000"}],currentUnlockedTier:0,metric:"BUYER_COUNT",totalBuyerCount:1,totalUnitsCommitted:1}]}}));
   await page.route("**/api/seller/orders**",r=>r.fulfill({json:{pagination:{limit:20,nextCursor:null},orders:[{id:"internal-order",campaignId:"stable",campaignTitle:"Seller claim fixture",buyerPrincipal:wallet,quantity:1,lockedUnitPrice:'100000000',committedGross:"100000000",rebateAllocated:'50000000',buyerRefundAllocated:'0',sellerAllocated:"50000000",sellerClaimedAmount:phase==="PROJECTED"?"50000000":"0",sellerClaimable:phase==="PROJECTED"?"0":"50000000",accountingVerified:true,deliveryStatus:"CONFIRMED"}]}}));
-  await page.route("**/api/transactions",r=>r.fulfill({json:{operations:started?[{...claim,phase,...(phase==="PREPARED"?{}:{txHash:hash})}]:[]}}));
+  await page.route(/\/api\/transactions(?:\?.*)?$/,r=>r.fulfill({json:{operations:started?[{...claim,phase,...(phase==="PREPARED"?{}:{txHash:hash})}]:[]}}));
   await page.route("**/api/transactions/claims/prepare",r=>{expect(r.request().postDataJSON()).toMatchObject({action:"SELLER_CLAIM",campaignId:"stable",orderIds:["internal-order"]});started=true;return r.fulfill({json:{operation:{...claim,phase}}});});
   await page.route("**/api/transactions/op-seller-claim/ready",r=>{phase="AWAITING_SIGNATURE";return r.fulfill({json:{operation:{...claim,phase}}});});
   await page.route("**/api/transactions/op-seller-claim/submit",r=>{phase="SUBMITTED";return r.fulfill({status:202,json:{operation:{...claim,phase,txHash:hash}}});});

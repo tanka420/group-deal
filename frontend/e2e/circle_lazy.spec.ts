@@ -1,3 +1,4 @@
+import {installHandleFixture} from './fixtures/account-handle';
 import {test,expect,type Page} from '@playwright/test';
 import {emptyCatalog} from './fixtures/catalog';
 import {readFileSync} from 'node:fs';
@@ -16,7 +17,7 @@ async function fixture(page:Page,{owned=false,mode='ready' as ProviderMode,csp=f
  await page.addInitScript(({owned})=>{if(top!==self)return;localStorage.setItem('groupdeal_lang','en');localStorage.setItem('groupdeal_operation_checkpoints','fixture-preserved-lazy-checkpoint');if(owned)localStorage.setItem('groupdeal_token','fixture-lazy-evm-session');window.addEventListener('securitypolicyviolation',e=>{(window as any).fixtureCspViolations??=[];(window as any).fixtureCspViolations.push(e.violatedDirective);});},{owned});
  await page.route('**/*',r=>new URL(r.request().url()).hostname==='127.0.0.1'?r.continue():r.abort());
  await page.route('**/api/**',r=>r.fulfill({json:new URL(r.request().url()).pathname==='/api/v1/catalog'?emptyCatalog(r.request().url()):{campaigns:[],notifications:[],unread:0}}));
- await page.route('**/api/auth/me',r=>r.fulfill({json:{user:owned?evm:user}}));
+ await installHandleFixture(page,request=>user);await page.route('**/api/auth/me',r=>r.fulfill({json:{user:owned?evm:user}}));
  await page.route('**/api/auth/wallets?**',r=>r.fulfill({json:{userId:evm.id,activeWallet:null,wallets:[],pagination:{nextCursor:null},serverTime:Date.now()}}));
  await page.route('**/api/notifications/preferences',r=>r.fulfill({json:{preferences:{inApp:true,email:false},contactStatus:'MISSING'}}));
  await page.route('**/api/circle/email/token',r=>{counts.otp++;return r.fulfill({json:{deviceToken:'fixture-device-token',deviceEncryptionKey:'fixture-device-encryption',otpToken:'fixture-otp-token',loginAttemptId:'11111111-2222-4333-8444-555555555555'}});});
@@ -51,7 +52,7 @@ test('actual SDK is initialized once on dialog intent and reused after reopening
 });
 test('installed SDK completes local OTP callback under a CSP that blocks eval',async({page})=>{
  const f=await fixture(page,{csp:true});await page.goto('/');const dialog=await open(page);await expect(dialog.getByRole('button',{name:'Send OTP with Circle',exact:true})).toBeEnabled();await dialog.getByLabel('Email address',{exact:true}).fill(user.email);await dialog.getByRole('button',{name:'Send OTP with Circle',exact:true}).click();await dialog.getByRole('button',{name:'Open Circle authentication',exact:true}).click();
- await expect(dialog).toHaveCount(0);await expect(page.locator('.account-pill-btn')).toContainText('fixture-circle');expect(f.counts.device).toBe(1);expect(f.counts.otp).toBe(1);expect(f.counts.login).toBe(1);expect(f.errors).toEqual([]);expect(await f.violations()).toEqual([]);await untouched(page);
+ await expect(dialog).toHaveCount(0);await expect(page.locator('.account-pill-btn')).toContainText('@fixture_circle');expect(f.counts.device).toBe(1);expect(f.counts.otp).toBe(1);expect(f.counts.login).toBe(1);expect(f.errors).toEqual([]);expect(await f.violations()).toEqual([]);await untouched(page);
 });
 test('provider readiness without device result reaches a bounded timeout and permits explicit retry',async({page})=>{
  await page.clock.install();const f=await fixture(page,{mode:'stall'});await page.goto('/');const dialog=await open(page);await expect(dialog.getByRole('status')).toContainText('Initializing the Circle connection');await expect.poll(()=>f.counts.device).toBe(1);await page.clock.fastForward(15_001);

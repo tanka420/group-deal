@@ -1,3 +1,4 @@
+import {installHandleFixture} from './fixtures/account-handle';
 import {test,expect,type Page} from '@playwright/test';
 import {emptyCatalog} from './fixtures/catalog';
 import {Wallet,ethers} from 'ethers';
@@ -57,7 +58,7 @@ async function fixture(page:Page,{holdAccounts=false,holdSignature=false,csp=fal
  for(const origin of ['https://rpc.testnet.arc.io/**','https://rpc.drpc.testnet.arc.io/**','https://rpc.walletconnect.org/**'])await page.route(origin,rpc);
  await page.route('**/api/**',r=>r.fulfill({json:new URL(r.request().url()).pathname==='/api/v1/catalog'?emptyCatalog(r.request().url()):{campaigns:[],notifications:[],unread:0}}));
  await page.route('**/api/health',r=>r.fulfill({json:{hubAddress:'0x1111111111111111111111111111111111111111',usdcAddress:'0x3600000000000000000000000000000000000000'}}));
- await page.route('**/api/auth/me',r=>r.fulfill({json:{user:r.request().headers().authorization?.endsWith('fixture-other-session')?other:account}}));
+ await installHandleFixture(page,request=>request.headers().authorization?.endsWith('fixture-other-session')?other:account);await page.route('**/api/auth/me',r=>r.fulfill({json:{user:r.request().headers().authorization?.endsWith('fixture-other-session')?other:account}}));
  await page.route('**/api/auth/wallets?**',r=>r.fulfill({json:{userId:account.id,activeWallet:account.activeWallet,wallets:[],pagination:{nextCursor:null},serverTime:Date.now()}}));
  const nonce='fixture-nonce-reown',message='GroupDeal isolated wallet sign-in\nNonce: '+nonce;
  await page.route('**/api/auth/wallet/login/challenge',r=>{counts.challenge++;expect(r.request().postDataJSON().walletAddress).toBe(wallet.address);return r.fulfill({json:{challengeMessage:message,nonce}});});

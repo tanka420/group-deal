@@ -1,3 +1,4 @@
+import {installHandleFixture} from './fixtures/account-handle';
 import {test,expect,type Page} from '@playwright/test';
 import {ethers} from 'ethers';
 import {emptyCatalog} from './fixtures/catalog';
@@ -25,11 +26,11 @@ async function fixture(page:Page,language='en'){
   throw Error('Unsupported external fee fixture RPC: '+method);
  });
  await page.route('**/api/**',r=>r.fulfill({json:new URL(r.request().url()).pathname==='/api/v1/catalog'?emptyCatalog(r.request().url()):{campaigns:[],orders:[],operations:[],notifications:[],unread:0,pagination:{nextCursor:null}}}));
- await page.route('**/api/auth/me',r=>r.fulfill({json:{user:state.currentUser}}));
+ await installHandleFixture(page,request=>state.currentUser);await page.route('**/api/auth/me',r=>r.fulfill({json:{user:state.currentUser}}));
  await page.route('**/api/health',r=>r.fulfill({json:{chainId:5042002,hubAddress:hub,usdcAddress:'0x3600000000000000000000000000000000000000'}}));
  await page.route('**/api/auth/wallets?**',r=>r.fulfill({json:{userId:user.id,activeWallet:principal,wallets:[],pagination:{nextCursor:null},serverTime:Date.now()}}));
  await page.route('**/api/notifications/preferences',r=>r.fulfill({json:{preferences:{inApp:true,email:false},contactStatus:'MISSING'}}));
- await page.route('**/api/transactions',r=>r.fulfill({json:{operations:[operation()],pagination:{nextCursor:null}}}));
+ await page.route(/\/api\/transactions(?:\?.*)?$/,r=>r.fulfill({json:{operations:[operation()],pagination:{nextCursor:null}}}));
  await page.route('**/api/transactions/external-fee-operation/ready',async r=>{state.readies++;state.connectedBeforeReady=await page.evaluate(()=>(window as any).fixtureWalletRequests.includes('eth_requestAccounts'));state.phase='AWAITING_SIGNATURE';return r.fulfill({json:{operation:operation()}})});
  await page.route('**/api/transactions/external-fee-operation/submit',r=>{state.submits++;state.phase='SUBMITTED';return r.fulfill({status:202,json:{operation:operation()}})});
  await page.route('**/api/transactions/external-fee-operation/recover',r=>{state.phase='PROJECTED';return r.fulfill({json:{operation:operation()}})});
