@@ -6,6 +6,8 @@
 - Bảng [các mục từng hoãn](./KE_HOACH_PHAT_TRIEN_SAU_BAN_DAU.md) đã sửa các trạng thái OAuth/Circle/OneDrive lỗi thời. Restore/RPO-RTO giữ miễn; retry/DLQ live và X giữ hoãn.
 - Hồ sơ G5/G6 lịch sử vẫn giữ trạng thái/phạm vi cũ; hoàn tất gói này không phải một chứng nhận nghiệm thu toàn dự án.
 
+**Đã hoàn tất gói tổ chức OneDrive:** Helper `2e431c9` đã triển khai lên VPS; đã tổ chức 56 cặp archive/manifest sang layout v2 và kiểm SHA-256 đầy đủ. 4 archive thiếu manifest được giữ nguyên, ghi riêng và không tính là backup đã xác minh. Hoàn tất lúc 22:41 23/10/2026 theo giờ Việt Nam. Các archive cũ vẫn được giữ; lịch backup và ứng dụng tiếp tục hoạt động.
+
 Phần dưới là bản ghi ngày 21/10 theo đúng thời điểm, không dùng các bước tiếp theo đã cũ để mở lại công việc đã xong.
 
 ---

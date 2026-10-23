@@ -7,6 +7,8 @@ Tên miền chính thức: [groupdeal.tech](https://groupdeal.tech). `www.groupd
 
 Gói UI trên bản nền VPS đã hoàn tất ở source `6f443f9` và đã bàn giao local; xem [phạm vi thay đổi](docs/workspace-ui-2026-10-22.md). OneDrive đã kết nối và vận hành, không cần cấu hình hoặc consent lại. Gói mới chỉ chuẩn hóa [cấu trúc thư mục và tên file backup cloud](docs/onedrive-backup.md), cập nhật [trạng thái kế hoạch](reports/HOAN_THIEN_DU_AN_HIEN_TAI_2026-10-21.md) và triển khai helper tương ứng trên VPS. Frontend/backend vẫn có phiên bản phát hành riêng; không coi helper được triển khai là ứng dụng đã được phát hành lại.
 
+**Gói OneDrive đã phát hành:** helper `2e431c9`, 56 cặp lịch sử đã tổ chức và kiểm hash; 4 archive thiếu manifest giữ nguyên để truy vết. Lịch backup giữ hoạt động. Frontend/backend không phát hành lại trong gói này.
+
 ## Bản nền VPS 22/10/2026
 
 Thư mục làm việc chính là repository này; các clone trong `.cache/ci/` chỉ giữ làm lịch sử. Bản nền theo VPS gồm frontend `5e7a012` và backend runtime `4b5af76`. Các thay đổi giao diện từ checkout cũ đã được lưu riêng, chưa nhập vào bản nền. Xem [quy trình và kết quả đồng bộ](docs/vps-baseline-2026-10-22.md), [dấu vân tay bản phát hành](docs/vps-baseline-2026-10-22.json) và `AGENTS.md` trước khi sửa tiếp. Kiểm tra nguồn bằng `node scripts/verify_vps_baseline.cjs`.

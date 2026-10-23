@@ -9,7 +9,7 @@ Bảng này thay các trạng thái lỗi thời ngày 21/10. Phần đã có k�
 | X | Hoãn theo người dùng vì chi phí | Không mở dịch vụ hoặc phát sinh chi phí |
 | Circle | Đã có đăng nhập ví email và hoán đổi Testnet được ghi nhận | Không lặp các giao dịch đã xong |
 | Admin/quyền/ticket/email | Các hành trình đã ghi nhận giữ nguyên kết quả; phần operator có tab riêng trong gói UI mới | Chỉ xử lý lỗi hoặc yêu cầu mới cụ thể |
-| OneDrive | Kết nối, upload/tải ngược SHA-256, lịch và giám sát đã hoạt động | Gói 23/10 chuẩn hóa thư mục/tên file; xem docs/onedrive-backup.md và receipt triển khai |
+| OneDrive | Kết nối, upload/tải ngược SHA-256, lịch và giám sát đã hoạt động | Đã triển khai layout v2 trên VPS và tổ chức 56 cặp; 4 archive thiếu manifest được giữ riêng, không tự gắn verified |
 | Giao hàng | LICENSE_KEY, FILE_LINK và WEBHOOK đã có các hành trình thật đã ghi nhận | Không mua/giao/xác nhận/claim lại các đơn đã xong |
 | Gói UI ngày 22/10 | Đã thực hiện trên bản nền VPS; kiểm tra phần thay đổi đạt, đã bàn giao local | Phát hành ứng dụng là gói riêng, không ghép vào thay đổi helper OneDrive |
 | Restore/RPO-RTO | Người dùng đã miễn diễn tập thủ công và đo chỉ số | Không mở lại |

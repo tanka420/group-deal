@@ -4,6 +4,8 @@
 
 OneDrive **đã hoạt động**: `gd_onedrive` đã có consent, upload/tải ngược kiểm SHA-256, lịch phút 10 mỗi giờ và giám sát độ mới. Không còn công việc cấu hình, consent hoặc xây lại chức năng backup. Lượt 23/10 chỉ chuẩn hóa cấu trúc thư mục, quy tắc tên file và tài liệu; không thay ứng dụng, database, khóa hoặc chính sách giữ backup.
 
+**Kết quả áp dụng trên VPS và OneDrive:** Helper `2e431c9` đã triển khai lên VPS; đã tổ chức 56 cặp archive/manifest sang layout v2 và kiểm SHA-256 đầy đủ. 4 archive thiếu manifest được giữ nguyên, ghi riêng và không tính là backup đã xác minh. Hoàn tất lúc 22:41 23/10/2026 theo giờ Việt Nam. Các archive cũ vẫn được giữ; lịch backup và ứng dụng tiếp tục hoạt động.
+
 ## Cấu trúc thư mục và tên file — layout v2
 
 ```text
