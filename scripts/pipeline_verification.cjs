@@ -12,6 +12,7 @@ const steps=[
  ['candidate-preparation','node',['scripts/run_contract_checks.cjs','preparation']],
  ['contracts','node',['scripts/run_contract_checks.cjs','all']],
  ['projection','node',['scripts/run_contract_checks.cjs','projection']],
+ ['workspace','node',['scripts/run_workspace_checks.cjs']],
  ['backend-build','npm',['--prefix','backend','run','build']],
  ['backend','npm',['--prefix','backend','test']],
  ['provider-delivery','npm',['--prefix','backend','run','test:provider-delivery']],
