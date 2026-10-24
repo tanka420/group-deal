@@ -110,8 +110,8 @@ test('checkout hides provider diagnostics and stored messages follow the selecte
   await expect(f.dialog.locator('.notice-warning')).toHaveText('Chưa xác nhận thanh toán. Kiểm tra trạng thái giao dịch và lịch sử ví trước khi thử lại.');
   await expect(f.dialog).not.toContainText('PRIVATE_CHECKOUT_DIAGNOSTIC');
   await f.dialog.getByRole('button',{name:'Đóng',exact:true}).click();
-  await page.locator('.account-pill-btn').click();await page.getByRole('button',{name:/Ngôn ngữ: Tiếng Việt/}).click();
-  await page.locator('.account-pill-btn').click();await page.locator('.deal-join-cta').click();
+  await page.getByRole('button',{name:/Ngôn ngữ: Tiếng Việt/}).click();
+  await page.locator('.deal-join-cta').click();
   const join=page.locator('dialog.join-dialog');await expect(join.locator('[data-budget=required]')).toBeVisible();await join.locator('.join-agreement input').check();await join.locator('.join-submit').click();
   await expect(f.dialog.locator('.notice-warning')).toHaveText('Payment is unconfirmed. Check the transaction status and wallet history before retrying.');
   await f.retained();

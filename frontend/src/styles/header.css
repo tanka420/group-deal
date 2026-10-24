@@ -55,6 +55,8 @@
   .app-header .header-language { width: 44px; flex-direction: column; gap: 0; padding: 3px; font-size: .65rem; }
   .app-header .header-login { min-width: 44px; min-height: 44px; padding: 8px; }
   .app-header .header-auth-label { display: none; }
+}
+@media (max-width: 768px) {
   .app-header .account-dropdown-menu { left: 16px; right: 16px; width: auto; }
   .workspace-app .app-header .account-dropdown-menu { right: 16px; }
 }
