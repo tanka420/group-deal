@@ -37,6 +37,33 @@ async function run(){
   store.transaction(()=>{store.db.orders.order_000.quantity=2;});assert.equal(sellerOverview(seller).summary.sellerAllocated,null);assert.equal(buyerSummary(buyer).summary.buyerClaimable,null);store.transaction(()=>{store.db.orders.order_000.quantity=1;});
   const selected=workspaceList(buyer,{limit:'20',principal:otherWallet,direction:'BUY'},'wallet-trades') as any;assert.equal(selected.pagination.total,45);assert.ok(selected.rows.every((r:any)=>r.direction==='BUY'&&r.wallet===otherWallet));assert.equal((workspaceList(buyer,{limit:'20',principal:wallet},'wallet-trades') as any).rows.length,0);
   assert.equal((workspaceList(seller,{limit:'20',principal:wallet,direction:'SELL'},'wallet-trades') as any).pagination.total,45);
+  // Same account on both sides, with different pinned principals. One row/order;
+  // filters, mapped side, totals and every cursor must agree, including tied times.
+  store.transaction(()=>{
+   for(let i=0;i<45;i++){const id='self_scope_'+String(i).padStart(3,'0');store.db.orders[id]={...store.db.orders.order_000,id,buyerAccountId:'seller',buyerPrincipal:otherWallet,createdAt:time+Math.floor(i/3)};}
+   store.db.orders.self_scope_foreign={...store.db.orders.order_000,id:'self_scope_foreign',campaignId:'foreign',buyerAccountId:'other',buyerPrincipal:otherWallet};
+  });
+  for(const principal of [undefined,otherWallet,wallet])for(const direction of [undefined,'BUY','SELL']){
+   const empty=principal===otherWallet&&direction==='SELL'||principal===wallet&&direction==='BUY';
+   const role=direction??(principal===wallet?'SELL':'BUY'),seen=new Set<string>();let cursor:string|undefined;
+   do{
+    const result=workspaceList(seller,{limit:'20',q:'self_scope',...(principal?{principal:principal.toUpperCase().replace('0X','0x')}:{}),...(direction?{direction}:{}),...(cursor?{cursor}:{})},'wallet-trades') as any;
+    assert.equal(result.pagination.total,empty?0:45);assert.ok(result.rows.length<=20);
+    for(const row of result.rows){assert.equal(row.direction,role);assert.equal(row.wallet,role==='BUY'?otherWallet:wallet);assert.equal(row.allocated,role==='BUY'?'100000':'900000');assert.equal(row.claimed,role==='BUY'?'0':'300000');assert.equal(row.claimable,role==='BUY'?'100000':'600000');assert.ok(!seen.has(row.orderId));assert.notEqual(row.orderId,'self_scope_foreign');seen.add(row.orderId);}
+    cursor=result.pagination.nextCursor??undefined;
+   }while(cursor);
+   assert.equal(seen.size,empty?0:45);
+  }
+  // A buyer-only account cannot obtain the seller side, even for its own address.
+  assert.equal((workspaceList(buyer,{limit:'20',principal:otherWallet,direction:'SELL'},'wallet-trades') as any).pagination.total,0);
+  for(const [proof,role,address] of [[buyer,'BUY',otherWallet],[seller,'SELL',wallet]] as const)for(const principal of [undefined,otherWallet,wallet])for(const direction of [undefined,'BUY','SELL']){
+   const total=(!principal||principal===address)&&(!direction||direction===role)?45:0,result=workspaceList(proof,{limit:'20',q:'order_',...(principal?{principal}:{}),...(direction?{direction}:{})},'wallet-trades') as any;
+   assert.equal(result.pagination.total,total);assert.equal(result.rows.length,Math.min(total,20));assert.ok(result.rows.every((r:any)=>r.direction===role&&r.wallet===address));
+  }
+  const cursorScope=workspaceList(seller,{limit:'20',q:'self_scope',principal:wallet},'wallet-trades') as any;
+  assert.throws(()=>workspaceList(seller,{limit:'20',q:'self_scope',principal:otherWallet,cursor:cursorScope.pagination.nextCursor},'wallet-trades'));
+  assert.throws(()=>workspaceList(buyer,{limit:'20',q:'self_scope',principal:wallet,cursor:cursorScope.pagination.nextCursor},'wallet-trades'));
+  assert.throws(()=>workspaceList(seller,{limit:'20',q:'self_scope',principal:wallet,direction:'SELL',cursor:cursorScope.pagination.nextCursor},'wallet-trades'));
   assert.equal((workspaceList(seller,{limit:'20',orderId:'order_000'},'seller-orders') as any).orders.length,1);
   const sorted=workspaceList(seller,{limit:'20',sort:'END_ASC'},'seller-campaigns') as any;assert.equal(sorted.campaigns[0].id,'campaign_024');
   for(const query of ['limit=0','limit=21','sellerId=other','from=2026-02-30','cursor=invalid'])assert.equal((await get('/api/seller/orders?'+query)).status,400);

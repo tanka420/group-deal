@@ -1592,7 +1592,14 @@ export class RowPersistence {
       const alias=campaigns?'c':products?'p':'o',id=alias+'.record_key',j=(field:string,a=alias)=>`json_extract(${a}.record_json,'$.${field}')`,time=campaigns?`COALESCE(${j('startTime')},0)*1000`:`COALESCE(${j('createdAt')},0)`,title=products?j('title','v'):campaigns?j('title'):j('title','c');
       const args:any[]=[],where:string[]=[];const add=(sql:string,...values:any[])=>{where.push(sql);args.push(...values)};
       add(alias+".collection=?",campaigns?'campaigns':products?'products':'orders');
-      if(wallet){add(`(${j('buyerAccountId')}=? OR (${j('sellerId','c')}=? AND ?=1))`,userId,userId,auth.user.roles.includes('seller')?1:0);if(f.direction==='BUY')add(j('buyerAccountId')+'=?',userId);if(f.direction==='SELL')add(j('sellerId','c')+'=? AND ?=1',userId,auth.user.roles.includes('seller')?1:0);if(f.principal)add(`((${j('buyerAccountId')}=? AND lower(${j('buyerPrincipal')})=?) OR (${j('sellerId','c')}=? AND lower(${j('sellerPayoutWallet','c')})=? AND ?=1))`,userId,f.principal,userId,f.principal,auth.user.roles.includes('seller')?1:0);}
+      if(wallet){
+        // Ownership, principal and direction must match the same side of an order.
+        // Keep one row per order, preferring BUY when both eligible sides match.
+        const sides:string[]=[],values:any[]=[];
+        if(f.direction!=='SELL'){sides.push(`(${j('buyerAccountId')}=?`+(f.principal?` AND lower(${j('buyerPrincipal')})=?`:'')+')');values.push(userId,...(f.principal?[f.principal]:[]));}
+        if(f.direction!=='BUY'&&auth.user.roles.includes('seller')){sides.push(`(${j('sellerId','c')}=?`+(f.principal?` AND lower(${j('sellerPayoutWallet','c')})=?`:'')+')');values.push(userId,...(f.principal?[f.principal]:[]));}
+        add(sides.length?'('+sides.join(' OR ')+')':'0',...values);
+      }
       else add(j(kind==='buyer-orders'?'buyerAccountId':'sellerId',kind==='seller-orders'?'c':alias)+'=?',userId);
       if(f.q)add(`(lower(${id}) LIKE ? ESCAPE '\\' OR lower(COALESCE(${title},'')) LIKE ? ESCAPE '\\')`,...Array(2).fill('%'+f.q.toLowerCase().replace(/[\\%_]/g,'\\$&')+'%'));
       if(f.status){if(f.status==='PUBLISHED_ALL'&&campaigns)add(j('status')+"<>'DRAFT'");else if(f.status==='OVERDUE'&&!campaigns&&!products)add(j('deliveryStatus')+"='PENDING' AND "+j('status','c')+"='FINALIZED' AND "+j('finalizedAt','c')+'+'+j('deliverySlaSeconds','c')+'<?',Math.floor(Date.now()/1000));else if(f.status==='READY_TO_DELIVER'&&!campaigns&&!products)add(j('deliveryStatus')+"='PENDING' AND "+j('status','c')+"='FINALIZED'");else add(j(campaigns||products?'status':'deliveryStatus')+'=?',f.status);}
