@@ -2,9 +2,20 @@
 
 Base: `cace5849462095116300eae0887a7ee2036dcfa3`. Work was performed in the main repository. The historical VPS manifest remains unchanged; it does not describe this new candidate. The user authorized GitHub publication and VPS deployment on 23 October 2026.
 
+## Deployed versions — 24 October 2026
+
+| Component | Released source |
+|---|---|
+| Frontend | `49f2719d8c114bb380a16ab87c128b740c47dadc` |
+| Backend | `f314de7fc47b77055b25615209dbdb8bd867853e` |
+
+The workspace/backend release is complete. Its [full CI](https://github.com/tanka420/group-deal/actions/runs/40002078347) passed 78/78 steps and native admission preserved live fields and holds. Backup/private verification and offhost layout-v2 round-trip were verified after that upgrade. The [header frontend CI](https://github.com/tanka420/group-deal/actions/runs/40063311147) also passed 78/78 steps. Its recorded artifact was released on 24 October; all 185 public files matched HTTPS hashes, 22 routes/boundaries passed, and desktop/mobile header browser checks passed. The backend was not restarted for the header release.
+
+The latest frontend receipt is `/home/ubuntu/groupdeal/operations/FRONTEND-RELEASE.json`; the preceding backend/workspace receipt remains `/home/ubuntu/groupdeal/operations/WORKSPACE-RELEASE.json`. Local frontend is updated at `http://127.0.0.1:5173`. Documentation-only follow-ups do not change these application source commits or constitute a new runtime release. [Current G5/G6 scope](../reports/PHAM_VI_G5_G6_CON_LAI_2026-10-24.md) keeps inherited live proofs, deferrals and waivers distinct from this completed UI release.
+
 ## Release procedure
 
-Release the exact committed candidate after its full GitHub Actions run succeeds. Record both frontend and backend source commits, because the new UI uses the workspace pagination and overview APIs. The native runtime-upgrade procedure takes an authenticated live backup, preserves the live records and existing work holds, and performs fresh reconciliation before application admission. Authentication is refreshed by that existing admission procedure; users sign in again after the backend upgrade.
+Release the exact committed candidate after its full GitHub Actions run succeeds. Record both frontend and backend source commits, because the new UI uses the workspace pagination and overview APIs. For backend changes, the native runtime-upgrade procedure takes an authenticated live backup, preserves the live records and existing work holds, and performs fresh reconciliation before application admission. Authentication is refreshed by that existing admission procedure; users sign in again after the backend upgrade.
 
 The SPA route allowlists include `/seller/campaigns`, `/admin/access`, and the six published policy pages. Validate nginx before activation, retain the previous entry files and configuration for rollback, and preserve old immutable assets and the Safe owner page. The release receipt is stored privately on the VPS at `/home/ubuntu/groupdeal/operations/WORKSPACE-RELEASE.json`; it is the evidence of actual activation. No production database or private release evidence belongs in Git.
 

@@ -3,17 +3,19 @@
 Tên miền chính thức: [groupdeal.tech](https://groupdeal.tech). `www.groupdeal.tech` và hostname cũ chuyển hướng về domain chính. Xem [cấu hình domain và quy trình chuyển đổi](docs/domain-migration.md).
 
 
-## Trạng thái ngày 23/10/2026
+## Trạng thái ngày 24/10/2026
 
-Gói UI trên bản nền VPS đã hoàn tất ở source `6f443f9` và đã bàn giao local; xem [phạm vi thay đổi](docs/workspace-ui-2026-10-22.md). OneDrive đã kết nối và vận hành, không cần cấu hình hoặc consent lại. Gói mới chỉ chuẩn hóa [cấu trúc thư mục và tên file backup cloud](docs/onedrive-backup.md), cập nhật [trạng thái kế hoạch](reports/HOAN_THIEN_DU_AN_HIEN_TAI_2026-10-21.md) và triển khai helper tương ứng trên VPS. Frontend/backend vẫn có phiên bản phát hành riêng; không coi helper được triển khai là ứng dụng đã được phát hành lại.
+Frontend `49f2719` và backend `f314de7` đã phát hành lên [groupdeal.tech](https://groupdeal.tech). [Full CI của mã ứng dụng](https://github.com/tanka420/group-deal/actions/runs/40063311147) đạt 78/78 bước. Gói API workspace/dependency recovery đã nâng backend; bản sửa header sau đó chỉ cập nhật frontend. Đối chiếu sau phát hành: 185 file HTTPS đúng hash, 22 tuyến/ranh giới HTTP và header trình duyệt đạt. Local đã cập nhật tại `http://127.0.0.1:5173`.
 
-**Gói OneDrive đã phát hành:** helper `2e431c9`, 56 cặp lịch sử đã tổ chức và kiểm hash; 4 archive thiếu manifest giữ nguyên để truy vết. Lịch backup giữ hoạt động. Frontend/backend không phát hành lại trong gói này.
+Xem [phạm vi UI và phiên bản đã phát hành](docs/workspace-ui-2026-10-22.md), [trạng thái kế hoạch](reports/HOAN_THIEN_DU_AN_HIEN_TAI_2026-10-21.md) và [từng nhóm G5/G6 còn mở](reports/PHAM_VI_G5_G6_CON_LAI_2026-10-24.md). G5/G6 tổng thể chưa ký nhận; không coi khoảng trống bằng chứng live là chức năng chưa làm hoặc yêu cầu kiểm tra lại mọi luồng đã đạt.
+
+**OneDrive đã hoàn tất:** consent, lịch backup/giám sát và layout v2 đang hoạt động; 56 cặp lịch sử đã tổ chức/kiểm hash, 4 archive thiếu manifest giữ riêng. Backup/offhost sau nâng backend đã xác minh; xem [quy tắc backup](docs/onedrive-backup.md). Retry/DLQ live và X giữ hoãn; diễn tập restore thủ công/RPO-RTO đã miễn.
 
 ## Bản nền VPS 22/10/2026
 
 Thư mục làm việc chính là repository này; các clone trong `.cache/ci/` chỉ giữ làm lịch sử. Bản nền theo VPS gồm frontend `5e7a012` và backend runtime `4b5af76`. Các thay đổi giao diện từ checkout cũ đã được lưu riêng, chưa nhập vào bản nền. Xem [quy trình và kết quả đồng bộ](docs/vps-baseline-2026-10-22.md), [dấu vân tay bản phát hành](docs/vps-baseline-2026-10-22.json) và `AGENTS.md` trước khi sửa tiếp. Kiểm tra nguồn bằng `node scripts/verify_vps_baseline.cjs`.
 
-## Cập nhật21/10/2026
+## Lịch sử 21/10/2026
 
 Full CI Ubuntu trên source 5e7a012 đã đạt 77/77 bước; browser mặc định 989 PASS/67 SKIP, các mode riêng và provider/Worker/conformance đạt. Frontend đã cập nhật, backend giữ 4b5af76. Xem [kết quả CI và phát hành](reports/HOAN_THIEN_CI_2026-10-21.md); các sửa dependency backup/recovery chưa rollout backend.
 

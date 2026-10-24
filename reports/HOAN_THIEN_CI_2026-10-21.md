@@ -1,3 +1,5 @@
+> **Trạng thái hiện hành 24/10/2026:** Frontend `49f2719` và backend `f314de7` đã phát hành; CI mã ứng dụng 78/78 PASS. UI, dependency recovery và OneDrive/layout v2 đã hoàn tất trong phạm vi ghi nhận. Xem [trạng thái hiện hành](HOAN_THIEN_DU_AN_HIEN_TAI_2026-10-21.md) và [từng nhóm G5/G6 còn mở](PHAM_VI_G5_G6_CON_LAI_2026-10-24.md). Retry/DLQ live và X giữ hoãn; restore/RPO-RTO giữ miễn. Nội dung bên dưới là lịch sử theo thời điểm, không dùng các bước tiếp theo cũ để mở lại phần đã xong.
+
 # Hoàn thiện CI và cập nhật frontend — 21/10/2026
 
 **Full CI đã PASS trên commit 5e7a012c790084a6c7ff59dfc3e9f31a4764b3f2. Frontend của commit này đã lên https://groupdeal.tech; backend giữ 4b5af7604df53be680e7af9986d45810ac4d26e2.**

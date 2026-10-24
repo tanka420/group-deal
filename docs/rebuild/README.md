@@ -1,3 +1,5 @@
+> **Phạm vi hiện hành 24/10/2026:** Đây là đặc tả xây lại lịch sử. Công việc hiện tại tiếp tục repository/bản nền VPS theo AGENTS.md, không khởi tạo codebase mới. Xem [trạng thái đã phát hành](../../reports/HOAN_THIEN_DU_AN_HIEN_TAI_2026-10-21.md) và [phạm vi G5/G6 còn mở](../../reports/PHAM_VI_G5_G6_CON_LAI_2026-10-24.md).
+
 # GroupDeal tài liệu bàn giao xây dựng dự án mới
 
 Ngày tổng hợp: 06/10/2026. Cập nhật chia file: 07/10/2026. Đối tượng sử dụng: chủ sản phẩm, thiết kế, lập trình viên, QA và người vận hành tiếp nhận GroupDeal để xây dựng từ đầu.

@@ -1,12 +1,28 @@
 # Trạng thái hiện hành — 24/10/2026
 
-- OneDrive đã hoạt động; không còn việc cấu hình hoặc xây lại backup. Gói hiện tại chỉ chuẩn hóa thư mục/tên file cloud, bảo toàn ciphertext và lịch sử; xem [quy tắc OneDrive](../docs/onedrive-backup.md).
-- Gói UI trên bản nền VPS đã hoàn tất ở source `6f443f9` và đã bàn giao local. Các phần đã sửa/kiểm tra đạt được chốt; không mở thêm đợt kiểm thử toàn bộ luồng nghiệp vụ giữ nguyên.
-- Người dùng đã mở phạm vi phát hành UI mới lên GitHub và VPS, yêu cầu full Actions xanh. Gói này gồm frontend, API phân trang/tổng quan và danh sách dependency recovery cần thiết; quy trình nâng runtime giữ dữ liệu, đối soát và 95 tác vụ đang giữ. Xem [gói UI](../docs/workspace-ui-2026-10-22.md). Trạng thái kích hoạt thực tế phải lấy từ `operations/WORKSPACE-RELEASE.json` trên VPS; trạng thái source/local ở trên không thay thế biên bản đó.
-- Bảng [các mục từng hoãn](./KE_HOACH_PHAT_TRIEN_SAU_BAN_DAU.md) đã sửa các trạng thái OAuth/Circle/OneDrive lỗi thời. Restore/RPO-RTO giữ miễn; retry/DLQ live và X giữ hoãn.
-- Hồ sơ G5/G6 lịch sử vẫn giữ trạng thái/phạm vi cũ; hoàn tất gói này không phải một chứng nhận nghiệm thu toàn dự án.
+## Phát hành đã hoàn tất
 
-**Đã hoàn tất gói tổ chức OneDrive:** Helper `2e431c9` đã triển khai lên VPS; đã tổ chức 56 cặp archive/manifest sang layout v2 và kiểm SHA-256 đầy đủ. 4 archive thiếu manifest được giữ nguyên, ghi riêng và không tính là backup đã xác minh. Hoàn tất lúc 22:41 23/10/2026 theo giờ Việt Nam. Các archive cũ vẫn được giữ; lịch backup và ứng dụng tiếp tục hoạt động.
+| Thành phần | Phiên bản / kết quả đã xác minh |
+|---|---|
+| Frontend | `49f2719d8c114bb380a16ab87c128b740c47dadc`, VPS và local đã cập nhật |
+| Backend | `f314de7fc47b77055b25615209dbdb8bd867853e`, đã gồm API workspace và dependency recovery |
+| CI mã ứng dụng | [49f2719 — 78/78 PASS](https://github.com/tanka420/group-deal/actions/runs/40063311147); backend/workspace [f314de7 — 78/78 PASS](https://github.com/tanka420/group-deal/actions/runs/40002078347) |
+| Đối chiếu frontend 24/10 | 185 file HTTPS đúng hash; 22 tuyến/ranh giới HTTP; header desktop/mobile đạt; vận hành UP |
+| OneDrive | Layout v2 đã triển khai; 56 cặp lịch sử được tổ chức/kiểm hash; 4 archive thiếu manifest giữ riêng; backup/offhost sau nâng backend đã xác minh |
+
+Gói UI gồm danh sách/phân trang, giao dịch mua bán GroupDeal, `@handle` tạo một lần, thông tin tier, tổng quan/sidebar người bán, tab quyền quản trị và footer/ticket. Bản header mới dùng dropdown bám header khi cuộn, VI/EN công khai trước chuông và menu desktop căn giữa. Xem [gói UI/phát hành](../docs/workspace-ui-2026-10-22.md).
+
+Gói backend/workspace đã phát hành trước; bản header ngày 24/10 chỉ thay frontend, giữ backend/PID và không đổi database/nginx. Biên bản VPS riêng: `operations/WORKSPACE-RELEASE.json` cho gói backend/workspace và `operations/FRONTEND-RELEASE.json` cho frontend mới nhất. Không còn backlog triển khai UI hoặc dependency recovery được ghi ở các báo cáo ngày 21/10.
+
+## Phần còn mở và các quyết định phạm vi
+
+- [Bảng G5/G6 chi tiết](PHAM_VI_G5_G6_CON_LAI_2026-10-24.md) đối chiếu từng nhóm bằng chứng còn thiếu; không mở lại chức năng/giao dịch đã hoàn tất. CI và bản phát hành đã chốt theo đúng phạm vi, chưa tự trở thành nghiệm thu live toàn dự án.
+- G6 còn chốt bộ candidate và acceptance matrix, rà soát độc lập, issue ledger/runbook và ký nhận bàn giao. Chưa thực hiện các bước đó trong gói đồng bộ tài liệu.
+- Retry/DLQ live và X: **DEFERRED_BY_USER**. Restore thủ công và đo RPO/RTO: **WAIVED_BY_USER**. Mainnet/WP30 ngoài phạm vi gói hiện hành.
+- Giữ các bằng chứng Circle, GitHub/Discord, admin/quyền/ticket/email và giao hàng đã có; không lặp đơn 1–7 hoặc giải phóng 95 tác vụ đang giữ. Không tự tái sử dụng ngân sách/chữ ký cho ca mới.
+- Hai con trỏ private `CURRENT_G5_PREPARATION_LATEST.json` và `CURRENT_PROJECT_COMPLETION_LATEST.json` được đồng bộ sang chỉ mục ngày 24/10, kế thừa nguyên bằng chứng live ngày cũ và nối thêm biên bản phát hành mới. Các artifact private không thuộc Git.
+
+**G5 OPEN / G6 OPEN / candidateFrozen=false / acceptanceEligible=false / wholeProjectAccepted=false.** Đây là trạng thái hồ sơ nghiệm thu tổng thể, không phải trạng thái hoàn thành của gói UI/OneDrive/phát hành đã xong.
 
 Phần dưới là bản ghi ngày 21/10 theo đúng thời điểm, không dùng các bước tiếp theo đã cũ để mở lại công việc đã xong.
 

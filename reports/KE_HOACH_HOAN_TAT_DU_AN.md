@@ -1,4 +1,4 @@
-> **Cập nhật 23/10/2026:** OneDrive đã vận hành; gói hiện tại chỉ chuẩn hóa thư mục/tên file backup và cập nhật kế hoạch. Gói UI ngày 22/10 đã hoàn tất ở source/local. Các mục đã xong không mở lại; restore/RPO-RTO giữ miễn, retry/DLQ live và X giữ hoãn. Xem [trạng thái hiện hành](./HOAN_THIEN_DU_AN_HIEN_TAI_2026-10-21.md) và [quy tắc kho OneDrive](../docs/onedrive-backup.md). Các ghi chú ngày cũ bên dưới giữ để truy vết.
+> **Trạng thái hiện hành 24/10/2026:** Frontend `49f2719` và backend `f314de7` đã phát hành; CI mã ứng dụng 78/78 PASS. UI, dependency recovery và OneDrive/layout v2 đã hoàn tất trong phạm vi ghi nhận. Xem [trạng thái hiện hành](HOAN_THIEN_DU_AN_HIEN_TAI_2026-10-21.md) và [từng nhóm G5/G6 còn mở](PHAM_VI_G5_G6_CON_LAI_2026-10-24.md). Retry/DLQ live và X giữ hoãn; restore/RPO-RTO giữ miễn. Nội dung bên dưới là lịch sử theo thời điểm, không dùng các bước tiếp theo cũ để mở lại phần đã xong.
 
 ## Hiện hành — 21/10/2026: full CI PASS, frontend cập nhật
 
