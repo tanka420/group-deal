@@ -1,3 +1,5 @@
+> Bổ sung sau review 24/10/2026: candidate **8c32212** đã sửa F1/F2 và lỗi focus/reflow liên quan, full CI **78/78 PASS**, preflight VPS đạt. **Chưa phát hành:** activate bị duyệt tự động chặn, cần tin nhắn phê duyệt trực tiếp SHA và restart backend. VPS vẫn FE 49f2719 / BE f314de7. Xem [báo cáo thực thi/candidate ledger/acceptance matrix](THUC_THI_SAU_REVIEW_2026-10-24.md). G5/G6 OPEN và các cờ nghiệm thu vẫn false; nội dung dưới đây giữ theo thời điểm gốc.
+
 # Trạng thái hiện hành — 24/10/2026
 
 ## Phát hành đã hoàn tất

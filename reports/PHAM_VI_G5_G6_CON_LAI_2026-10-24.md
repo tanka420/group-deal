@@ -1,3 +1,5 @@
+> Bổ sung sau review 24/10/2026: candidate **8c32212** đã sửa F1/F2 và lỗi focus/reflow liên quan, full CI **78/78 PASS**, preflight VPS đạt. **Chưa phát hành:** activate bị duyệt tự động chặn, cần tin nhắn phê duyệt trực tiếp SHA và restart backend. VPS vẫn FE 49f2719 / BE f314de7. Xem [báo cáo thực thi/candidate ledger/acceptance matrix](THUC_THI_SAU_REVIEW_2026-10-24.md). G5/G6 OPEN và các cờ nghiệm thu vẫn false; nội dung dưới đây giữ theo thời điểm gốc.
+
 # Phạm vi còn lại của G5/G6 — 24/10/2026
 
 G5 là nghiệm thu các nhánh vận hành trên Arc Testnet bằng bằng chứng thực tế. G6 là rà soát độc lập và ký nhận bàn giao trên một bộ phiên bản xác định. Một nhánh chưa đủ bằng chứng live không đồng nghĩa chức năng đó chưa được lập trình, chưa có kiểm tra tự động hoặc phải làm lại những hành trình đã hoàn tất.
