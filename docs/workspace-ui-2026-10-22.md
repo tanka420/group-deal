@@ -28,6 +28,8 @@ The SPA route allowlists include `/seller/campaigns`, `/admin/access`, and the s
 
 ## Verification
 
+The 24 October header follow-up replaces the centered mobile navigation dialog with a dropdown anchored below the sticky header. Its own scroll area keeps links reachable on short screens. The VI/EN control is public in the header, immediately before notifications for signed-in accounts, and the desktop navigation is centered between balanced side columns. Account and notification dropdowns share the header anchor. This follow-up changes only the frontend; the backend remains on `f314de7fc47b77055b25615209dbdb8bd867853e` and does not require a service restart. The focused navigation browser suite covers scroll anchoring, keyboard dismissal, guest language persistence and desktop positioning.
+
 - `node scripts/run_workspace_checks.cjs`: isolated SQL/API, ownership, private-field exclusion, stable pagination, all-time accounting, historical versions, one-time username and affected wallet/startup regression suites.
 - Frontend unit route round trips and frontend/backend TypeScript/build checks.
 - Browser checks: `workspace_completion`, `catalog`, `history_session_scope`, `transaction_history_locale`, `operator_access`, `operator_navigation`, `admin_session`, and `product_studio_scope`. Browser data and wallet stubs are explicitly isolated test fixtures. They are not production or real-transaction acceptance evidence.

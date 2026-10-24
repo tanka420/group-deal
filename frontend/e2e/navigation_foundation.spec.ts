@@ -3,7 +3,7 @@ import {emptyCatalog} from './fixtures/catalog';
 
 async function fixture(page:Page,signedIn=false,language='en'){
  const errors:string[]=[],writes:string[]=[];
- await page.addInitScript(({signedIn,language})=>{localStorage.setItem('groupdeal_lang',language);if(signedIn)localStorage.setItem('groupdeal_token','navigation-fixture');},{signedIn,language});
+ await page.addInitScript(({signedIn,language})=>{if(!localStorage.getItem('groupdeal_lang'))localStorage.setItem('groupdeal_lang',language);if(signedIn)localStorage.setItem('groupdeal_token','navigation-fixture');},{signedIn,language});
  page.on('pageerror',error=>errors.push(error.message));
  await page.route('**/*',r=>new URL(r.request().url()).hostname==='127.0.0.1'?r.continue():r.abort());
  await page.route('**/api/**',r=>{
@@ -26,7 +26,7 @@ for(const width of [375,768,1440])test(`buyer navigation remains reachable at ${
  const mobile=width<1200;
  for(const [label,path] of [['Home','/'],['Explore','/explore'],['Orders','/orders'],['Wallet','/wallet'],['Account','/account']]){
   if(mobile)await page.getByRole('button',{name:'Open navigation'}).click();
-  const navigation=mobile?page.getByRole('dialog',{name:'Navigation'}):page.locator('.desktop-navigation');
+  const navigation=mobile?page.getByRole('region',{name:'Navigation',exact:true}):page.locator('.desktop-navigation');
   await navigation.getByRole('link',{name:label,exact:true}).click();await expect(page).toHaveURL(new RegExp(path+'$'));
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  }
@@ -60,4 +60,54 @@ for(const language of ['vi','en'])test('seller entry copy and focus '+language,a
  await entry.click();const dialog=page.getByRole('dialog',{name:en?'Seller profile and payout':'Hồ sơ người bán và ví nhận tiền',exact:true});await expect(dialog).toBeVisible();
  await page.screenshot({path:info.outputPath('seller-entry-'+language+'-text200.png'),animations:'disabled'});
  await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await expect(account).toBeFocused();expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
+});
+
+for(const signedIn of [false,true])for(const language of ['vi','en'])test(`header language is public and persists for ${signedIn?'account':'guest'} in ${language}`,async({page})=>{
+ const f=await fixture(page,signedIn,language);await page.goto('/explore');
+ const toggle=page.locator('.header-language');await expect(toggle).toBeVisible();
+ if(signedIn){const position=await page.locator('.header-actions').evaluate(e=>{
+  const language=e.querySelector('.header-language')!.getBoundingClientRect(),bell=e.querySelector('[aria-controls="header-notifications"]')!.getBoundingClientRect();
+  return language.right<=bell.left;
+ });expect(position).toBe(true);}
+ await toggle.click();const next=language==='vi'?'en':'vi';await expect(page.locator('html')).toHaveAttribute('lang',next);
+ await expect(page.getByRole('button',{name:next==='en'?'Language: English':'Ngôn ngữ: Tiếng Việt',exact:true})).toBeVisible();
+ // The app must restore the selected language on a fresh page load.
+ await page.goto('/account');await expect(page.locator('html')).toHaveAttribute('lang',next);
+ expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
+});
+
+for(const width of [1200,1280,1440,1920])for(const signedIn of [false,true])test(`desktop navigation is centered at ${width}px for ${signedIn?'account':'guest'}`,async({page})=>{
+ const f=await fixture(page,signedIn,'vi');await page.setViewportSize({width,height:900});await page.goto('/explore');
+ await expect(page.locator('.desktop-navigation')).toBeVisible();
+ const layout=await page.locator('.header-inner').evaluate(e=>{
+  const box=e.getBoundingClientRect(),nav=e.querySelector('.desktop-navigation')!.getBoundingClientRect(),brand=e.querySelector('.header-brand')!.getBoundingClientRect(),actions=e.querySelector('.header-actions')!.getBoundingClientRect();
+  return {offset:Math.abs((nav.left+nav.right-box.left-box.right)/2),leftGap:nav.left-brand.right,rightGap:actions.left-nav.right,overflow:document.documentElement.scrollWidth>innerWidth};
+ });expect(layout.offset).toBeLessThan(1);expect(layout.leftGap).toBeGreaterThanOrEqual(16);expect(layout.rightGap).toBeGreaterThanOrEqual(16);expect(layout.overflow).toBe(false);
+ expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
+});
+
+for(const viewport of [{width:320,height:225},{width:375,height:812},{width:768,height:900},{width:1024,height:768}])test(`navigation dropdown stays attached while scrolling at ${viewport.width}x${viewport.height}`,async({page},info)=>{
+ const f=await fixture(page,true);await page.setViewportSize(viewport);await page.goto('/explore');
+ const trigger=page.getByRole('button',{name:'Open navigation'}),menu=page.getByRole('region',{name:'Navigation',exact:true});
+ await trigger.click();await expect(menu).toBeVisible();await expect(page.getByRole('dialog')).toHaveCount(0);
+ await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
+ await expect.poll(()=>page.evaluate(()=>scrollY)).toBeGreaterThan(0);
+ const bounds=await menu.evaluate(e=>{const menu=e.getBoundingClientRect(),header=document.querySelector('.header')!.getBoundingClientRect();return{gap:menu.top-header.bottom,bottom:menu.bottom,top:header.top,overflow:e.scrollWidth>e.clientWidth};});
+ expect(Math.abs(bounds.gap-8)).toBeLessThanOrEqual(1);expect(bounds.top).toBe(0);expect(bounds.bottom).toBeLessThanOrEqual(viewport.height-8);expect(bounds.overflow).toBe(false);
+ await menu.getByRole('link',{name:'Account',exact:true}).focus();await expect(menu.getByRole('link',{name:'Account',exact:true})).toBeFocused();
+ await page.screenshot({path:info.outputPath('header-dropdown-'+viewport.width+'.png'),animations:'disabled'});
+ await page.keyboard.press('Escape');await expect(menu).toHaveCount(0);await expect(trigger).toBeFocused();
+ await trigger.click();await trigger.click();await expect(menu).toHaveCount(0);
+ await trigger.click();await page.mouse.click(2,viewport.height-2);await expect(menu).toHaveCount(0);
+ await trigger.click();await page.locator('.header-language').click();await expect(menu).toHaveCount(0);await expect(page.locator('.mobile-menu-button')).toHaveAttribute('aria-expanded','false');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
+});
+
+test('enlarged desktop text uses reachable navigation without overlapping header controls',async({page},info)=>{
+ const f=await fixture(page,true);await page.setViewportSize({width:1440,height:900});await page.goto('/explore');
+ await page.evaluate(()=>document.documentElement.style.fontSize='200%');
+ await expect(page.locator('.desktop-navigation')).toBeHidden();const trigger=page.getByRole('button',{name:'Open navigation'});await expect(trigger).toBeVisible();
+ await trigger.click();await expect(page.locator('#mobile-navigation').getByRole('link',{name:'Wallet',exact:true})).toBeVisible();
+ await page.screenshot({path:info.outputPath('header-text200.png'),animations:'disabled'});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
 });

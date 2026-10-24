@@ -1,0 +1,63 @@
+/* Keep header controls and their dropdowns anchored to the same sticky surface. */
+.app-header { position: sticky; top: 0; container: app-header / inline-size; }
+.app-header .header-inner { position: static; }
+.app-header .account-dropdown-wrapper { position: static; }
+.app-header .desktop-navigation { display: none; }
+.app-header .mobile-navigation { display: block; margin-left: auto; }
+.app-header .mobile-menu-button { display: flex; }
+.app-header .header-language { min-height: 44px; padding: 8px; gap: 6px; flex: none; font-size: .8rem; }
+.app-header .header-language span { min-width: 2ch; }
+.app-header .account-dropdown-menu {
+  top: calc(100% + 8px);
+  right: max(24px, calc((100vw - 1400px) / 2 + 24px));
+  left: auto;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - var(--app-header-height, 96px) - 24px);
+}
+.workspace-app .app-header .account-dropdown-menu { right: 24px; }
+.app-header .popover-scroll { max-height: calc(100dvh - var(--app-header-height, 96px) - 44px); }
+.app-header .navigation-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 16px;
+  right: 16px;
+  max-height: calc(100dvh - var(--app-header-height, 96px) - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+.app-header .navigation-dropdown .primary-navigation { display: grid; }
+.app-header .navigation-dropdown .primary-navigation a { white-space: normal; }
+/* A larger text setting uses the dropdown before navigation can overlap controls. */
+@container app-header (min-width: 75rem) {
+  .app-header .header-inner { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+  .app-header .desktop-navigation { display: block; justify-self: center; }
+  .app-header .mobile-navigation { display: none; }
+  .app-header .header-actions { justify-self: end; max-width: 100%; }
+  .app-header .account-dropdown-wrapper, .app-header .account-pill-btn { min-width: 44px; }
+  .app-header .account-pill-btn { flex-shrink: 1; }
+}
+@container app-header (min-width: 75rem) and (max-width: 87.4375rem) {
+  .app-header .account-summary { display: none !important; }
+  .app-header .header-funding span { display: none; }
+}
+@media (max-width: 767px) {
+  .app-header .header-inner { display: grid; grid-template-columns: minmax(0, 1fr) 44px auto; gap: 8px; }
+  .app-header .header-brand { min-width: 0; }
+  .app-header .logo-group { max-width: 100%; min-width: 0; }
+  .app-header .logo-text { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1rem; }
+  .app-header .mobile-navigation { margin: 0; }
+  .app-header .header-actions { grid-column: 3; gap: 8px; margin: 0; }
+  .app-header .header-language { width: 44px; flex-direction: column; gap: 0; padding: 3px; font-size: .65rem; }
+  .app-header .header-login { min-width: 44px; min-height: 44px; padding: 8px; }
+  .app-header .header-auth-label { display: none; }
+  .app-header .account-dropdown-menu { left: 16px; right: 16px; width: auto; }
+  .workspace-app .app-header .account-dropdown-menu { right: 16px; }
+}
+@media (max-width: 359px) {
+  .app-header .logo-text { display: none; }
+}

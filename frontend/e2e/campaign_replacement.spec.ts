@@ -19,7 +19,7 @@ async function draftFixture(page:Page,language:"vi"|"en"="vi"){
 }
 async function openDraft(page:Page){await page.goto("/#seller");await page.getByRole("button",{name:/Tạo chiến dịch mới|Create new campaign/}).first().click();await page.getByRole("button",{name:/Mở bản nháp|Open draft/}).click();}
 async function toggleEditorLanguage(page:Page){
- const toggle=page.getByRole("button",{name:/^(Ngôn ngữ:|Language:)/});if(!await toggle.isVisible())await page.locator(".account-pill-btn").click();await toggle.click();await page.locator(".account-pill-btn").click();
+ await page.locator(".header-language").click();
 }
 async function editorCheckpoint(page:Page){return page.evaluate(()=>Object.keys(sessionStorage).filter(k=>k.startsWith("groupdeal_draft_editor:")).map(k=>sessionStorage.getItem(k)));}
 
