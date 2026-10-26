@@ -21,6 +21,43 @@ async function setup(page:Page,role:'buyer'|'seller'|'dual'='seller',language='v
  await page.route('**/api/**',async r=>{const u=new URL(r.request().url());try{const response=await r.fetch({url:origin+u.pathname+u.search});await r.fulfill({response});}catch{await r.fulfill({status:503,json:{error:'LOCAL_FIXTURE_API_UNAVAILABLE'}});}});
 }
 async function widths(page:Page){for(const width of [375,768,1024,1440,1920]){await page.setViewportSize({width,height:1000});await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);}}
+async function checkScrollable(page:Page,selector:string){
+ const list=page.locator(selector);
+ await expect.poll(()=>list.evaluate(el=>el.scrollHeight>el.clientHeight)).toBe(true);
+ expect(await list.evaluate(el=>getComputedStyle(el).overflowY)).toBe('auto');
+ expect(await list.evaluate(el=>parseFloat(getComputedStyle(el).rowGap))).toBeGreaterThanOrEqual(12);
+ await list.evaluate(el=>{el.scrollTop=el.scrollHeight;});
+ expect(await list.evaluate(el=>el.scrollTop+el.clientHeight>=el.scrollHeight-1)).toBe(true);
+ await list.evaluate(el=>{el.scrollTop=0;});
+}
+
+for(const width of [375,1440])test('record lists scroll without clipping at '+width,async({page},info)=>{
+ await setup(page,'buyer');await page.setViewportSize({width,height:1000});await page.goto('/wallet');
+ await expect(page.locator('.wallet-trades .operation-list>li')).toHaveCount(20);
+ expect(await page.evaluate(()=>document.querySelector('.wallet-history')!.getBoundingClientRect().top>=document.querySelector('.wallet-summary')!.getBoundingClientRect().bottom+16)).toBe(true);
+ await checkScrollable(page,'.wallet-trades .operation-list');
+ await page.locator('.wallet-history').screenshot({path:info.outputPath('wallet-trades-'+width+'.png')});
+ await page.getByRole('button',{name:'Lịch sử & phục hồi deal',exact:true}).click();
+ await expect(page.locator('.transaction-history .operation-list>li')).toHaveCount(20);
+ await checkScrollable(page,'.transaction-history .operation-list');
+ await page.locator('.transaction-history .operation-list').focus();await page.keyboard.press('End');
+ await expect.poll(()=>page.locator('.transaction-history .operation-list').evaluate(el=>el.scrollTop)).toBeGreaterThan(0);
+ await page.locator('.transaction-history .transaction-row>summary').last().click();
+ await expect(page.locator('.transaction-history .transaction-details').last()).toBeVisible();
+ await page.locator('.transaction-history .operation-list').evaluate(el=>{el.scrollTop=el.scrollHeight;});
+ await expect(page.locator('.transaction-history').getByRole('button',{name:'Ký intent đã chuẩn bị',exact:true}).last()).toBeInViewport();
+ await page.locator('.wallet-history').screenshot({path:info.outputPath('wallet-recovery-'+width+'.png')});
+ await page.locator('.transaction-history').getByRole('button',{name:'Sau',exact:true}).click();await expect(page.locator('.transaction-history .operation-list>li')).toHaveCount(4);
+ await page.goto('/orders');await expect(page.locator('.order-row')).toHaveCount(20);await checkScrollable(page,'.order-list');
+ await setup(page,'seller');await page.goto('/seller/products');await expect(page.locator('.product-record-list>article')).toHaveCount(20);await checkScrollable(page,'.product-record-list');
+ await page.goto('/seller/campaigns');await expect(page.locator('.campaign-table tbody tr')).toHaveCount(20);
+ if(width<701)expect(await page.locator('.campaign-table tbody').evaluate(el=>parseFloat(getComputedStyle(el).rowGap))).toBeGreaterThanOrEqual(12);
+ else await expect(page.locator('.campaign-table')).toHaveCSS('border-spacing','0px 12px');
+ expect(await page.locator('.campaign-table-scroll').evaluate(el=>el.scrollHeight>el.clientHeight&&getComputedStyle(el).overflowY==='auto')).toBe(true);
+ await page.locator('.campaign-table tbody tr').last().getByRole('link',{name:'Xem đơn',exact:true}).scrollIntoViewIfNeeded();
+ await expect(page.locator('.campaign-table tbody tr').last().getByRole('link',{name:'Xem đơn',exact:true})).toBeInViewport();
+ await widths(page);await page.setViewportSize({width,height:1000});await page.screenshot({path:info.outputPath('campaign-list-'+width+'.png'),fullPage:true});
+});
 
 test('seller overview, complete SQL pagination and related order navigation',async({page},info)=>{
  await setup(page);await page.goto('/seller');await expect(page.getByRole('heading',{name:'Tổng quan',exact:true})).toBeVisible();await expect(page.locator('.overview-metrics')).toContainText('21.6 USDC');await widths(page);

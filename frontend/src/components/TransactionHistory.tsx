@@ -143,7 +143,7 @@ export function TransactionHistory({onRecovered,principal}:{onRecovered?:()=>voi
     {!user&&<p role="status">{text("Đăng nhập để xem lịch sử giao dịch.","Sign in to view transaction history.")}</p>}
     {loading&&<p role="status">{text("Đang tải lịch sử…","Loading history…")}</p>}
     {user&&!loading&&!error&&visibleOperations.length===0&&<p>{text("Chưa có intent giao dịch.","No transaction intents yet.")}</p>}
-    <ul className="operation-list">{visibleOperations.map(operation=>{
+    <ul className="operation-list" tabIndex={0} aria-label={text("Danh sách lịch sử và phục hồi","History and recovery list")}>{visibleOperations.map(operation=>{
       const hash=operation.txHash||(user?localBroadcast(user.id,operation.id):undefined);
       const resumable=operation.phase==="PREPARED"&&!hash;
       return <li key={operation.id}><details className="transaction-row"><summary><time>{dateTime(operation.createdAt,language)}</time><span><strong>{operationActionLabel(operation.action,language)}</strong><small className="address-value">{operation.resourceId}</small></span><span className="badge">{operationPhaseLabel(operation.phase,language)}</span><span>{text("Chi tiết","Details")}</span></summary><div className="transaction-details"><p className="muted">{text("Cập nhật: ","Updated: ")}{dateTime(operation.updatedAt,language)}</p><h3>{language==="en"?englishActions[operation.action]:operationActions[operation.action]} · {language==="en"?englishPhases[operation.phase]:phases[operation.phase]}</h3><p className="address-value">Principal: {operation.principal}</p>{hash&&<a className="address-value" href={`https://testnet.arcscan.app/tx/${hash}`} target="_blank" rel="noreferrer">{hash}</a>}

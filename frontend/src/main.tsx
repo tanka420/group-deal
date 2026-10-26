@@ -9,6 +9,7 @@ import "./styles/application.css";
 import "./styles/navigation.css";
 import "./styles/workspace-layout.css";
 import "./styles/workspace-refinements.css";
+import "./styles/record-lists.css";
 import "./styles/header.css";
 import { ExternalWalletProvider } from "./context/ExternalWalletContext";
 

@@ -1,0 +1,62 @@
+/* Bound only record bodies; filters, headings and pagination stay in the page flow. */
+:is(.operation-list, .wallet-activity-list, .record-list, .ui-record-list,
+    .product-record-list, .order-list, .support-list, .support-messages,
+    .owned-session-rows, .operator-order-list, .operator-loaded-orders,
+    .record-scroll-stack, .campaign-table-scroll) {
+  max-height: min(60dvh, 40rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  min-width: 0;
+  min-height: 0;
+  align-content: start;
+}
+
+:is(.operation-list, .wallet-activity-list, .record-list, .ui-record-list,
+    .product-record-list, .order-list, .support-list, .support-messages,
+    .owned-session-rows, .operator-order-list, .operator-loaded-orders, .record-scroll-stack) {
+  display: grid;
+  grid-auto-rows: max-content;
+  row-gap: 16px;
+  padding: 4px 8px 4px 4px;
+}
+
+.operation-list > li,
+.wallet-activity-list > .wallet-activity,
+.record-list > li,
+.order-list > .order-row,
+.owned-session-rows > li {
+  min-width: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+}
+.operation-list > li + li, .record-list > li + li { border-top: 1px solid var(--border-subtle); }
+.operation-list > li { padding-inline: 16px; }
+.wallet-activity-list > .wallet-activity, .owned-session-rows > li { padding: 16px; }
+.record-list, .order-list.order-list { padding: 12px; background: var(--bg-primary); overflow: auto; }
+.product-studio .product-record-list { overflow: auto; gap: 16px; padding: 12px; background: var(--bg-primary); }
+.product-studio .product-record-list > .glass-card { border: 1px solid var(--border-subtle); border-radius: var(--radius-md); }
+.order-column-head { position: sticky; top: 0; z-index: 1; border-radius: var(--radius-md); }
+
+.campaign-table-scroll { padding: 0 8px 0 4px; }
+.campaign-table-scroll .campaign-table { border-collapse: separate; border-spacing: 0 12px; }
+.campaign-table-scroll .campaign-table thead th { position: sticky; top: 0; z-index: 1; }
+.campaign-table-scroll .campaign-table tbody tr > * { background: var(--bg-secondary); }
+.campaign-table-scroll .campaign-table tbody tr:hover > * { background: var(--bg-tertiary); }
+
+.wallet-history .transaction-history { min-width: 0; padding: 0; border: 0; box-shadow: none; }
+.wallet-history .transaction-history > h2 { margin-bottom: 12px; }
+.wallet-history .transaction-history > .btn { margin-top: 16px; }
+:is(.operation-list, .wallet-activity-list, .campaign-table-scroll):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+@media (max-width: 700px) {
+  .campaign-table-scroll .campaign-table tbody { display: grid; gap: 16px; }
+  .campaign-table-scroll .campaign-table tbody tr { border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-secondary); }
+  .campaign-table-scroll .campaign-table tbody tr:last-child { border-bottom: 1px solid var(--border-subtle); }
+  .campaign-table-scroll .campaign-table tbody tr > * { background: transparent; }
+  .campaign-table-scroll .campaign-table tbody tr:hover { background: var(--bg-tertiary); }
+}

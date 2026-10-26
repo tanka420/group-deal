@@ -42,6 +42,21 @@ test('wallet UI fixture keeps a rejected signature for hash recovery across relo
 test('wallet UI fixture approves exact allowance before a separate swap signature',async({page})=>{const f=await fixture(page);await page.getByRole('button',{name:'Swap',exact:true}).click();const d=page.getByRole('dialog',{name:'Swap tokens',exact:true});await d.getByLabel('You swap',{exact:true}).fill('1');await expect(d.getByRole('button',{name:'Approve exact amount',exact:true})).toBeEnabled();await expect(d).toContainText('0.99 EURC');await expect(d.getByRole('link',{name:'Spender '+ARC_SWAP_ADAPTER,exact:true})).toHaveAttribute('href','https://testnet.arcscan.app/address/'+ARC_SWAP_ADAPTER);expect(f.starts).toBe(0);expect(f.started.size).toBe(0);await d.getByRole('button',{name:'Approve exact amount',exact:true}).click();await expect(d.getByRole('button',{name:'Swap tokens',exact:true})).toBeEnabled();expect(f.signs).toBe(1);await page.waitForTimeout(500);expect(f.signs).toBe(1);await expect(page.getByRole('dialog',{name:'Review wallet transaction',exact:true})).toHaveCount(0);await d.getByRole('button',{name:'Swap tokens',exact:true}).click();await expect(d.getByRole('heading',{name:'Swap complete',exact:true})).toBeVisible();expect(f.signs).toBe(2);expect(f.starts).toBe(1);expect(f.providerCalls[0]).toMatchObject({to:ARC_WALLET_TOKENS.USDC.address,data:erc20.encodeFunctionData('approve',[ARC_SWAP_ADAPTER,1000000n]),nonce:'0x0'});expect(f.providerCalls[1]).toMatchObject({to:ARC_SWAP_ADAPTER,nonce:'0x1'});expect(f.errors).toEqual([]);});
 
 async function openTransfer(page:Page){await page.getByRole('button',{name:'Send',exact:true}).click();await page.getByLabel('Recipient address').fill(recipient);await page.getByLabel('USDC amount',{exact:true}).fill('1');await page.getByRole('button',{name:'Review transfer',exact:true}).click();return page.getByRole('dialog',{name:'Review wallet transaction',exact:true});}
+for(const width of [375,1440])test('transfer list scrolls with spaced rows and separate pagination '+width,async({page},info)=>{
+ await page.setViewportSize({width,height:1000});const f=await fixture(page),dialog=await openTransfer(page);await expect(dialog).toBeVisible();
+ const seed=f.records[0];f.records=Array.from({length:24},(_,i)=>({...structuredClone(seed),id:'wop_'+String(i+1).padStart(64,'0'),steps:[{...seed.steps[0],state:'CONFIRMED',nonce:String(i)}]}));
+ await dialog.getByRole('button',{name:'Close',exact:true}).click();await page.reload();await page.getByRole('button',{name:'Transfers & swaps',exact:true}).click();
+ const list=page.locator('.wallet-activity-list');await expect(list.locator('article')).toHaveCount(20);
+ expect(await list.evaluate(el=>el.scrollHeight>el.clientHeight&&getComputedStyle(el).overflowY==='auto')).toBe(true);
+ expect(await list.evaluate(el=>parseFloat(getComputedStyle(el).rowGap))).toBeGreaterThanOrEqual(12);
+ await list.focus();await page.keyboard.press('End');await expect.poll(()=>list.evaluate(el=>el.scrollTop)).toBeGreaterThan(0);
+ await expect(list.getByRole('button',{name:'View request',exact:true}).last()).toBeInViewport();
+ expect(await page.locator('.wallet-history .list-pagination').evaluate(el=>el.getBoundingClientRect().top>=el.previousElementSibling!.getBoundingClientRect().bottom)).toBe(true);
+ await page.locator('.wallet-history').screenshot({path:info.outputPath('wallet-transfers-'+width+'.png')});
+ await page.getByRole('button',{name:'Next',exact:true}).click();await expect(list.locator('article')).toHaveCount(4);
+ await page.addStyleTag({content:'html {font-size:200% !important}'});expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+ expect(f.signs).toBe(0);expect(f.errors).toEqual([]);
+});
 
 for(const circle of [false,true])test('completed swap starts a fresh swap inline for '+(circle?'Circle':'external wallet'),async({page},info)=>{
  await page.setViewportSize({width:circle?375:1440,height:900});const f=await fixture(page,circle);
