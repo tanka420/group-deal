@@ -98,3 +98,5 @@ Không ghi API key, seed phrase, private key, OTP, session hoặc entitlement v�
 Trước khi xin chữ ký/funding/activation phải có mạng, địa chỉ, contract, calldata/constructor, nonce, phí, số tiền/hạn mức và tác động cụ thể. Yêu cầu chuyển mã không cấp quyền ký thay người giữ khóa.
 
 Các hành trình Testnet đã hoàn tất và các quyết định giữ retry/DLQ live, tích hợp X, miễn diễn tập restore thủ công/RPO-RTO vẫn giữ phạm vi/thời điểm cũ; không tự biến thành PASS Mainnet hoặc tự mở lại. Các kiểm chưa chạy luôn giữ NOT_RUN/SKIP có lý do.
+
+Ngày 28/10, người dùng tiếp tục cho phép deploy và bỏ các test bổ sung. Đã chốt `testnet.groupdeal.tech` cho Testnet và `groupdeal.tech` cho Mainnet; DNS Testnet đã được người dùng thêm. Phạm vi domain/service activation này không tự cung cấp địa chỉ Safe Mainnet, funding hoặc chữ ký cho một giao dịch chưa có constructor/nonce/phí cụ thể. Xem `docs/domain-migration.md` và `config/domain-split-2026-10-28.json`. Test ứng dụng của lượt domain được ghi `SKIP_USER_REQUEST`; kiểm Nginx/TLS/health là xác nhận triển khai, không phải nghiệm thu tài chính.

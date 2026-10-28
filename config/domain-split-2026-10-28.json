@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "requestedOn": "2026-10-28",
+  "testnetOrigin": "https://testnet.groupdeal.tech",
+  "mainnetOrigin": "https://groupdeal.tech",
+  "dns": [{"type":"A","name":"testnet","value":"13.212.35.217","ttl":14400}],
+  "testnet": {
+    "chainId": 5042002,
+    "backendPort": 18420,
+    "backendSourceCommit": "8c32212fdb051cdb01f98226932f3a61afa3e9bf",
+    "applicationDirectory": "/home/ubuntu/groupdeal/releases/47d853f79ff5c2b1c8ac7f0f8163ca613fb82d9a",
+    "frontendDirectory": "/var/www/groupdeal/releases/47d853f79ff5c2b1c8ac7f0f8163ca613fb82d9a",
+    "reuseCurrentNativeDatabase": true,
+    "restartAuthorizedForOriginChange": true,
+    "copyDatabase": false,
+    "releaseHeldWork": false
+  },
+  "mainnet": {
+    "chainId": 5042,
+    "deploymentStatus": "UNDEPLOYED",
+    "cutoverReady": false,
+    "replaceApexWithPlaceholder": false,
+    "blockedBy": ["protocol selection", "Mainnet owner/signer/operator/Safe", "signed contract deployment and receipt", "Circle production configuration"]
+  },
+  "applicationTests": "SKIP_USER_REQUEST",
+  "requiredDeploymentChecks": ["nginx configuration validity", "DNS answer", "TLS certificate hostname", "Testnet health chain/Hub", "origin configuration", "same database path and held-work policy"],
+  "activationOrder": ["install Testnet HTTP ACME vhost", "add DNS A record", "issue Testnet TLS certificate", "install Testnet HTTPS vhost", "update origin and existing launcher under rollback", "update Testnet probe and alert endpoint together", "keep apex unchanged until full Mainnet prerequisites exist"]
+}
