@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import tempfile
 import time
 import urllib.request
 
@@ -65,6 +66,16 @@ def health(url):
     if value.get('chainId') != 5042002 or value.get('protocolVersion') != 1 or value.get('hubAddress', '').lower() != '0x2a7aecd1ce90f1284eb060488c8ddef4b1be0574':
         raise RuntimeError('TESTNET_HEALTH_DEPLOYMENT_MISMATCH')
     return {'chainId': value['chainId'], 'hubAddress': value['hubAddress']}
+
+def wait_health(url, attempts=30):
+    last = None
+    for _ in range(attempts):
+        try:
+            return health(url)
+        except Exception as error:
+            last = error
+            time.sleep(1)
+    raise RuntimeError('HEALTH_NOT_READY ' + type(last).__name__)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -142,19 +153,32 @@ def main():
     updates.update({SITE: (package / 'config/nginx/groupdeal-testnet.conf').read_bytes(), ROUTES: (package / 'config/nginx/groupdeal-app-routes.conf').read_bytes(), HOOK: (package / 'config/nginx/groupdeal-cert-renewal.sh').read_bytes()})
     for file in (SITE, ROUTES, HOOK):
         originals[file] = file.read_bytes() if file.exists() else None
-    backup = package / 'private-rollback'
-    backup.mkdir(mode=0o700)
+    backup = Path(tempfile.mkdtemp(prefix='private-rollback-', dir=package))
+    backup.chmod(0o700)
     for index, (file, data) in enumerate(originals.items()):
         if data is not None:
             target = backup / str(index)
             target.write_bytes(data)
             target.chmod(0o600)
+    (backup / 'INDEX.json').write_text(json.dumps([{'path': str(file), 'backup': str(index), 'existed': data is not None} for index, (file, data) in enumerate(originals.items())], indent=2))
     alert_timer_active = subprocess.run(['systemctl', 'is-active', '--quiet', 'groupdeal-alert.timer']).returncode == 0
     run('systemctl', 'stop', 'groupdeal-alert.timer')
+    application_restarted = False
+    phase = 'TLS_VHOST'
     try:
-        for file, data in updates.items():
-            write(file, data, 0o600 if file == ENV else 0o755 if file == HOOK else None)
+        # Establish TLS before changing application origin. A reload is graceful;
+        # the old worker/certificate can still answer the first connection.
+        for file in (SITE, ROUTES, HOOK):
+            write(file, updates[file], 0o755 if file == HOOK else None)
         run('nginx', '-t')
+        run('systemctl', 'reload', 'nginx')
+        wait_health(ORIGIN + '/api/health')
+        phase = 'APPLICATION_ORIGIN'
+        for file, data in updates.items():
+            if file in (SITE, ROUTES, HOOK):
+                continue
+            write(file, data, 0o600 if file == ENV else 0o755 if file == HOOK else None)
+        application_restarted = True
         run('systemctl', 'restart', 'groupdeal-testnet')
         ready = False
         for _ in range(75):
@@ -171,8 +195,8 @@ def main():
             raise RuntimeError('TESTNET_RUNTIME_PRESERVATION_FAILED')
         if sha(APEX.read_bytes()) != 'f8248e614c9c9f5305f2e4119210b23b1bed62c5a14f14992960863a33887a42':
             raise RuntimeError('APEX_CHANGED')
-        run('systemctl', 'reload', 'nginx')
-        observed = health(ORIGIN + '/api/health')
+        phase = 'HTTPS_POSTCHECK'
+        observed = wait_health(ORIGIN + '/api/health')
         run('systemctl', 'start', 'groupdeal-health-probe.service')
         receipt = {'phase': 'activate', 'status': 'DEPLOYED', 'commit': record['commit'], 'origin': ORIGIN, 'apexChanged': False, 'backendSourceCommit': after['sourceCommit'], 'nativeDirectoryUnchanged': True, 'heldWorkCount': after['heldWorkCount'], 'otherEnvironmentUnchanged': env_without_origin(ENV.read_bytes()) == env_without_origin(originals[ENV]), 'health': observed, 'applicationTests': 'SKIP_USER_REQUEST'}
         (package / 'ACTIVATION.json').write_text(json.dumps(receipt, indent=2) + '\n')
@@ -184,9 +208,10 @@ def main():
             else:
                 write(file, data, 0o600 if file == ENV else 0o755 if file == HOOK else None)
         run('nginx', '-t')
-        run('systemctl', 'restart', 'groupdeal-testnet')
+        if application_restarted:
+            run('systemctl', 'restart', 'groupdeal-testnet')
         run('systemctl', 'reload', 'nginx')
-        print(json.dumps({'status': 'ROLLED_BACK', 'reason': type(error).__name__, 'details': str(error) if isinstance(error, RuntimeError) else 'REDACTED'}))
+        print(json.dumps({'status': 'ROLLED_BACK', 'phase': phase, 'reason': type(error).__name__, 'details': str(error) if isinstance(error, RuntimeError) else 'REDACTED'}))
         raise RuntimeError('DOMAIN_ACTIVATION_ROLLED_BACK') from None
     finally:
         if alert_timer_active:
