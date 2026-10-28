@@ -1,3 +1,4 @@
+import {ARC_CHAIN_NAME,ARC_CHAIN_ID} from '../../../shared/network.mjs';
 import React,{useEffect,useRef,useState} from 'react';
 import {useAuth} from '../context/AuthContext';
 import {useLanguage} from '../context/LanguageContext';
@@ -12,7 +13,7 @@ export function InitialCircleWalletChoice(){
   <h4>{text('Chọn ví Circle cho tài khoản','Choose a Circle wallet for this account')}</h4>
   <p>{text('Circle đang có nhiều ví Arc. Chọn đúng địa chỉ bạn muốn liên kết trước khi mua hoặc ký. Các ví và quyền đã có vẫn được giữ.','Circle has several Arc wallets. Choose the address to link before buying or signing. Existing wallets and permissions remain with your account.')}</p>
   {wallets.length>7&&<label>{text('Tìm địa chỉ hoặc mã ví','Find an address or wallet ID')}<input value={filter} disabled={busy} onChange={e=>setFilter(e.target.value)} autoComplete="off" spellCheck={false}/></label>}
-  <ul className="circle-wallet-choice-list">{visible.map(w=><li key={w.walletId}><button type="button" aria-pressed={selected===w.walletId} disabled={busy} onClick={()=>{setSelected(w.walletId);setError(false);}}><code>{w.address}</code><span>Arc Testnet · <code>{w.walletId}</code></span></button></li>)}</ul>
+  <ul className="circle-wallet-choice-list">{visible.map(w=><li key={w.walletId}><button type="button" aria-pressed={selected===w.walletId} disabled={busy} onClick={()=>{setSelected(w.walletId);setError(false);}}><code>{w.address}</code><span>{ARC_CHAIN_NAME} · <code>{w.walletId}</code></span></button></li>)}</ul>
   {!visible.length&&<p role="status">{text('Không tìm thấy ví trong danh sách.','No wallet matches this list.')}</p>}
   {chosen&&<p>{text('Ví sẽ liên kết','Wallet to link')}: <code>{chosen.address}</code></p>}
   {(circleWalletChoiceUnknown||error)&&<p ref={status} role="alert" tabIndex={-1}>{circleWalletChoiceUnknown?text('Chưa xác nhận được lựa chọn. Đọc lại trạng thái; không chọn ví khác khi chưa rõ kết quả.','Selection is unconfirmed. Check the current state before choosing another wallet.'):text('Chưa chọn được ví. Đọc lại danh sách để tiếp tục.','Wallet selection is unavailable. Reload the list to continue.')}</p>}

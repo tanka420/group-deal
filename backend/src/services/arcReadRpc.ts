@@ -1,10 +1,9 @@
+import {ARC_CHAIN_ID} from '../../../shared/network.mjs';
 import { config } from "../config";
 
 /** Chain-checked read-only failover. Never retries or broadcasts transactions. */
 export async function readArcContract(data: string): Promise<string> {
-  const endpoints = [...new Set([config.arcRpcUrl, ...(config.arcChainId === 5042002 ? [
-    "https://rpc.blockdaemon.testnet.arc.io", "https://rpc.drpc.testnet.arc.io", "https://rpc.quicknode.testnet.arc.io",
-  ] : [])])];
+  const endpoints = [...new Set([config.arcRpcUrl, ...config.arcRpcFallbacks])];
   for (const endpoint of endpoints) {
     try {
       const response = await fetch(endpoint, {

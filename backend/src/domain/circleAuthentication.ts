@@ -1,3 +1,4 @@
+import {ARC_CIRCLE_BLOCKCHAIN} from '../../../shared/network.mjs';
 import crypto from 'node:crypto';
 import {z} from 'zod';
 import {ethers} from 'ethers';
@@ -7,7 +8,7 @@ export class CircleAuthError extends Error{constructor(public code:string,public
 const time=z.number().int().nonnegative().max(8640000000000000),safe=z.string().min(1).max(128).regex(/^[^\s\u0000-\u001f\u007f]+$/).refine(v=>!['constructor','prototype','__proto__'].includes(v)),email=z.string().trim().toLowerCase().max(254).email(),context=z.string().regex(/^[A-Za-z0-9_-]{43}$/),token=z.string().min(32).max(8192).regex(/^[^\s\u0000-\u001f\u007f]+$/);
 export const circleEmailInput=z.object({email,deviceId:z.string().min(8).max(512).regex(/^[^\s\u0000-\u001f\u007f]+$/)}).strict();
 export const circleSessionInput=z.object({userToken:token,loginAttemptId:z.string().uuid()}).strict();
-const wallet=z.object({walletId:safe,address:z.string().refine(v=>ethers.isAddress(v)).transform(v=>ethers.getAddress(v)),blockchain:z.literal('ARC-TESTNET')}).strict();
+const wallet=z.object({walletId:safe,address:z.string().refine(v=>ethers.isAddress(v)).transform(v=>ethers.getAddress(v)),blockchain:z.literal(ARC_CIRCLE_BLOCKCHAIN)}).strict();
 export function circleIdentityInput(value:unknown){const p=z.object({email:email.nullable(),circleUserId:safe,circleWallet:wallet.optional()}).strict().safeParse(value);if(!p.success)throw new CircleAuthError('CIRCLE_AUTH_INVALID_INPUT');return p.data}
 export function circleContext(value:unknown){try{return readAuthRecoveryBarrier(value)?.context}catch{throw new CircleAuthError('CIRCLE_AUTH_UNAVAILABLE',503)}}
 const attemptSchema=z.object({id:z.string().uuid(),email,bindingVersion:z.literal(2),deviceIdHash:z.string().regex(/^[a-f0-9]{64}$/),createdAt:time,expiresAt:time,authRecoveryContext:context.optional(),consumedAt:time.optional()}).refine(v=>v.expiresAt-v.createdAt===600000);

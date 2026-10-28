@@ -1,3 +1,4 @@
+import {ARC_CHAIN_ID,ARC_IS_MAINNET} from '../../../shared/network.mjs';
 import { ethers } from "ethers";
 import { HUB_ABI } from "../contracts/hubAbi";
 import { readArcRpc } from "./arcRpc";
@@ -24,9 +25,9 @@ export type CheckoutIntent = {
   operationId?:string;
 };
 export function checkoutKey(account: string, campaignId: string) {
-  return `groupdeal_checkout:v1:${account.toLowerCase()}:${campaignId}`;
+  return `groupdeal_checkout:v1:${ARC_IS_MAINNET?'5042:':''}${account.toLowerCase()}:${campaignId}`;
 }
-export function paymentLockKey(account: string) { return `groupdeal_payment:v1:${account.toLowerCase()}`; }
+export function paymentLockKey(account: string) { return `groupdeal_payment:v1:${ARC_IS_MAINNET?'5042:':''}${account.toLowerCase()}`; }
 
 /** Hold one purchase lock across tabs. A second tab must never queue a second purchase. */
 export async function withCheckoutLock(key: string, action: () => Promise<void>) {

@@ -1,3 +1,4 @@
+import {ARC_CIRCLE_BLOCKCHAIN} from '../../../shared/network.mjs';
 import crypto from "node:crypto";
 import {ethers} from "ethers";
 import {z} from "zod";
@@ -63,7 +64,7 @@ export class WalletBindingRegistry {
  }
  private circle(state:WalletBindingState,account:UserRecord,record:WalletBindingIntent,role:'SOURCE'|'TARGET'){
   if(!['SOURCE','TARGET'].includes(role))throw new WalletBindingError('WALLET_BINDING_INVALID_INPUT');this.active(record);const wallet=account.circleWallet,address=role==='SOURCE'?record.sourceWallet:record.targetWallet,owner=role==='SOURCE'?state.sourceOwner:state.targetOwner;
-  if(state.sourceOwner!==account.id||owner!==account.id||!wallet||wallet.blockchain!=='ARC-TESTNET'||wallet.address.toLowerCase()!==address.toLowerCase()||!wallet.walletId||typeof account.circleUserId!=='string'||!account.circleUserId)throw new WalletBindingError('WALLET_BINDING_CIRCLE_UNAVAILABLE',403);return{userId:account.id,circleUserId:account.circleUserId,walletId:wallet.walletId,walletAddress:wallet.address,message:role==='SOURCE'?this.messages(record).sourceMessage:this.messages(record).targetMessage};
+  if(state.sourceOwner!==account.id||owner!==account.id||!wallet||wallet.blockchain!==ARC_CIRCLE_BLOCKCHAIN||wallet.address.toLowerCase()!==address.toLowerCase()||!wallet.walletId||typeof account.circleUserId!=='string'||!account.circleUserId)throw new WalletBindingError('WALLET_BINDING_CIRCLE_UNAVAILABLE',403);return{userId:account.id,circleUserId:account.circleUserId,walletId:wallet.walletId,walletAddress:wallet.address,message:role==='SOURCE'?this.messages(record).sourceMessage:this.messages(record).targetMessage};
  }
  /** Pure committed authorization, repeated after each provider await. */
  public authorizeCircleSigning(token:string,id:string,role:'SOURCE'|'TARGET'){const {record,account,state}=this.owned(token,id);return this.circle(state,account,record,role);}

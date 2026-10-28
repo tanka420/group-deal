@@ -1,3 +1,4 @@
+import {ARC_EXPLORER,ARC_CHAIN_NAME,ARC_CHAIN_ID} from '../../../shared/network.mjs';
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Mail, Sparkles, CheckCircle2, Wallet, ShieldCheck } from "lucide-react";
@@ -131,7 +132,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             <p className="auth-divider">{text("HOẶC", "OR")}</p>
             <form noValidate onSubmit={event => { event.preventDefault(); void run("SEND"); }} className="auth-method" aria-labelledby="auth-email-title">
               <h3 id="auth-email-title"><Mail size={20} aria-hidden="true"/>{text("Đăng nhập email qua Circle", "Sign in by email with Circle")}</h3>
-              <p id="circle-email-help" className="muted">{text("Circle gửi OTP và quản lý ví trên Arc Testnet. Bạn nhập OTP trong cửa sổ của Circle.", "Circle sends the OTP and manages your wallet on Arc Testnet. Enter the OTP in Circle’s window.")}</p>
+              <p id="circle-email-help" className="muted">{text(`Circle gửi OTP và quản lý ví trên ${ARC_CHAIN_NAME}. Bạn nhập OTP trong cửa sổ của Circle.`, `Circle sends the OTP and manages your wallet on ${ARC_CHAIN_NAME}. Enter the OTP in Circle’s window.`)}</p>
               <div className="form-group"><label className="form-label" htmlFor="circle-login-email">{text("Địa chỉ email", "Email address")}</label><input ref={emailInput} id="circle-login-email" type="email" className="form-input" value={email} onChange={event => { setEmail(event.target.value); setEmailError(null); }} required autoComplete="email" autoCapitalize="none" spellCheck={false} maxLength={254} disabled={!!action} aria-invalid={Boolean(emailError)} aria-describedby={emailError ? "circle-email-help circle-email-error" : "circle-email-help"}/>{emailError&&<p id="circle-email-error" className="field-error" role="alert">{emailError==="REQUIRED"?text("Nhập địa chỉ email.","Enter your email address."):text("Nhập địa chỉ email hợp lệ.","Enter a valid email address.")}</p>}</div>
               {circleInitState==='INITIALIZING'&&<p role="status">{text('Đang khởi tạo kết nối Circle…','Initializing the Circle connection…')}</p>}
               {circleInitState==='UNAVAILABLE'&&prepareCircle&&<button type="button" className="btn btn-secondary" disabled={!!action} onClick={()=>{document.getElementById("circle-login-email")?.focus();void prepareCircle().catch(()=>{});}}>{text('Thử lại kết nối Circle','Retry Circle connection')}</button>}

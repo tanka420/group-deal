@@ -1,3 +1,4 @@
+import {CircleBlockchain,ARC_CHAIN_ID,ARC_IS_MAINNET} from '../../../shared/network.mjs';
 import React, { createContext, useContext, useEffect, useLayoutEffect, useCallback, useRef, useState } from "react";
 import type { W3SSdk } from "@circle-fin/w3s-pw-web-sdk";
 import { ethers } from "ethers";
@@ -22,7 +23,7 @@ export interface User {
   circleWallet?: {
     address: string;
     walletId: string;
-    blockchain: "ARC-TESTNET";
+    blockchain: CircleBlockchain;
   };
   sellerProfile?: {
     displayName: string;
@@ -86,7 +87,7 @@ async function readJson(response: Response) {
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"ADMIN" }> = ({ children,realm='APP' }) => {
-  const storageKey=realm==='ADMIN'?'groupdeal_admin_token':'groupdeal_token';
+  const storageKey=(realm==='ADMIN'?'groupdeal_admin_token':'groupdeal_token')+(ARC_IS_MAINNET?':5042':'');
   const authUrl=(url:string)=>realm==='ADMIN'&&url.startsWith('/api/auth/')?url.replace('/api/auth/','/api/admin-auth/'):url;
   const fetch:typeof globalThis.fetch=(input,init)=>globalThis.fetch(typeof input==='string'?authUrl(input):input,init);
   const circleFetch=(input:RequestInfo|URL,init?:RequestInit)=>fetch(input,{...init,signal:AbortSignal.timeout(25000)});
@@ -543,12 +544,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
     if(generation!==sessionGenerationRef.current)throw new Error("Phiên đăng nhập đã bị hủy");
     if(realm==='ADMIN'){
       readAdminLoginChallenge(challenge,walletAddress,location.origin);
-      if(Number((await signer.provider?.getNetwork())?.chainId)!==5042002)throw Error('ADMIN_CHALLENGE_INVALID');
+      if(Number((await signer.provider?.getNetwork())?.chainId)!==ARC_CHAIN_ID)throw Error('ADMIN_CHALLENGE_INVALID');
       if(generation!==getSessionEpoch()||document.visibilityState!=='visible')throw Error('AUTH_SESSION_ENDED');
     }
     const signature = await signer.signMessage(challenge.challengeMessage);
     if(realm==='ADMIN'&&generation!==getSessionEpoch())throw Error('AUTH_SESSION_ENDED');
-    if(realm==='ADMIN'&&((await signer.getAddress()).toLowerCase()!==walletAddress.toLowerCase()||Number((await signer.provider?.getNetwork())?.chainId)!==5042002||ethers.verifyMessage(challenge.challengeMessage,signature).toLowerCase()!==walletAddress.toLowerCase()||challenge.expiresAt<=Date.now()/1000))throw Error('ADMIN_WALLET_CHANGED');
+    if(realm==='ADMIN'&&((await signer.getAddress()).toLowerCase()!==walletAddress.toLowerCase()||Number((await signer.provider?.getNetwork())?.chainId)!==ARC_CHAIN_ID||ethers.verifyMessage(challenge.challengeMessage,signature).toLowerCase()!==walletAddress.toLowerCase()||challenge.expiresAt<=Date.now()/1000))throw Error('ADMIN_WALLET_CHANGED');
     if(generation!==sessionGenerationRef.current)throw new Error("Phiên đăng nhập đã bị hủy");
     const session = await readJson(
       await fetch("/api/auth/wallet/login/verify", {

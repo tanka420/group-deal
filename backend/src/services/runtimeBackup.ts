@@ -1,3 +1,4 @@
+import {config} from '../config';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -39,7 +40,7 @@ const paths=[
  "backend/src/utils/crypto.ts",
  "backend/package-lock.json",
  "shared/contracts.json",
- "shared/manifests/arc-testnet.json",
+ 'shared/manifests/arc-testnet.json','shared/manifests/arc-mainnet.json','shared/manifests/local.json','shared/network.mjs','shared/network.d.mts',
  "backend/src/contracts/hubAbi.ts",
  "backend/src/domain/authRecovery.ts",
  "backend/src/domain/circleAuthentication.ts",
@@ -113,7 +114,7 @@ export const runtimeBackupInputs=()=>paths.map(file=>({path:file,sha256:sha(fs.r
 export function backupRuntimeStore(options:Options){
  if(options.inputScope==='EXISTING_RUNTIME'&&Object.keys(options).some(k=>k!=='inputScope'))throw new RuntimeBackupError('RUNTIME_BACKUP_SCOPE_OVERRIDE_DISABLED');
  if(options.inputScope!=='EXISTING_RUNTIME'&&(options.inputScope!=='LOCAL_FIXTURE'||process.env.NODE_ENV!=='test'))throw new RuntimeBackupError('RUNTIME_BACKUP_FIXTURE_DISABLED');
- const originalFootprint=options.inputScope==='EXISTING_RUNTIME'?sourceFootprint(path.join(root,'backend/data')):undefined;
+ const originalFootprint=options.inputScope==='EXISTING_RUNTIME'?sourceFootprint(config.runtimeDataDirectory):undefined;
  const started=performance.now(),parent=options.inputScope==='EXISTING_RUNTIME'?path.join(root,'.cache/runtime-backups'):options.privateParent,reports=options.inputScope==='EXISTING_RUNTIME'?path.join(root,'reports/evidence/runtime-backups'):options.reportDirectory,directory=privateRecoveryDirectory(parent),toolInputs=runtimeBackupInputs();
  const report:Record<string,any>={schemaVersion:1,recordedAt:new Date().toISOString(),inputScope:options.inputScope,status:'UNVERIFIED',selectedStoreScope:'UNSELECTED',toolInputs,targetDirectory:path.relative(root,directory).replaceAll('\\','/'),sourceAccess:'FILES_READ_ONLY_NO_SQLITE_CONNECTION',promoted:false,authCutoverAllowed:false,workersStarted:false,financialAccountingVerified:false,acceptanceEligible:false,actualServiceRTOEstablished:false,actualLostDataRPOEstablished:false};
  let source:TransactionalStore|undefined,target:TransactionalStore|undefined,sourceDirectory:string|undefined,recovery:ReturnType<typeof readRecoveryRuntimeSnapshotSource>|undefined;
@@ -125,9 +126,9 @@ export function backupRuntimeStore(options:Options){
    recovery=readRecoveryRuntimeSnapshotSource(options.inputScope==='EXISTING_RUNTIME'?{inputScope:'EXISTING_DATA'}:options.recovery!);sourceDirectory=recovery.directory;report.selectedStoreScope='RECOVERED_LIVE_STORE';report.preparationReference=recovery.preparationReference;report.admissionReceiptReference=recovery.receiptReference;
   }else{
    if(options.inputScope==='LOCAL_FIXTURE'&&(!options.sourceDirectory||options.recovery))throw new RuntimeBackupError('RUNTIME_BACKUP_LOCAL_SOURCE_REQUIRED');
-   sourceDirectory=options.inputScope==='EXISTING_RUNTIME'?path.join(root,'backend/data'):options.sourceDirectory!;report.selectedStoreScope='ORIGINAL_STORE';
+   sourceDirectory=options.inputScope==='EXISTING_RUNTIME'?config.runtimeDataDirectory:options.sourceDirectory!;report.selectedStoreScope='ORIGINAL_STORE';
   }
-  if(options.inputScope==='LOCAL_FIXTURE'&&fs.realpathSync(sourceDirectory).toLowerCase()===path.join(root,'backend/data').toLowerCase())throw new RuntimeBackupError('RUNTIME_BACKUP_FIXTURE_ACTIVE_SOURCE_DISABLED');
+  if(options.inputScope==='LOCAL_FIXTURE'&&fs.realpathSync(sourceDirectory).toLowerCase()===config.runtimeDataDirectory.toLowerCase())throw new RuntimeBackupError('RUNTIME_BACKUP_FIXTURE_ACTIVE_SOURCE_DISABLED');
   report.sourceFootprint=sourceFootprint(sourceDirectory);const copied=copyStableDatabase(sourceDirectory,path.join(directory,'source-copy'));if(!isDeepStrictEqual(copied,report.sourceFootprint))throw new RuntimeBackupError('RUNTIME_BACKUP_SOURCE_CHANGED');
   source=new TransactionalStore(path.join(directory,'source-copy'));const baseline=source.snapshot();recovery?.verifyCopiedState(baseline);
   if(!source.verifyAuditLogIntegrity().valid)throw new RuntimeBackupError('RUNTIME_BACKUP_AUDIT_INVALID');
@@ -142,7 +143,7 @@ export function backupRuntimeStore(options:Options){
  }catch(error){report.status='REJECTED';report.failureCode=error instanceof RuntimeBackupError||error instanceof RecoveryApplicationError||error instanceof RecoveryDrillError?error.code:'RUNTIME_BACKUP_STAGE_REJECTED';}
  finally{source?.close();target?.close();}
  if(sourceDirectory&&report.sourceFootprint){try{report.sourceFilesUnchanged=isDeepStrictEqual(report.sourceFootprint,sourceFootprint(sourceDirectory));}catch{report.sourceFilesUnchanged=false;}if(!report.sourceFilesUnchanged){report.status='REJECTED';report.failureCode='RUNTIME_BACKUP_SOURCE_CHANGED';}}
- if(originalFootprint){report.originalStoreFootprint=originalFootprint;try{report.originalStoreFilesUnchanged=isDeepStrictEqual(originalFootprint,sourceFootprint(path.join(root,'backend/data')));}catch{report.originalStoreFilesUnchanged=false;}if(!report.originalStoreFilesUnchanged){report.status='REJECTED';report.failureCode='RUNTIME_BACKUP_ORIGINAL_SOURCE_CHANGED';}}
+ if(originalFootprint){report.originalStoreFootprint=originalFootprint;try{report.originalStoreFilesUnchanged=isDeepStrictEqual(originalFootprint,sourceFootprint(config.runtimeDataDirectory));}catch{report.originalStoreFilesUnchanged=false;}if(!report.originalStoreFilesUnchanged){report.status='REJECTED';report.failureCode='RUNTIME_BACKUP_ORIGINAL_SOURCE_CHANGED';}}
  if(!isDeepStrictEqual(toolInputs,runtimeBackupInputs())){report.status='REJECTED';report.failureCode='RUNTIME_BACKUP_TOOLS_CHANGED';}
  report.dataBackupAndRestoreDurationMs=Math.round((performance.now()-started)*1000)/1000;report.completedAt=new Date().toISOString();
  fs.mkdirSync(reports,{recursive:true});const file=path.join(reports,new Date().toISOString().replace(/[:.]/g,'-')+'-'+crypto.randomUUID()+'.json'),value=Buffer.from(JSON.stringify(report,null,2)+'\n');fs.writeFileSync(file,value,{flag:'wx'});const ref={schemaVersion:1,path:path.relative(root,file).replaceAll('\\','/'),sha256:sha(value),byteLength:value.length,status:report.status,inputScope:options.inputScope,selectedStoreScope:report.selectedStoreScope,acceptanceEligible:false};

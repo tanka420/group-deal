@@ -1,12 +1,8 @@
 import { ethers } from "ethers";
+import {ARC_CHAIN_ID,ARC_NETWORK,ARC_CHAIN_NAME} from '../../../shared/network.mjs';
+export {ARC_CHAIN_ID} from '../../../shared/network.mjs';
 
-export const ARC_CHAIN_ID = 5042002;
-export const ARC_RPC_ENDPOINTS = [
-  "https://rpc.testnet.arc.io",
-  "https://rpc.blockdaemon.testnet.arc.io",
-  "https://rpc.drpc.testnet.arc.io",
-  "https://rpc.quicknode.testnet.arc.io",
-] as const;
+export const ARC_RPC_ENDPOINTS:string[] = [ARC_NETWORK.rpc.primary,...ARC_NETWORK.rpc.fallbacks];
 
 const readMethods = new Set([
   "eth_chainId", "eth_getBalance", "eth_call", "eth_gasPrice", "eth_maxPriorityFeePerGas",
@@ -56,7 +52,7 @@ export function readArcRpc<T = string>(method: string, params: unknown[] = []): 
         blockedUntil.set(url, Date.now() + 30_000);
       }
     }
-    throw new Error("Không thể đọc dữ liệu Arc Testnet. Các RPC đang bận; hãy thử lại sau.");
+    throw new Error(`Không thể đọc dữ liệu ${ARC_CHAIN_NAME}. Các RPC đang bận; hãy thử lại sau.`);
   })().finally(() => inFlight.delete(key));
   inFlight.set(key, request);
   return request;
@@ -66,7 +62,7 @@ let provider: ethers.BrowserProvider | undefined;
 export function getArcReadProvider(): ethers.BrowserProvider {
   provider ||= new ethers.BrowserProvider({
     request: ({ method, params }) => readArcRpc(method, Array.isArray(params) ? params : []),
-  }, { name: "Arc Testnet", chainId: ARC_CHAIN_ID }, { cacheTimeout: -1 });
+  }, { name: ARC_CHAIN_NAME, chainId: ARC_CHAIN_ID }, { cacheTimeout: -1 });
   return provider;
 }
 

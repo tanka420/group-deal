@@ -1,3 +1,4 @@
+import {ARC_CHAIN_ID,ARC_EXPLORER,ARC_CHAIN_NAME} from '../../../shared/network.mjs';
 import { type UiMessage, uiMessage, messageText } from "../utils/uiMessage";
 import React,{useEffect,useRef,useState} from "react";
 import {ethers} from "ethers";
@@ -44,11 +45,11 @@ export function WalletManager({token,userId,embedded=false}:{token:string;userId
     if(!circleCredentials)throw new Error();const data=await json(`/api/auth/wallet-intents/${intent.id}/circle/${role}`,{userToken:circleCredentials.userToken});if(!alive(generation))return;
     if(data.id!==intent.id||data.userId!==userId||data.role!==role||data.walletAddress?.toLowerCase()!==expected.toLowerCase()||data.messageHash!==ethers.hashMessage(message)||typeof data.challengeId!=="string"||! /^[a-f0-9-]{36}$/i.test(data.challengeId))throw new Error();signature=await executeCircleMessageChallenge(data.challengeId);
    }else{
-    await external.connect();if(!alive(generation))return;const signer=await external.getSigner();if((await signer.getAddress()).toLowerCase()!==expected.toLowerCase()||Number((await signer.provider?.getNetwork())?.chainId)!==5042002)throw new Error();if(!alive(generation))return;signature=await signer.signMessage(message);if((await signer.getAddress()).toLowerCase()!==expected.toLowerCase())throw new Error();
+    await external.connect();if(!alive(generation))return;const signer=await external.getSigner();if((await signer.getAddress()).toLowerCase()!==expected.toLowerCase()||Number((await signer.provider?.getNetwork())?.chainId)!==ARC_CHAIN_ID)throw new Error();if(!alive(generation))return;signature=await signer.signMessage(message);if((await signer.getAddress()).toLowerCase()!==expected.toLowerCase())throw new Error();
    }
    if(!alive(generation))return;if(!/^0x[0-9a-fA-F]{130}$/.test(signature)||ethers.verifyMessage(message,signature).toLowerCase()!==expected.toLowerCase())throw new Error();
    if(role==="SOURCE"){signatures.current.source=signature;if(intent.sourceMessage===intent.targetMessage)signatures.current.target=signature;}else signatures.current.target=signature;setSigned({source:Boolean(signatures.current.source),target:Boolean(signatures.current.target)});
-  }catch{if(alive(generation))setError(uiMessage("Chưa xác nhận được chữ ký. Chọn đúng địa chỉ trên Arc Testnet; ví Circle cần phiên ký đã xác thực. Không có yêu cầu đổi ví nào được gửi.","Signature unconfirmed. Select the exact address on Arc Testnet; Circle needs an authenticated signing session. No wallet change was submitted."));}finally{if(alive(generation)){setPending(false);locked.current=false;}}
+  }catch{if(alive(generation))setError(uiMessage(`Chưa xác nhận được chữ ký. Chọn đúng địa chỉ trên ${ARC_CHAIN_NAME}; ví Circle cần phiên ký đã xác thực. Không có yêu cầu đổi ví nào được gửi.`,`Signature unconfirmed. Select the exact address on ${ARC_CHAIN_NAME}; Circle needs an authenticated signing session. No wallet change was submitted.`));}finally{if(alive(generation)){setPending(false);locked.current=false;}}
  }
  async function commit(){if(locked.current||!intent||!checkpoint||unknown||!signatures.current.source||!signatures.current.target)return;locked.current=true;const generation=epoch.current;setPending(true);setError(null);setMessage(null);
   try{const result=readWalletIntent(await json(`/api/auth/wallet-intents/${intent.id}/commit`,{sourceSignature:signatures.current.source,targetSignature:signatures.current.target}),checkpoint);if(!alive(generation))return;if(result.state!=="COMMITTED")throw new Error();await confirmed(result,generation);}
@@ -78,7 +79,7 @@ export function WalletManager({token,userId,embedded=false}:{token:string;userId
     <button className="btn btn-sm btn-secondary" disabled={pending} onClick={()=>void recover()}>{text("Kiểm tra yêu cầu này","Check this request")}</button>
     {missing&&unknown&&<button className="btn btn-sm btn-secondary" disabled={pending} onClick={()=>void prepare(true)}>{text("Tạo lại đúng yêu cầu đã lưu","Create the same saved request")}</button>}
     {intent&&!unknown&&intent.state==="PENDING"&&<>
-     <p>{text("Chain 5042002 · Hạn ký 5 phút · Không gửi giao dịch hoặc tốn USDC. Hãy xem cả hai địa chỉ trước khi ký.","Chain 5042002 · Five-minute signing window · No transaction or USDC spent. Review both addresses before signing.")}</p>
+     <p>{text(`Chain ${ARC_CHAIN_ID} · Hạn ký 5 phút · Không gửi giao dịch hoặc tốn USDC. Hãy xem cả hai địa chỉ trước khi ký.`,`Chain ${ARC_CHAIN_ID} · Five-minute signing window · No transaction or USDC spent. Review both addresses before signing.`)}</p>
      <details><summary>{text("Xem thông điệp ký","View signing messages")}</summary><pre>{intent.sourceMessage}</pre>{intent.sourceMessage!==intent.targetMessage&&<pre>{intent.targetMessage}</pre>}</details>
      <button className="btn btn-sm btn-secondary" disabled={pending||signed.source} onClick={()=>void sign("SOURCE")}>{signed.source?text("Đã xác minh ví hiện có","Existing wallet verified"):text("1. Ký bằng ví đã thuộc tài khoản","1. Sign with existing account wallet")}</button>
      <button className="btn btn-sm btn-secondary" disabled={pending||!signed.source||signed.target} onClick={()=>void sign("TARGET")}>{signed.target?text("Đã xác minh ví muốn dùng","Target wallet verified"):text("2. Chọn và ký bằng ví muốn dùng","2. Select and sign with target wallet")}</button>

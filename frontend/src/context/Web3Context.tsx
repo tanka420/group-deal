@@ -1,3 +1,4 @@
+import {ARC_CHAIN_ID,ARC_CHAIN_HEX,ARC_EXPLORER,ARC_CHAIN_NAME,ARC_NETWORK,assertDeploymentConfigured,ARC_IS_MAINNET} from '../../../shared/network.mjs';
 import React, { createContext, useContext, useCallback, useEffect, useRef, useState } from "react";
 import { ethers } from "ethers";
 import { useAuth } from "./AuthContext";
@@ -76,9 +77,7 @@ interface Web3ContextType {
 }
 
 const Web3Context = createContext<Web3ContextType>({} as Web3ContextType);
-const ARC_CHAIN_ID = 5042002;
-const ARC_CHAIN_HEX = "0x4cef52";
-const ARC_RPC = "https://rpc.testnet.arc.io";
+const ARC_RPC = ARC_NETWORK.rpc.primary;
 
 function formatArcUsdcBalance(balance: bigint): string {
   const [whole, fraction = ""] = ethers.formatUnits(balance, 18).split(".");
@@ -146,6 +145,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     void fetch("/api/health")
       .then((response) => readJson(response))
       .then((data) => {
+        assertDeploymentConfigured();
+        if(ARC_IS_MAINNET&&(data.chainId!==ARC_CHAIN_ID||data.hubAddress?.toLowerCase()!==ARC_NETWORK.contracts.GroupDealHub.address.toLowerCase()||data.usdcAddress?.toLowerCase()!==ARC_NETWORK.contracts.USDC.address.toLowerCase()||data.protocolVersion!==(ARC_NETWORK.protocolVersion??1)))throw Error("NETWORK_DEPLOYMENT_MISMATCH");
         if (data.hubAddress) setHubAddress(data.hubAddress);
         if (data.usdcAddress) setUsdcAddress(data.usdcAddress);
       })
@@ -210,10 +211,10 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       await browserProvider.send("wallet_addEthereumChain", [
         {
           chainId: ARC_CHAIN_HEX,
-          chainName: "Arc Testnet",
+          chainName: `${ARC_CHAIN_NAME}`,
           nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
           rpcUrls: [ARC_RPC],
-          blockExplorerUrls: ["https://testnet.arcscan.app"],
+          blockExplorerUrls: [`${ARC_EXPLORER}`],
         },
       ]);
     }
@@ -228,7 +229,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     const network = await signer.provider?.getNetwork();
     scope.assertCurrent();
     if (!network || Number(network.chainId) !== ARC_CHAIN_ID) {
-      throw new Error("Ví ngoài chưa chuyển sang Arc Testnet (chain ID 5042002)");
+      throw new Error(`Ví ngoài chưa chuyển sang ${ARC_CHAIN_NAME} (chain ID ${ARC_CHAIN_ID})`);
     }
     return signer;
   };
@@ -320,7 +321,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const switchToCircleWallet = () => {
-    if (!user?.circleWallet?.address) throw new Error("Tài khoản chưa có ví Circle trên Arc Testnet");
+    if (!user?.circleWallet?.address) throw new Error(`Tài khoản chưa có ví Circle trên ${ARC_CHAIN_NAME}`);
     if(user.activeWallet?.toLowerCase()!==user.circleWallet.address.toLowerCase())throw new Error("WALLET_SELECTION_PROOF_REQUIRED");
     setAccount(user.circleWallet.address);
     setWalletMode("CIRCLE_EMBEDDED");
@@ -379,6 +380,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     grossUsdc=0n,
     existingChallengeId?:string
   ): Promise<{ txHash: string }> => {
+    assertDeploymentConfigured();
     if (!token || !circleCredentials || !user?.circleWallet) {
       throw new Error("Vui lòng xác thực lại Circle trước khi ký giao dịch");
     }
@@ -439,6 +441,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const sendReviewedExternalCall=async(signer:ethers.Signer,to:string,data:string,intent:CircleIntent,grossUsdc:bigint,send:()=>Promise<ethers.ContractTransactionResponse>)=>{
+    assertDeploymentConfigured();
     if(externalTransactionFlight.current)throw new UiError(uiMessage('Một yêu cầu ví ngoài đang được xử lý. Chờ kết quả trước khi ký yêu cầu khác.','An external wallet request is in progress. Wait for its outcome before signing another.'));
     externalTransactionFlight.current=true;
     try{

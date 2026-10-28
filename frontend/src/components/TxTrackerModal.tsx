@@ -1,3 +1,4 @@
+import {ARC_EXPLORER,ARC_CHAIN_NAME,ARC_CHAIN_ID} from '../../../shared/network.mjs';
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CheckCircle2, AlertTriangle, ExternalLink, Loader2 } from "lucide-react";
@@ -45,7 +46,7 @@ export function TxTrackerModal({isOpen,step,txHash,errorMessage,onClose,onCheck,
   },[isOpen]);
   useEffect(()=>{if(isOpen&&!providerHandoff)heading.current?.focus();},[isOpen,providerHandoff]);
   if(!isOpen)return null;
-  const title=confirmed?t("txConfirmed"):step==="EXPIRED"?t("authorizationExpired"):failed?text("Giao dịch thất bại","Transaction failed"):step==="PENDING_CHECK"?text("Cần kiểm tra giao dịch cũ","Previous transaction needs review"):text("Đang xử lý trên Arc Testnet…","Processing on Arc Testnet…");
+  const title=confirmed?t("txConfirmed"):step==="EXPIRED"?t("authorizationExpired"):failed?text("Giao dịch thất bại","Transaction failed"):step==="PENDING_CHECK"?text("Cần kiểm tra giao dịch cũ","Previous transaction needs review"):text(`Đang xử lý trên ${ARC_CHAIN_NAME}…`,`Processing on ${ARC_CHAIN_NAME}…`);
   const descriptions:Record<TxStep,string>={
     AUTH:text("Đang kiểm tra điều kiện mua trước khi yêu cầu ví ký.","Checking purchase eligibility before requesting a wallet signature."),
     READY:text("Đang kiểm tra giá và lịch sử giao dịch của ví. Có thể mất vài chục giây; chưa cần thao tác trong ví.","Checking the price and wallet transaction history. This may take several seconds; no wallet action is needed yet."),
@@ -59,12 +60,12 @@ export function TxTrackerModal({isOpen,step,txHash,errorMessage,onClose,onCheck,
     EXPIRED:text("Chứng thực mua đã hết hạn. Kiểm tra trạng thái cũ trước khi yêu cầu quote mới.","The purchase authorization expired. Check its state before requesting a fresh quote.")
   };
   return createPortal(<div className="modal-overlay transaction-overlay" hidden={providerHandoff}><dialog open ref={dialog} className="modal-content transaction-dialog" aria-modal={!providerHandoff} aria-labelledby="transaction-title">
-    <p className="eyebrow">{text("Tham gia deal","Join deal")} · Arc Testnet</p>
+    <p className="eyebrow">{text("Tham gia deal","Join deal")} · {ARC_CHAIN_NAME}</p>
     <ol className="join-steps" aria-label={text("Tiến trình mua","Purchase progress")}>{[text("Kiểm tra cam kết","Review commitment"),text("Ký giao dịch","Sign transaction"),text("Xác minh đơn","Verify order")].map((label,index)=><li key={label} aria-current={index+1===stage?"step":undefined}><span>{index+1<stage?<CheckCircle2 size={18} aria-hidden="true"/>:index+1}</span>{label}</li>)}</ol>
     <div className={"transaction-symbol "+(confirmed?"confirmed":failed?"failed":"pending")} aria-hidden="true">{confirmed?<CheckCircle2 size={36}/>:failed?<AlertTriangle size={36}/>:<Loader2 size={36} className="animate-spin"/>}</div>
     <h2 id="transaction-title" ref={heading} tabIndex={-1}>{title}</h2><p role="status">{descriptions[step]}</p>
     {errorMessage&&!confirmed&&<p className="notice notice-warning">{errorMessage}</p>}
-    {txHash&&/^0x[0-9a-fA-F]{64}$/.test(txHash)&&<details className="transaction-technical"><summary>{text("Chi tiết giao dịch","Transaction details")}</summary><p className="address-value">{txHash}</p><a href={"https://testnet.arcscan.app/tx/"+txHash} target="_blank" rel="noreferrer">{text("Xem trên explorer","View on explorer")} <ExternalLink size={15}/></a></details>}
+    {txHash&&/^0x[0-9a-fA-F]{64}$/.test(txHash)&&<details className="transaction-technical"><summary>{text("Chi tiết giao dịch","Transaction details")}</summary><p className="address-value">{txHash}</p><a href={`${ARC_EXPLORER}/tx/`+txHash} target="_blank" rel="noreferrer">{text("Xem trên explorer","View on explorer")} <ExternalLink size={15}/></a></details>}
     {step==="PENDING_CHECK"&&onCheck&&<button type="button" className="btn btn-secondary" onClick={onCheck}>{text("Kiểm tra lại giao dịch / đơn cũ","Check previous transaction / order")}</button>}
     {closable?<button className="btn btn-primary" onClick={onClose}>{confirmed?text("Xem đơn hàng của tôi","View my orders"):text("Đóng","Close")}</button>:<p className="muted">{text("Chờ kết quả trước khi ký thêm giao dịch. Bạn có thể từ chối yêu cầu trong ví.","Wait for this operation before signing another transaction. You can reject a request in your wallet.")}</p>}
   </dialog></div>,document.body);

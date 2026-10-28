@@ -1,4 +1,5 @@
 import express,{Router} from 'express';
+import {ARC_BRIDGE_ENABLED} from '../../../shared/network.mjs';
 import {z} from 'zod';
 import {store,type TransactionalStore} from '../db/store';
 import {config} from '../config';
@@ -19,6 +20,7 @@ function failure(res:express.Response,error:unknown){const e=error instanceof Br
 function boundedRead(read:ServerBridgeRead,limits:Limits):ServerBridgeRead{const started=Date.now();let count=0;return async<T>(chain:Parameters<ServerBridgeRead>[0],method:string,params:unknown[])=>{if(++count>limits.reads||Date.now()<started||Date.now()-started>limits.readWindowMs)throw new BridgeTransferError('BRIDGE_READ_BUDGET_EXHAUSTED',503);return await read<T>(chain,method,params);};}
 export function createBridgeRouter(options:{database:TransactionalStore;origins:string[];read?:ServerBridgeRead;limits?:Partial<Limits>}){
  const router=Router(),origins=[...new Set(options.origins.map(bridgeTransferOrigin))],sessions=new SessionRegistry(options.database),limits={...defaults,...options.limits},read=options.read??readServerBridgeRpc;
+ router.use((_req,res,next)=>{if(!ARC_BRIDGE_ENABLED){res.status(403).json({code:'MAINNET_BRIDGE_NOT_ENABLED'});return;}next();});
  if(!origins.length||Object.values(limits).some(v=>!Number.isSafeInteger(v)||v<1))throw Error('Invalid bridge API configuration');
  const buckets=new Map<string,{count:number;expensive:number;expiresAt:number}>(),busy=new Set<string>();
  router.use((_req,res,next)=>{res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');next();});

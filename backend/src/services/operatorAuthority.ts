@@ -11,7 +11,7 @@ export async function readCurrentOperatorAuthority(previous?:OperatorAuthority,f
  if(fixture&&(process.env.NODE_ENV!=='test'||config.arcChainId!==31337))throw new OperatorEnrollmentError('OPERATOR_AUTHORITY_FIXTURE_DISABLED',503);
  let provider:any;try{
   if(!fixture)validateRuntimeSecurity();
-  const m=fixture?.manifest??JSON.parse(fs.readFileSync(path.join(root,'shared/manifests/arc-testnet.json'),'utf8'));
+  const m=fixture?.manifest??JSON.parse(fs.readFileSync(config.manifestPath,'utf8'));
   const signer=new ethers.Wallet(config.authorizedSignerPrivateKey).address;
   if(m.chainId!==config.arcChainId||m.contracts?.GroupDealHub?.address?.toLowerCase()!==config.hubAddress.toLowerCase()||m.contracts.GroupDealHub.deploymentBlock!==config.deploymentBlock||(m.protocolVersion??1)!==config.protocolVersion||m.contracts?.USDC?.address?.toLowerCase()!==config.usdcAddress.toLowerCase()||m.roles?.operator?.address?.toLowerCase()!==config.operatorAddress.toLowerCase()||m.roles?.authorizedSigner?.address?.toLowerCase()!==signer.toLowerCase()||!ethers.isAddress(m.roles?.owner?.address)||m.roles?.securityAuthority?.type!=='safe-multisig'||!ethers.isAddress(m.roles.securityAuthority.address))throw new OperatorEnrollmentError('OPERATOR_AUTHORITY_MANIFEST_MISMATCH',503);
   provider=fixture?.provider??new ArcReadProvider();

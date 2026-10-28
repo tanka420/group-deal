@@ -1,3 +1,4 @@
+import {ARC_CHAIN_ID,ARC_KIT_CHAIN} from '../../../shared/network.mjs';
 import {ethers} from 'ethers';
 import {z} from 'zod';
 import fs from 'node:fs';
@@ -12,7 +13,7 @@ import {readWalletFlow,walletFlowBinding,type WalletFlowRecord} from './walletFl
 import {encryptionKey} from '../utils/crypto';
 export class SignerReservationError extends Error {constructor(public code:string,public status=409){super(code)}}
 const id=z.string().min(1).max(180).refine(s=>!['__proto__','prototype','constructor'].includes(s)),hash=z.string().regex(/^0x[0-9a-f]{64}$/),address=z.string().regex(/^0x[0-9a-f]{40}$/).refine(v=>ethers.isAddress(v)&&v!==ethers.ZeroAddress),time=z.number().int().nonnegative().safe(),counter=z.string().regex(/^(0|[1-9][0-9]{0,19})$/).refine(v=>BigInt(v)<2n**64n),quantity=z.string().regex(/^0x[0-9a-f]{1,16}$/);
-const chains=[5042002,11155111,84532,421614],chain=z.number().int().refine(v=>chains.includes(v));
+const chains=[ARC_CHAIN_ID,11155111,84532,421614],chain=z.number().int().refine(v=>chains.includes(v));
 export const signerPurposeSchema=z.discriminatedUnion('kind',[z.object({kind:z.literal('HUB_OPERATION'),operationId:z.string().regex(/^op_[a-f0-9-]{36}$/)}).strict(),z.object({kind:z.literal('BRIDGE_WRITE'),transferId:z.string().uuid(),writeId:z.string().uuid()}).strict(),z.object({kind:z.literal('WALLET_WRITE'),operationId:z.string().regex(/^wop_[a-f0-9]{64}$/),writeId:z.string().regex(/^wrt_[a-f0-9]{64}$/)}).strict()]);
 export type SignerPurpose=z.infer<typeof signerPurposeSchema>;
 const originalWitnessSchema=z.object({hash,nonce:counter,source:z.enum(['SIGNED_TRANSACTION','RPC_TRANSACTION']),observedAt:time}).strict();
@@ -67,7 +68,7 @@ export function prepareSignerObservation(state:SignerState,context:string|undefi
  const record=readSignerReservation(old?{...old,witnesses:[...prior,witness],revision:old.revision+1}:{version:1,id:signerReservationId(owner),accountId:owner.accountId,chainId:owner.chainId,principal:owner.principal,purpose:owner.purpose,bindingHash:owner.bindingHash,...(context?{authRecoveryContext:context}:{}),createdAt:readAt,revision:1,phase:'OBSERVED',witnesses:[witness]});return sealed(state,[record],record,false,readAt,false,true);
 }
 export function isPreparedSignerObservationMutation(value:unknown,state:SignerState):value is PreparedSignerMutation{return isPreparedSignerMutation(value,state)&&seals.get(value)?.observation===true&&!!state.target&&value.record.id===signerReservationId(state.target)&&value.record.phase!=='RELEASED'&&value.records.length<=1}
-const chainNames:Record<number,ServerBridgeChain>={5042002:'Arc_Testnet',11155111:'Ethereum_Sepolia',84532:'Base_Sepolia',421614:'Arbitrum_Sepolia'};
+const chainNames:Record<number,ServerBridgeChain>={[ARC_CHAIN_ID]:ARC_KIT_CHAIN,11155111:'Ethereum_Sepolia',84532:'Base_Sepolia',421614:'Arbitrum_Sepolia'};
 const same=(v:unknown,b:string)=>typeof v==='string'&&v.toLowerCase()===b.toLowerCase();
 function uint(v:unknown):bigint {if(typeof v!=='string'||!/^0x[0-9a-f]{1,16}$/i.test(v))return fail('SIGNER_READ_UNAVAILABLE',503);return BigInt(v)}
 function bounded(read:ServerBridgeRead,callLimit=128):ServerBridgeRead{const start=Date.now();let calls=0;return async<T>(chain:ServerBridgeChain,method:string,args:unknown[])=>{if(Date.now()<start||Date.now()-start>25000||++calls>callLimit)return fail('SIGNER_READ_BUDGET_EXHAUSTED',503);return read<T>(chain,method,args)}}
@@ -114,9 +115,9 @@ async function nonceCompletion(entry:SignerState['entries'][number],read:ServerB
  const consumed=uint(await read<string>(chain,'eth_getTransactionCount',[r.principal,proof.finalizedBlock.number]));if(consumed<=BigInt(proof.nonce))return fail('SIGNER_NONCE_NOT_CONSUMED');const final=await read<any>(chain,'eth_getBlockByNumber',[proof.finalizedBlock.number,false]);if(!final||!same(final.hash,proof.finalizedBlock.hash)||uint(final.number)!==uint(proof.finalizedBlock.number))return fail('SIGNER_RECEIPT_REORG');return{...proof,checkedAt:Date.now()};
 }
 function configuredExpiryDeployment():SignerExpiryDeployment {
- try{const m=JSON.parse(fs.readFileSync(path.resolve(__dirname,'../../../shared/manifests/arc-testnet.json'),'utf8')),h=m.contracts?.GroupDealHub,version=m.protocolVersion??1;
-  if(m.chainId!==5042002||config.arcChainId!==5042002||![1,2].includes(version)||config.protocolVersion!==version||!same(h?.address,config.hubAddress)||h?.deploymentBlock!==config.deploymentBlock||!hash.safeParse(String(h?.bytecodeHash).toLowerCase()).success)return fail('SIGNER_EXPIRY_DEPLOYMENT_UNVERIFIED',503);
-  return{chainId:5042002,hubAddress:config.hubAddress.toLowerCase(),bytecodeHash:h.bytecodeHash.toLowerCase(),deploymentBlock:config.deploymentBlock,protocolVersion:version};
+ try{const m=JSON.parse(fs.readFileSync(config.manifestPath,'utf8')),h=m.contracts?.GroupDealHub,version=m.protocolVersion??1;
+  if(m.chainId!==ARC_CHAIN_ID||config.arcChainId!==ARC_CHAIN_ID||![1,2].includes(version)||config.protocolVersion!==version||!same(h?.address,config.hubAddress)||h?.deploymentBlock!==config.deploymentBlock||!hash.safeParse(String(h?.bytecodeHash).toLowerCase()).success)return fail('SIGNER_EXPIRY_DEPLOYMENT_UNVERIFIED',503);
+  return{chainId:ARC_CHAIN_ID,hubAddress:config.hubAddress.toLowerCase(),bytecodeHash:h.bytecodeHash.toLowerCase(),deploymentBlock:config.deploymentBlock,protocolVersion:version};
  }catch(e){if(e instanceof SignerReservationError)throw e;return fail('SIGNER_EXPIRY_DEPLOYMENT_UNVERIFIED',503)}
 }
 const expiryAbi=new ethers.Interface([...HUB_ABI,'function protocolVersion() view returns(uint256)']);
@@ -125,7 +126,7 @@ const expiryBuyTypes={BuyAuthorization:[{name:'chainId',type:'uint256'},{name:'h
 async function authorizationExpiryCompletion(entry:SignerState['entries'][number],read:ServerBridgeRead,policy?:SignerExpiryDeployment):Promise<SignerAuthorizationExpiryCompletion>{
  const r=readSignerReservation(entry.record),o=entry.owner,q=o?.buy?.quote;
  if(!o?.hub||!q||o.phase!=='EXPIRED'||o.txHash||r.witnesses?.length||o.buy!.hasBroadcastEvidence||o.bindingHash!==r.bindingHash||o.accountId!==r.accountId||o.chainId!==r.chainId||o.principal!==r.principal||o.purpose.kind!=='HUB_OPERATION')return fail();
- const p=policy??configuredExpiryDeployment();if(p.chainId!==5042002||![1,2].includes(p.protocolVersion)||o.chainId!==p.chainId||!same(o.hub.to,p.hubAddress)||!hash.safeParse(p.bytecodeHash).success||!Number.isSafeInteger(p.deploymentBlock)||q.blockNumber<p.deploymentBlock)return fail('SIGNER_EXPIRY_DEPLOYMENT_UNVERIFIED',503);
+ const p=policy??configuredExpiryDeployment();if(p.chainId!==ARC_CHAIN_ID||![1,2].includes(p.protocolVersion)||o.chainId!==p.chainId||!same(o.hub.to,p.hubAddress)||!hash.safeParse(p.bytecodeHash).success||!Number.isSafeInteger(p.deploymentBlock)||q.blockNumber<p.deploymentBlock)return fail('SIGNER_EXPIRY_DEPLOYMENT_UNVERIFIED',503);
  let proofStage='DECODE';
  try{
   const c=expiryAbi.parseTransaction({data:o.hub.calldata});if(c?.name!=='commitToBuy'||expiryAbi.encodeFunctionData(c.name,Array.from(c.args)).toLowerCase()!==o.hub.calldata||c.args.campaignId<=0n||c.args.quantity<=0n||c.args.maxAuthQuantity<c.args.quantity||c.args.authDeadline<0n||!Number.isSafeInteger(Number(c.args.authDeadline))||String(c.args.campaignId)!==o.buy!.event.campaignId||String(c.args.quantity)!==o.buy!.event.quantity||!same(c.args.campaignIdentity,o.buy!.event.campaignIdentity)||!same(o.buy!.event.buyerPrincipal,o.principal))return fail('SIGNER_AUTHORIZATION_INVALID');

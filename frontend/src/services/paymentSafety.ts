@@ -1,3 +1,4 @@
+import {ARC_KIT_CHAIN} from '../../../shared/network.mjs';
 import { ethers } from "ethers";
 import type { BridgeEstimateResult } from "@circle-fin/app-kit";
 import {signerHoldMessage} from "./signerHoldMessage";
@@ -81,7 +82,7 @@ export function bridgeQuoteSummary(estimate: BridgeEstimateResult, source: Bridg
     const fee = nativeBridgeFee(item.fees.fee);
     if (fee < 0n) throw new Error("Báo giá gas không hợp lệ");
     if (String(item.blockchain) === source && item.token === "ETH") sourceGas = boundedBridgeBudget(sourceGas + fee);
-    else if (String(item.blockchain) === "Arc_Testnet" && item.token === "USDC") arcGas = boundedBridgeBudget(arcGas + fee);
+    else if (String(item.blockchain) === ARC_KIT_CHAIN && item.token === "USDC") arcGas = boundedBridgeBudget(arcGas + fee);
     else throw new Error("Báo giá chứa mạng hoặc token gas không được hỗ trợ");
   }
   const received = parseUsdc(amount) - feesUsdc;

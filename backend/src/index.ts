@@ -1,3 +1,4 @@
+import {ARC_CHAIN_ID} from '../../shared/network.mjs';
 import { WebhookService } from "./services/webhookService";
 import express from "express";
 import cors from "cors";
@@ -268,7 +269,7 @@ export async function startServer(fixture?:LocalStartupFixture) {
     const result=await (fixture?.verifyManifest||validateManifestAndEnvironment)();
     console.log("[Startup] Deployment manifest verified on chain",(result as any).chainId);
   } catch {
-    if (config.isProduction || config.arcChainId===5042002) throw new Error("Deployment manifest validation failed; server has not opened its port or started workers");
+    if (config.isProduction || config.arcChainId===ARC_CHAIN_ID) throw new Error("Deployment manifest validation failed; server has not opened its port or started workers");
     console.warn("[Startup] Local deployment manifest is unavailable");
   }
   const recovery=(fixture?.selectRecovery||selectRecoveryApplication)();

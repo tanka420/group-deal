@@ -1,4 +1,5 @@
 import {WalletFlowError,parseWalletSwapQuote,swapServiceRequest,type WalletIntent} from '../domain/walletQuote';
+import {ARC_SWAP_ENABLED} from '../../../shared/network.mjs';
 
 /** Same preparation endpoint used by pinned App Kit1.15.3 / Swap Kit1.7.0.
  * The response is an unsigned user transaction plus the route service signature.
@@ -6,6 +7,7 @@ import {WalletFlowError,parseWalletSwapQuote,swapServiceRequest,type WalletInten
 export class WalletSwapService {
  constructor(private readonly request:typeof fetch=fetch){}
  async quote(intent:Extract<WalletIntent,{kind:'SWAP'}>,principal:string){
+  if(!ARC_SWAP_ENABLED)throw new WalletFlowError('MAINNET_SWAP_NOT_ENABLED',403);
   const body=swapServiceRequest(intent,principal),startedAt=Date.now();
   try{
    const response=await this.request('https://api.circle.com/v1/stablecoinKits/swap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(20000),redirect:'error'});

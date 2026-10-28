@@ -1,3 +1,4 @@
+import {ARC_IS_MAINNET} from '../../../shared/network.mjs';
 import {useAccountHandle} from '../hooks/useAccountHandle';
 import {Wallet,Settings,LifeBuoy} from 'lucide-react';
 import { PrimaryNavigation } from "./PrimaryNavigation";
@@ -152,7 +153,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="btn btn-sm btn-secondary header-funding"
             aria-label={language==='en'?'Fund USDC':'Nạp USDC'}
             onClick={event => {event.currentTarget.focus();setIsFundingModalOpen(true);}}
-            title={language==="en"?"Fund USDC, CCTP Bridge & Testnet Faucet":"Nạp USDC, CCTP Bridge & Testnet Faucet"}
+            title={ARC_IS_MAINNET?(language==="en"?"Receive USDC on Arc Mainnet":"Nhận USDC trên Arc Mainnet"):(language==="en"?"Fund USDC, CCTP Bridge & Testnet Faucet":"Nạp USDC, CCTP Bridge & Testnet Faucet")}
           >
             <Coins size={15} color="var(--warning)" />
             <span>{language==="en"?"Fund USDC":"Nạp USDC"}</span>

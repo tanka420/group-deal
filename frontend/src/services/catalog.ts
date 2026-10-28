@@ -1,3 +1,4 @@
+import {ARC_CHAIN_ID} from '../../../shared/network.mjs';
 import {ethers} from 'ethers';
 import {readPublicWidget,type PublicWidget} from '../../../shared/publicWidget.mjs';
 import {normalizeCatalogText,catalogPriceUnits} from '../../../shared/catalogQuery.mjs';
@@ -39,7 +40,7 @@ function imageUrl(value:unknown):string|null {
 export class CatalogUnavailable extends Error {constructor(public status:number){super('CATALOG_UNAVAILABLE');}}
 export function readCatalog(value:unknown,filters:CatalogFilters,cursor:string|null,expectedHub?:string):CatalogPage {
  const v=value as any,requested={q:filters.q,category:filters.category,status:filters.status||null,metric:filters.metric||null,sort:filters.sort,purchasable:filters.purchasable,minPrice:filters.minPrice||null,maxPrice:filters.maxPrice||null};
- if(!v||v.version!=='1.0'||v.chainId!==5042002||!ethers.isAddress(v.hubAddress)||v.hubAddress===ethers.ZeroAddress||expectedHub&&v.hubAddress.toLowerCase()!==expectedHub.toLowerCase()||v.amountEncoding!=='USDC base-unit integer strings (6 decimals)'||!v.filters||Object.keys(requested).some(k=>v.filters[k]!==requested[k as keyof typeof requested])||!Array.isArray(v.campaigns)||v.campaigns.length>12||!v.pagination||v.pagination.limit!==12||v.pagination.sort!==filters.sort||typeof v.pagination.hasMore!=='boolean')fail();
+ if(!v||v.version!=='1.0'||v.chainId!==ARC_CHAIN_ID||!ethers.isAddress(v.hubAddress)||v.hubAddress===ethers.ZeroAddress||expectedHub&&v.hubAddress.toLowerCase()!==expectedHub.toLowerCase()||v.amountEncoding!=='USDC base-unit integer strings (6 decimals)'||!v.filters||Object.keys(requested).some(k=>v.filters[k]!==requested[k as keyof typeof requested])||!Array.isArray(v.campaigns)||v.campaigns.length>12||!v.pagination||v.pagination.limit!==12||v.pagination.sort!==filters.sort||typeof v.pagination.hasMore!=='boolean')fail();
  const next=v.pagination.nextCursor;
  if(next!==null&&(!validText(next,512)||!/^[A-Za-z0-9_-]+$/.test(next)||next===cursor)||v.pagination.hasMore!==(next!==null))fail();
  const s=v.summary,p=s?.projection;
@@ -49,7 +50,7 @@ export function readCatalog(value:unknown,filters:CatalogFilters,cursor:string|n
   categoryIds.add(normalizeCatalogText(c.value));return {value:c.value,label:c.label,campaignCount:c.campaignCount};
  });
  const ids=new Set<string>(),deals:CatalogDeal[]=v.campaigns.map((c:any)=>{
-  const card=readPublicWidget(c.card,c.id,{chainId:5042002,hubAddress:v.hubAddress});
+  const card=readPublicWidget(c.card,c.id,{chainId:ARC_CHAIN_ID,hubAddress:v.hubAddress});
   if(ids.has(card.id)||c.visibility!=='PUBLIC'||c.chainId!==v.chainId||c.hubAddress?.toLowerCase()!==v.hubAddress.toLowerCase()||card.visibility!=='PUBLIC'||card.title!==c.title||card.status!==c.status||card.metric!==c.metric||card.endTime!==c.endTime||card.platformFeeBps!==c.platformFeeBps||card.endTime>8640000000000||!validText(c.description,12000)||!validText(c.category,80)||!integer(c.deliverySlaSeconds)||![86400,172800].includes(c.deliverySlaSeconds)||typeof c.earlyRebateEnabled!=='boolean'||typeof c.termsPolicyReviewRequired!=='boolean'||!c.rights||!validText(c.rights.status,32)||!validText(c.seller?.displayName,80))fail();
   if(!card.purchaseHeld&&(c.product===null||c.termsPolicyReviewRequired||c.rights.status!=='APPROVED'||!integer(c.rights.validUntil)||c.rights.validUntil<c.endTime+c.deliverySlaSeconds))fail();
   ids.add(card.id);let product:CatalogDeal['product']=null;

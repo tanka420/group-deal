@@ -1,16 +1,15 @@
+import {ARC_CHAIN_ID} from '../../../shared/network.mjs';
 import { ethers } from "ethers";
 import { config } from "../config";
 
 const READ_METHODS = new Set(["eth_chainId", "eth_call", "eth_blockNumber", "eth_getLogs", "eth_getBlockByNumber", "eth_getBlockByHash", "eth_getTransactionByHash", "eth_getTransactionReceipt", "eth_getBalance", "eth_getCode", "eth_getTransactionCount", "eth_estimateGas", "eth_gasPrice", "eth_feeHistory", "eth_maxPriorityFeePerGas"]);
 const HASH_READS = new Set(["eth_getTransactionByHash", "eth_getTransactionReceipt"]);
 // This configured endpoint serves older hash reads but requires individual envelopes.
-const SINGLE_REQUEST_RPC = "https://rpc.drpc.testnet.arc.io";
+const SINGLE_REQUEST_RPC = config.environment==='arc-mainnet'?"https://rpc.drpc.mainnet.arc.io":"https://rpc.drpc.testnet.arc.io";
 
 /** Chain-checked HTTP failover for reads only. No signer or transaction broadcast. */
 export class ArcReadProvider extends ethers.JsonRpcProvider {
-  constructor(private readonly endpoints = [...new Set([config.arcRpcUrl, ...(config.arcChainId === 5042002 ? [
-    "https://rpc.blockdaemon.testnet.arc.io", "https://rpc.drpc.testnet.arc.io", "https://rpc.quicknode.testnet.arc.io",
-  ] : [])])], private readonly expectedChain = config.arcChainId) {
+  constructor(private readonly endpoints = [...new Set([config.arcRpcUrl, ...config.arcRpcFallbacks])], private readonly expectedChain = config.arcChainId) {
     // Canonical rechecks and nonce/head recovery require a fresh read, even within one event loop.
     super(endpoints[0], expectedChain, { staticNetwork: true, cacheTimeout: -1 });
   }

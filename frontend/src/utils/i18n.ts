@@ -1,3 +1,4 @@
+import {ARC_EXPLORER,ARC_CHAIN_NAME,ARC_CHAIN_ID} from '../../../shared/network.mjs';
 export type Language = "vi" | "en";
 
 export const translations = {
@@ -9,15 +10,15 @@ export const translations = {
     operatorPortal: "Quản trị Hệ thống",
     devDocs: "Tài liệu & API",
     faucet: "Nhận 500 Test USDC",
-    faucetSuccess: "Đã chuyển 500 USDC vào ví của bạn trên Arc Testnet!",
+    faucetSuccess: `Đã chuyển 500 USDC vào ví của bạn trên ${ARC_CHAIN_NAME}!`,
     connectWallet: "Kết nối ví",
     login: "Đăng nhập",
     logout: "Đăng xuất",
-    arcNetwork: "Arc Testnet (5042002)",
+    arcNetwork: `${ARC_CHAIN_NAME} (${ARC_CHAIN_ID})`,
 
     // Hero
     heroTitle: "Mua Chung Sản Phẩm Số",
-    heroSub: "Cam kết USDC vào escrow trên Arc Testnet ở giá hiện tại. Khi giá nhóm giảm, bạn có quyền rút phần chênh lệch đã được phân bổ. Theo dõi giao hàng và quyền hoàn tiền theo từng đơn.",
+    heroSub: `Cam kết USDC vào escrow trên ${ARC_CHAIN_NAME} ở giá hiện tại. Khi giá nhóm giảm, bạn có quyền rút phần chênh lệch đã được phân bổ. Theo dõi giao hàng và quyền hoàn tiền theo từng đơn.`,
     totalVolume: "Tổng giá trị cam kết",
     activeCampaigns: "Chiến dịch đang mở",
     avgDiscount: "Giảm giá trung bình",
@@ -55,14 +56,14 @@ export const translations = {
     totalCommitment: "Tổng USDC cam kết",
     estimatedGas: "Ước tính phí gas Arc",
     requireEarlySlot: "Bắt buộc có slot Early Supporter (Hủy lệnh nếu hết slot)",
-    termsAgreement: "Tôi xác nhận hiểu rằng khoản tiền này được khóa trong Smart Contract Arc Testnet. Khi chiến dịch kết thúc, nếu mở khóa tier thấp hơn tôi sẽ nhận lại phần tiền chênh lệch (Rebate) tự động.",
+    termsAgreement: `Tôi xác nhận hiểu rằng khoản tiền này được khóa trong Smart Contract ${ARC_CHAIN_NAME}. Khi chiến dịch kết thúc, nếu mở khóa tier thấp hơn tôi sẽ nhận lại phần tiền chênh lệch (Rebate) tự động.`,
     approveAndCommit: "Ký duyệt & Cam kết USDC",
 
     // Tx Tracker
     txSubmitted: "Giao dịch đã được gửi",
-    txBroadcasting: "Đang phát sóng lên Arc Testnet...",
+    txBroadcasting: `Đang phát sóng lên ${ARC_CHAIN_NAME}...`,
     txPending: "Đang chờ thợ đào xác nhận trên mempool...",
-    txConfirmed: "Giao dịch thành công trên Arc Testnet!",
+    txConfirmed: `Giao dịch thành công trên ${ARC_CHAIN_NAME}!`,
     authorizationExpired: "Chứng thực mua đã hết hạn",
     viewOnArcScan: "Xem trên ArcScan Explorer",
 
@@ -106,15 +107,15 @@ export const translations = {
     operatorPortal: "Operator Portal",
     devDocs: "Docs & API",
     faucet: "Get 500 Test USDC",
-    faucetSuccess: "Transferred 500 USDC to your wallet on Arc Testnet!",
+    faucetSuccess: `Transferred 500 USDC to your wallet on ${ARC_CHAIN_NAME}!`,
     connectWallet: "Connect Wallet",
     login: "Log In",
     logout: "Log Out",
-    arcNetwork: "Arc Testnet (5042002)",
+    arcNetwork: `${ARC_CHAIN_NAME} (${ARC_CHAIN_ID})`,
 
     // Hero
     heroTitle: "Group Buying for Digital Goods",
-    heroSub: "Commit USDC into Arc Testnet escrow at the current price. When the group price falls, claim the allocated difference back to your wallet. Track delivery and refund rights for each order.",
+    heroSub: `Commit USDC into ${ARC_CHAIN_NAME} escrow at the current price. When the group price falls, claim the allocated difference back to your wallet. Track delivery and refund rights for each order.`,
     totalVolume: "Total Volume Committed",
     activeCampaigns: "Active Campaigns",
     avgDiscount: "Average Discount",
@@ -152,14 +153,14 @@ export const translations = {
     totalCommitment: "Total USDC Committed",
     estimatedGas: "Estimated Arc Gas Fee",
     requireEarlySlot: "Require Early Supporter Slot (Revert if full)",
-    termsAgreement: "I understand that these funds are escrowed in the Arc Testnet contract. When the campaign concludes at a lower tier, I will pull the price difference as a rebate.",
+    termsAgreement: `I understand that these funds are escrowed in the ${ARC_CHAIN_NAME} contract. When the campaign concludes at a lower tier, I will pull the price difference as a rebate.`,
     approveAndCommit: "Sign & Commit USDC",
 
     // Tx Tracker
     txSubmitted: "Transaction Broadcasted",
-    txBroadcasting: "Broadcasting to Arc Testnet...",
+    txBroadcasting: `Broadcasting to ${ARC_CHAIN_NAME}...`,
     txPending: "Pending miner confirmation on mempool...",
-    txConfirmed: "Transaction Confirmed on Arc Testnet!",
+    txConfirmed: `Transaction Confirmed on ${ARC_CHAIN_NAME}!`,
     authorizationExpired: "Purchase authorization expired",
     viewOnArcScan: "View on ArcScan Explorer",
 

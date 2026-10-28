@@ -1,3 +1,4 @@
+import {ARC_CHAIN_ID} from '../../../shared/network.mjs';
 import {ethers} from 'ethers';
 import {UiError,uiMessage,type UiMessage} from '../utils/uiMessage';
 export type RecoveryOperation={id:string;action:string;resourceId?:string;chainId:number;hubAddress:string;principal:string;calldata:string};
@@ -7,7 +8,7 @@ export class CircleRecoveryError extends UiError{
 }
 const actions=['PUBLISH','DELIVER','BUY','BUYER_CLAIM','SELLER_CLAIM','DISPUTE','RESOLVE','CONFIRM','BREACH','SETTLE'],states=['INITIATED','CLEARED','QUEUED','SENT','STUCK','CONFIRMED','COMPLETE','FAILED','DENIED','CANCELLED'];
 const id=(v:unknown):v is string=>typeof v==='string'&&v.length>0&&v.length<=128&&!/[\s\u0000-\u001f\u007f]/.test(v)&&!['constructor','prototype','__proto__'].includes(v),record=(v:unknown):v is Record<string,any>=>!!v&&typeof v==='object'&&!Array.isArray(v),address=(v:unknown):v is string=>typeof v==='string'&&ethers.isAddress(v)&&ethers.getAddress(v)!==ethers.ZeroAddress;
-function assertOperation(o:RecoveryOperation){if(!id(o.id)||!actions.includes(o.action)||o.resourceId!==undefined&&!id(o.resourceId)||o.chainId!==5042002||!address(o.hubAddress)||!address(o.principal)||typeof o.calldata!=='string'||!/^0x(?:[a-fA-F0-9]{2}){4,65536}$/.test(o.calldata))throw new CircleRecoveryError();}
+function assertOperation(o:RecoveryOperation){if(!id(o.id)||!actions.includes(o.action)||o.resourceId!==undefined&&!id(o.resourceId)||o.chainId!==ARC_CHAIN_ID||!address(o.hubAddress)||!address(o.principal)||typeof o.calldata!=='string'||!/^0x(?:[a-fA-F0-9]{2}){4,65536}$/.test(o.calldata))throw new CircleRecoveryError();}
 /** Only a status for the exact immutable operation may become a broadcast checkpoint. */
 export function readCircleRecoveryStatus(value:unknown,operation:RecoveryOperation):CircleRecoveryStatus{
   assertOperation(operation);if(!record(value)||value.operationId!==operation.id||value.chainId!==operation.chainId||!address(value.contractAddress)||value.contractAddress.toLowerCase()!==operation.hubAddress.toLowerCase()||!address(value.principal)||value.principal.toLowerCase()!==operation.principal.toLowerCase()||value.calldataHash!==ethers.sha256(ethers.toUtf8Bytes(operation.calldata.toLowerCase())).slice(2)||value.action!==operation.action||!id(value.resourceId)||operation.resourceId!==undefined&&value.resourceId!==operation.resourceId)throw new CircleRecoveryError();

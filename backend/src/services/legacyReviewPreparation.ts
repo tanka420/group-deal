@@ -1,3 +1,4 @@
+import {config} from '../config';
 import fs from 'node:fs';import path from 'node:path';import crypto from 'node:crypto';import {isDeepStrictEqual} from 'node:util';
 import {TransactionalStore} from '../db/store';
 import {sourceFootprint,copyStableDatabase,privateRecoveryDirectory,verifyPrivateRecovery,RecoveryDrillError} from './recoveryDrillService';
@@ -28,7 +29,7 @@ const paths=[
  "backend/src/utils/crypto.ts",
  "backend/package-lock.json",
  "shared/contracts.json",
- "shared/manifests/arc-testnet.json",
+ 'shared/manifests/arc-testnet.json','shared/manifests/arc-mainnet.json','shared/manifests/local.json','shared/network.mjs','shared/network.d.mts',
  "backend/src/contracts/hubAbi.ts",
  "backend/src/domain/authRecovery.ts",
  "backend/src/domain/circleAuthentication.ts",
@@ -101,8 +102,8 @@ type Options={inputScope:'EXISTING_DATA'}|{inputScope:'LOCAL_FIXTURE';sourceDire
 export function prepareLegacyDataReview(options:Options){
  if(options.inputScope==='EXISTING_DATA'&&Object.keys(options).some(k=>k!=='inputScope'))throw new LegacyReviewError('LEGACY_REVIEW_SCOPE_OVERRIDE_DISABLED');
  if(options.inputScope!=='EXISTING_DATA'&&(options.inputScope!=='LOCAL_FIXTURE'||process.env.NODE_ENV!=='test'))throw new LegacyReviewError('LEGACY_REVIEW_FIXTURE_DISABLED');
- const original=options.inputScope==='EXISTING_DATA'?path.join(root,'backend/data'):options.sourceDirectory;
- if(options.inputScope==='LOCAL_FIXTURE'&&fs.realpathSync(original).toLowerCase()===path.join(root,'backend/data').toLowerCase())throw new LegacyReviewError('LEGACY_REVIEW_FIXTURE_ACTIVE_SOURCE_DISABLED');
+ const original=options.inputScope==='EXISTING_DATA'?config.runtimeDataDirectory:options.sourceDirectory;
+ if(options.inputScope==='LOCAL_FIXTURE'&&fs.realpathSync(original).toLowerCase()===config.runtimeDataDirectory.toLowerCase())throw new LegacyReviewError('LEGACY_REVIEW_FIXTURE_ACTIVE_SOURCE_DISABLED');
  const before=sourceFootprint(original),inputs=legacyReviewInputs(),directory=privateRecoveryDirectory(options.inputScope==='EXISTING_DATA'?path.join(root,'.cache/legacy-data-reviews'):options.privateParent),reports=options.inputScope==='EXISTING_DATA'?path.join(root,'reports/evidence/legacy-data-reviews'):options.reportDirectory;
  const report:Record<string,any>={schemaVersion:1,recordedAt:new Date().toISOString(),inputScope:options.inputScope,status:'UNVERIFIED',sourceFootprint:before,toolInputs:inputs,targetDirectory:path.relative(root,directory).replaceAll('\\','/'),sourceAccess:'FILES_READ_ONLY_NO_SQLITE_CONNECTION',financialAccountingVerified:false,authCutoverAllowed:false,productAccessAutoEnabled:false,workersStarted:false,promoted:false,acceptanceEligible:false};let copied:TransactionalStore|undefined;
  try{copyStableDatabase(original,path.join(directory,'source-copy'));copied=new TransactionalStore(path.join(directory,'source-copy'));const state=copied.snapshot();if(!copied.verifyAuditLogIntegrity().valid)throw new LegacyReviewError('LEGACY_REVIEW_AUDIT_INVALID');report.privateRecovery=verifyPrivateRecovery(state);if(!report.privateRecovery.verified)throw new LegacyReviewError('LEGACY_REVIEW_PRIVATE_RECORD_UNVERIFIED');report.review=reviewLegacyData(state);const reader=new DatabaseSync(path.join(directory,'source-copy/groupdeal.sqlite'),{readOnly:true});try{if(!isDeepStrictEqual(report.review,reviewLegacyData(readLegacyReviewMetadata(reader))))throw new LegacyReviewError('LEGACY_REVIEW_METADATA_FACTS_CHANGED');report.operatorMetadataProjection={verifiedAgainstFullCopiedState:true,privateCiphertextAndPayloadFieldsReturned:false,principalAuthenticationVerified:false,financialAccountingVerified:false};}finally{reader.close();}report.status=report.review.status==='ACTION_REQUIRED'?'LEGACY_DATA_REVIEW_ACTION_REQUIRED':'LEGACY_DATA_REVIEW_NO_LEGACY_RECORDS';}

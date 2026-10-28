@@ -70,7 +70,7 @@ export async function prepareRuntimeUpgradeApplication(options:PreparationOption
   report.fixedBlock={number:block,hash:canonical.hash,observedHead:head};
   if(options.inputScope==='LOCAL_FIXTURE')await options.verifyDeployment(provider,block);
   else{
-   const m=read(path.join(root,'shared/manifests/arc-testnet.json'));
+   const m=read(config.manifestPath);
    if(m.chainId!==config.arcChainId||m.contracts.GroupDealHub.address.toLowerCase()!==config.hubAddress.toLowerCase()||m.contracts.GroupDealHub.deploymentBlock!==config.deploymentBlock||(m.protocolVersion||1)!==config.protocolVersion||m.contracts.USDC.address.toLowerCase()!==config.usdcAddress.toLowerCase())upgradeFail('RUNTIME_UPGRADE_MANIFEST_MISMATCH');
    const code=await provider.getCode(config.hubAddress,block);if(code==='0x'||ethers.keccak256(code).toLowerCase()!==m.contracts.GroupDealHub.bytecodeHash.toLowerCase())upgradeFail('RUNTIME_UPGRADE_RUNTIME_MISMATCH');
   }

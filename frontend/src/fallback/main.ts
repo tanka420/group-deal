@@ -1,3 +1,4 @@
+import {ARC_EXPLORER,ARC_CHAIN_NAME,ARC_CHAIN_ID} from '../../../shared/network.mjs';
 import {ethers} from 'ethers';
 import {type FallbackAction,type FallbackIntent,fallbackDeployment,prepareFallback,verifyFallback,fallbackIntentFromTransaction} from '../services/fallbackAction';
 import {fallbackFeeCanSign,fallbackFeeKey,fallbackFeeIsFresh} from '../services/fallbackFeeReview';
@@ -27,7 +28,7 @@ function render(){
 const save=(record:Checkpoint)=>{localStorage.setItem(key,JSON.stringify(record));render();},setStatus=(value:CopyKey)=>{statusKey=value;element('status').textContent=text(value);};
 const locked=async(action:()=>Promise<void>)=>{if(!navigator.locks)throw new Error('Trình duyệt cần Web Locks để giữ một lượt thao tác giữa các tab.');await navigator.locks.request(key,action);};
 async function run(action:()=>Promise<void>){if(busy)return;busy=true;lastError=undefined;render();try{await action();}catch(error){lastError=error;}finally{busy=false;render();}}
-async function assertWallet(principal?:string){const provider=wallet();if(!provider)throw new Error('Cần ví EIP1193 external đang giữ principal.');if(BigInt(await provider.request({method:'eth_chainId'}))!==BigInt(fallbackDeployment.chainId))throw new Error('Chọn Arc Testnet (5042002) trong ví trước khi tiếp tục.');const accounts=await provider.request({method:'eth_accounts'});if(!accounts?.[0]||principal&&accounts[0].toLowerCase()!==principal.toLowerCase())throw new Error('Kết nối đúng principal của intent; chưa gửi giao dịch.');account=ethers.getAddress(accounts[0]);return provider;}
+async function assertWallet(principal?:string){const provider=wallet();if(!provider)throw new Error('Cần ví EIP1193 external đang giữ principal.');if(BigInt(await provider.request({method:'eth_chainId'}))!==BigInt(fallbackDeployment.chainId))throw new Error(`Chọn ${ARC_CHAIN_NAME} (${ARC_CHAIN_ID}) trong ví trước khi tiếp tục.`);const accounts=await provider.request({method:'eth_accounts'});if(!accounts?.[0]||principal&&accounts[0].toLowerCase()!==principal.toLowerCase())throw new Error('Kết nối đúng principal của intent; chưa gửi giao dịch.');account=ethers.getAddress(accounts[0]);return provider;}
 applyLanguage();element('deployment').textContent='Chain '+fallbackDeployment.chainId+' · Hub '+fallbackDeployment.hub+' · deployment block '+fallbackDeployment.deploymentBlock;
 element<HTMLSelectElement>('fallback-language').onchange=e=>{acceptedFeeKey='';applyLanguage((e.target as HTMLSelectElement).value==='en'?'en':'vi');render();};
 input('fee-consent').onchange=()=>{const saved=checkpoint();acceptedFeeKey=input('fee-consent').checked&&saved&&fallbackFeeCanSign(saved.intent)?feeKey(saved.intent):'';render();};

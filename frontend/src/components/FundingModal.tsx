@@ -1,3 +1,7 @@
+import {ARC_IS_MAINNET} from '../../../shared/network.mjs';
+import {WalletReceive} from './WalletReceive';
+import {DialogSurface} from './DialogSurface';
+import {ARC_CHAIN_ID,ARC_KIT_CHAIN,ARC_EXPLORER,ARC_CHAIN_NAME} from '../../../shared/network.mjs';
 import React, { useEffect, useLayoutEffect, useState, useRef } from 'react';
 import { ethers } from 'ethers';
 import { createPortal } from 'react-dom';
@@ -60,7 +64,7 @@ function fundingError(error: unknown): UiMessage {
 }
 const issue = (vi: string, en: string): never => { throw new UiError(uiMessage(vi, en)); };
 
-export const FundingModal: React.FC<FundingModalProps> = ({ isOpen, onClose, requiredUsdc, onContinueCheckout }) => {
+const TestnetFundingModal: React.FC<FundingModalProps> = ({ isOpen, onClose, requiredUsdc, onContinueCheckout }) => {
   const { language } = useLanguage();
   const text = (vi: string, en: string) => language === 'vi' ? vi : en;
   const show = (message: UiMessage) => messageText(message, language);
@@ -195,7 +199,7 @@ export const FundingModal: React.FC<FundingModalProps> = ({ isOpen, onClose, req
         const operation: BridgeOperation = retry && previous ? previous.operation : { source, amount, sender, recipient };
         const api=client(current);let server=await api.current();assertCurrent();if(server?.phase==='RESERVED'&&(previous?.id!==server.id||server.scope.source!==operation.source||server.scope.sender!==sender.toLowerCase()||server.scope.amountBaseUnits!==parseUsdc(operation.amount).toString()))throw new BridgeSafetyError('BRIDGE_SERVER_RECORD_CONFLICT');if(previous&&(previous.legacyDigest||!server||server.id!==previous.id))throw new BridgeSafetyError('BRIDGE_SERVER_LEGACY_RECORD');if(retry&&(!server||server.id!==previous?.id))throw new BridgeSafetyError('BRIDGE_SERVER_LEGACY_RECORD');
         const guarded = guardedBridgeProvider(provider, { current, operation, retry, burn: state?.burn, journal: () => own,
-          server:{reserve:async(write,transaction)=>{if(!server)throw new BridgeSafetyError('BRIDGE_SERVER_WRITE_UNRESOLVED');try{const prepared=await api.ready(server,write,transaction,retry?async message=>{assertCurrent();setProgress(uiMessage('Ví nguồn cần xác nhận lại để tiếp tục mint của lượt burn đã có.','The source wallet needs a fresh confirmation to mint the existing burn.'));const verifyWallet=async()=>{const [chain,accounts]=await Promise.all([provider.request({method:'eth_chainId'}),provider.request({method:'eth_accounts'})]);assertCurrent();if(BigInt(String(chain))!==5042002n||!Array.isArray(accounts)||String(accounts[0]).toLowerCase()!==operation.sender.toLowerCase())throw new BridgeSafetyError('BRIDGE_SESSION_CHANGED')};await verifyWallet();const signature=await provider.request({method:'personal_sign',params:[ethers.hexlify(ethers.toUtf8Bytes(message)),operation.sender]});await verifyWallet();if(typeof signature!=='string')throw new BridgeSafetyError('BRIDGE_MINT_RECOVERY_INVALID');return signature}:undefined);server=prepared.record;if(current())setServerRecord(server);return prepared;}catch(e){if(e instanceof BridgeSafetyError&&(signerHoldMessage(e.code)||['BRIDGE_MINT_RECOVERY_CANCELLED','BRIDGE_MINT_RECOVERY_INVALID','BRIDGE_MINT_RECOVERY_EXPIRED','BRIDGE_SESSION_CHANGED'].includes(e.code)))serverHold=e;throw e;}},broadcast:async(write,hash)=>{if(!server)throw new BridgeSafetyError('BRIDGE_SERVER_WRITE_UNRESOLVED');server=await api.attach(server,write.id,hash,true);if(current())setServerRecord(server);}},
+          server:{reserve:async(write,transaction)=>{if(!server)throw new BridgeSafetyError('BRIDGE_SERVER_WRITE_UNRESOLVED');try{const prepared=await api.ready(server,write,transaction,retry?async message=>{assertCurrent();setProgress(uiMessage('Ví nguồn cần xác nhận lại để tiếp tục mint của lượt burn đã có.','The source wallet needs a fresh confirmation to mint the existing burn.'));const verifyWallet=async()=>{const [chain,accounts]=await Promise.all([provider.request({method:'eth_chainId'}),provider.request({method:'eth_accounts'})]);assertCurrent();if(BigInt(String(chain))!==BigInt(ARC_CHAIN_ID)||!Array.isArray(accounts)||String(accounts[0]).toLowerCase()!==operation.sender.toLowerCase())throw new BridgeSafetyError('BRIDGE_SESSION_CHANGED')};await verifyWallet();const signature=await provider.request({method:'personal_sign',params:[ethers.hexlify(ethers.toUtf8Bytes(message)),operation.sender]});await verifyWallet();if(typeof signature!=='string')throw new BridgeSafetyError('BRIDGE_MINT_RECOVERY_INVALID');return signature}:undefined);server=prepared.record;if(current())setServerRecord(server);return prepared;}catch(e){if(e instanceof BridgeSafetyError&&(signerHoldMessage(e.code)||['BRIDGE_MINT_RECOVERY_CANCELLED','BRIDGE_MINT_RECOVERY_INVALID','BRIDGE_MINT_RECOVERY_EXPIRED','BRIDGE_SESSION_CHANGED'].includes(e.code)))serverHold=e;throw e;}},broadcast:async(write,hash)=>{if(!server)throw new BridgeSafetyError('BRIDGE_SERVER_WRITE_UNRESOLVED');server=await api.attach(server,write.id,hash,true);if(current())setServerRecord(server);}},
           reviewWrite:async({kind,chainId,transaction})=>{
             // The guarded SDK is paused here and has not reserved this write.
             // An existing REQUESTED/hash is still governed by receipt recovery.
@@ -233,7 +237,7 @@ export const FundingModal: React.FC<FundingModalProps> = ({ isOpen, onClose, req
             token: 'USDC' as const, amount, config: { batchTransactions: false, transferSpeed: 'SLOW' as const, maxFee: '0' } };
           const estimate = await kit.estimateBridge(params); assertCurrent();
           if (estimate.token !== 'USDC' || parseUsdc(estimate.amount) !== parseUsdc(amount) || String(estimate.source.chain) !== source ||
-            estimate.source.address.toLowerCase() !== sender.toLowerCase() || String(estimate.destination.chain) !== 'Arc_Testnet' ||
+            estimate.source.address.toLowerCase() !== sender.toLowerCase() || String(estimate.destination.chain) !== ARC_KIT_CHAIN ||
             (estimate.destination.recipientAddress || estimate.destination.address).toLowerCase() !== recipient.toLowerCase()) throw new BridgeSafetyError('BRIDGE_ROUTE_INVALID');
           const summary = bridgeQuoteSummary(estimate, source, amount);
           if (native < summary.sourceGas) issue('Không đủ ETH nguồn cho ngân sách gas.', 'Insufficient source ETH for the gas budget.');
@@ -299,8 +303,8 @@ export const FundingModal: React.FC<FundingModalProps> = ({ isOpen, onClose, req
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     }}>
-      <div className="modal-header"><h2 id="funding-title"><Coins size={22} aria-hidden="true" />{text('Nạp USDC — Arc Testnet','Add USDC — Arc Testnet')}</h2><button type="button" className="modal-close" onClick={onClose} aria-label={text('Đóng nạp USDC','Close funding')}><X size={18} /></button></div>
-      <div className="funding-balance"><div><span>{text('Số dư ví người mua (Arc Testnet)','Buyer wallet balance (Arc Testnet)')}</span><strong className="font-mono">{!account ? text('Chưa kết nối ví','No connected wallet') : usdcBalance === null ? text('Đang tải số dư...','Loading balance...') : `${usdcBalance} USDC`}</strong></div><span><Fuel size={14} aria-hidden="true" />{text('Gas trừ từ cùng số dư','Gas uses the same balance')}</span></div>
+      <div className="modal-header"><h2 id="funding-title"><Coins size={22} aria-hidden="true" />{text(`Nạp USDC — ${ARC_CHAIN_NAME}`,`Add USDC — ${ARC_CHAIN_NAME}`)}</h2><button type="button" className="modal-close" onClick={onClose} aria-label={text('Đóng nạp USDC','Close funding')}><X size={18} /></button></div>
+      <div className="funding-balance"><div><span>{text(`Số dư ví người mua (${ARC_CHAIN_NAME})`,`Buyer wallet balance (${ARC_CHAIN_NAME})`)}</span><strong className="font-mono">{!account ? text('Chưa kết nối ví','No connected wallet') : usdcBalance === null ? text('Đang tải số dư...','Loading balance...') : `${usdcBalance} USDC`}</strong></div><span><Fuel size={14} aria-hidden="true" />{text('Gas trừ từ cùng số dư','Gas uses the same balance')}</span></div>
       {balanceError && <p role="status">{text('Chưa đọc được số dư mới. Kiểm tra lại trước khi mua.','The latest balance could not be read. Check again before buying.')}</p>}
       <p>{text('Tiền mua hàng và gas trên Arc cùng sử dụng USDC. Nạp tiền không tạo đơn hàng.','Purchases and gas on Arc use the same USDC balance. Funding does not create an order.')}</p>
       {feeReview&&<BridgeFeeReview key={feeReview.request.id} request={feeReview.request} changed={feeReview.changed} onCancel={()=>cancelFee()} onApprove={budget=>{const pending=feeResolver.current;feeResolver.current=null;setFeeReview(null);pending?.resolve(budget);}}/>}
@@ -323,7 +327,7 @@ export const FundingModal: React.FC<FundingModalProps> = ({ isOpen, onClose, req
         <p>{text('Bridge mới đang được phát triển. Các hồ sơ cũ bên dưới vẫn có thể kiểm tra và tiếp tục attestation / mint.','New bridge transfers are coming soon. Previous records below can still be checked and continued through attestation / mint.')}</p>
         <label htmlFor="funding-source">{text('Mạng nguồn','Source network')}</label><select id="funding-source" value={source} disabled onChange={event => setSource(event.target.value as BridgeSource)}>{Object.entries(bridgeSources).map(([key, value]) => <option value={key} key={key}>{value.label}</option>)}</select>
         <label htmlFor="funding-amount">{text('Số USDC cần bridge','USDC amount to bridge')}</label><input id="funding-amount" inputMode="decimal" maxLength={80} value={amount} disabled onChange={event => setAmount(event.target.value)} />
-        <dl><dt>{text('Đích','Destination')}</dt><dd>Arc Testnet (5042002)</dd><dt>{text('Ví nhận','Recipient')}</dt><dd className="font-mono">{account || text('Hãy đăng nhập trước','Sign in first')}</dd></dl>
+        <dl><dt>{text('Đích','Destination')}</dt><dd>{ARC_CHAIN_NAME} ({ARC_CHAIN_ID})</dd><dt>{text('Ví nhận','Recipient')}</dt><dd className="font-mono">{account || text('Hãy đăng nhập trước','Sign in first')}</dd></dl>
         {quote && (() => { const summary = bridgeQuoteSummary(quote.estimate, quote.operation.source, quote.operation.amount); return <div className="funding-quote" role="status"><p>{text('Số nhận dự kiến tối thiểu','Estimated minimum received')}: {ethers.formatUnits(summary.received,6)} USDC</p><p>{text('Phí USDC dự kiến','Estimated USDC fee')}: {ethers.formatUnits(summary.feesUsdc,6)}</p><p>{text('Ngân sách gas (+20%)','Gas budget (+20%)')}: {ethers.formatUnits(summary.sourceGas,18)} ETH; {ethers.formatUnits(summary.arcGas,18)} USDC Arc</p><p>{text('Báo giá hiệu lực 60 giây, kiểm tra lại trước ký. CCTP standard cần chờ finality nguồn.','The quote lasts 60 seconds and is checked again before signing. Standard CCTP waits for source finality.')}</p></div>; })()}
         <button type="button" className="btn btn-primary" disabled>{text('Bridge mới · Sắp ra mắt','New bridge · Coming soon')}</button>
         {progress && <p role="status">{show(progress)}</p>}{error && <p role="alert" className="funding-error">{show(error)}</p>}
@@ -344,7 +348,16 @@ export const FundingModal: React.FC<FundingModalProps> = ({ isOpen, onClose, req
         </div>}
         <p>{text('Nếu ví cảnh báo rủi ro, hãy kiểm tra mạng, hợp đồng và quyền approve trước khi ký.','If the wallet warns of risk, review the network, contract and approval before signing.')}</p>
       </div>}
-      {!feeReview&&!sourceProof&&tab === 'ONRAMP' && <p>{text('Thanh toán thẻ/ngân hàng chưa được cung cấp. Trên Arc Testnet, dùng faucet hoặc nhận USDC từ ví khác.','Card and bank funding is not available. On Arc Testnet, use the faucet or receive USDC from another wallet.')}</p>}
+      {!feeReview&&!sourceProof&&tab === 'ONRAMP' && <p>{text(`Thanh toán thẻ/ngân hàng chưa được cung cấp. Trên ${ARC_CHAIN_NAME}, dùng faucet hoặc nhận USDC từ ví khác.`,`Card and bank funding is not available. On ${ARC_CHAIN_NAME}, use the faucet or receive USDC from another wallet.`)}</p>}
       {!feeReview&&!sourceProof&&requiredUsdc && onContinueCheckout && <div className="funding-checkout"><p>{text('Số cần nạp dự kiến','Estimated funding needed')}: {requiredUsdc} USDC. {text('Sau khi nạp, hệ thống kiểm tra lại số dư, gas và chiến dịch trước khi xin chữ ký mua.','After funding, the balance, gas and campaign are checked again before requesting a purchase signature.')}</p><button type="button" className="btn btn-primary" disabled={busy || unresolved} onClick={onContinueCheckout}>{text('Kiểm tra số dư và tiếp tục mua','Check balance and continue buying')}</button></div>}
     </dialog>, document.body);
+};
+
+/** Mainnet accepts direct USDC only until bridge scope is approved. */
+export const FundingModal:React.FC<FundingModalProps> = props=>{
+ const {account}=useWeb3(),{language}=useLanguage();
+ if(!ARC_IS_MAINNET)return <TestnetFundingModal {...props}/>;
+ if(!props.isOpen)return null;
+ if(account)return <WalletReceive account={account} onClose={props.onClose}/>;
+ return <DialogSurface label={language==='en'?'Receive USDC':'Nhận USDC'} onClose={props.onClose}><p>{language==='en'?'Connect a wallet to receive USDC on Arc Mainnet.':'Kết nối ví để nhận USDC trên Arc Mainnet.'}</p></DialogSurface>;
 };

@@ -7,6 +7,7 @@ function sourceSnapshot(){
  return {sourceCommit:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),files,fingerprint:crypto.createHash('sha256').update(JSON.stringify(files)).digest('hex')};
 }
 const steps=[
+ ['mainnet','node',['scripts/run_mainnet_checks.cjs']],
  ['compile','node',['scripts/run_contract_checks.cjs','compile']],
  ['contract-types','node',['scripts/run_contract_checks.cjs','types']],
  ['candidate-preparation','node',['scripts/run_contract_checks.cjs','preparation']],

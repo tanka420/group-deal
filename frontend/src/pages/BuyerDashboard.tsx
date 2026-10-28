@@ -1,3 +1,4 @@
+import {ARC_CHAIN_NAME,ARC_CHAIN_ID} from '../../../shared/network.mjs';
 import {useCursorPage} from '../hooks/useCursorPage';
 import {useAppSearch} from '../hooks/useAppSearch';
 import {readOrderFilters} from '../services/orderList';
@@ -402,7 +403,7 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string}> = ({selectedOrd
                     }}
                   >
                     {Number.isSafeInteger(o.onchainCampaignId)&&o.onchainCampaignId>0&&Number.isSafeInteger(o.onchainOrderId)&&o.onchainOrderId>0?<>
-                      🛡️ <strong>{text('Thông tin dispute trực tiếp:','Direct dispute information:')}</strong> {text('Principal','Principal')} <code>{o.buyerPrincipal}</code> · <code>openDispute(campaignId: {o.onchainCampaignId}, orderId: {o.onchainOrderId}, reasonHash)</code> · Arc Testnet · Hub <code>{hubAddress}</code>. {text('Công cụ độc lập phải xác minh order, principal và cửa sổ trên chain trước khi ký. Giữ lý do và bằng chứng riêng.','The independent tool must verify the order, principal and chain window before signing. Keep the reason and evidence private.')}
+                      🛡️ <strong>{text('Thông tin dispute trực tiếp:','Direct dispute information:')}</strong> {text('Principal','Principal')} <code>{o.buyerPrincipal}</code> · <code>openDispute(campaignId: {o.onchainCampaignId}, orderId: {o.onchainOrderId}, reasonHash)</code> · {ARC_CHAIN_NAME} · Hub <code>{hubAddress}</code>. {text('Công cụ độc lập phải xác minh order, principal và cửa sổ trên chain trước khi ký. Giữ lý do và bằng chứng riêng.','The independent tool must verify the order, principal and chain window before signing. Keep the reason and evidence private.')}
                       <a href="/fallback.html" target="_blank" rel="noreferrer">{text('Mở công cụ external độc lập','Open independent external tool')}</a>
                     </>:text('Chưa xác minh được ID campaign/order trên chain để chuẩn bị dispute trực tiếp.','Onchain campaign/order IDs are unverified for direct dispute preparation.')}
                   </div>

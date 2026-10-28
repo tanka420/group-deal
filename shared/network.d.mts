@@ -1,0 +1,14 @@
+export type ArcChainId=5042|5042002|31337;
+export type CircleBlockchain='ARC'|'ARC-TESTNET';
+export const ARC_NETWORK:any;
+export const ARC_CHAIN_ID:ArcChainId;
+export const ARC_CHAIN_HEX:string;
+export const ARC_CHAIN_NAME:string;
+export const ARC_EXPLORER:string;
+export const ARC_IS_MAINNET:boolean;
+export const ARC_CIRCLE_BLOCKCHAIN:CircleBlockchain;
+export const ARC_KIT_CHAIN:'Arc'|'Arc_Testnet';
+export const ARC_BRIDGE_ENABLED:boolean;
+export const ARC_SWAP_ENABLED:boolean;
+export function networkManifest(environment?:string):any;
+export function assertDeploymentConfigured(manifest?:any):void;

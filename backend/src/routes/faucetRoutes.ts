@@ -9,6 +9,7 @@ import {config} from '../config';
 import { CircleWalletService } from "../services/circleWalletService";
 
 export const faucetRouter = Router();
+faucetRouter.use((_req,res,next)=>{if(config.arcChainId!==5042002){res.status(403).json({error:'FAUCET_UNAVAILABLE'});return;}next();});
 const OFFICIAL_ARC_FAUCET_URL = "https://faucet.circle.com";
 faucetRouter.use((req,res,next)=>{res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');if(Object.keys(req.query).length){res.status(400).json({error:'FAUCET_INVALID_INPUT'});return}const origin=req.headers.origin,configured=config.publicAppUrl?new URL(config.publicAppUrl).origin:undefined;if(origin&&origin!==configured&&!config.allowedOrigins.includes(origin)){res.status(403).json({error:'FAUCET_INVALID_ORIGIN'});return}next()});
 

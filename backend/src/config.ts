@@ -1,8 +1,10 @@
 import * as dotenv from "dotenv";
 import * as path from "path";
-import * as fs from "fs";
 
 dotenv.config();
+const {networkManifest}=require('../../shared/network.mjs') as typeof import('../../shared/network.mjs');
+const manifest=networkManifest(process.env.APP_ENV || 'arc-mainnet');
+const mainnet=manifest.environment==='arc-mainnet';
 function previousEncryptionKeys(): Record<string,string> {
   try {
     const keys=JSON.parse(process.env.MASTER_ENCRYPTION_PREVIOUS_KEYS || "{}");
@@ -21,33 +23,13 @@ const smtpConfigured = Boolean(
   smtpHost && Number.isInteger(smtpPort) && smtpPort > 0 && smtpUser && smtpAppPassword && smtpFrom
 );
 
-const possiblePaths = [
-  path.resolve(__dirname, "../../shared/contracts.json"),
-  path.resolve(__dirname, "../../../shared/contracts.json"),
-  path.resolve(process.cwd(), "shared/contracts.json"),
-];
-let contractsConfig: any = {
-  chainId: 31337,
-  contracts: {
-    GroupDealHub: { address: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512" },
-    USDC: { address: "0x5FbDB2315678afecb367f032d93F642f64180aa3" },
-  },
-};
-
-for (const p of possiblePaths) {
-  if (fs.existsSync(p)) {
-    try {
-      contractsConfig = JSON.parse(fs.readFileSync(p, "utf8"));
-      break;
-    } catch (err) {
-      console.warn(`Could not parse ${p}`, err);
-    }
-  }
-}
-
 export const config = {
+  environment:manifest.environment as string,
+  manifestPath:path.resolve(__dirname,`../../shared/manifests/${manifest.environment}.json`),
+  manifest,
+  runtimeDataDirectory:path.resolve(__dirname,mainnet?'../data/arc-mainnet':'../data'),
   isProduction: process.env.NODE_ENV === "production",
-  port: parseInt(process.env.PORT || "4000", 10),
+  port: parseInt(process.env.PORT || (mainnet?"4100":"4000"), 10),
   jwtSecret: process.env.JWT_SECRET || "groupdeal-super-secret-jwt-key-2026",
   campaignIdentitySecret:
     process.env.CAMPAIGN_IDENTITY_SECRET || "groupdeal-campaign-identity-salt-2026",
@@ -56,23 +38,24 @@ export const config = {
   masterEncryptionKeyId: process.env.MASTER_ENCRYPTION_KEY_ID || "current-v1",
   previousEncryptionKeys: previousEncryptionKeys(),
   legacyEncryptionKey: process.env.MASTER_ENCRYPTION_LEGACY_KEY || process.env.MASTER_ENCRYPTION_KEY || "groupdeal-master-aes-key-32chars!",
-  arcRpcUrl: process.env.ARC_RPC_URL || process.env.ARC_TESTNET_RPC || "http://127.0.0.1:8545",
-  arcWsUrl: process.env.ARC_WS_URL || (process.env.ARC_TESTNET_RPC ? process.env.ARC_TESTNET_RPC.replace(/^http/, "ws") : "wss://rpc.testnet.arc.io"),
-  arcChainId: parseInt(process.env.ARC_CHAIN_ID || contractsConfig.chainId?.toString() || "31337", 10),
-  hubAddress: process.env.GROUPDEAL_HUB_ADDRESS || contractsConfig.contracts.GroupDealHub.address,
-  usdcAddress: process.env.USDC_ADDRESS || contractsConfig.contracts.USDC.address,
-  deploymentBlock: parseInt(process.env.DEPLOYMENT_BLOCK || contractsConfig.deploymentBlock?.toString() || "0", 10),
-  protocolVersion: contractsConfig.protocolVersion || 1,
+  arcRpcUrl: process.env.ARC_RPC_URL || (!mainnet?process.env.ARC_TESTNET_RPC:undefined) || manifest.rpc.primary,
+  arcRpcFallbacks:process.env.ARC_RPC_FALLBACKS!==undefined?process.env.ARC_RPC_FALLBACKS.split(',').map(s=>s.trim()).filter(Boolean):manifest.rpc.fallbacks as string[],
+  arcWsUrl: process.env.ARC_WS_URL || manifest.rpc.ws,
+  arcChainId: Number(process.env.ARC_CHAIN_ID || manifest.chainId),
+  hubAddress: process.env.GROUPDEAL_HUB_ADDRESS || manifest.contracts.GroupDealHub.address,
+  usdcAddress: process.env.USDC_ADDRESS || manifest.contracts.USDC.address,
+  deploymentBlock: Number(process.env.DEPLOYMENT_BLOCK || manifest.contracts.GroupDealHub.deploymentBlock || 0),
+  protocolVersion: manifest.protocolVersion || (mainnet?0:1),
   
   // Signer used to authorize buys via EIP-712
   authorizedSignerPrivateKey:
     process.env.AUTHORIZED_SIGNER_PRIVATE_KEY ||
-    "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", // Hardhat account 0
+    (mainnet?"":"0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"), // Local fixture only
   
   operatorAddress:
-    process.env.OPERATOR_ADDRESS || "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    process.env.OPERATOR_ADDRESS || (mainnet?"":"0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"),
   
-  explorerUrl: process.env.EXPLORER_URL || "https://testnet.arcscan.app",
+  explorerUrl: process.env.EXPLORER_URL || (manifest.environment==='arc-testnet'?'https://testnet.arcscan.app':manifest.explorerUrl),
   publicAppUrl: process.env.PUBLIC_APP_URL || "",
 
   // Circle User-Controlled Wallets. The API key never leaves the backend.

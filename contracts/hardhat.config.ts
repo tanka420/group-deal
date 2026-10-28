@@ -35,6 +35,12 @@ const config: HardhatUserConfig = {
       url: "http://127.0.0.1:8545",
       chainId: 31337,
     },
+    // Read/unsigned preparation only. No live signer is configured by this checkout.
+    arcMainnet: {
+      url: process.env.ARC_MAINNET_RPC || "https://rpc.mainnet.arc.io",
+      chainId: 5042,
+      accounts: [],
+    },
     arcTestnet: {
       url: ARC_TESTNET_RPC,
       chainId: 5042002,

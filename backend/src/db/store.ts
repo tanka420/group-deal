@@ -1,3 +1,4 @@
+import {CircleBlockchain,ARC_IS_MAINNET} from '../../../shared/network.mjs';
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "node:os";
@@ -31,7 +32,7 @@ export interface UserRecord {
   circleWallet?: {
     address: string;
     walletId: string;
-    blockchain: "ARC-TESTNET";
+    blockchain: CircleBlockchain;
   };
   sellerProfile?: {
     displayName: string;
@@ -77,7 +78,7 @@ export interface SanitizedUser {
   circleWallet?: {
     address: string;
     walletId: string;
-    blockchain: "ARC-TESTNET";
+    blockchain: CircleBlockchain;
   };
   sellerProfile?: {
     displayName: string;
@@ -560,7 +561,7 @@ export class TransactionalStore {
   private rows: RowPersistence;
 
   constructor(storageDir?: string) {
-    const activeDir=path.resolve(__dirname,"../../data");
+    const activeDir=path.resolve(__dirname,ARC_IS_MAINNET?"../../data/arc-mainnet":"../../data");
     const dir = path.resolve(storageDir || activeDir);
     this.storageDirectory=dir;
     this.isIsolated=dir.toLowerCase()!==activeDir.toLowerCase();
@@ -1103,7 +1104,7 @@ export function admitDefaultRecoveryStore(candidate:TransactionalStore):void{
 /** Explicit local development uses a separate persistent database, never backend/data. */
 export function admitLocalDevelopmentStore():void{
   if(defaultStore||process.env.GROUPDEAL_LOCAL_DEVELOPMENT!=='1'||process.env.NODE_ENV==='production'||process.env.GROUPDEAL_RECOVERY_MODE!==undefined)throw new Error('LOCAL_DEVELOPMENT_STORAGE_REJECTED');
-  const directory=path.resolve(__dirname,'../../../.cache/local-workspace');
+  const directory=path.resolve(__dirname,ARC_IS_MAINNET?'../../../.cache/local-mainnet-workspace':'../../../.cache/local-workspace');
   // Source and compiled files have the same depth under backend/{src,dist}/db.
   const candidate=new TransactionalStore(directory);if(!candidate.isIsolated){candidate.close();throw new Error('LOCAL_DEVELOPMENT_STORAGE_REJECTED');}defaultStore=candidate;
 }

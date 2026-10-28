@@ -3,12 +3,13 @@ import {arbitrumSepolia,baseSepolia,defineChain,sepolia} from "@reown/appkit/net
 import {EthersAdapter} from "@reown/appkit-adapter-ethers";
 import {attachReownRuntime,type ReownRuntime} from "../services/reownRuntime";
 import {walletReloadError} from "../services/authPresentation";
+import {ARC_CHAIN_ID,ARC_NETWORK,ARC_CHAIN_NAME,ARC_IS_MAINNET} from '../../../shared/network.mjs';
 
 export const arcTestnet=defineChain({
- id:5042002,caipNetworkId:"eip155:5042002",chainNamespace:"eip155",name:"Arc Testnet",testnet:true,
+ id:ARC_CHAIN_ID,caipNetworkId:`eip155:${ARC_CHAIN_ID}`,chainNamespace:"eip155",name:ARC_CHAIN_NAME,testnet:!ARC_IS_MAINNET,
  nativeCurrency:{name:"USDC",symbol:"USDC",decimals:18},
- rpcUrls:{default:{http:["https://rpc.testnet.arc.io"],webSocket:["wss://rpc.testnet.arc.io"]}},
- blockExplorers:{default:{name:"Arc Testnet Explorer",url:"https://testnet.arcscan.app"}},
+ rpcUrls:{default:{http:[ARC_NETWORK.rpc.primary],webSocket:[ARC_NETWORK.rpc.ws]}},
+ blockExplorers:{default:{name:ARC_CHAIN_NAME+" Explorer",url:ARC_NETWORK.explorerUrl}},
 });
 let runtime:Promise<ReownRuntime>|null=null,ownerProject:string|null=null;
 export function initializeReown(projectId:string):Promise<ReownRuntime>{
@@ -17,7 +18,7 @@ export function initializeReown(projectId:string):Promise<ReownRuntime>{
  ownerProject=projectId;
  try{
  const app=createAppKit({
-  adapters:[new EthersAdapter()],networks:[arcTestnet,sepolia,baseSepolia,arbitrumSepolia],projectId,
+  adapters:[new EthersAdapter()],networks:ARC_IS_MAINNET?[arcTestnet]:[arcTestnet,sepolia,baseSepolia,arbitrumSepolia],projectId,
   metadata:{name:"GroupDeal",description:"Mua chung sản phẩm số bằng USDC trên Arc",url:window.location.origin,icons:[]},
   themeVariables:{"--w3m-font-family":'"Plus Jakarta Sans Variable", sans-serif'},
   features:{email:false,socials:false,analytics:false,reownAuthentication:false},

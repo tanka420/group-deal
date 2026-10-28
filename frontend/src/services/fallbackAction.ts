@@ -1,5 +1,5 @@
 import {ethers} from "ethers";
-import manifest from "../../../shared/manifests/arc-testnet.json";
+import {ARC_NETWORK as manifest,assertDeploymentConfigured} from '../../../shared/network.mjs';
 import {HUB_ABI} from "../contracts/hubAbi";
 import {readArcRpc} from "./arcRpc";
 import {fallbackGasBudget,fallbackFeeIsFresh,type FallbackFeeBudget} from "./fallbackFeeReview";
@@ -12,6 +12,7 @@ const names={DISPUTE:["openDispute","OrderDisputed"],BREACH:["claimDeliveryBreac
 const equal=(a:unknown,b:unknown)=>typeof a==="string"&&typeof b==="string"&&a.toLowerCase()===b.toLowerCase();
 const quantity=(value:unknown):value is string=>typeof value==="string"&&/^0x(?:0|[1-9a-f][0-9a-f]*)$/i.test(value);
 export async function fallbackBlock(){
+  assertDeploymentConfigured();
   const tag=await readArcRpc<string>("eth_blockNumber"),block=await readArcRpc<any>("eth_getBlockByNumber",[tag,false]);
   const number=Number(BigInt(tag));
   if(!Number.isSafeInteger(number)||number<hub.deploymentBlock||!block||BigInt(block.number)!==BigInt(tag)||!ethers.isHexString(block.hash,32)||Math.abs(Math.floor(Date.now()/1000)-Number(BigInt(block.timestamp)))>120)throw new Error("Chưa xác minh được block Arc hiện tại.");

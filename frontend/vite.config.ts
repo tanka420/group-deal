@@ -11,14 +11,14 @@ export default defineConfig({
   optimizeDeps:{include:["@reown/appkit","@reown/appkit/networks","@reown/appkit-adapter-ethers","viem/op-stack","viem/chains"]},
   build:{manifest:true,rollupOptions:{input:{app:"index.html",fallback:"fallback.html"}}},
   server: {
-    port: 5173,
+    port: 5174,
     proxy: {
       "/api": {
-        target: "http://localhost:4000",
+        target: process.env.GROUPDEAL_API_PROXY || "http://127.0.0.1:4100",
         changeOrigin: true,
       },
       "/health": {
-        target: "http://localhost:4000",
+        target: process.env.GROUPDEAL_API_PROXY || "http://127.0.0.1:4100",
         changeOrigin: true,
       },
     },

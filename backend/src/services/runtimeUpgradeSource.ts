@@ -14,7 +14,7 @@ import {UpgradeReference,upgradeReferenceSchema,verifyRuntimeUpgradeInput,verify
 const root=path.resolve(__dirname,'../../..'),sha=(bytes:Buffer)=>crypto.createHash('sha256').update(bytes).digest('hex');
 export type RuntimeUpgradeScope={inputScope:'EXISTING_DATA'}|{inputScope:'LOCAL_FIXTURE';fixtureRoot:string;sourceDirectory:string};
 export function upgradeScope(options:RuntimeUpgradeScope){
- if(options.inputScope==='EXISTING_DATA'){if(Object.keys(options).some(k=>k!=='inputScope'))upgradeFail('RUNTIME_UPGRADE_SCOPE_OVERRIDE_DISABLED');return{parent:(p:string)=>path.join(root,p),source:path.join(root,'backend/data')};}
+ if(options.inputScope==='EXISTING_DATA'){if(Object.keys(options).some(k=>k!=='inputScope'))upgradeFail('RUNTIME_UPGRADE_SCOPE_OVERRIDE_DISABLED');return{parent:(p:string)=>path.join(root,p),source:config.runtimeDataDirectory};}
  if(options.inputScope!=='LOCAL_FIXTURE'||process.env.NODE_ENV!=='test'||!options.fixtureRoot)upgradeFail('RUNTIME_UPGRADE_FIXTURE_DISABLED');
  const fixture=containedUpgradePath(options.fixtureRoot,path.join(root,'.cache/local-check-temp'),true);
  const source=containedUpgradePath(options.sourceDirectory,fixture,true);

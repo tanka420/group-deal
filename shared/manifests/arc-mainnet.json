@@ -1,0 +1,45 @@
+{
+  "environment": "arc-mainnet",
+  "networkName": "Arc Mainnet",
+  "chainId": 5042,
+  "chainIdHex": "0x13b2",
+  "protocolVersion": null,
+  "deploymentStatus": "UNDEPLOYED",
+  "rpc": {
+    "primary": "https://rpc.mainnet.arc.io",
+    "ws": "wss://rpc.blockdaemon.mainnet.arc.io/websocket",
+    "fallbacks": [
+      "https://rpc.blockdaemon.mainnet.arc.io",
+      "https://rpc.drpc.mainnet.arc.io",
+      "https://rpc.quicknode.mainnet.arc.io"
+    ]
+  },
+  "explorerUrl": "https://explorer.arc.io",
+  "faucetUrl": "",
+  "cctpDomain": 26,
+  "features": { "bridge": false, "swap": false },
+  "circleBlockchain": "ARC",
+  "contracts": {
+    "USDC": {
+      "address": "0x3600000000000000000000000000000000000000",
+      "symbol": "USDC",
+      "businessDecimals": 6,
+      "nativeGasDecimals": 18,
+      "isPredeploy": true,
+      "isMock": false
+    },
+    "GroupDealHub": { "address": "", "deploymentBlock": 0, "bytecodeHash": "", "txHash": "" }
+  },
+  "roles": {
+    "owner": { "address": "" },
+    "authorizedSigner": { "address": "" },
+    "operator": { "address": "" },
+    "securityAuthority": { "type": "safe-multisig", "address": "", "owners": [], "threshold": 0, "safeVersion": "", "bytecodeHash": "" }
+  },
+  "references": {
+    "checkedOn": "2026-10-28",
+    "network": "https://docs.arc.io/arc/references/connect-to-arc",
+    "usdc": "https://docs.arc.io/arc/references/contract-addresses",
+    "circleWallets": "https://developers.circle.com/wallets/supported-blockchains"
+  }
+}

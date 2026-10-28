@@ -1,3 +1,4 @@
+import {ARC_CHAIN_ID,ARC_EXPLORER,ARC_CHAIN_NAME} from '../../../shared/network.mjs';
 import {pagePublicCampaigns} from "../services/publicPagination";
 import {publicRateLimit} from "../middleware/publicRateLimit";
 import { Router } from "express";
@@ -12,7 +13,7 @@ import {publicCatalog} from '../services/publicCatalog';
 export const publicRouter=Router();
 publicRouter.use((_req,res,next)=>{res.setHeader("Cache-Control","no-store");next();});
 publicRouter.use(publicRateLimit());
-const metadata=()=>({version:"1.0",network:config.arcChainId===5042002?"Arc Testnet (5042002)":"Local development ("+config.arcChainId+")",chainId:config.arcChainId,amountEncoding:"USDC base-unit integer strings (6 decimals)"});
+const metadata=()=>({version:"1.0",network:config.arcChainId===ARC_CHAIN_ID?`${ARC_CHAIN_NAME} (${ARC_CHAIN_ID})`:"Local development ("+config.arcChainId+")",chainId:config.arcChainId,amountEncoding:"USDC base-unit integer strings (6 decimals)"});
 publicRouter.get('/catalog',(req,res,next)=>{try{res.json({...metadata(),...publicCatalog(req.query)});}catch(error){next(error);}});
 publicRouter.get('/sellers/:id',(req,res,next)=>{try{if(Object.keys(req.query).length)throw new Error('VALIDATION');res.json({...metadata(),seller:publicSellerDto(req.params.id)});}catch(error){next(error);}});
 publicRouter.get('/sellers/:id/campaigns',(req,res,next)=>{try{if(!validSellerId(req.params.id))throw Error('NOT_FOUND');const state=store.readPublicProjectionState({sellerId:req.params.id},config.arcChainId,config.hubAddress),records=publicSellerCampaigns(req.params.id,state),page=pagePublicCampaigns(records,req.query,req.params.id,state);res.json({...metadata(),campaigns:page.selected.map(c=>({...publicCampaignDto(c,state),card:publicWidgetDto(c,state)})),pagination:page.pagination});}catch(error){next(error);}});

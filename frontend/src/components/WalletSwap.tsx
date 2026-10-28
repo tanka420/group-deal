@@ -1,3 +1,4 @@
+import {ARC_CHAIN_NAME,ARC_CHAIN_ID} from '../../../shared/network.mjs';
 import {useEffect,useRef,useState} from 'react';
 import {ArrowDown} from 'lucide-react';
 import {ethers} from 'ethers';
@@ -45,7 +46,7 @@ export function WalletSwap({open,balance,onChange,onClose}:{open:boolean;balance
  if(!open)return null;
  const maxFee=quote?.calls.reduce((n,c)=>n+BigInt(c.fee.maxNetworkFee),0n);
  return <DialogSurface label={text('Hoán đổi','Swap tokens')} transaction busy={executionBusy} className="wallet-swap-dialog" onClose={close}>
-  <div className="wallet-swap-heading"><h2>{text('Hoán đổi','Swap tokens')}</h2><button type="button" className="btn btn-ghost" disabled={executionBusy} onClick={close}>{text('Đóng','Close')}</button></div><p className="muted">Arc Testnet</p>
+  <div className="wallet-swap-heading"><h2>{text('Hoán đổi','Swap tokens')}</h2><button type="button" className="btn btn-ghost" disabled={executionBusy} onClick={close}>{text('Đóng','Close')}</button></div><p className="muted">{ARC_CHAIN_NAME}</p>
   <form className="wallet-swap-form" onSubmit={e=>e.preventDefault()}>
    {!complete&&<>
    <div><label className="wallet-field" htmlFor="wallet-swap-amount">{text('Bạn đổi','You swap')}</label><div className="wallet-asset-control"><input ref={amountInput} id="wallet-swap-amount" aria-invalid={!!amount&&!valid} aria-describedby={amount&&!valid?"wallet-swap-amount-error":"wallet-swap-balance"} value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0.00" inputMode="decimal" autoComplete="off" maxLength={80} disabled={frozen}/><select aria-label={text('Token dùng để đổi','Input token')} value={tokenIn} disabled={frozen} onChange={e=>{const next=e.target.value as ArcWalletToken;setTokenIn(next);if(next===tokenOut)setTokenOut(tokenIn);}}>{Object.keys(ARC_WALLET_TOKENS).map(t=><option key={t}>{t}</option>)}</select></div><p id="wallet-swap-balance" className="muted wallet-swap-balance">{text('Số dư','Balance')}: {balance(tokenIn)} {tokenIn}</p></div>

@@ -1,3 +1,4 @@
+import {ARC_KIT_CHAIN} from '../../../shared/network.mjs';
 import { ethers } from 'ethers';
 import type { Eip1193Provider } from '../context/ExternalWalletContext';
 import { paymentLockKey, withCheckoutLock } from './checkout';
@@ -199,7 +200,7 @@ export function guardedBridgeProvider(provider: Eip1193Provider, options: {
           const message = assertBridgeMessage(call.args.message, options.operation, true);
           if (!burn?.message) fail();
           await assertBridgeAttestation(options.operation, burn.message, message, options.read); current();
-          const used = await (options.read || readBridgeRpc)<string>('Arc_Testnet', 'eth_call', [{ to: CCTP_MESSAGE_TRANSMITTER,
+          const used = await (options.read || readBridgeRpc)<string>(ARC_KIT_CHAIN, 'eth_call', [{ to: CCTP_MESSAGE_TRANSMITTER,
             data: bridgeAbi.encodeFunctionData('usedNonces', [message.nonce]) }, 'latest']); current();
           if (!/^0x[\da-f]{64}$/i.test(used) || BigInt(used) !== 0n) fail('BRIDGE_WRITE_UNRESOLVED');
         }
@@ -254,7 +255,7 @@ export async function attachBridgeRecoveryHash(journal: BridgeJournal, kind: Bri
   let proof: BridgeProof | {kind:BridgeKind;hash:string;nonce:string;dataHash:string;receiptVerified:false};
   if (pending) {
     if (!isTxHash(pending.dataHash) || !count(pending.nonce) || !count(pending.afterBlock) || pending.chainId !== (kind === 'mint' ? ARC_CHAIN_ID : bridgeSources[candidate.operation.source].chainId)) fail();
-    const chain = kind === 'mint' ? 'Arc_Testnet' : candidate.operation.source;
+    const chain = kind === 'mint' ? ARC_KIT_CHAIN : candidate.operation.source;
     const quantity = (v: unknown) => { if (typeof v !== 'string' || !/^0x[0-9a-f]{1,64}$/i.test(v)) return fail(); return BigInt(v); };
     const identity = (raw: unknown) => {
       if (raw === null || raw === undefined) fail('BRIDGE_HASH_OBSERVATION_PENDING');

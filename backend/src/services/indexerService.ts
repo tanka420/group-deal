@@ -1,3 +1,4 @@
+import {ARC_EXPLORER,ARC_CHAIN_NAME,ARC_CHAIN_ID} from '../../../shared/network.mjs';
 import type {DatabaseSchema} from '../db/store';
 import type {FinancialCursor} from '../domain/financialProjection';
 import { ethers } from "ethers";
@@ -448,7 +449,7 @@ export class IndexerProjection {
             protocolVersion:config.protocolVersion,
             projectionOrigin: "CHAIN_UNBOUND",
             title: `Onchain Campaign #${campaignId}`,
-            description: "Synchronized directly from Arc Testnet contract event",
+            description: `Synchronized directly from ${ARC_CHAIN_NAME} contract event`,
             category: "General",
             thumbnailUrl: "",
             sellerId: `seller_${sellerPayoutWallet.toLowerCase().substring(0, 8)}`,

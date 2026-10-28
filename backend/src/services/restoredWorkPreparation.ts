@@ -1,3 +1,4 @@
+import {config} from '../config';
 import fs from 'node:fs';import path from 'node:path';import crypto from 'node:crypto';import {isDeepStrictEqual} from 'node:util';
 import {TransactionalStore} from '../db/store';
 import {privateRecoveryDirectory,copyStableDatabase,sourceFootprint,verifyPrivateRecovery,RecoveryDrillError} from './recoveryDrillService';
@@ -40,7 +41,7 @@ const inputs=[
  "backend/src/utils/crypto.ts",
  "backend/package-lock.json",
  "shared/contracts.json",
- "shared/manifests/arc-testnet.json",
+ 'shared/manifests/arc-testnet.json','shared/manifests/arc-mainnet.json','shared/manifests/local.json','shared/network.mjs','shared/network.d.mts',
  "backend/src/contracts/hubAbi.ts",
  "backend/src/domain/operations.ts",
  "backend/src/domain/sellerFollow.ts",
@@ -103,8 +104,8 @@ type Options={inputScope:'EXISTING_DATA'}|{inputScope:'LOCAL_FIXTURE';sourceDire
 export function prepareRestoredWork(options:Options){
  if(options.inputScope==='EXISTING_DATA'&&Object.keys(options).some(k=>k!=='inputScope'))throw new RestoredWorkPreparationError('RESTORED_WORK_SCOPE_OVERRIDE_DISABLED');
  if(options.inputScope!=='EXISTING_DATA'&&(options.inputScope!=='LOCAL_FIXTURE'||process.env.NODE_ENV!=='test'))throw new RestoredWorkPreparationError('RESTORED_WORK_FIXTURE_DISABLED');
- const source=options.inputScope==='EXISTING_DATA'?path.join(root,'backend/data'):options.sourceDirectory;
- if(options.inputScope==='LOCAL_FIXTURE'&&fs.realpathSync(source).toLowerCase()===path.join(root,'backend/data').toLowerCase())throw new RestoredWorkPreparationError('RESTORED_WORK_ACTIVE_FIXTURE_DISABLED');
+ const source=options.inputScope==='EXISTING_DATA'?config.runtimeDataDirectory:options.sourceDirectory;
+ if(options.inputScope==='LOCAL_FIXTURE'&&fs.realpathSync(source).toLowerCase()===config.runtimeDataDirectory.toLowerCase())throw new RestoredWorkPreparationError('RESTORED_WORK_ACTIVE_FIXTURE_DISABLED');
  const before=sourceFootprint(source),toolInputs=restoredWorkPreparationInputs(),directory=privateRecoveryDirectory(options.inputScope==='EXISTING_DATA'?path.join(root,'.cache/restored-work'):options.privateParent),reports=options.inputScope==='EXISTING_DATA'?path.join(root,'reports/evidence/restored-work'):options.reportDirectory;
  const report:Record<string,any>={schemaVersion:1,recordedAt:new Date().toISOString(),inputScope:options.inputScope,status:'UNVERIFIED',sourceFootprint:before,toolInputs,targetDirectory:path.relative(root,directory).replaceAll('\\','/'),sourceAccess:'FILES_READ_ONLY_NO_SQLITE_CONNECTION',financialAccountingVerified:false,applicationBootEligible:false,authCutoverAllowed:false,productAccessAutoEnabled:false,workersStarted:false,promoted:false,acceptanceEligible:false};let copied:TransactionalStore|undefined,candidate:TransactionalStore|undefined,restored:TransactionalStore|undefined;
  try{

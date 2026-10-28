@@ -1,3 +1,4 @@
+import {ARC_CIRCLE_BLOCKCHAIN,ARC_CHAIN_ID} from '../../../shared/network.mjs';
 import {z} from 'zod';
 import {ethers} from 'ethers';
 import {CircleAuthError} from './circleAuthentication';
@@ -26,14 +27,14 @@ export function circleProviderStatusChallenge(value:unknown,challengeId:string){
  const p=challenge.safeParse(known(value,['id','type','status','correlationIds']));if(!p.success||p.data.id!==challengeId)throw unavailable();return p.data;
 }
 const address=z.string().refine(v=>ethers.isAddress(v)&&ethers.getAddress(v)!==ethers.ZeroAddress);
-const transaction=z.object({id:circleStatusId,state:z.enum(['INITIATED','CLEARED','QUEUED','SENT','STUCK','CONFIRMED','COMPLETE','FAILED','DENIED','CANCELLED']),blockchain:z.literal('ARC-TESTNET'),walletId:circleStatusId,userId:circleStatusId.optional(),refId:circleStatusId,contractAddress:address,operation:z.literal('CONTRACT_EXECUTION').optional(),transactionType:z.literal('OUTBOUND'),txHash:z.string().regex(/^0x[a-fA-F0-9]{64}$/).optional()}).strict();
+const transaction=z.object({id:circleStatusId,state:z.enum(['INITIATED','CLEARED','QUEUED','SENT','STUCK','CONFIRMED','COMPLETE','FAILED','DENIED','CANCELLED']),blockchain:z.literal(ARC_CIRCLE_BLOCKCHAIN),walletId:circleStatusId,userId:circleStatusId.optional(),refId:circleStatusId,contractAddress:address,operation:z.literal('CONTRACT_EXECUTION').optional(),transactionType:z.literal('OUTBOUND'),txHash:z.string().regex(/^0x[a-fA-F0-9]{64}$/).optional()}).strict();
 export function circleProviderStatusTransaction(value:unknown,transactionId:string,receipt:CircleChallengeReceipt){
  const p=transaction.safeParse(known(value,['id','state','blockchain','walletId','userId','refId','contractAddress','operation','transactionType','txHash']));
  if(!p.success)throw unavailable();const t=p.data;
  if(t.id!==transactionId||t.walletId!==receipt.walletId||t.userId!==undefined&&t.userId!==receipt.circleUserId||t.refId!==receipt.operationId||t.contractAddress.toLowerCase()!==receipt.contractAddress.toLowerCase()||t.state==='COMPLETE'&&!t.txHash)throw unavailable();
  return{id:t.id,state:t.state,...(t.txHash?{txHash:t.txHash}:{})};
 }
-const nativeOperation=z.object({id:circleStatusId,userId:circleStatusId,action:z.enum(['PUBLISH','DELIVER','BUY','BUYER_CLAIM','SELLER_CLAIM','DISPUTE','RESOLVE','CONFIRM','BREACH','SETTLE']),resourceId:circleStatusId,chainId:z.literal(5042002),hubAddress:address,principal:address,calldata:z.string().min(10).max(131074).regex(/^0x(?:[a-fA-F0-9]{2})+$/),phase:z.enum(['PREPARED','AWAITING_SIGNATURE','SUBMITTED','RECEIPT_VERIFIED','PROJECTED','UNKNOWN','REVERTED','SUPERSEDED','EXPIRED'])}).strict();
+const nativeOperation=z.object({id:circleStatusId,userId:circleStatusId,action:z.enum(['PUBLISH','DELIVER','BUY','BUYER_CLAIM','SELLER_CLAIM','DISPUTE','RESOLVE','CONFIRM','BREACH','SETTLE']),resourceId:circleStatusId,chainId:z.literal(ARC_CHAIN_ID),hubAddress:address,principal:address,calldata:z.string().min(10).max(131074).regex(/^0x(?:[a-fA-F0-9]{2})+$/),phase:z.enum(['PREPARED','AWAITING_SIGNATURE','SUBMITTED','RECEIPT_VERIFIED','PROJECTED','UNKNOWN','REVERTED','SUPERSEDED','EXPIRED'])}).strict();
 const actionCalls={PUBLISH:['createCampaign','CREATE_CAMPAIGN'],DELIVER:['recordDelivery','RECORD_DELIVERY'],BUY:['commitToBuy','COMMIT_BUY'],BUYER_CLAIM:['claimBuyerFunds','CLAIM_BUYER'],SELLER_CLAIM:['claimSellerProceeds','CLAIM_SELLER'],DISPUTE:['openDispute','OPEN_DISPUTE'],RESOLVE:['resolveDispute','RESOLVE_DISPUTE'],CONFIRM:['confirmReceipt','CONFIRM_RECEIPT'],BREACH:['claimDeliveryBreach','CLAIM_DELIVERY_BREACH'],SETTLE:['settleUndisputedOrder','SETTLE_UNDISPUTED']} as const;
 /** A status read uses the stored immutable call, never current purchase eligibility. */
 export function circleOperationBinding(value:unknown,operationId:string,authority:CircleWalletAuthority,receipt:CircleChallengeReceipt,hubAddress:string){

@@ -1,3 +1,4 @@
+import {config} from '../config';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -33,7 +34,7 @@ function existingReference(){
  const proof=JSON.parse(bytes.toString());
  validateRecoveryReferenceMetadata(pointer,proof);
  if(proof.toolInputs.some((f:any)=>digest(fs.readFileSync(path.join(root,f.path)))!==f.sha256))throw new RecoveryInspectionError('RECOVERY_TOOL_INPUT_CHANGED');
- const original=sourceFootprint(path.join(root,'backend/data'));
+ const original=sourceFootprint(config.runtimeDataDirectory);
  if(!isDeepStrictEqual(original,proof.sourceFootprint))throw new RecoveryInspectionError('RECOVERY_ORIGINAL_DATA_CHANGED');
  const backupPath=safePath(proof.backup.file,path.join(root,'.cache/recovery-drills'));
  return {backup:{path:backupPath,sha256:proof.backup.ciphertextSha256,byteLength:proof.backup.byteLength},proofReference:{path:pointer.path,sha256:pointer.sha256,byteLength:pointer.byteLength},original};
@@ -70,7 +71,7 @@ export function prepareRecoveryInspection(options:Options){
  let projectionScopeMetadataVerified=true;
  try{assertProjectionScope(state!);}catch{projectionScopeMetadataVerified=false;}
  const metadata={schemaVersion:1,inputScope:options.inputScope,scope:'RECOVERY_INSPECTION_ONLY',inspectionReady:true,productAccessEnabled:false,financialAccountingVerified:false,chainReadbackPerformed:false,workersStarted:false,restoredSessionsAccepted:false,authCutoverAllowed:false,projectionScopeMetadataVerified,projectionAdmission:projectionScopeMetadataVerified?'METADATA_VERIFIED_CHAIN_READBACK_REQUIRED':'BLOCKED_SCOPE_REBUILD_REQUIRED',privateProductResourcesPresent:verified.productResourcePresent,counts:Object.fromEntries(['orders','campaigns','users','authSessions','resources','licenseInventory','resourceGrants','emailOutbox','webhookQueue','webhookDLQ'].map(key=>[key,Object.keys((state! as any)[key]).length])),dataPreparationDurationMs:Math.round((performance.now()-started)*1000)/1000,actualServiceRTOEstablished:false,actualLostDataRPOEstablished:false,acceptanceEligible:false};
- const verifyOriginal=()=>{if(original&&!isDeepStrictEqual(original,sourceFootprint(path.join(root,'backend/data'))))throw new RecoveryInspectionError('RECOVERY_ORIGINAL_DATA_CHANGED');};
+ const verifyOriginal=()=>{if(original&&!isDeepStrictEqual(original,sourceFootprint(config.runtimeDataDirectory)))throw new RecoveryInspectionError('RECOVERY_ORIGINAL_DATA_CHANGED');};
  verifyOriginal();
  return{metadata,directory,proofReference,verifyOriginal};
 }

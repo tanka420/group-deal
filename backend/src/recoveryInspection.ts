@@ -1,10 +1,11 @@
+import {ARC_CHAIN_ID} from '../../shared/network.mjs';
 import {config} from './config';
 import {validateRuntimeSecurity} from './services/runtimeSecurity';
 import {prepareRecoveryInspection,startRecoveryInspection,RecoveryInspectionError} from './services/recoveryInspection';
 
 async function main(){
  if(process.argv.length!==2)throw new RecoveryInspectionError('RECOVERY_ARGUMENTS_DISABLED');
- if(config.arcChainId!==5042002)throw new RecoveryInspectionError('RECOVERY_ARC_REQUIRED');
+ if(config.arcChainId!==ARC_CHAIN_ID)throw new RecoveryInspectionError('RECOVERY_ARC_REQUIRED');
  validateRuntimeSecurity();
  const portText=process.env.RECOVERY_INSPECTION_PORT||'4198';
  if(!/^[1-9]\d{0,4}$/.test(portText)||Number(portText)>65535)throw new RecoveryInspectionError('RECOVERY_PORT_INVALID');

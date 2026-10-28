@@ -1,3 +1,4 @@
+import {ARC_KIT_CHAIN,ARC_BRIDGE_ENABLED,ARC_EXPLORER} from '../../../shared/network.mjs';
 import { ethers } from 'ethers';
 import type { AppKit, BridgeResult, ChainDefinition } from '@circle-fin/app-kit';
 import { bridgeSources, BridgeSource, parseUsdc } from './paymentSafety';
@@ -15,9 +16,9 @@ const sourceRpc: Record<BridgeSource, readonly string[]> = {
   Base_Sepolia: ['https://sepolia.base.org'],
   Arbitrum_Sepolia: ['https://sepolia-rollup.arbitrum.io/rpc'],
 };
-const explorers: Record<BridgeSource | 'Arc_Testnet', string> = {
+const explorers: Record<BridgeSource | typeof ARC_KIT_CHAIN, string> = {
   Ethereum_Sepolia: 'https://sepolia.etherscan.io/tx/', Base_Sepolia: 'https://sepolia.basescan.org/tx/',
-  Arbitrum_Sepolia: 'https://sepolia.arbiscan.io/tx/', Arc_Testnet: 'https://explorer.testnet.arc.io/tx/',
+  Arbitrum_Sepolia: 'https://sepolia.arbiscan.io/tx/', Arc_Testnet: 'https://explorer.testnet.arc.io/tx/',Arc:ARC_EXPLORER+'/tx/',
 };
 export const bridgeAbi = new ethers.Interface([
   'function approve(address spender,uint256 amount)',
@@ -39,13 +40,14 @@ const same = (a: unknown, b: string) => typeof a === 'string' && a.toLowerCase()
 const address32 = (address: string) => ethers.zeroPadValue(address, 32).toLowerCase();
 const uint = (value: unknown) => { try { return BigInt(String(value)); } catch { return fail(); } };
 export function validateBridgeOperation(input: unknown): BridgeOperation {
+  if(!ARC_BRIDGE_ENABLED)throw new BridgeSafetyError('MAINNET_BRIDGE_NOT_ENABLED');
   const op = input as BridgeOperation;
   if (!op || !Object.prototype.hasOwnProperty.call(bridgeSources, op.source) || typeof op.amount !== 'string' || op.amount.length > 80 ||
     !ethers.isAddress(op.sender) || !ethers.isAddress(op.recipient) || parseUsdc(op.amount) > ethers.MaxUint256) fail('BRIDGE_RECORD_INVALID');
   return { source: op.source, amount: op.amount, sender: ethers.getAddress(op.sender), recipient: ethers.getAddress(op.recipient) };
 }
 export function bridgeExplorer(kind: BridgeKind, source: BridgeSource, hash: unknown): string | undefined {
-  return isTxHash(hash) ? explorers[kind === 'mint' ? 'Arc_Testnet' : source] + hash : undefined;
+  return isTxHash(hash) ? explorers[kind === 'mint' ? ARC_KIT_CHAIN : source] + hash : undefined;
 }
 
 /** Installed SDK chain definitions are checked against the approved testnet route.
@@ -63,7 +65,7 @@ export function canonicalBridgeRoute(kit: Pick<AppKit, 'getSupportedChains'>, op
   }
   return {
     source: chain(op.source, bridgeSources[op.source].chainId, bridgeSources[op.source].usdc, domains[op.source], sourceRpc[op.source]),
-    destination: chain('Arc_Testnet', ARC_CHAIN_ID, ARC_USDC, 26, ARC_RPC_ENDPOINTS),
+    destination: chain(ARC_KIT_CHAIN, ARC_CHAIN_ID, ARC_USDC, 26, ARC_RPC_ENDPOINTS),
   };
 }
 
@@ -117,10 +119,12 @@ export function classifyBridgeTransaction(tx: BridgeTransaction, chainId: number
   return fail('BRIDGE_REQUEST_INVALID');
 }
 
-export type BridgeRead = <T = unknown>(chain: BridgeSource | 'Arc_Testnet', method: string, params: unknown[]) => Promise<T>;
+export type BridgeRead = <T = unknown>(chain: BridgeSource | typeof ARC_KIT_CHAIN, method: string, params: unknown[]) => Promise<T>;
 /** Independent, read-only RPC; wallet chain switches cannot retarget recovery. */
-export const readBridgeRpc: BridgeRead = async <T>(chain: BridgeSource | 'Arc_Testnet', method: string, params: unknown[]): Promise<T> => {
-  if (method === 'cctp_attestation' && chain !== 'Arc_Testnet') {
+export const readBridgeRpc: BridgeRead = async <T>(chain: BridgeSource | typeof ARC_KIT_CHAIN, method: string, params: unknown[]): Promise<T> => {
+  if(!ARC_BRIDGE_ENABLED)throw new BridgeSafetyError('MAINNET_BRIDGE_NOT_ENABLED');
+  if(chain==='Arc'||chain==='Arc_Testnet'){if(chain!==ARC_KIT_CHAIN)fail('BRIDGE_READ_INVALID');return readArcRpc<T>(method,params);}
+  if (method === 'cctp_attestation') {
     if (params.length !== 1 || !isTxHash(params[0])) fail('BRIDGE_READ_INVALID');
     try {
       const response = await fetch(`https://iris-api-sandbox.circle.com/v2/messages/${domains[chain]}?transactionHash=${params[0]}`, { signal: AbortSignal.timeout(10_000) });
@@ -128,7 +132,7 @@ export const readBridgeRpc: BridgeRead = async <T>(chain: BridgeSource | 'Arc_Te
       return await response.json() as T;
     } catch { return fail('BRIDGE_READ_UNAVAILABLE'); }
   }
-  if (chain === 'Arc_Testnet') return readArcRpc<T>(method, params);
+
   if (!['eth_getTransactionReceipt', 'eth_getTransactionByHash', 'eth_getBlockByNumber', 'eth_estimateGas', 'eth_gasPrice', 'eth_getBalance', 'eth_call'].includes(method)) fail('BRIDGE_READ_INVALID');
   for (const url of sourceRpc[chain]) {
     try {
@@ -158,7 +162,7 @@ type Receipt = { transactionHash: string; from: string; to: string; blockHash: s
 export type BridgeProof = { kind: BridgeKind; hash: string; blockHash: string; blockNumber: string; nonce: string; dataHash: string; reverted: boolean; message?: BridgeMessage };
 export async function verifyBridgeReceipt(op: BridgeOperation, kind: BridgeKind, hash: string, read: BridgeRead = readBridgeRpc, burn?: BridgeMessage): Promise<BridgeProof> {
   if (!isTxHash(hash)) fail();
-  const chain = kind === 'mint' ? 'Arc_Testnet' : op.source;
+  const chain = kind === 'mint' ? ARC_KIT_CHAIN : op.source;
   const [tx, receipt] = await Promise.all([read<BridgeTransaction | null>(chain, 'eth_getTransactionByHash', [hash]), read<Receipt | null>(chain, 'eth_getTransactionReceipt', [hash])]);
   if (!tx || !receipt) fail('BRIDGE_RECEIPT_PENDING');
   const id = kind === 'mint' ? ARC_CHAIN_ID : bridgeSources[op.source].chainId;

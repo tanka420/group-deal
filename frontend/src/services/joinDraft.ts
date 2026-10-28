@@ -1,9 +1,10 @@
+import {ARC_IS_MAINNET} from '../../../shared/network.mjs';
 /** Short-lived review choices only. This is never a financial intent, quote,
  * consent, wallet binding or permission to sign. Keep financial recovery keys. */
 export type JoinSelection = { quantity: number; requireEarlySlot: boolean; paymentSource: 'ARC_USDC' | 'OTHER_USDC' };
 export type JoinDraft = JoinSelection & { version: 1; campaignId: string; termsHash: string; savedAt: number };
 const ttl = 30 * 60 * 1000;
-const key = (campaignId: string) => 'groupdeal_join_review:v1:' + campaignId;
+const key = (campaignId: string) => 'groupdeal_join_review:v1:' + (ARC_IS_MAINNET?'5042:':'') + campaignId;
 export const defaultJoinSelection: JoinSelection = { quantity: 1, requireEarlySlot: false, paymentSource: 'ARC_USDC' };
 export function readJoinDraft(campaignId: string, storage?: Storage, now = Date.now()): JoinDraft | null {
   try {

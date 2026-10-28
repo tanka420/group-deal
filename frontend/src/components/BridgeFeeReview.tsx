@@ -1,3 +1,4 @@
+import {ARC_EXPLORER,ARC_CHAIN_NAME,ARC_CHAIN_ID} from '../../../shared/network.mjs';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {bridgeAbi} from '../services/bridgeRecovery';
 import {ethers} from 'ethers';
@@ -22,7 +23,7 @@ export function BridgeFeeReview({request,changed,onApprove,onCancel}:{request:Br
  return <section className="funding-panel bridge-fee-review" aria-labelledby="bridge-fee-title">
   <h3 id="bridge-fee-title" ref={heading} tabIndex={-1}>{text('Kiểm tra phí bước bridge','Review this bridge step’s fees')}</h3><p data-bridge-fee="kind">{kind}</p>
   {changed&&<p className="notice">{text('Ngân sách đã đổi hoặc hết hạn. Xem lại và đồng ý mới; chưa gửi bước này.','The budget changed or expired. Review and agree again; this step has not been sent.')}</p>}
-  <dl><dt>{text('Mạng ký','Signing network')}</dt><dd>{request.kind==='mint'?'Arc Testnet':bridgeSources[request.operation.source].label}</dd><dt>{text('Số USDC bridge','USDC to bridge')}</dt><dd>{request.operation.amount} USDC</dd><dt>{text('Ví ký','Signing wallet')}</dt><dd className="font-mono">{request.operation.sender}</dd><dt>{text('Ví nhận trên Arc','Recipient on Arc')}</dt><dd className="font-mono">{request.operation.recipient}</dd></dl>
+  <dl><dt>{text('Mạng ký','Signing network')}</dt><dd>{request.kind==='mint'?`${ARC_CHAIN_NAME}`:bridgeSources[request.operation.source].label}</dd><dt>{text('Số USDC bridge','USDC to bridge')}</dt><dd>{request.operation.amount} USDC</dd><dt>{text('Ví ký','Signing wallet')}</dt><dd className="font-mono">{request.operation.sender}</dd><dt>{text('Ví nhận trên Arc','Recipient on Arc')}</dt><dd className="font-mono">{request.operation.recipient}</dd></dl>
   {call?<div className="bridge-request-review" aria-label={text('Yêu cầu ví của bước này','Wallet request for this step')}>
    <dl><dt>{text('Phương thức ví','Wallet method')}</dt><dd data-bridge-request="rpc" className="font-mono">eth_sendTransaction</dd>
     <dt>{text('Hợp đồng nhận yêu cầu','Requested contract')}</dt><dd data-bridge-request="contract" className="font-mono">{call.contract}</dd>

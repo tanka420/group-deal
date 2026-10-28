@@ -1,3 +1,4 @@
+import {ARC_EXPLORER,ARC_CHAIN_NAME,ARC_CHAIN_ID} from '../../../shared/network.mjs';
 import { uiMessage, UiError, type UiMessage } from "../utils/uiMessage";
 
 /** Provider diagnostics may contain credentials. Only recognised meanings reach the UI. */
@@ -26,7 +27,7 @@ export function authErrorMessage(error: unknown, action: "SEND" | "VERIFY" | "WA
   if (message === "REOWN_AUTH_CONFIGURATION")
     return uiMessage("Cấu hình kết nối ví cần được cập nhật. Vui lòng thử lại sau; bạn vẫn có thể đăng nhập qua Circle.", "Wallet connection settings need an update. Please try later; Circle sign-in remains available.");
   if (action === "SEND") return uiMessage("Chưa xác nhận được yêu cầu gửi OTP. Kiểm tra email và kết nối rồi thử lại.", "The OTP request could not be confirmed. Check your email address and connection before trying again.");
-  if (action === "WALLET") return uiMessage("Chưa đăng nhập được bằng ví. Kiểm tra kết nối và mạng Arc Testnet rồi thử lại.", "Wallet sign-in did not complete. Check the connection and Arc Testnet network before trying again.");
+  if (action === "WALLET") return uiMessage(`Chưa đăng nhập được bằng ví. Kiểm tra kết nối và mạng ${ARC_CHAIN_NAME} rồi thử lại.`, `Wallet sign-in did not complete. Check the connection and ${ARC_CHAIN_NAME} network before trying again.`);
   return uiMessage("Circle chưa hoàn tất đăng nhập. Kiểm tra cửa sổ xác thực rồi thử lại.", "Circle sign-in did not complete. Check the authentication window before trying again.");
 }
 

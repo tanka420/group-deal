@@ -1,3 +1,4 @@
+import {ARC_CHAIN_ID} from '../../../shared/network.mjs';
 import crypto from 'node:crypto';
 import {ethers} from 'ethers';
 import {z} from 'zod';
@@ -5,7 +6,7 @@ import {CircleAuthError} from './circleAuthentication';
 import type {CircleWalletAuthority} from './circleWalletAuthority';
 import type {CircleTransactionIntent} from './circleTransactionPolicy';
 const id=z.string().min(1).max(128).regex(/^[^\s\u0000-\u001f\u007f]+$/).refine(v=>!['constructor','prototype','__proto__'].includes(v)),hash=z.string().regex(/^[a-f0-9]{64}$/),time=z.number().int().nonnegative().safe(),address=z.string().refine(v=>ethers.isAddress(v)&&ethers.getAddress(v)!==ethers.ZeroAddress);
-const receipt=z.object({operationId:z.string().regex(/^[a-zA-Z0-9:_-]{8,128}$/),userId:id,walletId:id,payloadHash:hash,idempotencyKey:z.string().uuid(),createdAt:time,version:z.literal(2),state:z.enum(['REQUESTED','READY']),circleUserId:id,walletAddress:address,chainId:z.literal(5042002),contractAddress:address,calldataHash:hash,intentType:id,authorityBase:hash,policyDigest:hash,requestId:z.string().uuid(),authRecoveryContext:z.string().regex(/^[A-Za-z0-9_-]{43}$/).optional(),challengeId:id.optional(),completedAt:time.optional()}).strict();
+const receipt=z.object({operationId:z.string().regex(/^[a-zA-Z0-9:_-]{8,128}$/),userId:id,walletId:id,payloadHash:hash,idempotencyKey:z.string().uuid(),createdAt:time,version:z.literal(2),state:z.enum(['REQUESTED','READY']),circleUserId:id,walletAddress:address,chainId:z.literal(ARC_CHAIN_ID),contractAddress:address,calldataHash:hash,intentType:id,authorityBase:hash,policyDigest:hash,requestId:z.string().uuid(),authRecoveryContext:z.string().regex(/^[A-Za-z0-9_-]{43}$/).optional(),challengeId:id.optional(),completedAt:time.optional()}).strict();
 export type CircleChallengeReceipt=z.infer<typeof receipt>;
 export type CircleChallengeBinding={userId:string;walletId:string;contractAddress:string;callData:string;intent:CircleTransactionIntent;operationId:string};
 export const circleChallengeHash=(text:string)=>crypto.createHash('sha256').update(text).digest('hex');

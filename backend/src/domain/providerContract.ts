@@ -1,9 +1,10 @@
+import {ARC_CHAIN_ID} from '../../../shared/network.mjs';
 import {createHash,createHmac,randomBytes,timingSafeEqual} from 'node:crypto';
 import {z} from 'zod';
 
 const id=z.string().regex(/^[A-Za-z0-9_-]{1,180}$/),wallet=z.string().regex(/^0x[0-9a-fA-F]{40}$/),hash=z.string().regex(/^[a-f0-9]{64}$/);
 const time=z.number().int().nonnegative().safe();
-const scope={subscriptionId:id,campaignId:id,productVersionId:id,licenseVersionId:id,chainId:z.literal(5042002),hubAddress:wallet};
+const scope={subscriptionId:id,campaignId:id,productVersionId:id,licenseVersionId:id,chainId:z.literal(ARC_CHAIN_ID),hubAddress:wallet};
 export const providerScopeSchema=z.object(scope).strict();
 export type ProviderScope=z.infer<typeof providerScopeSchema>;
 const base={schema:z.literal('GroupDealProviderRequestV1'),nonce:hash,issuedAt:time,expiresAt:time,...scope};

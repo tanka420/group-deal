@@ -1,3 +1,4 @@
+import {ARC_KIT_CHAIN} from '../../../shared/network.mjs';
 import {ethers} from 'ethers';
 import {BridgeSafetyError,validateBridgeOperation,readBridgeRpc,type BridgeRead,type BridgeKind,type BridgeOperation} from './bridgeRecovery';
 import {bridgeSources,parseUsdc} from './paymentSafety';
@@ -33,7 +34,7 @@ export function assertReviewedBridgeFee(b:BridgeFeeBudget,input:BridgeFeeInput){
  if(b.shortfall>0n||b.tokenShortfall>0n)fail('BRIDGE_FEE_INSUFFICIENT');
 }
 export async function readBridgeFeeBudget(input:BridgeFeeInput,read:BridgeRead=readBridgeRpc):Promise<BridgeFeeBudget>{
- input.assertCurrent();const key=bridgeFeeKey(input),requestedAt=Date.now(),chain=input.kind==='mint'?'Arc_Testnet':input.operation.source,tx=input.transaction;
+ input.assertCurrent();const key=bridgeFeeKey(input),requestedAt=Date.now(),chain=input.kind==='mint'?ARC_KIT_CHAIN:input.operation.source,tx=input.transaction;
  const [gas,price,balance,token]=await Promise.all([read(chain,'eth_estimateGas',[tx,'latest']),read(chain,'eth_gasPrice',[]),read(chain,'eth_getBalance',[input.operation.sender,'latest']),input.kind==='mint'?Promise.resolve('0x'+'0'.repeat(64)):read(chain,'eth_call',[{to:bridgeSources[input.operation.source].usdc,data:balanceOf.encodeFunctionData('balanceOf',[input.operation.sender])},'latest'])]);input.assertCurrent();
  let gasLimit=quantity(gas,true),gasPrice=quantity(price,true),dataFee=0n;
  if(tx.gas!==undefined&&quantity(tx.gas,true)>gasLimit)gasLimit=quantity(tx.gas,true);

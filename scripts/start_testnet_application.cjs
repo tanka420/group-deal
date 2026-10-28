@@ -1,3 +1,4 @@
+process.env.APP_ENV='arc-testnet';process.env.VITE_APP_ENV='arc-testnet';
 /* Run the prepared Arc Testnet application. Credentials stay in backend/.env. */
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),http=require('node:http'),net=require('node:net'),{fork}=require('node:child_process');
 const root=path.resolve(__dirname,'..'),sha=b=>crypto.createHash('sha256').update(b).digest('hex'),origin='http://127.0.0.1:5173';

@@ -1,3 +1,4 @@
+import {ARC_CIRCLE_BLOCKCHAIN} from '../../../shared/network.mjs';
 import type {User} from "../context/AuthContext";
 export interface AppSession {id:string;userId:string;kind:"MANAGED"|"LEGACY";loginMethod:"CIRCLE_EMAIL"|"EVM_WALLET"|"UNKNOWN";createdAt:number;expiresAt:number;idleExpiresAt:number;state:"ACTIVE"|"EXPIRED"|"REVOKED";current:boolean;revokedAt?:number;}
 export type SessionScope="ONE"|"OTHERS"|"ALL";
@@ -7,7 +8,7 @@ const time=(value:unknown):value is number=>typeof value==="number"&&Number.isSa
 export function readUser(value:any):User {
  if(!value||typeof value.id!=="string"||!value.id||value.id.length>128||!(typeof value.email==="string"||value.email===null)||!Array.isArray(value.roles)||value.roles.some((r:unknown)=>!["buyer","seller","operator"].includes(r as string))||!(["CIRCLE_EMAIL","EVM_WALLET"].includes(value.loginMethod)||value.loginMethod===undefined)||!(value.activeWallet===null||value.activeWallet===undefined||/^0x[a-fA-F0-9]{40}$/.test(value.activeWallet)))throw new Error("AUTH_RESPONSE_INVALID");
  const result:User={id:value.id,email:value.email,roles:[...value.roles],loginMethod:value.loginMethod??"EVM_WALLET",activeWallet:value.activeWallet??null};
- if(value.circleWallet){const w=value.circleWallet;if(typeof w.walletId!=="string"||!/^0x[a-fA-F0-9]{40}$/.test(w.address)||w.blockchain!=="ARC-TESTNET")throw new Error("AUTH_RESPONSE_INVALID");result.circleWallet={address:w.address,walletId:w.walletId,blockchain:w.blockchain};}
+ if(value.circleWallet){const w=value.circleWallet;if(typeof w.walletId!=="string"||!/^0x[a-fA-F0-9]{40}$/.test(w.address)||w.blockchain!==ARC_CIRCLE_BLOCKCHAIN)throw new Error("AUTH_RESPONSE_INVALID");result.circleWallet={address:w.address,walletId:w.walletId,blockchain:w.blockchain};}
  if(value.sellerProfile){const p=value.sellerProfile;if(![p.displayName,p.bio,p.payoutWallet].every(v=>typeof v==="string")||typeof p.verifiedSellerBadge!=="boolean"||typeof p.verifiedRightsBadge!=="boolean")throw new Error("AUTH_RESPONSE_INVALID");result.sellerProfile={displayName:p.displayName,bio:p.bio,payoutWallet:p.payoutWallet,verifiedSellerBadge:p.verifiedSellerBadge,verifiedRightsBadge:p.verifiedRightsBadge};}
  return result;
 }

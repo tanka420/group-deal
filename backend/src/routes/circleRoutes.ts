@@ -1,3 +1,4 @@
+import {ARC_CIRCLE_BLOCKCHAIN,ARC_CHAIN_ID} from '../../../shared/network.mjs';
 import {circleStatusId,circleStatusBody,circleTransactionStatusBody} from '../domain/circleStatus';
 import {circleTransactionInput,circleChallengeInput} from '../domain/circleTransactionPolicy';
 import {circleWalletInput,circleWalletSelectInput} from '../domain/circleWalletAuthority';
@@ -30,8 +31,8 @@ circleRouter.use((req,res,next)=>{res.setHeader('Cache-Control','no-store');res.
 circleRouter.get("/status", (_req, res) => {
   res.json({
     configured: CircleWalletService.isConfigured(),
-    blockchain: "ARC-TESTNET",
-    chainId: 5042002,
+    blockchain: ARC_CIRCLE_BLOCKCHAIN,
+    chainId: ARC_CHAIN_ID,
     custody: "USER_CONTROLLED",
   });
 });

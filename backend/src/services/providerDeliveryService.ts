@@ -1,3 +1,4 @@
+import {ARC_CHAIN_ID} from '../../../shared/network.mjs';
 import {createHash} from 'node:crypto';
 import {z} from 'zod';
 import {store} from '../db/store';
@@ -22,8 +23,8 @@ function context(state:ProviderMutationState){
  if(!c||!s||s.held||!s.events.includes('order.committed')&&!s.events.includes('*')||c.deliveryMethod!=='WEBHOOK'||c.status!=='DRAFT'||c.onchainCampaignId!==undefined||state.publicationLocked)throw new ProviderDeliveryError('PROVIDER_DRAFT_UNAVAILABLE');
  const v=productVersionInventory(state.version),l=licenseVersionInventory(state.license),p=productInventory(state.product),url=new URL(s.targetUrl);
  if(p.status==='ARCHIVED'||c.draftProductVersionId!==v.id||v.productId!==p.id||v.licenseVersionId!==l.id||v.sellerId!==c.sellerId||l.productId!==p.id
-  ||l.seatsPerUnit!==1||l.durationDays!==null||url.protocol!=='https:'||url.username||url.password||url.search||url.hash||url.pathname!=='/webhooks/groupdeal'||config.arcChainId!==5042002)throw new ProviderDeliveryError('PROVIDER_CONTEXT_UNSUPPORTED');
- const scope:ProviderScope={subscriptionId:s.id,campaignId:c.id,productVersionId:v.id,licenseVersionId:l.id,chainId:5042002,hubAddress:config.hubAddress.toLowerCase()};
+  ||l.seatsPerUnit!==1||l.durationDays!==null||url.protocol!=='https:'||url.username||url.password||url.search||url.hash||url.pathname!=='/webhooks/groupdeal'||config.arcChainId!==ARC_CHAIN_ID)throw new ProviderDeliveryError('PROVIDER_CONTEXT_UNSUPPORTED');
+ const scope:ProviderScope={subscriptionId:s.id,campaignId:c.id,productVersionId:v.id,licenseVersionId:l.id,chainId:ARC_CHAIN_ID,hubAddress:config.hubAddress.toLowerCase()};
  const fingerprint=providerDigest(JSON.stringify({scope,draftVersion:c.draftVersion,termsHash:c.termsHash,versionHash:v.contentHash,licenseHash:l.contentHash,productStatus:p.status,subscriptionFingerprint:s.fingerprint}));
  return{c,s,v,l,scope,fingerprint};
 }
@@ -39,7 +40,7 @@ export class ProviderDeliveryService{
   const request=providerRequest(c.scope),raw=JSON.stringify(request),secret=c.s.secretEncrypted?decryptWebhookSecret(c.s.secretEncrypted,c.s.id):c.s.secret!;
   let reply;try{const result=await this.send(c.s.targetUrl,raw,{'Content-Type':'application/json','X-GroupDeal-Provider-Signature':providerSignature(secret,'request',raw)});reply=verifyProviderReply(request,secret,c.s.targetUrl,result.body,result.signature);if(reply.action!=='PROBE')throw Error();}catch{throw new ProviderDeliveryError('PROVIDER_PROOF_UNAVAILABLE',503);}
   const checkedAt=Date.now(),responseSha256=providerDigest(JSON.stringify(reply)),probe:DeliveryProbe={id:selection.probeId,sellerId:selection.actorId,productVersionId:c.v.id,method:'WEBHOOK',resourceId:'provider_'+c.s.id,resourceSha256:reply.packageSha256,checkedAt,
-   evidenceHash:'',provider:{schema:'GroupDealProviderProbeV1',campaignId,licenseVersionId:c.l.id,subscriptionId:c.s.id,endpoint:c.s.targetUrl,subscriptionFingerprint:c.s.fingerprint,chainId:5042002,hubAddress:config.hubAddress.toLowerCase(),byteLength:reply.byteLength,expiresAt:checkedAt+15*60000,commandId:key,requestSha256:providerDigest(raw),responseSha256}};
+   evidenceHash:'',provider:{schema:'GroupDealProviderProbeV1',campaignId,licenseVersionId:c.l.id,subscriptionId:c.s.id,endpoint:c.s.targetUrl,subscriptionFingerprint:c.s.fingerprint,chainId:ARC_CHAIN_ID,hubAddress:config.hubAddress.toLowerCase(),byteLength:reply.byteLength,expiresAt:checkedAt+15*60000,commandId:key,requestSha256:providerDigest(raw),responseSha256}};
   probe.evidenceHash=providerEvidenceHash(probe);
   return store.mutateProviderProbe(selection,current=>{authority(current,proof);if(current.probe)return{result:retained(current)};if(context(current).fingerprint!==c.fingerprint)throw new ProviderDeliveryError('PROVIDER_CONTEXT_CHANGED');return{result:{probe:safeProbe(probe)},probe};});
  }
@@ -53,7 +54,7 @@ export class ProviderDeliveryService{
   const campaign=graph.campaigns[campaignId];if(!campaign?.draftProductVersionId)throw new ProviderDeliveryError('PROVIDER_DRAFT_UNAVAILABLE');
   const probe=this.assertProbe(actor,campaign.draftProductVersionId,graph.deliveryProbes[campaign.deliveryProbeId!],graph,true,false),p=probe.provider!,native=store.readProviderMutationState({actorId:actor,sessionKey:'',campaignId}).subscription;
   if(!native||native.fingerprint!==p.subscriptionFingerprint||native.held)throw new ProviderDeliveryError('PROVIDER_SUBSCRIPTION_CHANGED');
-  const request=providerRequest({subscriptionId:p.subscriptionId,campaignId,productVersionId:probe.productVersionId,licenseVersionId:p.licenseVersionId,chainId:5042002,hubAddress:p.hubAddress}),raw=JSON.stringify(request),secret=native.secretEncrypted?decryptWebhookSecret(native.secretEncrypted,native.id):native.secret!;
+  const request=providerRequest({subscriptionId:p.subscriptionId,campaignId,productVersionId:probe.productVersionId,licenseVersionId:p.licenseVersionId,chainId:ARC_CHAIN_ID,hubAddress:p.hubAddress}),raw=JSON.stringify(request),secret=native.secretEncrypted?decryptWebhookSecret(native.secretEncrypted,native.id):native.secret!;
   try{const response=await this.send(p.endpoint,raw,{'Content-Type':'application/json','X-GroupDeal-Provider-Signature':providerSignature(secret,'request',raw)}),reply=verifyProviderReply(request,secret,p.endpoint,response.body,response.signature);if(reply.action!=='PROBE'||reply.packageSha256!==probe.resourceSha256||reply.byteLength!==p.byteLength)throw Error();}catch{throw new ProviderDeliveryError('PROVIDER_PROOF_UNAVAILABLE',503);}
  }
  static async resolve(actor:string,orderId:string,graph:OperationReadinessGraph){
@@ -62,7 +63,7 @@ export class ProviderDeliveryService{
   // Re-read only this seller's native subscription. No application session is sent to the provider.
   const native=store.readProviderMutationState({actorId:actor,sessionKey:'',campaignId:campaign.id}).subscription;
   if(!native||native.fingerprint!==binding.subscriptionFingerprint||native.held)throw new ProviderDeliveryError('PROVIDER_SUBSCRIPTION_CHANGED');
-  const scope:ProviderScope={subscriptionId:binding.subscriptionId,campaignId:campaign.id,productVersionId:probe.productVersionId,licenseVersionId:binding.licenseVersionId,chainId:5042002,hubAddress:binding.hubAddress};
+  const scope:ProviderScope={subscriptionId:binding.subscriptionId,campaignId:campaign.id,productVersionId:probe.productVersionId,licenseVersionId:binding.licenseVersionId,chainId:ARC_CHAIN_ID,hubAddress:binding.hubAddress};
   const request=providerRequest(scope,{orderId:order.id,buyerPrincipal:order.buyerPrincipal,quantity:order.quantity,commitmentTxHash:order.commitmentTxHash!}),raw=JSON.stringify(request),secret=native.secretEncrypted?decryptWebhookSecret(native.secretEncrypted,native.id):native.secret!;
   try{const result=await this.send(binding.endpoint,raw,{'Content-Type':'application/json','X-GroupDeal-Provider-Signature':providerSignature(secret,'request',raw)}),reply=verifyProviderReply(request,secret,binding.endpoint,result.body,result.signature);
    if(reply.action!=='RESOLVE'||reply.packageSha256!==probe.resourceSha256||reply.byteLength!==binding.byteLength)throw Error();

@@ -1,7 +1,7 @@
 {
   "name": "group-deal",
   "version": "1.0.0",
-  "description": "GroupDeal - Group buying for digital goods on Arc Testnet",
+  "description": "GroupDeal - Group buying for digital goods on Arc",
   "scripts": {
     "clean": "node scripts/clean.cjs",
     "compile": "node scripts/compile_contracts.cjs",
@@ -106,7 +106,11 @@
     "check:circle-fee-review": "node scripts/run_circle_fee_review_checks.cjs",
     "check:circle-operation-recovery": "node scripts/run_circle_operation_recovery_checks.cjs --regressions",
     "typecheck:circle-operation-recovery": "node backend/node_modules/typescript/bin/tsc --noEmit --strict --esModuleInterop --skipLibCheck --target ES2022 --module commonjs --moduleResolution node --typeRoots backend/node_modules/@types backend/test/circle_operation_recovery.test.ts frontend/test/circle_operation_recovery.test.ts",
-    "start:testnet": "node scripts/start_testnet_application.cjs"
+    "start:testnet": "node scripts/start_testnet_application.cjs",
+    "build:mainnet": "node scripts/build_mainnet.cjs",
+    "check:mainnet": "node scripts/run_mainnet_checks.cjs",
+    "prepare:mainnet": "node scripts/prepare_mainnet.cjs",
+    "test:mainnet-browser": "node scripts/run_browser_checks.cjs --mainnet-fixture -- mainnet.spec.ts"
   },
   "keywords": [
     "arc-testnet",

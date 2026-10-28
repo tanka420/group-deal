@@ -1,3 +1,4 @@
+import {ARC_IS_MAINNET} from '../../../shared/network.mjs';
 import {UiError,uiMessage,type UiMessage} from "../utils/uiMessage";
 import {signerHoldMessage} from "./signerHoldMessage";
 /** Managed review dialogs show bounded bilingual errors rather than provider/API diagnostics. */
@@ -64,7 +65,7 @@ export async function operationRequest<T>(token:string|null,path:string,body?:un
   if(!response.ok){const hold=signerHoldMessage(data?.code)??signerHoldMessage(data?.error);if(hold)throw new UiError(hold);if(typeof data?.error==="string"&&data.error)throw new OperationRequestFailure(response.status,typeof data.code==="string"&&/^[A-Z_]{3,100}$/.test(data.code)?data.code:undefined,data.error);throw new UiError(uiMessage("Thao tác chưa hoàn tất","The operation has not completed"));}
   return data as T;
 }
-export const checkpointKey=(userId:string,operationId:string)=>`groupdeal_operation:${userId}:${operationId}`;
+export const checkpointKey=(userId:string,operationId:string)=>`groupdeal_operation:${ARC_IS_MAINNET?'5042:':''}${userId}:${operationId}`;
 /** Best-effort public nonce witness after the durable hash is acknowledged. Failure keeps the intent pending. */
 export async function observeBroadcast(token:string|null,operationId:string,txHash:string):Promise<void> {
   if(!token)return;

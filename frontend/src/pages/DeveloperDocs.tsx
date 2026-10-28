@@ -1,3 +1,4 @@
+import {ARC_EXPLORER,ARC_CHAIN_NAME,ARC_CHAIN_ID} from '../../../shared/network.mjs';
 import React from "react";
 import {useLanguage} from "../context/LanguageContext";
 import {focusPageElement} from "../utils/focus";
@@ -6,15 +7,15 @@ import { Globe, Terminal, Webhook, Code2 } from "lucide-react";
 const codeStyle:React.CSSProperties={background:"var(--bg-tertiary)",padding:"1rem",borderRadius:"var(--radius-md)",fontSize:"0.8rem",overflowX:"auto",lineHeight:1.6,maxWidth:"100%"};
 export const DeveloperDocs:React.FC=()=> {
  const {language}=useLanguage(),text=(vi:string,en:string)=>language==="en"?en:vi;
- const topics=[["docs-network",text("Arc Testnet","Arc Testnet")],["docs-api",text("Public API","Public API")],["docs-webhook",text("Webhook & retry","Webhooks & retries")],["docs-delivery",text("SDK giao hàng","Delivery SDK")]];
+ const topics=[["docs-network",text(`${ARC_CHAIN_NAME}`,`${ARC_CHAIN_NAME}`)],["docs-api",text("Public API","Public API")],["docs-webhook",text("Webhook & retry","Webhooks & retries")],["docs-delivery",text("SDK giao hàng","Delivery SDK")]];
  return (
   <article className="app-page developer-docs" aria-labelledby="integration-title">
     <p className="eyebrow">{text("Tài liệu & tích hợp","Docs & integrations")}</p><h1 id="integration-title">{text("Tích hợp với GroupDeal","Integrate with GroupDeal")}</h1>
     <p style={{color:"var(--text-secondary)"}}>{language==='en'?<>Public APIs, receipt-based delivery and webhooks with a durable inbox. SDK v2 is a repository candidate and has not been published to a registry.</>:<>Public API, giao hàng có receipt và webhook có inbox bền vững. SDK v2 là bản candidate trong repository; chưa phát hành lên registry.</>}</p>
     <nav className="docs-topics" aria-label={text("Các mục tài liệu","Documentation topics")}>{topics.map(([id,label])=><button className="btn btn-secondary" key={id} onClick={()=>focusPageElement(document.getElementById(id))}>{label}</button>)}</nav>
     <section id="docs-network" tabIndex={-1} className="glass-card" style={{marginBlock:"1.5rem"}}>
-      <h2><Globe size={20} aria-hidden="true"/> Arc Testnet</h2>
-      <p>{language==='en'?<>Chain ID 5042002. Protocol prices and amounts use USDC ERC-20 with 6 decimals; the API returns integer strings. Native gas balance is separate from the ERC-20 balance.</>:<>Chain ID <code>5042002</code>. Giá và số tiền của protocol dùng USDC ERC-20, 6 decimals; API trả số nguyên dạng chuỗi. Số dư native dùng trả gas không cộng thêm vào số dư ERC-20.</>}</p>
+      <h2><Globe size={20} aria-hidden="true"/> {ARC_CHAIN_NAME}</h2>
+      <p>{language==='en'?<>Chain ID {ARC_CHAIN_ID}. Protocol prices and amounts use USDC ERC-20 with 6 decimals; the API returns integer strings. Native gas balance is separate from the ERC-20 balance.</>:<>Chain ID <code>{ARC_CHAIN_ID}</code>. Giá và số tiền của protocol dùng USDC ERC-20, 6 decimals; API trả số nguyên dạng chuỗi. Số dư native dùng trả gas không cộng thêm vào số dư ERC-20.</>}</p>
       <p style={{overflowWrap:"anywhere"}}>USDC: <code>0x3600000000000000000000000000000000000000</code></p>
     </section>
     <section id="docs-api" tabIndex={-1} className="glass-card" style={{marginBlock:"1.5rem"}}>

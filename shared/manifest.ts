@@ -1,10 +1,12 @@
 import localManifest from "./manifests/local.json";
 import arcTestnetManifest from "./manifests/arc-testnet.json";
+import arcMainnetManifest from "./manifests/arc-mainnet.json";
 
-export type EnvironmentName = "local" | "arc-testnet";
+export type EnvironmentName = "local" | "arc-testnet" | "arc-mainnet";
 
 export interface NetworkManifest {
-  protocolVersion?:1|2;
+  protocolVersion?:1|2|null;
+  deploymentStatus?:string;
   environment: EnvironmentName;
   networkName: string;
   chainId: number;
@@ -33,11 +35,7 @@ export interface NetworkManifest {
     };
     [key: string]: any;
   };
-  roles?: {
-    securityAuthority?: string;
-    operator?: string;
-    authorizedSigner?: string;
-  };
+  roles?: Record<string,any>;
   arcDifferences?: {
     minBaseFeeGwei: number;
     deterministicFinality: boolean;
@@ -48,14 +46,15 @@ export interface NetworkManifest {
 }
 
 export function getManifest(env?: string): NetworkManifest {
-  const targetEnv = (env || process.env.APP_ENV || process.env.VITE_APP_ENV || "arc-testnet").toLowerCase();
+  const targetEnv = (env || process.env.APP_ENV || process.env.VITE_APP_ENV || "arc-mainnet").toLowerCase();
+  if (targetEnv === "arc-mainnet" || targetEnv === "5042") return arcMainnetManifest as NetworkManifest;
   if (targetEnv === "local" || targetEnv === "hardhat" || targetEnv === "31337") {
     return localManifest as NetworkManifest;
   }
   if (targetEnv === "arc-testnet" || targetEnv === "arc" || targetEnv === "5042002") {
     return arcTestnetManifest as NetworkManifest;
   }
-  throw new Error(`[Manifest] Unknown or unsupported environment '${targetEnv}'. Must be 'local' or 'arc-testnet'. Fail-fast.`);
+  throw new Error(`[Manifest] Unknown or unsupported environment '${targetEnv}'. Must be 'local', 'arc-testnet' or 'arc-mainnet'. Fail-fast.`);
 }
 
 export function validateEnvironmentOrThrow(expectedEnv: EnvironmentName, actualChainId: number) {

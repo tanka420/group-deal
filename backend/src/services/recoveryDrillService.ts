@@ -1,3 +1,4 @@
+import {config} from '../config';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -33,7 +34,7 @@ const toolPaths=[
  "backend/src/db/legacyReviewMetadata.ts",
  "backend/package-lock.json",
  "shared/contracts.json",
- "shared/manifests/arc-testnet.json",
+ 'shared/manifests/arc-testnet.json','shared/manifests/arc-mainnet.json','shared/manifests/local.json','shared/network.mjs','shared/network.d.mts',
  "backend/src/domain/operations.ts",
  "backend/src/domain/sellerInventory.ts",
  "backend/src/domain/product.ts",
@@ -104,7 +105,7 @@ export function verifyPrivateRecovery(state:DatabaseSchema){
 
 type DrillOptions={sourceDirectory:string;inputScope:'EXISTING_DATA'|'LOCAL_FIXTURE';privateParent?:string;reportDirectory?:string};
 export async function runRecoveryDrill(options:DrillOptions){
- const sourceDirectory=fs.realpathSync(options.sourceDirectory),active=path.resolve(root,'backend/data');
+ const sourceDirectory=fs.realpathSync(options.sourceDirectory),active=config.runtimeDataDirectory;
  if(options.inputScope==='LOCAL_FIXTURE'&&(process.env.NODE_ENV!=='test'||sourceDirectory.toLowerCase()===active.toLowerCase()))throw new RecoveryDrillError('FIXTURE_SCOPE_INVALID');
  if(options.inputScope==='EXISTING_DATA'&&(sourceDirectory.toLowerCase()!==active.toLowerCase()||options.privateParent||options.reportDirectory))throw new RecoveryDrillError('EXISTING_DATA_SCOPE_INVALID');
  if(!['EXISTING_DATA','LOCAL_FIXTURE'].includes(options.inputScope))throw new RecoveryDrillError('INPUT_SCOPE_INVALID');

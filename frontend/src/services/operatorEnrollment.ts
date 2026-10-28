@@ -1,6 +1,6 @@
 import {ethers} from 'ethers';
-import manifest from '../../../shared/manifests/arc-testnet.json';
-export const operatorDeployment={chainId:manifest.chainId,hubAddress:ethers.getAddress(manifest.contracts.GroupDealHub.address),operatorAddress:ethers.getAddress(manifest.roles.operator.address)};
+import {ARC_NETWORK as manifest,assertDeploymentConfigured} from '../../../shared/network.mjs';
+export const operatorDeployment={chainId:manifest.chainId,hubAddress:manifest.contracts.GroupDealHub.address?ethers.getAddress(manifest.contracts.GroupDealHub.address):'',operatorAddress:manifest.roles?.operator?.address?ethers.getAddress(manifest.roles.operator.address):''};
 export type OperatorAccessFailure='SESSION'|'WALLET'|'AUTHORITY'|'LIMIT'|'INVALID'|'NETWORK'|'STORAGE';
 export class OperatorAccessError extends Error{constructor(public readonly kind:OperatorAccessFailure){super(kind);}}
 const invalid=():never=>{throw new OperatorAccessError('INVALID');};
@@ -10,6 +10,7 @@ const integer=(v:unknown)=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=0?v:
 export interface OperatorAuthority{chainId:number;hubAddress:string;protocolVersion:number;operatorAddress:string;authorizedSigner:string;ownerAddress:string;securityAuthority:string;bytecodeHash:string;blockNumber:number;blockHash:string;observedAt:number}
 export const enrollmentDigest=(value:unknown)=>ethers.sha256(ethers.toUtf8Bytes(JSON.stringify(value))).slice(2);
 export function readOperatorAuthority(value:any,now=Date.now()):OperatorAuthority{
+ assertDeploymentConfigured();
  if(!value||typeof value!=='object'||Array.isArray(value))return invalid();
  const a={chainId:integer(value.chainId),hubAddress:addr(value.hubAddress),protocolVersion:integer(value.protocolVersion),operatorAddress:addr(value.operatorAddress),authorizedSigner:addr(value.authorizedSigner),ownerAddress:addr(value.ownerAddress),securityAuthority:addr(value.securityAuthority),bytecodeHash:hash(value.bytecodeHash),blockNumber:integer(value.blockNumber),blockHash:hash(value.blockHash),observedAt:integer(value.observedAt)};
  if(a.chainId!==operatorDeployment.chainId||a.hubAddress!==operatorDeployment.hubAddress||a.protocolVersion!==((manifest as any).protocolVersion??1)||a.operatorAddress!==operatorDeployment.operatorAddress||a.authorizedSigner!==addr(manifest.roles.authorizedSigner.address)||a.ownerAddress!==addr(manifest.roles.owner.address)||a.securityAuthority!==addr(manifest.roles.securityAuthority.address)||a.bytecodeHash.toLowerCase()!==manifest.contracts.GroupDealHub.bytecodeHash.toLowerCase()||a.blockNumber<manifest.contracts.GroupDealHub.deploymentBlock||a.observedAt>now+30000||now-a.observedAt>30000||new Set([a.operatorAddress,a.authorizedSigner,a.ownerAddress,a.securityAuthority]).size!==4)return invalid();

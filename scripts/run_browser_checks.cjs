@@ -5,17 +5,17 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function stop(child){if(!child||child.exitCode!==null||child.signalCode)return;const ended=new Promise(resolve=>child.once('exit',resolve));child.kill('SIGTERM');const timer=setTimeout(()=>{if(child.exitCode===null&&!child.signalCode)child.kill('SIGKILL');},5000);await ended;clearTimeout(timer);}
 async function main(){
   const separator=process.argv.indexOf('--'),own=process.argv.slice(2,separator<0?undefined:separator),tests=separator<0?[]:process.argv.slice(separator+1);
-  const artifact=own.includes('--artifact'),preview=own.includes('--preview'),configuredReown=own.includes('--reown-fixture'),portArg=own.find(a=>a.startsWith('--port=')),port=portArg?Number(portArg.slice(7)):artifact?4175:4173;
-  if(artifact&&(preview||configuredReown)||own.some(a=>!['--artifact','--preview','--reown-fixture'].includes(a)&&!a.startsWith('--port='))||own.filter(a=>a.startsWith('--port=')).length>1||!Number.isInteger(port)||port<1024||port>65535)throw new Error('Invalid browser runner options');
+  const artifact=own.includes('--artifact'),preview=own.includes('--preview'),configuredReown=own.includes('--reown-fixture'),mainnet=own.includes('--mainnet-fixture'),portArg=own.find(a=>a.startsWith('--port=')),port=portArg?Number(portArg.slice(7)):artifact?4175:4173;
+  if(artifact&&(preview||configuredReown)||own.some(a=>!['--artifact','--preview','--reown-fixture','--mainnet-fixture'].includes(a)&&!a.startsWith('--port='))||own.filter(a=>a.startsWith('--port=')).length>1||!Number.isInteger(port)||port<1024||port>65535)throw new Error('Invalid browser runner options');
   await new Promise((resolve,reject)=>{const probe=net.createServer();probe.once('error',()=>reject(new Error('Requested browser port is already occupied; no process will be stopped or reused')));probe.listen(port,'127.0.0.1',()=>probe.close(resolve));});
   if(tests.some(arg=>arg==='--output'||arg.startsWith('--output=')))throw new Error('Owned runner manages its artifact directory; do not pass --output');
   const runId=new Date().toISOString().replace(/[:.]/g,'-')+'-'+crypto.randomUUID();
   const outputDirectory='.cache/browser-artifacts-'+runId,reportPath=path.join(root,'.cache/browser-run-'+runId+'.json');
   fs.mkdirSync(path.join(root,outputDirectory),{recursive:true});
   const maxFailures=process.env.CI==='true'?0:1;
-  const runRecord={schemaVersion:1,startedAt:new Date().toISOString(),mode:artifact?'artifact':preview?'preview':'dev',configuredReownFixture:configuredReown,testArguments:tests,port,outputDirectory,result:'RUNNING',acceptanceEligible:false,maxFailures};
+  const runRecord={schemaVersion:1,startedAt:new Date().toISOString(),mode:artifact?'artifact':preview?'preview':'dev',configuredReownFixture:configuredReown,networkFixture:mainnet?'arc-mainnet':'arc-testnet',testArguments:tests,port,outputDirectory,result:'RUNNING',acceptanceEligible:false,maxFailures};
   fs.writeFileSync(reportPath,JSON.stringify(runRecord,null,2)+'\n',{flag:'wx'});
-  const environment={...localCheckEnvironment(root,{configuredReown}),PLAYWRIGHT_REUSE_SERVER:'1',GROUPDEAL_REOWN_CONFIGURED_FIXTURE:configuredReown?'1':'',GROUPDEAL_BROWSER_PORT:String(port),GROUPDEAL_BROWSER_MODE:preview?'preview':'dev',GROUPDEAL_FALLBACK_BASE_URL:artifact?'http://127.0.0.1:'+port:''};
+  const environment={...localCheckEnvironment(root,{configuredReown}),...(mainnet?{APP_ENV:'arc-mainnet',VITE_APP_ENV:'arc-mainnet',ARC_CHAIN_ID:'5042'}:{}),PLAYWRIGHT_REUSE_SERVER:'1',GROUPDEAL_REOWN_CONFIGURED_FIXTURE:configuredReown?'1':'',GROUPDEAL_BROWSER_PORT:String(port),GROUPDEAL_BROWSER_MODE:preview?'preview':'dev',GROUPDEAL_FALLBACK_BASE_URL:artifact?'http://127.0.0.1:'+port:''};
   const frontend=path.join(root,'frontend');
   let serverArgs,cwd=frontend,packageManifest;
   if(artifact){packageManifest=JSON.parse(fs.readFileSync(path.join(root,'.cache/fallback-latest-package.json'),'utf8'));const directory=path.resolve(root,packageManifest.artifactDirectory);if(!directory.startsWith(path.join(root,'.cache')+path.sep)||packageManifest.entry!=='fallback.html')throw new Error('Fallback package is outside the workspace cache');serverArgs=[path.join(root,'scripts/serve_fallback.cjs'),directory,String(port)];cwd=root;}

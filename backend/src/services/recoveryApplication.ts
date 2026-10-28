@@ -34,7 +34,7 @@ export function recoveryApplicationInputs(){
  const paths:string[]=[];
  const walk=(directory:string,extension:string)=>{for(const entry of fs.readdirSync(path.join(root,directory),{withFileTypes:true})){const file=directory+'/'+entry.name;if(entry.isDirectory())walk(file,extension);else if(entry.isFile()&&file.endsWith(extension))paths.push(file);}};
  walk('backend/src','.ts');walk('backend/dist','.js');
- paths.push('backend/scripts/prepareRuntimeUpgradeInput.ts','backend/scripts/prepareRuntimeUpgradeApplication.ts','backend/scripts/prepareRecoveryApplication.ts','backend/scripts/prepareInternalTestArchive.ts','backend/package-lock.json','shared/contracts.json','shared/manifests/arc-testnet.json','shared/domain.cjs','shared/catalogQuery.mjs','shared/evidence.mjs','shared/publicSeller.mjs','shared/publicWidget.mjs','shared/sellerProfileIntent.mjs','shared/operatorBadge.mjs','shared/arcWallet.mjs');
+ paths.push('backend/scripts/prepareRuntimeUpgradeInput.ts','backend/scripts/prepareRuntimeUpgradeApplication.ts','backend/scripts/prepareRecoveryApplication.ts','backend/scripts/prepareInternalTestArchive.ts','backend/package-lock.json','shared/contracts.json','shared/manifests/arc-testnet.json','shared/manifests/arc-mainnet.json','shared/manifests/local.json','shared/network.mjs','shared/network.d.mts','shared/domain.cjs','shared/catalogQuery.mjs','shared/evidence.mjs','shared/publicSeller.mjs','shared/publicWidget.mjs','shared/sellerProfileIntent.mjs','shared/operatorBadge.mjs','shared/arcWallet.mjs');
  for(const file of ['backend/dist/index.js','backend/dist/services/recoveryApplication.js'])if(!paths.includes(file))fail('RECOVERY_APPLICATION_BUILD_REQUIRED');
  return paths.sort().map(file=>({path:file,sha256:sha(fs.readFileSync(path.join(root,file)))}));
 }
@@ -54,7 +54,7 @@ type PrepareOptions={inputScope:'EXISTING_DATA'}|{inputScope:'LOCAL_FIXTURE';sha
 export async function prepareRecoveryApplication(options:PrepareOptions){
  if(options.inputScope==='EXISTING_DATA'&&Object.keys(options).some(k=>k!=='inputScope'))fail('RECOVERY_APPLICATION_SCOPE_OVERRIDE_DISABLED');
  if(options.inputScope!=='EXISTING_DATA'&&(options.inputScope!=='LOCAL_FIXTURE'||process.env.NODE_ENV!=='test'))fail('RECOVERY_APPLICATION_FIXTURE_DISABLED');
- const source=options.inputScope==='EXISTING_DATA'?path.join(root,'backend/data'):options.sourceDirectory,before=sourceFootprint(source),parent=options.inputScope==='EXISTING_DATA'?path.join(root,'.cache/application-recovery'):options.privateParent,directory=privateRecoveryDirectory(parent);
+ const source=options.inputScope==='EXISTING_DATA'?config.runtimeDataDirectory:options.sourceDirectory,before=sourceFootprint(source),parent=options.inputScope==='EXISTING_DATA'?path.join(root,'.cache/application-recovery'):options.privateParent,directory=privateRecoveryDirectory(parent);
  const report:Record<string,any>={schemaVersion:1,recordedAt:new Date().toISOString(),inputScope:options.inputScope,status:'UNVERIFIED',deployment:deployment(),sourceFootprint:before,targetDirectory:path.relative(root,directory).replaceAll('\\','/'),applicationBootEligible:false,promoted:false,rolloutAllowed:false,authCutoverAllowed:false,acceptanceEligible:false,financialAccountingVerified:false};
  let copied:TransactionalStore|undefined;
  try{
@@ -101,7 +101,7 @@ function lease(directory:string){
 function applicationReadiness(options:AdmissionOptions){
  if(options.inputScope==='EXISTING_DATA'&&Object.keys(options).some(k=>k!=='inputScope'))fail('RECOVERY_APPLICATION_SCOPE_OVERRIDE_DISABLED');
  if(options.inputScope!=='EXISTING_DATA'&&(options.inputScope!=='LOCAL_FIXTURE'||process.env.NODE_ENV!=='test'))fail('RECOVERY_APPLICATION_FIXTURE_DISABLED');
- const ref=options.inputScope==='EXISTING_DATA'?json(path.join(root,'reports/evidence/RECOVERY_APPLICATION_LATEST.json'),8192):options.reference,source=options.inputScope==='EXISTING_DATA'?path.join(root,'backend/data'):options.sourceDirectory,parent=options.inputScope==='EXISTING_DATA'?path.join(root,'.cache/application-recovery'):options.privateParent;
+ const ref=options.inputScope==='EXISTING_DATA'?json(path.join(root,'reports/evidence/RECOVERY_APPLICATION_LATEST.json'),8192):options.reference,source=options.inputScope==='EXISTING_DATA'?config.runtimeDataDirectory:options.sourceDirectory,parent=options.inputScope==='EXISTING_DATA'?path.join(root,'.cache/application-recovery'):options.privateParent;
  if(options.inputScope==='EXISTING_DATA')contained(ref.path,path.join(root,'reports/evidence/application-recovery'));
  const report=reference(ref);
  if(report.inputScope!==options.inputScope||report.status!=='RECOVERY_APPLICATION_PREPARED'||report.applicationBootEligible!==true||report.promoted!==false||report.authCutoverAllowed!==false||report.acceptanceEligible!==false||report.rolloutAllowed!==false||!report.authPreparation?.freshLoginRequired||!isDeepStrictEqual(report.deployment,deployment()))fail('RECOVERY_APPLICATION_NOT_ADMITTED');

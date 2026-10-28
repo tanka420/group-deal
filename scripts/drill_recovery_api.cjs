@@ -44,7 +44,7 @@ const toolPaths=[
  "backend/dist/services/runtimeSecurity.js",
  "backend/dist/utils/crypto.js",
  "backend/package-lock.json",
- "shared/contracts.json",
+ 'shared/contracts.json','shared/network.mjs','shared/network.d.mts','shared/manifests/local.json','shared/manifests/arc-mainnet.json',
  "shared/manifests/arc-testnet.json",
  "backend/dist/db/legacyReviewMetadata.js",
  "backend/dist/domain/operations.js",

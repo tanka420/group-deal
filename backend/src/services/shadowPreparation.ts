@@ -61,7 +61,7 @@ const toolPaths=[
  "backend/src/utils/crypto.ts",
  "backend/package-lock.json",
  "shared/contracts.json",
- "shared/manifests/arc-testnet.json",
+ 'shared/manifests/arc-testnet.json','shared/manifests/arc-mainnet.json','shared/manifests/local.json','shared/network.mjs','shared/network.d.mts',
  "backend/src/domain/authRecovery.ts",
  "backend/src/domain/circleAuthentication.ts",
  "backend/src/domain/circleWalletAuthority.ts",
@@ -127,8 +127,8 @@ export async function prepareShadowCandidate(options:Options){
  if(options.inputScope==='EXISTING_DATA'&&Object.keys(options).some(k=>!['inputScope','migrationOnly','retainLegacy','toBlock','onProgress','resumeDirectory'].includes(k)))throw new ShadowPreparationError('SHADOW_EXISTING_SCOPE_OVERRIDE_DISABLED');
  if(options.inputScope!=='EXISTING_DATA'&&(options.inputScope!=='LOCAL_FIXTURE'||process.env.NODE_ENV!=='test'))throw new ShadowPreparationError('SHADOW_FIXTURE_SCOPE_INVALID');
  if(options.migrationOnly&&(options.retainLegacy||options.toBlock!==undefined||options.resumeDirectory))throw new ShadowPreparationError('SHADOW_MIGRATION_OPTIONS_INVALID');
- const sourceDirectory=options.inputScope==='EXISTING_DATA'?path.join(root,'backend/data'):fs.realpathSync(options.sourceDirectory);
- if(options.inputScope==='LOCAL_FIXTURE'&&sourceDirectory.toLowerCase()===path.join(root,'backend/data').toLowerCase())throw new ShadowPreparationError('SHADOW_FIXTURE_SCOPE_INVALID');
+ const sourceDirectory=options.inputScope==='EXISTING_DATA'?config.runtimeDataDirectory:fs.realpathSync(options.sourceDirectory);
+ if(options.inputScope==='LOCAL_FIXTURE'&&sourceDirectory.toLowerCase()===config.runtimeDataDirectory.toLowerCase())throw new ShadowPreparationError('SHADOW_FIXTURE_SCOPE_INVALID');
  const before=sourceFootprint(sourceDirectory),toolInputs=inputs(),started=performance.now(),directory=privateRecoveryDirectory(options.inputScope==='EXISTING_DATA'?path.join(root,'.cache/shadow-databases'):options.privateParent);
  const report:Record<string,any>={schemaVersion:2,recordedAt:new Date().toISOString(),inputScope:options.inputScope,mode:options.migrationOnly?'MIGRATION':'REBUILD',status:'UNVERIFIED',promoted:false,rolloutAllowed:false,authCutoverAllowed:false,acceptanceEligible:false,financialAccountingVerified:false,sourceAccess:'FILES_READ_ONLY_NO_SQLITE_CONNECTION',sourceFootprint:before,toolInputs,targetDirectory:path.relative(root,directory).replaceAll('\\','/'),deployment:{chainId:config.arcChainId,hubAddress:config.hubAddress,protocolVersion:config.protocolVersion,deploymentBlock:config.deploymentBlock}};
  let retained:TransactionalStore|undefined,target:TransactionalStore|undefined,checkpointStore:TransactionalStore|undefined,provider:any,initial:DatabaseSchema|undefined;
@@ -165,7 +165,7 @@ export async function prepareShadowCandidate(options:Options){
    const canonical=await provider.getBlock(block);if(!canonical?.hash||!ethers.isHexString(canonical.hash,32))throw new ShadowPreparationError('SHADOW_FIXED_BLOCK_UNAVAILABLE');if(previous&&canonical.hash.toLowerCase()!==previous.fixedBlock.hash.toLowerCase())throw new ShadowPreparationError('SHADOW_RESUME_TARGET_NOT_CANONICAL');report.fixedBlock={number:block,hash:canonical.hash,observedHead:head};
    if(options.inputScope==='LOCAL_FIXTURE'&&options.verifyDeployment)await options.verifyDeployment(provider,block);
    else{
-    const manifest=JSON.parse(fs.readFileSync(path.join(root,'shared/manifests/arc-testnet.json'),'utf8'));
+    const manifest=JSON.parse(fs.readFileSync(config.manifestPath,'utf8'));
     if(manifest.chainId!==config.arcChainId||manifest.contracts.GroupDealHub.address.toLowerCase()!==config.hubAddress.toLowerCase()||manifest.contracts.GroupDealHub.deploymentBlock!==config.deploymentBlock||(manifest.protocolVersion||1)!==config.protocolVersion||manifest.contracts.USDC.address.toLowerCase()!==config.usdcAddress.toLowerCase())throw new ShadowPreparationError('SHADOW_MANIFEST_BINDING_MISMATCH');
     const code=await provider.getCode(config.hubAddress,block);if(code==='0x'||ethers.keccak256(code).toLowerCase()!==manifest.contracts.GroupDealHub.bytecodeHash.toLowerCase())throw new ShadowPreparationError('SHADOW_RUNTIME_MISMATCH');
    }
