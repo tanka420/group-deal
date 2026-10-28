@@ -4,6 +4,8 @@
 
 Người dùng đã cho phép deploy và chốt Testnet là `https://testnet.groupdeal.tech` (không phải `tetsnet`), Mainnet là `https://groupdeal.tech`. Người dùng đã thêm DNS A `testnet` tới `13.212.35.217`; tra DNS thấy TTL 14400. Người dùng yêu cầu bỏ bộ test ứng dụng; chỉ thực hiện kiểm tra cấu hình triển khai, TLS, origin và health để xác nhận không làm hỏng dịch vụ.
 
+**Đã triển khai subdomain Testnet bằng commit vận hành `31ae992`; apex chưa chuyển sang Mainnet.** Kết quả và giới hạn ghi trong `docs/domain-split-2026-10-28.md`.
+
 VPS đang chạy backend Testnet nguồn `8c32212fdb051cdb01f98226932f3a61afa3e9bf` trong release directory cũ `47d853...`; không thay backend bằng nguồn Mainnet. Giữ frontend public root hiện hành, native DB, 95 held và các service backup/offhost. Không sao chép DB, credential hoặc replay hành trình. Nguồn Testnet tại `E:/apps/group-deal` vẫn giữ nguyên.
 
 `config/domain-split-2026-10-28.json` và `scripts/deploy_testnet_domain.py` là gói triển khai cụ thể: cài HTTP ACME vhost, lấy chứng chỉ riêng, sau đó thêm HTTPS Testnet và đổi đúng hai biến origin cùng guard launcher. Chỉ sửa literal endpoint trong cặp health probe/alert đang cài; giữ state chống gửi lặp. Script ghim hash file cũ, backup private chỉ ở VPS, rollback khi activation lỗi. Apex chưa bị thay bằng trang tạm vì người dùng muốn Mainnet đầy đủ.
