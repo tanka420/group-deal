@@ -10,13 +10,15 @@ Ngày tạo: 28/10/2026, giờ Việt Nam.
 |---|---|
 | Commit nguồn ban đầu | `50db65ce5e8dcbf70c14e3051d42b2a488d9c439` |
 | Nhánh chuẩn bị | `codex/mainnet` |
-| Checkout Mainnet | `C:/Users/MKT/.codex/worktrees/group-deal-mainnet/group-deal` |
+| Checkout Mainnet | `E:/apps/group-deal-mainnet` |
 | Checkout Testnet được giữ nguyên | `E:/apps/group-deal` |
 | Cách tách | Git worktree: thư mục làm việc riêng, dùng chung lịch sử và refs Git |
 | Mạng mục tiêu | Arc Mainnet; tham số phải được xác minh lại trước triển khai |
 | Phạm vi bằng chứng | Chuẩn bị nguồn; không phải kết quả CI hoặc nghiệm thu live |
 
 Worktree chỉ lấy nội dung đã commit. Báo cáo review chưa được track trong checkout gốc không được nhập; không sao chép dependency, build, `.env`, database, archive hoặc bằng chứng private. Bản baseline VPS 22/10 là hồ sơ lịch sử, không phải phiên bản của bản Mainnet tương lai.
+
+Theo yêu cầu tiếp theo cùng ngày, nhánh `codex/mainnet` đã được chuyển sang checkout trên ổ E tại đường dẫn ghi trên. Mã ứng dụng giữ nguyên; vị trí này dùng chung Git với checkout Testnet.
 
 ## Những việc đã làm
 
