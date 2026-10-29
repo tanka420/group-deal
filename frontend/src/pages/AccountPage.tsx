@@ -1,3 +1,4 @@
+import {SignedOutPage} from '../components/SignedOutPage';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { NotificationPreferences } from '../components/NotificationPreferences';
@@ -7,6 +8,7 @@ import { SellerFollowsPanel } from '../components/SellerFollowsPanel';
 
 export function AccountPage({onOpenAuth}:{onOpenAuth:()=>void}) {
   const {user,token}=useAuth(),{language}=useLanguage(),en=language==='en';
+  if(!user||!token)return <SignedOutPage title={en?'Account':'Tài khoản'} description={en?'Sign in to manage your account and settings.':'Đăng nhập để quản lý thông tin và cài đặt.'} onOpenAuth={onOpenAuth}/>;
   return <section className="account-page"><h1>{en?'Account':'Tài khoản'}</h1>
     <button className="btn btn-secondary" onClick={onOpenAuth}>{en?'Sign-in and account details':'Đăng nhập và thông tin tài khoản'}</button>
     {user&&token?<div className="account-sections" key={user.id}>
