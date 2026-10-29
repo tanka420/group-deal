@@ -37,7 +37,7 @@ async function fixture(page:Page,{owned=false,mode='ready' as ProviderMode,csp=f
  if(csp)await page.route('**/',async r=>{if(r.request().resourceType()!=='document')return r.continue();const response=await r.fetch();return r.fulfill({response,headers:{...response.headers(),'Content-Security-Policy':`default-src 'self'; script-src 'self'${built?'':" 'unsafe-inline'"}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws://127.0.0.1:*; frame-src ${provider}; object-src 'none'; base-uri 'none';`}});});
  return {counts,errors,sdkUrls,violations:async()=>await page.evaluate(()=>(window as any).fixtureCspViolations||[]) as string[]};
 }
-async function open(page:Page){await page.getByRole('button',{name:'Log In',exact:true}).click();return page.getByRole('dialog',{name:'Sign in to GroupDeal',exact:true});}
+async function open(page:Page){await page.getByRole('button',{name:'Log In',exact:true}).click();return page.getByRole('dialog',{name:'Choose a sign-in method',exact:true});}
 async function untouched(page:Page){expect(await page.evaluate(()=>localStorage.getItem('groupdeal_operation_checkpoints'))).toBe('fixture-preserved-lazy-checkpoint');}
 
 test('public page and EVM account information defer all Circle initialization',async({page})=>{
@@ -47,23 +47,23 @@ test('public page and EVM account information defer all Circle initialization',a
 });
 test('actual SDK is initialized once on dialog intent and reused after reopening',async({page})=>{
  const f=await fixture(page);await page.goto('/');await expect(page.getByRole('button',{name:'Log In',exact:true})).toBeVisible();expect(f.counts.device).toBe(0);expect(f.counts.sdk).toBe(0);
- const dialog=await open(page);await expect(dialog.getByRole('button',{name:'Send OTP with Circle',exact:true})).toBeEnabled();expect(f.counts.device).toBe(1);
- await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await open(page);await expect(dialog.getByRole('button',{name:'Send OTP with Circle',exact:true})).toBeEnabled();expect(f.counts.device).toBe(1);expect(f.counts.otp).toBe(0);expect(f.errors).toEqual([]);await untouched(page);
+ const dialog=await open(page);await expect(dialog.getByRole('button',{name:'Send OTP',exact:true})).toBeEnabled();expect(f.counts.device).toBe(1);
+ await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await open(page);await expect(dialog.getByRole('button',{name:'Send OTP',exact:true})).toBeEnabled();expect(f.counts.device).toBe(1);expect(f.counts.otp).toBe(0);expect(f.errors).toEqual([]);await untouched(page);
 });
 test('installed SDK completes local OTP callback under a CSP that blocks eval',async({page})=>{
- const f=await fixture(page,{csp:true});await page.goto('/');const dialog=await open(page);await expect(dialog.getByRole('button',{name:'Send OTP with Circle',exact:true})).toBeEnabled();await dialog.getByLabel('Email address',{exact:true}).fill(user.email);await dialog.getByRole('button',{name:'Send OTP with Circle',exact:true}).click();await dialog.getByRole('button',{name:'Open Circle authentication',exact:true}).click();
+ const f=await fixture(page,{csp:true});await page.goto('/');const dialog=await open(page);await expect(dialog.getByRole('button',{name:'Send OTP',exact:true})).toBeEnabled();await dialog.getByLabel('Email address',{exact:true}).fill(user.email);await dialog.getByRole('button',{name:'Send OTP',exact:true}).click();await dialog.getByRole('button',{name:'Enter OTP',exact:true}).click();
  await expect(dialog).toHaveCount(0);await expect(page.locator('.account-pill-btn')).toContainText('@fixture_circle');expect(f.counts.device).toBe(1);expect(f.counts.otp).toBe(1);expect(f.counts.login).toBe(1);expect(f.errors).toEqual([]);expect(await f.violations()).toEqual([]);await untouched(page);
 });
 test('provider readiness without device result reaches a bounded timeout and permits explicit retry',async({page})=>{
  await page.clock.install();const f=await fixture(page,{mode:'stall'});await page.goto('/');const dialog=await open(page);await expect(dialog.getByRole('status')).toContainText('Initializing the Circle connection');await expect.poll(()=>f.counts.device).toBe(1);await page.clock.fastForward(15_001);
- const retry=dialog.getByRole('button',{name:'Retry Circle connection',exact:true});await expect(retry).toBeEnabled();await expect(dialog.getByRole('button',{name:'Email sign-in is currently unavailable',exact:true})).toBeDisabled();expect(f.counts.otp).toBe(0);await expect(page.locator('#sdkIframe')).toHaveCount(0);
+ const retry=dialog.getByRole('button',{name:'Retry connection',exact:true});await expect(retry).toBeEnabled();await expect(dialog.getByRole('button',{name:'Send OTP',exact:true})).toBeDisabled();expect(f.counts.otp).toBe(0);await expect(page.locator('#sdkIframe')).toHaveCount(0);
  // Explicit retry reuses the actual SDK singleton and starts one new device request.
  await retry.click();await expect(dialog.getByLabel("Email address",{exact:true})).toBeFocused();await expect.poll(()=>f.counts.device).toBe(2);await page.clock.fastForward(15_001);await expect(retry).toBeEnabled();expect(f.errors).toEqual([]);await untouched(page);
 });
 
 
 test('actual browser SDK nonce decoder and singleton callback rebinding work without eval',async({page})=>{
- const f=await fixture(page,{csp:true});await page.goto('/');const dialog=await open(page);await expect(dialog.getByRole('button',{name:'Send OTP with Circle',exact:true})).toBeEnabled();
+ const f=await fixture(page,{csp:true});await page.goto('/');const dialog=await open(page);await expect(dialog.getByRole('button',{name:'Send OTP',exact:true})).toBeEnabled();
  let sdkUrl=f.sdkUrls.find(url=>url.includes('circle-fin_w3s-pw-web-sdk'));
  if(built){const manifest=JSON.parse(readFileSync('dist/.vite/manifest.json','utf8'));const entry=Object.entries(manifest).find(([key])=>key==='node_modules/@circle-fin/w3s-pw-web-sdk/dist/src/index.js');if(!entry)throw Error('Built SDK entry missing');sdkUrl='/'+(entry[1] as any).file;}
  expect(sdkUrl).toBeTruthy();

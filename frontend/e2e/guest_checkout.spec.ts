@@ -34,7 +34,7 @@ async function session(context:BrowserContext, page:Page, token='signed-in-sessi
 async function review(page:Page){await page.locator('.deal-join-cta').click();return page.locator('dialog.join-dialog');}
 async function requestSignIn(page:Page,dialog:ReturnType<Page['locator']>,en=false){
  await dialog.locator('.join-agreement input').check();await dialog.getByRole('button',{name:en?'Sign in to continue':'Đăng nhập để tiếp tục',exact:true}).click();
- await expect(page.getByRole('dialog',{name:en?'Sign in to GroupDeal':'Đăng nhập GroupDeal',exact:true})).toBeVisible();await expect(page.getByRole('dialog')).toHaveCount(1);
+ await expect(page.getByRole('dialog',{name:en?'Choose a sign-in method':'Chọn phương thức đăng nhập',exact:true})).toBeVisible();await expect(page.getByRole('dialog')).toHaveCount(1);
 }
 
 test('direct deal reload keeps the filtered catalog return context',async({page})=>{
