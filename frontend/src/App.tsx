@@ -136,7 +136,7 @@ const MainApp: React.FC = () => {
               <ExplorePage onSelectCampaign={handleSelectCampaign} />
             )}
 
-            {currentTab === "orders" && <BuyerDashboard key={user?.id} selectedOrderId={route.kind==='order'?route.id:undefined}/>}
+            {currentTab === "orders" && <BuyerDashboard onOpenAuth={openAuth} key={user?.id} selectedOrderId={route.kind==='order'?route.id:undefined}/>}
             {currentTab === "account" && <AccountPage key={user?.id} onOpenAuth={openAuth}/>}
             {currentTab === "wallet" && <WalletPage key={user?.id} onOpenAuth={openAuth}/>}
             {currentTab === "notifications" && <NotificationsPage key={user?.id} onOpenAuth={openAuth}/>}

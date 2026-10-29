@@ -1,3 +1,4 @@
+import {SignedOutPage} from '../components/SignedOutPage';
 import {useCursorPage} from '../hooks/useCursorPage';
 import {useAppSearch} from '../hooks/useAppSearch';
 import {readOrderFilters} from '../services/orderList';
@@ -38,7 +39,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-export const BuyerDashboard: React.FC<{selectedOrderId?:string}> = ({selectedOrderId}) => {
+export const BuyerDashboard: React.FC<{selectedOrderId?:string;onOpenAuth:()=>void}> = ({selectedOrderId,onOpenAuth}) => {
   const { t, language } = useLanguage();
   const text=(vi:string,en:string)=>language==="en"?en:vi;
   const { user,token,getSessionEpoch } = useAuth();
@@ -160,6 +161,7 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string}> = ({selectedOrd
   (selectedOrderId?detailOrders:visibleOrders).forEach(o=>{const amounts=buyerOrderAmounts(o);if(amounts.remaining===null){amountsKnown=false;return;}totalClaimableRebates+=amounts.unpaidRebate;totalClaimableRefunds+=amounts.unpaidRefund;});
   if(!selectedOrderId){amountsKnown=amountsKnown&&summary?.claimableRebate!==null&&summary?.claimableRebate!==undefined&&summary?.claimableRefund!==null&&summary?.claimableRefund!==undefined;totalClaimableRebates=BigInt(summary?.claimableRebate??'0');totalClaimableRefunds=BigInt(summary?.claimableRefund??'0');}
   if(selectedOrderId&&!detailOrders.length)amountsKnown=false;
+  if(!user||!token)return <SignedOutPage title={text('Đơn hàng','Orders')} description={text('Đăng nhập để xem đơn mua và theo dõi giao hàng.','Sign in to view your orders and track delivery.')} onOpenAuth={onOpenAuth}/>;
   return (
     <div className="app-page buyer-dashboard">
       {selectedOrderId&&<a className="btn btn-secondary" href={backHref}>{text('Quay lại danh sách đơn','Back to orders')}</a>}
