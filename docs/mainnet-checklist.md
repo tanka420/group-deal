@@ -113,3 +113,13 @@ Subdomain Testnet đã deploy thành công bằng commit vận hành `31ae9920db
 - Thêm đường đọc holdings ERC-20 Mainnet, phân trang địa chỉ từ explorer, đọc số dư/decimals tại cùng block qua RPC đúng chain; token tự thêm lưu theo chain/tài khoản/ví. Không dùng token đọc được để tự mở quyền gửi/swap. Endpoint explorer thật hiện trả HTTP 403/trang xác minh; giao diện báo danh sách chưa đầy đủ và cho nhập địa chỉ contract. Không ghi live token discovery PASS.
 - Backend/frontend TypeScript PASS; sáu fixture đọc token biệt lập PASS (đúng/sai chain, cursor khác ví, indexer lỗi, token đọc lỗi, đầu vào sai). Xem Chrome local desktop/mobile: số dư token khác USDC, bridge/QR và trạng thái chưa đăng nhập đúng; không tràn ngang. Chưa chạy toàn bộ test ứng dụng theo yêu cầu trước đó; production auth, holdings, swap và financial journey vẫn NOT_RUN.
 - Chưa deploy các thay đổi ngày 29/10 lên VPS. Chưa ký, funding, tạo Safe hoặc thay Mainnet manifest. Giải thích Circle/billing, ngân sách gas và các role ở `docs/mainnet-owner-guide.md`.
+
+### Kết quả theo commit sau khi sửa
+
+| Bản | Commit nguồn | Kết quả |
+|---|---|---|
+| Mainnet frontend + backend | `46f99632f5a2047a647aba3e71aacf394bad09d0` | `build:mainnet` PASS. Fingerprint `5e462279ac81e5221e05fa3609fabfc7fd61ba236d3ecf350eb0a397595bf3c4`. Inventory riêng frontend/backend tại `.cache/mainnet-build/e6260b41-9a3b-4ad7-b40b-a712d1b76583/BUILD.json`. Cấu hình Circle/Reown production để trống; không có quyền activation. |
+| Testnet frontend | `478a91f06127eb25cabefc66a1d873ec2aa31144` | TypeScript/Vite build PASS; `.cache/testnet-build/83becf53-1cec-433d-a8b6-655d14a1fd9f/BUILD.json`. Build chuẩn bị có public provider ID để trống; không dùng để thay release đang chạy. Backend Testnet không build/sửa. |
+| Xem hai artifact trong Chrome với API/session giả lập và chặn kết nối ngoài local | Hai commit ở trên | PASS: ba trang chưa đăng nhập chỉ có section đăng nhập; câu bảo mật cuối popup giữ nguyên; mobile 390px không tràn ngang; cả hai có nền lưới. Testnet vẫn có nút Hoán đổi và EURC/cirBTC; Mainnet không có nút Hoán đổi hay nội dung Testnet. |
+
+Đã push cả `codex/mainnet` và `codex/arc-candidate` lên origin. Không chạy full CI hoặc live acceptance. Các cảnh báo chunk/bundler trong build được giữ trong log local. Hai lượt xem artifact ban đầu gặp lỗi selector và dữ liệu fixture trình duyệt còn lại; đã sửa script xem và xác nhận lại bằng phiên Chrome mới, không sửa dữ liệu hay tài khoản live.
