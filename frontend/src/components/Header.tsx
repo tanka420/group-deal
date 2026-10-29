@@ -149,7 +149,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Right Actions & Account Dropdown */}
         <div className="header-actions">
           {/* Funding & Testnet Faucet */}
-          {!user&&<button
+          {!ARC_IS_MAINNET&&!user&&<button
             className="btn btn-sm btn-secondary header-funding"
             aria-label={language==='en'?'Fund USDC':'Nạp USDC'}
             onClick={event => {event.currentTarget.focus();setIsFundingModalOpen(true);}}
@@ -300,7 +300,7 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
 
                   <div className="dropdown-menu-list">
-                    <button className="dropdown-menu-item" onClick={()=>{accountButtonRef.current?.focus();setIsDropdownOpen(false);setIsFundingModalOpen(true);}}><Coins size={16} aria-hidden="true"/>{language==='en'?'Fund USDC':'Nạp USDC'}</button>
+                    {!ARC_IS_MAINNET&&<button className="dropdown-menu-item" onClick={()=>{accountButtonRef.current?.focus();setIsDropdownOpen(false);setIsFundingModalOpen(true);}}><Coins size={16} aria-hidden="true"/>{language==='en'?'Fund USDC':'Nạp USDC'}</button>}
                     <button className="dropdown-menu-item" onClick={()=>go('wallet')}><Wallet size={16} aria-hidden="true"/>{language==='en'?'Wallet':'Ví'}</button>
                     <button className="dropdown-menu-item" onClick={()=>go('account')}><Settings size={16} aria-hidden="true"/>{language==='en'?'Account settings':'Cài đặt tài khoản'}</button>
                     <button className="dropdown-menu-item" onClick={()=>go('support')}><LifeBuoy size={16} aria-hidden="true"/>{language==='en'?'Support':'Hỗ trợ'}</button>

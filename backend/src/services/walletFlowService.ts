@@ -1,5 +1,6 @@
 import {ARC_CHAIN_ID,ARC_CIRCLE_BLOCKCHAIN} from '../../../shared/network.mjs';
 import crypto from 'node:crypto';
+import {readMainnetHoldings} from './walletHoldings';
 import {ethers} from 'ethers';
 import {z} from 'zod';
 import {config} from '../config';
@@ -165,6 +166,12 @@ export class WalletFlowService{
   if(!completion||completion.hash!==receipt.hash||completion.nonce!==step.nonce||BigInt(completion.blockNumber).toString()!==receipt.blockNumber||completion.blockHash!==receipt.blockHash||completion.receiptStatus!==receipt.receiptStatus)throw new WalletFlowError('WALLET_RECEIPT_CHANGED');
   const again=await verifyWalletReceipt(record,step.index,this.signerRead);if(JSON.stringify(again)!==JSON.stringify(receipt))throw new WalletFlowError('WALLET_RECEIPT_CHANGED');
   return this.mutate(proof,{id,writeId:stepId},state=>{const user=this.access(proof,state,true),current=readWalletFlow(state.record,encryptionKey),old=current.steps[step.index];if(current.principal!==user.activeWallet?.toLowerCase())throw new WalletFlowError('WALLET_SCOPE_CHANGED');if(current.revision!==record.revision||old.txHash!==receipt.hash||old.nonce!==receipt.nonce)throw new WalletFlowError('WALLET_REVISION_CHANGED');const next=structuredClone(current),now=Date.now();Object.assign(next.steps[step.index],{state:receipt.receiptStatus===1?'CONFIRMED':'REVERTED',confirmedAt:now,blockNumber:receipt.blockNumber,blockHash:receipt.blockHash,...(receipt.networkFee!==undefined?{networkFee:receipt.networkFee}:{}),...(receipt.receivedAmount!==undefined?{receivedAmount:receipt.receivedAmount}:{})});next.revision++;next.updatedAt=now;readWalletFlow(next,encryptionKey);return{result:walletFlowDto(next),record:next,signerPlan:plan,audit:{action:receipt.receiptStatus===1?'WALLET_CONFIRMED':'WALLET_REVERTED',details:{operationId:id,stepId,txHash:receipt.hash,blockNumber:receipt.blockNumber,blockHash:receipt.blockHash}}};});
+ }
+ async holdings(proof:SessionProof,query:unknown){
+  const principal=this.mutate(proof,{},state=>({result:this.access(proof,state,true).activeWallet!.toLowerCase()}));
+  const result=await readMainnetHoldings(this.rpc,principal,query);
+  const current=this.mutate(proof,{},state=>({result:this.access(proof,state,true).activeWallet!.toLowerCase()}));
+  if(current!==principal)throw new WalletFlowError('WALLET_SCOPE_CHANGED');return result;
  }
  async balances(proof:SessionProof){
   const principal=this.mutate(proof,{},state=>({result:this.access(proof,state,true).activeWallet!.toLowerCase()}));

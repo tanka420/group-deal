@@ -1,6 +1,6 @@
 # Chuẩn bị GroupDeal Arc Mainnet
 
-Cập nhật: 28/10/2026, giờ Việt Nam.
+Cập nhật: 29/10/2026, giờ Việt Nam.
 
 ## Trạng thái
 
@@ -15,7 +15,7 @@ Cập nhật: 28/10/2026, giờ Việt Nam.
 | Mainnet chain / RPC / explorer | `5042` (`0x13b2`) / `https://rpc.mainnet.arc.io` / `https://explorer.arc.io` |
 | USDC ERC-20 / gas | `0x3600000000000000000000000000000000000000`, 6 / 18 số thập phân |
 | Circle chain code | `ARC`; bản Testnet tiếp tục dùng `ARC-TESTNET` |
-| Phạm vi đề xuất để review | USDC trực tiếp; faucet, bridge và swap bị khóa trên Mainnet |
+| Phạm vi đề xuất để review | Thanh toán USDC; nhận qua địa chỉ/QR; bridge mở website Circle; faucet và swap tích hợp bị khóa trên Mainnet |
 | Phạm vi bằng chứng | Local compiler, fixture, browser giả lập; không phải nghiệm thu live |
 
 Thông số đã đối chiếu tài liệu chính thức ngày 28/10/2026: [mạng Arc](https://docs.arc.io/arc/references/connect-to-arc), [contract và quy đổi USDC](https://docs.arc.io/arc/references/contract-addresses), [Circle Wallets](https://developers.circle.com/wallets/supported-blockchains). Chưa kiểm RPC/credential/receipt Mainnet thật. Không suy từ tài liệu thành quyền triển khai.
@@ -94,6 +94,7 @@ Không ghi API key, seed phrase, private key, OTP, session hoặc entitlement v�
 | M08 | Nếu mở bridge/swap: duyệt mạng nguồn, route, contract, asset, fee, ngân sách và recovery; triển khai adapter/conformance trước live | Chủ sản phẩm, ví nguồn/đích | Quote/allowance/burn/mint/swap và đối soát theo đúng Mainnet | Có điều kiện; đang khóa |
 | M09 | Hạ tầng production riêng, URL/origin, secret mới, DB mới, backup/monitoring; duyệt activation exact commit hoặc artifact | Chủ VPS/domain/dịch vụ | Frontend/backend version riêng, activation và postcheck | Chưa cấu hình/chưa kích hoạt |
 | M10 | Ký nhận phát hành thử giới hạn hoặc công khai | Chủ sản phẩm, người nhận vận hành | Giới hạn, ngoại lệ và trách nhiệm vận hành | Chưa thực hiện |
+| M11 | Cấp nguồn indexer token Arc dùng được từ server và nghiệm thu số dư/danh sách nhiều trang | Chủ hạ tầng/API | Nguồn đọc đáng tin, quyền truy cập nếu cần; so với ví thật | Cần can thiệp: explorer trả HTTP 403/trang xác minh; có fallback nhập contract, không tuyên bố đã tự tìm đầy đủ |
 
 Trước khi xin chữ ký/funding/activation phải có mạng, địa chỉ, contract, calldata/constructor, nonce, phí, số tiền/hạn mức và tác động cụ thể. Yêu cầu chuyển mã không cấp quyền ký thay người giữ khóa.
 
@@ -102,3 +103,13 @@ Các hành trình Testnet đã hoàn tất và các quyết định giữ retry/
 Ngày 28/10, người dùng tiếp tục cho phép deploy và bỏ các test bổ sung. Đã chốt `testnet.groupdeal.tech` cho Testnet và `groupdeal.tech` cho Mainnet; DNS Testnet đã được người dùng thêm. Phạm vi domain/service activation này không tự cung cấp địa chỉ Safe Mainnet, funding hoặc chữ ký cho một giao dịch chưa có constructor/nonce/phí cụ thể. Xem `docs/domain-migration.md` và `config/domain-split-2026-10-28.json`. Test ứng dụng của lượt domain được ghi `SKIP_USER_REQUEST`; kiểm Nginx/TLS/health là xác nhận triển khai, không phải nghiệm thu tài chính.
 
 Subdomain Testnet đã deploy thành công bằng commit vận hành `31ae9920dbde2e8490b8f524ffafede07dbc622d`, giữ backend Testnet `8c32212`, database và 95 held. Apex vẫn phục vụ Testnet trong lúc chờ Mainnet đủ contract/role/provider; chưa activation backend Mainnet hoặc phát giao dịch. Xem `docs/domain-split-2026-10-28.md`.
+
+## Phạm vi giao diện chốt ngày 29/10/2026
+
+- Người dùng đồng ý làm tiếp tại chat/checkout Mainnet và chuyển riêng thay đổi chung sang Testnet. Popup giữ nguyên nhắc OTP/chữ ký và seed/private key. Ba trang cá nhân chỉ hiện tiêu đề, ghi chú và đăng nhập khi chưa có phiên. Nền sáng lưới mờ, banner minh họa riêng cho trang chủ. Xem `docs/shared-ui-2026-10-29.md`.
+- Commit chung `bc10239aa8830c91b5572071af24b98cb7b247ef`; backport Testnet `25101fd077616473681ba006c61be26bd82769fc`, chuẩn hóa xuống dòng `207f468`, cập nhật selector `478a91f06127eb25cabefc66a1d873ec2aa31144`. Testnet vẫn dùng manifest, contract, faucet và swap Testnet; báo cáo chưa track của người dùng được giữ.
+- Mainnet bỏ nút/mục Nạp USDC, lựa chọn thanh toán bằng token Testnet và hướng dẫn EURC/cirBTC. Giữ Nhận/Gửi USDC; QR/địa chỉ nhận và nút bridge dẫn chính xác `https://bridge.usdc.com/`. Không tự gọi bridge nội bộ trên Mainnet.
+- Hoán đổi Mainnet được người dùng cho phép phát triển sau nếu phức tạp. Giữ chặn ở API/adapter/UI; chưa cấu hình route/liquidity/slippage/approval cho tiền thật. Swap Testnet tiếp tục giữ nguyên.
+- Thêm đường đọc holdings ERC-20 Mainnet, phân trang địa chỉ từ explorer, đọc số dư/decimals tại cùng block qua RPC đúng chain; token tự thêm lưu theo chain/tài khoản/ví. Không dùng token đọc được để tự mở quyền gửi/swap. Endpoint explorer thật hiện trả HTTP 403/trang xác minh; giao diện báo danh sách chưa đầy đủ và cho nhập địa chỉ contract. Không ghi live token discovery PASS.
+- Backend/frontend TypeScript PASS; sáu fixture đọc token biệt lập PASS (đúng/sai chain, cursor khác ví, indexer lỗi, token đọc lỗi, đầu vào sai). Xem Chrome local desktop/mobile: số dư token khác USDC, bridge/QR và trạng thái chưa đăng nhập đúng; không tràn ngang. Chưa chạy toàn bộ test ứng dụng theo yêu cầu trước đó; production auth, holdings, swap và financial journey vẫn NOT_RUN.
+- Chưa deploy các thay đổi ngày 29/10 lên VPS. Chưa ký, funding, tạo Safe hoặc thay Mainnet manifest. Giải thích Circle/billing, ngân sách gas và các role ở `docs/mainnet-owner-guide.md`.

@@ -353,11 +353,11 @@ const TestnetFundingModal: React.FC<FundingModalProps> = ({ isOpen, onClose, req
     </dialog>, document.body);
 };
 
-/** Mainnet accepts direct USDC only until bridge scope is approved. */
+/** Mainnet exposes a receiving address and an external bridge; no internal funding transaction. */
 export const FundingModal:React.FC<FundingModalProps> = props=>{
  const {account}=useWeb3(),{language}=useLanguage();
  if(!ARC_IS_MAINNET)return <TestnetFundingModal {...props}/>;
  if(!props.isOpen)return null;
- if(account)return <WalletReceive account={account} onClose={props.onClose}/>;
+ if(account)return <WalletReceive account={account} onClose={props.onClose}>{props.onContinueCheckout&&<button type="button" className="btn btn-primary" onClick={props.onContinueCheckout}>{language==='en'?'Check balance and continue':'Kiểm tra số dư và tiếp tục'}</button>}</WalletReceive>;
  return <DialogSurface label={language==='en'?'Receive USDC':'Nhận USDC'} onClose={props.onClose}><p>{language==='en'?'Connect a wallet to receive USDC on Arc Mainnet.':'Kết nối ví để nhận USDC trên Arc Mainnet.'}</p></DialogSurface>;
 };

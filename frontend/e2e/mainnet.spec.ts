@@ -9,11 +9,12 @@ test.beforeEach(async({page})=>{
  await page.route('**/api/v1/catalog?**',route=>route.fulfill({json:{...emptyCatalog(route.request().url()),chainId:5042}}));
 });
 
-test('Mainnet labels and direct receive do not offer faucet or Sepolia bridge',async({page})=>{
- await page.goto('/');await expect(page.locator('footer')).toContainText('Arc Mainnet');await expect(page.locator('footer')).toContainText('USDC thật');
- await page.getByRole('button',{name:'Nạp USDC',exact:true}).click();
- const dialog=page.getByRole('dialog');await expect(dialog).toContainText('Kết nối ví để nhận USDC trên Arc Mainnet.');
- await expect(dialog.getByText(/Sepolia|Faucet/)).toHaveCount(0);
+test('Mainnet has no funding entry and private wallet sections require sign-in',async({page})=>{
+ await page.goto('/');await expect(page.locator('footer')).toContainText('Arc Mainnet');await expect(page.locator('footer')).toContainText('USDC');
+ await expect(page.getByRole('button',{name:'Nạp USDC',exact:true})).toHaveCount(0);
+ await expect(page.locator('body')).not.toContainText(/Arc Testnet|Tiền thử nghiệm|Sepolia|Faucet/);
+ await page.goto('/wallet');await expect(page.locator('.signed-out-page')).toContainText('Đăng nhập');
+ await expect(page.locator('.wallet-summary,.wallet-history,.wallet-management')).toHaveCount(0);
 });
 
 test('Testnet sessions stay in their existing namespace',async({page})=>{
