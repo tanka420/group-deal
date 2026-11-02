@@ -9,8 +9,15 @@ function prepareMainnet(){
  if(selectedVersion!==null&&![1,2].includes(selectedVersion))throw Error('MAINNET_PROTOCOL_VERSION_INVALID');
  const ownerAddress=manifest.roles?.owner?.address||null;
  if(ownerAddress&&(!ethers.isAddress(ownerAddress)||ownerAddress===ethers.ZeroAddress))throw Error('MAINNET_OWNER_ADDRESS_INVALID');
+ const deploymentPlan=JSON.parse(fs.readFileSync(path.join(root,'config/mainnet-contract-deployment.json'),'utf8'));
+ const plannedRoles=deploymentPlan.roles;
+ if(deploymentPlan.schemaVersion!==1||deploymentPlan.scope!=='CONTRACT_DEPLOYMENT_ONLY'||deploymentPlan.environment!=='arc-mainnet'||deploymentPlan.chainId!==5042
+  ||deploymentPlan.protocolVersion!==selectedVersion||deploymentPlan.runtimeActivationAuthorized!==false
+  ||!plannedRoles||!['owner','authorizedSigner','operator','securityAuthority'].every(k=>ethers.isAddress(plannedRoles[k])&&plannedRoles[k]!==ethers.ZeroAddress)
+  ||plannedRoles.owner.toLowerCase()!==ownerAddress?.toLowerCase()
+  ||plannedRoles.operator.toLowerCase()===plannedRoles.securityAuthority.toLowerCase())throw Error('MAINNET_CONTRACT_DEPLOYMENT_PLAN_INVALID');
  const tracked=execFileSync('git',['ls-files','--cached','--others','--exclude-standard','-z'],{cwd:root,encoding:'utf8'}).split('\0');
- const names=[...new Set(tracked)].filter(f=>/^(?:backend\/src\/|frontend\/(?:src|build)\/|shared\/|sdk\/src\/|contracts\/contracts\/)/.test(f)||['contracts/hardhat.config.ts','scripts/prepare_mainnet.cjs','scripts/build_mainnet.cjs','scripts/local_check_runtime.cjs','scripts/local_network_guard.cjs','backend/package-lock.json','frontend/package-lock.json','contracts/package-lock.json','sdk/package-lock.json'].includes(f)).sort();
+ const names=[...new Set(tracked)].filter(f=>/^(?:backend\/src\/|frontend\/(?:src|build)\/|shared\/|sdk\/src\/|contracts\/contracts\/)/.test(f)||['config/mainnet-contract-deployment.json','contracts/hardhat.config.ts','scripts/prepare_mainnet.cjs','scripts/quote_mainnet_deployment.cjs','scripts/build_mainnet.cjs','scripts/local_check_runtime.cjs','scripts/local_network_guard.cjs','backend/package-lock.json','frontend/package-lock.json','contracts/package-lock.json','sdk/package-lock.json'].includes(f)).sort();
  const files=names.map(f=>({path:f,sha256:sha(fs.readFileSync(path.join(root,f)))}));
  const sourceFingerprint=sha(JSON.stringify(files));
  const candidates=['GroupDealHub','GroupDealHubV2'].map((name,index)=>{
@@ -23,21 +30,25 @@ function prepareMainnet(){
    if(fs.readFileSync(filename,'utf8')!==v.content)throw Error('MAINNET_BUILD_SOURCE_CHANGED: '+f);
   }
   if(!ethers.isHexString(artifact.bytecode)||!ethers.isHexString(artifact.deployedBytecode))throw Error('MAINNET_UNLINKED_BYTECODE');
+  const selectedForRelease=selectedVersion===index+1;
+  const constructorArguments=selectedForRelease?[manifest.contracts.USDC.address,plannedRoles.authorizedSigner,plannedRoles.operator,plannedRoles.securityAuthority]:[manifest.contracts.USDC.address,null,null,null];
+  const deploymentData=selectedForRelease?ethers.concat([artifact.bytecode,new ethers.Interface(artifact.abi).encodeDeploy(constructorArguments)]):null;
   return {contract:name,protocolVersion:index+1,selectedForRelease:selectedVersion===index+1,compiler:build.solcLongVersion,compilerSettings:build.input.settings,
    abi:artifact.abi,creationBytecode:artifact.bytecode,creationBytecodeHash:ethers.keccak256(artifact.bytecode),
    runtimeBytecodeTemplate:artifact.deployedBytecode,runtimeBytecodeTemplateHash:ethers.keccak256(artifact.deployedBytecode),
    runtimeHashStatus:'TEMPLATE_ONLY_IMMUTABLES_REQUIRE_DEPLOYMENT_READBACK',
-   constructor:{signature:'constructor(address usdcToken,address authorizedSigner,address operatorAddress,address securityAuthority)',arguments:[manifest.contracts.USDC.address,null,null,null],owner:ownerAddress||'msg.sender; owner/deployer not selected'},
-   unsignedTransaction:{chainId:5042,to:null,from:ownerAddress,data:null,value:'0',nonce:null,gasLimit:null,maxFeePerGas:null,maxPriorityFeePerGas:null},
-   transactionStatus:selectedVersion===null?'NOT_CONSTRUCTED_AWAITING_VERSION_AND_AUTHORITY_ADDRESSES':selectedVersion===index+1?'NOT_CONSTRUCTED_AWAITING_AUTHORITY_ADDRESSES':'NOT_SELECTED_FOR_RELEASE'};
+   constructor:{signature:'constructor(address usdcToken,address authorizedSigner,address operatorAddress,address securityAuthority)',arguments:constructorArguments,owner:ownerAddress||'msg.sender; owner/deployer not selected'},
+   unsignedTransaction:{chainId:5042,to:null,from:ownerAddress,data:deploymentData,value:'0',nonce:null,gasLimit:null,maxFeePerGas:null,maxPriorityFeePerGas:null},
+   deploymentDataHash:deploymentData?ethers.keccak256(deploymentData):null,
+   transactionStatus:selectedForRelease?'ENCODED_AWAITING_NONCE_FEES_BUDGET_AND_OWNER_SIGNATURE':'NOT_SELECTED_FOR_RELEASE'};
  });
  const selected=candidates.find(candidate=>candidate.selectedForRelease);
  return {schemaVersion:1,layer:'OFFLINE_MAINNET_PREPARATION',acceptanceEligible:false,signingAuthorized:false,broadcastAuthorized:false,activationAuthorized:false,
-  sourceCommit:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),sourceFingerprint,files,manifest,
+  sourceCommit:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),sourceFingerprint,files,manifest,deploymentPlan,
   release:{frontend:{sourceFingerprint,environment:'arc-mainnet',artifact:null},backend:{sourceFingerprint,environment:'arc-mainnet',artifact:null}},
   selectedCandidate:selected?{contract:selected.contract,protocolVersion:selected.protocolVersion,creationBytecodeHash:selected.creationBytecodeHash}:null,
-  candidates,blockers:[...(selected?[]:['M01: select protocol version and release scope']),'M03: supply and verify owner, signer, operator and Safe addresses/owners/threshold','M04: approve budget and obtain a fresh nonce/fee quote','M05: independent review of the exact commit and bytecode','M06: owner-controlled deployment, finalized receipt, runtime hash and role readback','M09: separately approve service activation'],
-  notes:['No Testnet address or signing key is used as a Mainnet deployment default.',selected?`${selected.contract} is selected for Mainnet preparation; this selection does not authorize signing or broadcasting.`:'Both variants are proposals; neither is selected for release.','A deployable transaction must be encoded with approved constructor addresses, sender, nonce and fee limits before asking for a signature.','Deployment block and actual runtime hash must come from a real finalized receipt; neither is predicted here.']};
+  candidates,blockers:[...(selected?[]:['M01: select protocol version and release scope']),'M03 before runtime activation: rotate initial shared roles and verify the required Safe owners/threshold','M04: approve budget and obtain a fresh nonce/fee quote','M05: independent review of the exact commit and bytecode','M06: owner-controlled deployment, finalized receipt, runtime hash and role readback','M09: separately approve service activation'],
+  notes:['No Testnet address or signing key is used as a Mainnet deployment default.',selected?`${selected.contract} is selected for Mainnet preparation; this selection does not authorize signing or broadcasting.`:'Both variants are proposals; neither is selected for release.','Constructor calldata uses the user-selected contract-only deployment plan; this plan does not satisfy or weaken the production runtime guard.','A fresh nonce, fee quote and approved cost limit are required before asking for a signature.','Deployment block and actual runtime hash must come from a real finalized receipt; neither is predicted here.']};
 }
 function main(){
  if(process.argv.length>2)throw Error('MAINNET_PREPARATION_ACCEPTS_NO_SIGNING_OR_DEPLOY_ARGUMENTS');

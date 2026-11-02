@@ -60,6 +60,8 @@ Signer hiện là khóa backend dùng để ký giấy phép mua tự động. N
 
 Các quyền có thể chuyển sau triển khai: owner gọi `setAuthorizedSigner`, `setOperatorAddress` hoặc `transferOwnership`; securityAuthority cũ khởi tạo chuyển quyền, rồi authority mới chấp nhận. Việc chuyển cần giao dịch và cập nhật/xác minh cấu hình ứng dụng tương ứng, không phải chỉ sửa file env.
 
+Sau đó anh chốt làm contract và preview Studio trước, cung cấp thêm ví bảo mật `0x7477f3fd762e4DB846D5b17C656395B09Fb0f27c`. Vì vậy có thể chuẩn bị deployment V2 nguyên bản với owner/signer/operator là ví đầu và securityAuthority là ví thứ hai. Chưa cần cấu hình khóa signer backend hoặc Safe để encode constructor này. Các yêu cầu bốn role độc lập và Safe vẫn áp dụng trước khi mở ứng dụng production, không phải điều kiện cú pháp của constructor. Plan ban đầu ở `config/mainnet-contract-deployment.json`; hướng dẫn Studio ở `docs/arc-studio-handoff.md`.
+
 ## Có dùng ví chính để deploy không?
 
 Ví chính có thể ký deploy về mặt kỹ thuật. Đề xuất cho GroupDeal: tạo tài khoản quản trị/deploy riêng, ưu tiên ví cứng hoặc cách lưu khóa có bảo vệ; giữ tài sản cá nhân lớn trong ví chính. Chỉ nạp ví deploy theo ngân sách đã duyệt. Tách riêng khóa signer/operator dùng cho server, không đưa seed/private key của ví chính lên VPS.
@@ -69,7 +71,7 @@ Ví chính có thể làm nguồn cấp USDC hoặc một owner Safe do anh tự
 ## Đầu vào còn cần
 
 - V2 đã được chọn. Chính sách early rebate được chốt khi tạo campaign; chưa tự bật hoặc tạo campaign.
-- Đã nhận deployer/owner `0xe48B30eA70F77E5FA6311471c2E9687f8A701Ead`. Còn cần cấu hình signer/operator và Safe tương thích V2, hoặc một quyết định thiết kế riêng cho phương án một ví; yêu cầu dùng chung địa chỉ chưa thể áp dụng vào constructor hiện tại.
+- Đã nhận đủ hai địa chỉ cho phạm vi deploy contract trước: ví đầu là owner/signer/operator, ví thứ hai là securityAuthority. Việc tách role và Safe được để sau, trước activation ứng dụng production; không cần sửa V2 để encode constructor này.
 - Trạng thái Circle Mainnet, App ID production, Reown project/origin; chủ tài khoản tự xử lý Billing/xét duyệt và cấu hình secret an toàn.
 - Trần chi phí được duyệt sau estimate, người giữ ví funding và người ký từng transaction.
 - Nguồn indexer token Mainnet dùng được từ server: endpoint công khai explorer hiện trả HTTP 403/trang xác minh trên cả máy local và VPS. Mã tự tìm token đã có phân trang và fallback nhập contract; chưa thể nghiệm thu tự liệt kê đầy đủ trên dữ liệu Mainnet thật.
