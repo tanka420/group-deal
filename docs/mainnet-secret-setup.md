@@ -19,7 +19,7 @@ Validator local suy ra địa chỉ từ khóa và so với manifest; không ký
 
 Sau khi hai đầu vào hợp lệ, công cụ tạo riêng `JWT_SECRET`, `CAMPAIGN_IDENTITY_SECRET` và `MASTER_ENCRYPTION_KEY`, mỗi giá trị 32 byte ngẫu nhiên; không tạo ví/signing key mới và không dùng secret Testnet. Tất cả được mã hóa bằng Windows DPAPI [CurrentUser](https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.dataprotectionscope) tại `.cache/mainnet-private/secrets.dpapi.json`. Thư mục chỉ cấp quyền cho tài khoản Windows đang chạy, SYSTEM và Administrators; đường dẫn `.cache` được Git bỏ qua. Kho này phụ thuộc tài khoản Windows/máy, không phải file env để chép trực tiếp sang Linux/VPS. Việc tạo cấu hình runtime cho VPS được xử lý ở bước riêng.
 
-Khi có kho sẵn, công cụ xác minh lại mà không thay khóa hoặc tạo mới app secrets. Đổi signer context sẽ bị từ chối; không tự ghi đè hoặc xoay master key. Hủy cửa sổ trước khi lưu sẽ không tạo runtime hoạt động.
+Khi có kho sẵn, công cụ xác minh lại mà không thay khóa hoặc tạo mới app secrets. Đổi signer context sẽ bị từ chối; không tự ghi đè hoặc xoay master key. Lỗi chỉ xuất mã/phase/type/số dòng, không in nội dung exception; cửa sổ lỗi tự đóng. Hủy cửa sổ trước khi lưu sẽ không tạo runtime hoạt động.
 
 ## Kiểm tra lại
 

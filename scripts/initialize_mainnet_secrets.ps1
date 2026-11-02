@@ -16,6 +16,7 @@ $serializer.MaxJsonLength=131072
 $utf8=New-Object System.Text.UTF8Encoding($false)
 $secretPayload=$null;$vaultBytes=$null;$apiSecure=$null;$signerSecure=$null
 $setupSucceeded=$false
+$setupPhase='PREREQUISITES'
 function Write-Status([hashtable]$Fields){
  $record=@{schemaVersion=1;chainId=5042;recordedAt=[DateTime]::UtcNow.ToString('o');vaultPath=$vaultPath;backendActivated=$false;broadcastAuthorized=$false;circleCredentialVerified=$false;acceptanceEligible=$false}
  foreach($entry in $Fields.GetEnumerator()){$record[$entry.Key]=$entry.Value}
@@ -31,7 +32,7 @@ function New-AppSecret{
 }
 function Check-Secrets{
  $start=New-Object Diagnostics.ProcessStartInfo
- $start.FileName=(Get-Command node.exe -ErrorAction Stop).Source
+ $start.FileName=$script:nodeExe
  $start.Arguments='"'+(Join-Path $PSScriptRoot 'validate_mainnet_secret_input.cjs')+'"'
  $start.WorkingDirectory=$taskRoot;$start.UseShellExecute=$false;$start.CreateNoWindow=$true
  $start.RedirectStandardInput=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
@@ -60,13 +61,23 @@ try{
  foreach($directory in @($cacheRoot,$privateDirectory,$statusRoot,$taskReportDirectory)){
   if(Test-Path -LiteralPath $directory){if((Get-Item -LiteralPath $directory).Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'MAINNET_PRIVATE_PATH_REPARSE_POINT'}}else{[void][IO.Directory]::CreateDirectory($directory)}
  }
- $sourceCommit=(& git -C $taskRoot rev-parse HEAD).Trim()
+ $setupPhase='LOCAL_TOOLS'
+ $gitCommand=Get-Command git.exe -ErrorAction SilentlyContinue
+ $nodeCommand=Get-Command node.exe -ErrorAction SilentlyContinue
+ $gitExe=if($null -ne $gitCommand){$gitCommand.Source}else{Join-Path $env:ProgramFiles 'Git/cmd/git.exe'}
+ $nodeExe=if($null -ne $nodeCommand){$nodeCommand.Source}else{Join-Path $env:ProgramFiles 'nodejs/node.exe'}
+ if(-not (Test-Path -LiteralPath $gitExe -PathType Leaf) -or -not (Test-Path -LiteralPath $nodeExe -PathType Leaf)){throw 'MAINNET_LOCAL_TOOL_MISSING'}
+ $setupPhase='SOURCE_CONTEXT'
+ $sourceCommit=(& $gitExe -C $taskRoot rev-parse HEAD).Trim()
  if($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch '^[a-f0-9]{40}$'){throw 'MAINNET_SOURCE_COMMIT_INVALID'}
  $manifestPath=Join-Path $taskRoot 'shared/manifests/arc-mainnet.json'
  $manifest=$serializer.DeserializeObject([IO.File]::ReadAllText($manifestPath))
  if($manifest['environment'] -ne 'arc-mainnet' -or $manifest['chainId'] -ne 5042){throw 'MAINNET_MANIFEST_INVALID'}
  $expectedSigner=$manifest['roles']['authorizedSigner']['address']
- $context=@{chainId=5042;sourceCommit=$sourceCommit;manifestSha256=(Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash.ToLowerInvariant();expectedSigner=$expectedSigner}
+ $manifestHasher=[Security.Cryptography.SHA256]::Create()
+ try{$manifestDigest=[BitConverter]::ToString($manifestHasher.ComputeHash([IO.File]::ReadAllBytes($manifestPath))).Replace('-','').ToLowerInvariant()}finally{$manifestHasher.Dispose()}
+ $context=@{chainId=5042;sourceCommit=$sourceCommit;manifestSha256=$manifestDigest;expectedSigner=$expectedSigner}
+ $setupPhase='OWNER_INPUT'
  Write-Status @{result='WAITING_FOR_OWNER_INPUT';expectedSigner=$expectedSigner;sourceCommit=$sourceCommit}
  Write-Host 'GroupDeal Arc Mainnet - LOCAL SECRET SETUP' -ForegroundColor Cyan
  Write-Host ('Expected signer: '+$expectedSigner)
@@ -86,12 +97,13 @@ try{
   if($VerifyOnly){throw 'LOCAL_VAULT_NOT_CREATED'}
   # Restrict the new secret directory to this Windows account, SYSTEM and Administrators.
   $acl=New-Object Security.AccessControl.DirectorySecurity
-  $acl.SetOwner($ownerSid);$acl.SetAccessRuleProtection($true,$false)
+  $acl.SetAccessRuleProtection($true,$false)
   foreach($sid in @($ownerSid,(New-Object Security.Principal.SecurityIdentifier('S-1-5-18')),(New-Object Security.Principal.SecurityIdentifier('S-1-5-32-544')))){
    $rule=New-Object Security.AccessControl.FileSystemAccessRule($sid,[Security.AccessControl.FileSystemRights]::FullControl,[Security.AccessControl.InheritanceFlags]'ContainerInherit,ObjectInherit',[Security.AccessControl.PropagationFlags]::None,[Security.AccessControl.AccessControlType]::Allow)
    [void]$acl.AddAccessRule($rule)
   }
-  Set-Acl -LiteralPath $privateDirectory -AclObject $acl
+  $privateInfo=New-Object IO.DirectoryInfo($privateDirectory)
+  if($privateInfo.PSObject.Methods.Name -contains 'SetAccessControl'){$privateInfo.SetAccessControl($acl)}else{[IO.FileSystemAclExtensions]::SetAccessControl($privateInfo,$acl)}
   $apiSecure=Read-Host '1/2 CIRCLE_API_KEY (hidden)' -AsSecureString
   $signerSecure=Read-Host '2/2 AUTHORIZED_SIGNER_PRIVATE_KEY (hidden)' -AsSecureString
   $apiText=(Secure-ToText $apiSecure).Trim();$signerText=(Secure-ToText $signerSecure).Trim()
@@ -121,14 +133,14 @@ try{
  $setupSucceeded=$true
 }catch{
  # Do not print exceptions, inputs, stack traces, or child stderr (they may contain secrets).
- $knownCodes=@('CIRCLE_KEY_FORMAT_INVALID_OR_TEST_KEY','SIGNER_KEY_FORMAT_INVALID','SIGNER_ADDRESS_MISMATCH','SIGNER_ROLE_COLLISION','SECRET_INPUT_INVALID','EXPECTED_MAINNET_SIGNER_MISSING','SECRET_INPUT_UNREADABLE','SECRET_VALIDATION_FAILED','SECRET_VALIDATOR_OUTPUT_INVALID','RUN_AS_YOUR_WINDOWS_ACCOUNT','MAINNET_PRIVATE_PATH_REPARSE_POINT','MAINNET_SOURCE_COMMIT_INVALID','MAINNET_MANIFEST_INVALID','LOCAL_VAULT_INVALID','LOCAL_VAULT_CONTEXT_MISMATCH','LOCAL_VAULT_NOT_CREATED','LOCAL_APP_SECRET_INVALID')
+ $knownCodes=@('CIRCLE_KEY_FORMAT_INVALID_OR_TEST_KEY','SIGNER_KEY_FORMAT_INVALID','SIGNER_ADDRESS_MISMATCH','SIGNER_ROLE_COLLISION','SECRET_INPUT_INVALID','EXPECTED_MAINNET_SIGNER_MISSING','SECRET_INPUT_UNREADABLE','SECRET_VALIDATION_FAILED','SECRET_VALIDATOR_OUTPUT_INVALID','RUN_AS_YOUR_WINDOWS_ACCOUNT','MAINNET_PRIVATE_PATH_REPARSE_POINT','MAINNET_SOURCE_COMMIT_INVALID','MAINNET_MANIFEST_INVALID','MAINNET_LOCAL_TOOL_MISSING','LOCAL_VAULT_INVALID','LOCAL_VAULT_CONTEXT_MISMATCH','LOCAL_VAULT_NOT_CREATED','LOCAL_APP_SECRET_INVALID')
  $safeCode=if($knownCodes -contains $_.Exception.Message){$_.Exception.Message}else{'LOCAL_SECRET_SETUP_FAILED'}
- if(Test-Path -LiteralPath $taskReportDirectory){Write-Status @{result='FAIL';code=$safeCode}}
+ if(Test-Path -LiteralPath $taskReportDirectory){Write-Status @{result='FAIL';code=$safeCode;phase=$setupPhase;errorType=$_.Exception.GetType().FullName;errorLine=$_.InvocationInfo.ScriptLineNumber}}
  Write-Host ('Setup stopped: '+$safeCode) -ForegroundColor Red
 }finally{
  if($null -ne $vaultBytes){[Array]::Clear($vaultBytes,0,$vaultBytes.Length)}
  if($null -ne $apiSecure){$apiSecure.Dispose()};if($null -ne $signerSecure){$signerSecure.Dispose()}
  $secretPayload=$null;$apiText=$null;$signerText=$null
 }
-if(-not $VerifyOnly){[void](Read-Host 'Press Enter to close')}
+if(-not $VerifyOnly -and $setupSucceeded){[void](Read-Host 'Press Enter to close')}
 if(-not $setupSucceeded){exit 1}
