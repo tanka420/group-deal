@@ -31,7 +31,7 @@
     "GroupDealHub": { "address": "", "deploymentBlock": 0, "bytecodeHash": "", "txHash": "" }
   },
   "roles": {
-    "owner": { "address": "" },
+    "owner": { "address": "0xe48B30eA70F77E5FA6311471c2E9687f8A701Ead" },
     "authorizedSigner": { "address": "" },
     "operator": { "address": "" },
     "securityAuthority": { "type": "safe-multisig", "address": "", "owners": [], "threshold": 0, "safeVersion": "", "bytecodeHash": "" }

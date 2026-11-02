@@ -7,6 +7,8 @@ function prepareMainnet(){
  if(manifest.chainId!==5042||manifest.environment!=='arc-mainnet'||manifest.contracts.USDC.address!=='0x3600000000000000000000000000000000000000')throw Error('MAINNET_NETWORK_INVALID');
  const selectedVersion=manifest.protocolVersion;
  if(selectedVersion!==null&&![1,2].includes(selectedVersion))throw Error('MAINNET_PROTOCOL_VERSION_INVALID');
+ const ownerAddress=manifest.roles?.owner?.address||null;
+ if(ownerAddress&&(!ethers.isAddress(ownerAddress)||ownerAddress===ethers.ZeroAddress))throw Error('MAINNET_OWNER_ADDRESS_INVALID');
  const tracked=execFileSync('git',['ls-files','--cached','--others','--exclude-standard','-z'],{cwd:root,encoding:'utf8'}).split('\0');
  const names=[...new Set(tracked)].filter(f=>/^(?:backend\/src\/|frontend\/(?:src|build)\/|shared\/|sdk\/src\/|contracts\/contracts\/)/.test(f)||['contracts/hardhat.config.ts','scripts/prepare_mainnet.cjs','scripts/build_mainnet.cjs','scripts/local_check_runtime.cjs','scripts/local_network_guard.cjs','backend/package-lock.json','frontend/package-lock.json','contracts/package-lock.json','sdk/package-lock.json'].includes(f)).sort();
  const files=names.map(f=>({path:f,sha256:sha(fs.readFileSync(path.join(root,f)))}));
@@ -25,8 +27,8 @@ function prepareMainnet(){
    abi:artifact.abi,creationBytecode:artifact.bytecode,creationBytecodeHash:ethers.keccak256(artifact.bytecode),
    runtimeBytecodeTemplate:artifact.deployedBytecode,runtimeBytecodeTemplateHash:ethers.keccak256(artifact.deployedBytecode),
    runtimeHashStatus:'TEMPLATE_ONLY_IMMUTABLES_REQUIRE_DEPLOYMENT_READBACK',
-   constructor:{signature:'constructor(address usdcToken,address authorizedSigner,address operatorAddress,address securityAuthority)',arguments:[manifest.contracts.USDC.address,null,null,null],owner:'msg.sender; owner/deployer not selected'},
-   unsignedTransaction:{chainId:5042,to:null,from:null,data:null,value:'0',nonce:null,gasLimit:null,maxFeePerGas:null,maxPriorityFeePerGas:null},
+   constructor:{signature:'constructor(address usdcToken,address authorizedSigner,address operatorAddress,address securityAuthority)',arguments:[manifest.contracts.USDC.address,null,null,null],owner:ownerAddress||'msg.sender; owner/deployer not selected'},
+   unsignedTransaction:{chainId:5042,to:null,from:ownerAddress,data:null,value:'0',nonce:null,gasLimit:null,maxFeePerGas:null,maxPriorityFeePerGas:null},
    transactionStatus:selectedVersion===null?'NOT_CONSTRUCTED_AWAITING_VERSION_AND_AUTHORITY_ADDRESSES':selectedVersion===index+1?'NOT_CONSTRUCTED_AWAITING_AUTHORITY_ADDRESSES':'NOT_SELECTED_FOR_RELEASE'};
  });
  const selected=candidates.find(candidate=>candidate.selectedForRelease);

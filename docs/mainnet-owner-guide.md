@@ -54,6 +54,12 @@ Owner của Hub và owners của Safe là hai khái niệm khác nhau. [Safe lư
 
 Bản chuẩn bị Mainnet hiện yêu cầu bốn địa chỉ role owner/signer/operator/securityAuthority khác nhau; securityAuthority là Safe có ít nhất hai owners và threshold ít nhất hai. Đây là cấu hình bảo vệ của bản GroupDeal hiện tại, không phải quy tắc bắt buộc chung của mọi blockchain. Gộp role sẽ cần xem xét lại kiến trúc và thay guard có chủ đích; không tự bỏ guard chỉ để deploy nhanh.
 
+Ngày 02/11 anh cung cấp `0xe48b30ea70f77e5fa6311471c2e9687f8a701ead` và yêu cầu dùng chung cho mọi role. Địa chỉ này đã được ghi làm owner/deployer. Với V2 đã chọn, không thể điền cùng địa chỉ cho mọi role rồi deploy: constructor trực tiếp cấm securityAuthority trùng operator. Địa chỉ ví công khai cũng chưa chứng minh đó là Safe có owners/threshold cần thiết.
+
+Signer hiện là khóa backend dùng để ký giấy phép mua tự động. Nếu dùng cùng ví quản trị, khóa có quyền quản trị cũng phải được cơ chế ký trên server sử dụng. Kết nối ví của anh ở trình duyệt không cung cấp khả năng tự ký này. Đề xuất giữ ví đã gửi để quản trị/deploy, chọn signer và operator riêng, cùng Safe cho quyền bảo mật; anh có thể quản lý các tài khoản này, không bắt buộc mỗi role là một người khác nhau. Phương án một địa chỉ cần một thay đổi contract và thiết kế ký riêng trước khi có thể chuẩn bị deployment hợp lệ.
+
+Các quyền có thể chuyển sau triển khai: owner gọi `setAuthorizedSigner`, `setOperatorAddress` hoặc `transferOwnership`; securityAuthority cũ khởi tạo chuyển quyền, rồi authority mới chấp nhận. Việc chuyển cần giao dịch và cập nhật/xác minh cấu hình ứng dụng tương ứng, không phải chỉ sửa file env.
+
 ## Có dùng ví chính để deploy không?
 
 Ví chính có thể ký deploy về mặt kỹ thuật. Đề xuất cho GroupDeal: tạo tài khoản quản trị/deploy riêng, ưu tiên ví cứng hoặc cách lưu khóa có bảo vệ; giữ tài sản cá nhân lớn trong ví chính. Chỉ nạp ví deploy theo ngân sách đã duyệt. Tách riêng khóa signer/operator dùng cho server, không đưa seed/private key của ví chính lên VPS.
@@ -63,7 +69,7 @@ Ví chính có thể làm nguồn cấp USDC hoặc một owner Safe do anh tự
 ## Đầu vào còn cần
 
 - V2 đã được chọn. Chính sách early rebate được chốt khi tạo campaign; chưa tự bật hoặc tạo campaign.
-- Địa chỉ deployer/owner, authorization signer, operator; địa chỉ Safe đã có trên Arc hoặc danh sách owners và threshold để chuẩn bị tạo Safe.
+- Đã nhận deployer/owner `0xe48B30eA70F77E5FA6311471c2E9687f8A701Ead`. Còn cần cấu hình signer/operator và Safe tương thích V2, hoặc một quyết định thiết kế riêng cho phương án một ví; yêu cầu dùng chung địa chỉ chưa thể áp dụng vào constructor hiện tại.
 - Trạng thái Circle Mainnet, App ID production, Reown project/origin; chủ tài khoản tự xử lý Billing/xét duyệt và cấu hình secret an toàn.
 - Trần chi phí được duyệt sau estimate, người giữ ví funding và người ký từng transaction.
 - Nguồn indexer token Mainnet dùng được từ server: endpoint công khai explorer hiện trả HTTP 403/trang xác minh trên cả máy local và VPS. Mã tự tìm token đã có phân trang và fallback nhập contract; chưa thể nghiệm thu tự liệt kê đầy đủ trên dữ liệu Mainnet thật.

@@ -4,7 +4,7 @@ Cập nhật: 02/11/2026, giờ Việt Nam.
 
 ## Trạng thái
 
-Đã chuyển mã nguồn sang chọn mạng thống nhất và thêm bản chuẩn bị Arc Mainnet. Người dùng đã chọn **V2** ngày 02/11/2026. **Chưa sẵn sàng nhận tiền thật.** Manifest Mainnet vẫn `UNDEPLOYED`, `protocolVersion: 2`, Hub và các role để trống. Startup và các đường gửi giao dịch từ frontend từ chối cấu hình này trước khi mở dịch vụ hoặc yêu cầu ví ký.
+Đã chuyển mã nguồn sang chọn mạng thống nhất và thêm bản chuẩn bị Arc Mainnet. Người dùng đã chọn **V2** ngày 02/11/2026. **Chưa sẵn sàng nhận tiền thật.** Manifest Mainnet vẫn `UNDEPLOYED`, `protocolVersion: 2`, đã ghi owner/deployer công khai; Hub và ba role còn lại chưa có cấu hình hợp lệ. Startup và các đường gửi giao dịch từ frontend từ chối cấu hình này trước khi mở dịch vụ hoặc yêu cầu ví ký.
 
 | Mục | Giá trị |
 |---|---|
@@ -57,7 +57,7 @@ Gói giữ cả hai artifact để đối chiếu lịch sử; **GroupDealHubV2 
 | GroupDealHub V1 | `0x3a1582e949fb7f89c882c24f25d8b0a44f4be01311529ddf5f9cde0a5e1e7d69` |
 | GroupDealHubV2 | `0xbd48ca6dae806508c5afcc426bf802f100a1f7409ae167029578dd777da6bdd5` |
 
-Compiler `0.8.24`, Cancun, viaIR, optimizer 200. Runtime trong gói là **template có immutable**, không phải runtime hash đã deploy. Constructor là `(USDC, authorizedSigner, operator, securityAuthority)`, owner là `msg.sender`. Chưa có địa chỉ được chốt nên `from/data/nonce/gas/fee` còn `null`; V2 có trạng thái `NOT_CONSTRUCTED_AWAITING_AUTHORITY_ADDRESSES`. Không trình template này như một giao dịch đã sẵn sàng ký. Sau M03 phải encode transaction cụ thể và lấy nonce/phí mới trước khi xin M04/M06.
+Compiler `0.8.24`, Cancun, viaIR, optimizer 200. Runtime trong gói là **template có immutable**, không phải runtime hash đã deploy. Constructor là `(USDC, authorizedSigner, operator, securityAuthority)`, owner là `msg.sender`. Gói offline ghi `from` theo owner/deployer đã nhận; `data/nonce/gas/fee` vẫn `null` vì ba role còn thiếu cấu hình hợp lệ. V2 có trạng thái `NOT_CONSTRUCTED_AWAITING_AUTHORITY_ADDRESSES`. Không trình template này như một giao dịch đã sẵn sàng ký. Sau M03 phải encode transaction cụ thể và lấy nonce/phí mới trước khi xin M04/M06.
 
 ## Kiểm chứng ngày 28/10/2026
 
@@ -86,7 +86,7 @@ Không ghi API key, seed phrase, private key, OTP, session hoặc entitlement v�
 |---|---|---|---|---|
 | M01 | Chọn contract, rebate và phạm vi Mainnet đầu tiên | Chủ sản phẩm, reviewer contract | Version, phạm vi và tiêu chí nghiệm thu | **V2 đã chốt 02/11/2026**; thanh toán USDC, swap Mainnet để sau. Chưa tạo campaign hoặc tự bật early rebate. |
 | M02 | Circle production, email, frontend app ID và Reown project/origin; chứng minh auth/challenge/transaction theo `ARC` | Chủ Circle/Reown/email | Tham chiếu cấu hình không secret, kết quả dịch vụ thật | **PARTIAL**: 02/11 người dùng xác nhận Mainnet/SMTP đã bật; App ID/Project ID đã ghi cấu hình công khai. Chưa cấu hình API key backend, chưa xác minh origin/login/OTP/transaction thật. |
-| M03 | Owner/deployer, authorization signer, operator và Security Safe độc lập; xác minh quyền, Safe owners/threshold/version/runtime hash | Người giữ khóa, owners Safe | Địa chỉ công khai và chính sách; không gửi khóa cho agent | **Cần địa chỉ/chính sách**; không kế thừa role Testnet |
+| M03 | Owner/deployer, authorization signer, operator và Security Safe độc lập; xác minh quyền, Safe owners/threshold/version/runtime hash | Người giữ khóa, owners Safe | Địa chỉ công khai và chính sách; không gửi khóa cho agent | **PARTIAL**: đã nhận owner/deployer; yêu cầu gộp cả bốn role vào cùng địa chỉ không tương thích constructor V2 và guard hiện tại. Cần giải quyết chính sách signer/operator/Safe trước khi encode tx. |
 | M04 | Ngân sách deploy/gas/giao dịch thử, ví funding và nguồn USDC thật | Chủ ngân sách, ví funding | Hạn mức, người nhận và nguồn đã xác minh | Chưa xin chi tiền |
 | M05 | Review độc lập code, constructor/calldata, bytecode, signer/custody và các kết quả FAIL/SKIP còn lại | Reviewer độc lập, chủ sản phẩm | Kết luận theo exact commit/artifact và ngoại lệ | Chưa thực hiện; browser tổng hợp chưa ổn định |
 | M06 | Sau M01/M03: chuẩn bị tx cụ thể với sender/nonce/phí/hạn mức, rồi xin ký deployment/configuration theo từng thao tác | Deployer, owner, Safe | Receipt finalized, deployment block, actual runtime hash, token/roles/Safe readback; cập nhật manifest | Chưa ký/broadcast/deploy |
@@ -142,3 +142,12 @@ Subdomain Testnet đã deploy thành công bằng commit vận hành `31ae9920db
 - Manifest vẫn V2/`UNDEPLOYED`, chưa có địa chỉ quản trị/Safe/Hub; chưa cấu hình API key server, xin OTP, ký/broadcast hoặc deploy VPS.
 - Reown: đọc endpoint cấu hình công khai với origin `https://groupdeal.tech` trả HTTP 200; SDK 1.8.24 diễn giải `email=false`, không có social và `reownAuthentication=false`, kết quả **COMPATIBLE** với luồng Circle riêng. Đây không phải xác minh allowlist origin hoặc đăng nhập ví. Không thay đổi remote settings. Frontend TypeScript PASS.
 - Build cấu hình công khai từ commit `f2ddc2b35443d532ccecb08445921fabc9ebfa14`: **PASS**, artifact `.cache/mainnet-build/80f1ff66-a5fd-4555-81e4-de009d31a72e/BUILD.json`; fingerprint `fc66cc6908105f5f0a061c138a92a086726c8569815023fab916a09c6b5f31bb`. Đã xác minh hash của file public JSON có trong inventory nguồn và fingerprint khớp build, hai ID hiện diện trong JS, không có `.env`/source map/ID fixture. Backend credentials và live authentication vẫn chưa cấu hình/xác minh. 13 kiểm tra local wallet runtime PASS; không chạy full CI.
+
+### Địa chỉ quản trị đã nhận và yêu cầu dùng chung một ví
+
+- Ngày 02/11 người dùng gửi `0xe48b30ea70f77e5fa6311471c2e9687f8a701ead`, muốn dùng cho mọi role và thay sau. Đã kiểm tra định dạng và ghi owner/deployer dạng checksum `0xe48B30eA70F77E5FA6311471c2E9687f8A701Ead` vào manifest. Chưa có bằng chứng người dùng ký bằng địa chỉ này hoặc xác minh loại tài khoản trên chain.
+- **INCOMPATIBLE_WITH_CURRENT_V2**: constructor của `GroupDealHub.sol`, được V2 kế thừa, yêu cầu securityAuthority khác operator. Gán cả hai cùng địa chỉ sẽ revert `Security authority must be distinct from operator`. Guard ứng dụng còn yêu cầu bốn role khác nhau và Security Safe có ít nhất hai owners/threshold hai. Chưa sửa Solidity hoặc nới guard theo yêu cầu gộp role.
+- Backend hiện tạo `ethers.Wallet` từ `AUTHORIZED_SIGNER_PRIVATE_KEY` để ký giấy phép mua EIP-712. Dùng cùng ví owner làm signer sẽ yêu cầu khóa có quyền quản trị nằm trong cơ chế ký của server hiện tại; địa chỉ công khai hoặc kết nối ví trình duyệt không đủ để backend tự ký. Không yêu cầu người dùng gửi khóa trong chat.
+- Đổi signer/operator thực hiện qua owner; ownership có `transferOwnership` kế thừa OpenZeppelin. Chuyển securityAuthority cần authority cũ gọi `transferSecurityAuthority`, rồi authority mới gọi `acceptSecurityAuthority`. Sau thay đổi phải cập nhật manifest và xác minh quyền runtime; không tự diễn ra chỉ bằng sửa địa chỉ cấu hình.
+- Gói offline điền `from` của owner đã chọn, giữ các tham số còn thiếu và calldata/phí/nonce rỗng. Chưa chuẩn bị giao dịch có thể ký, funding, broadcast, deploy hay activation. Testnet giữ nguyên. Không chạy full CI hoặc live financial test trong lượt ghi nhận này.
+- Kiểm tra giới hạn: **PASS** định dạng/checksum địa chỉ, cú pháp script, đầu ra offline ghi đúng owner/from, các trường chưa đủ vẫn `null`, mọi quyền ký/broadcast/activation vẫn `false` và guard từ chối manifest chưa deploy. Kết luận constructor dựa trên mã nguồn đã đối chiếu, không phải giao dịch thử live. Build mới **NOT_RUN** vì chưa có cấu hình role hợp lệ; artifact `f2ddc2b` ở trên vẫn là bằng chứng lịch sử trước thay đổi owner. Testnet kiểm lại vẫn ở `478a91f`, giữ nguyên báo cáo chưa track của người dùng.
