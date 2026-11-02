@@ -71,7 +71,7 @@ Ví chính có thể làm nguồn cấp USDC hoặc một owner Safe do anh tự
 ## Đầu vào còn cần
 
 - V2 đã được chọn. Chính sách early rebate được chốt khi tạo campaign; chưa tự bật hoặc tạo campaign.
-- Đã nhận hai địa chỉ và người dùng xác nhận giữ quyền ký cả hai; đã chọn Safe 2/2 với chính hai ví này làm owners. Manifest chuẩn bị ghi ví đầu làm owner/deployer, ví thứ hai làm operator; signer mới riêng cho backend còn thiếu, địa chỉ Safe chưa deploy. Cần địa chỉ signer tiếp theo; không gửi khóa trong chat. Runtime vẫn UNDEPLOYED.
+- Đã đủ ba địa chỉ: owner/deployer `0xe48B30eA70F77E5FA6311471c2E9687f8A701Ead`, operator `0x7477f3fd762e4DB846D5b17C656395B09Fb0f27c`, signer riêng `0xc9691f85f149e71C4e1C14c6E6204128546Eef17`. Safe 2/2 dùng hai ví đầu làm owners, mới có gói unsigned/mô phỏng; chưa deploy. Còn cần nhập khóa signer và Circle API key qua cấu hình bảo mật, không trong chat/Git. Runtime vẫn UNDEPLOYED.
 - Trạng thái Circle Mainnet, App ID production, Reown project/origin; chủ tài khoản tự xử lý Billing/xét duyệt và cấu hình secret an toàn.
 - Trần chi phí được duyệt sau estimate, người giữ ví funding và người ký từng transaction.
 - Nguồn indexer token Mainnet dùng được từ server: endpoint công khai explorer hiện trả HTTP 403/trang xác minh trên cả máy local và VPS. Mã tự tìm token đã có phân trang và fallback nhập contract; chưa thể nghiệm thu tự liệt kê đầy đủ trên dữ liệu Mainnet thật.

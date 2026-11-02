@@ -32,7 +32,7 @@
   },
   "roles": {
     "owner": { "address": "0xe48B30eA70F77E5FA6311471c2E9687f8A701Ead" },
-    "authorizedSigner": { "address": "" },
+    "authorizedSigner": { "address": "0xc9691f85f149e71C4e1C14c6E6204128546Eef17" },
     "operator": { "address": "0x7477f3fd762e4DB846D5b17C656395B09Fb0f27c" },
     "securityAuthority": { "type": "safe-multisig", "address": "", "owners": ["0xe48B30eA70F77E5FA6311471c2E9687f8A701Ead", "0x7477f3fd762e4DB846D5b17C656395B09Fb0f27c"], "threshold": 2, "safeVersion": "", "bytecodeHash": "" }
   },
