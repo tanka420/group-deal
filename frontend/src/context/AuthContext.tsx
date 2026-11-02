@@ -1,4 +1,5 @@
 import {CircleBlockchain,ARC_CHAIN_ID,ARC_IS_MAINNET} from '../../../shared/network.mjs';
+import {CIRCLE_APP_ID} from '../services/publicConfiguration';
 import React, { createContext, useContext, useEffect, useLayoutEffect, useCallback, useRef, useState } from "react";
 import type { W3SSdk } from "@circle-fin/w3s-pw-web-sdk";
 import { ethers } from "ethers";
@@ -165,7 +166,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
   }, []);
 
   const ensureCircle = useCallback((): Promise<{ sdk: W3SSdk; deviceId: string }> => {
-    const appId = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined;
+    const appId = CIRCLE_APP_ID;
     if (!circleLifecycle.current.active) return Promise.reject(new Error("CIRCLE_INITIALIZATION_ENDED"));
     if (circleSdkRef.current && circleDeviceRef.current) {
       return Promise.resolve({ sdk: circleSdkRef.current, deviceId: circleDeviceRef.current });
@@ -321,7 +322,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
     const generation=sessionGenerationRef.current;
     const {sdk,deviceId}=await ensureCircle();
     if(generation!==sessionGenerationRef.current)throw new Error("Phiên đăng nhập đã thay đổi");
-    const appId=import.meta.env.VITE_CIRCLE_APP_ID as string;
+    const appId=CIRCLE_APP_ID;
     const data = await readJson(
       await circleFetch("/api/circle/email/token", {
         method: "POST",

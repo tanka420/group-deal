@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useLayoutEffect, useMemo
 import type { Signer } from "ethers";
 import type {ReownRuntime,ReownSnapshot} from "../services/reownRuntime";
 import {walletReloadError} from "../services/authPresentation";
+import {REOWN_PROJECT_ID} from '../services/publicConfiguration';
 
 export interface Eip1193Provider {
   request(args: { method: string; params?: unknown[] | object }): Promise<unknown>;
@@ -37,7 +38,7 @@ export const disabledExternalWallet: ExternalWalletContextType = {
 export const ExternalWalletContext = createContext<ExternalWalletContextType>(disabledExternalWallet);
 // Loading the wallet never replaces the ancestor of App/AuthProvider.
 export const ExternalWalletProvider:React.FC<{children:React.ReactNode}>=({children})=>{
- const projectId=import.meta.env.VITE_REOWN_PROJECT_ID as string|undefined;
+ const projectId=REOWN_PROJECT_ID;
  const [snapshot,setSnapshot]=useState<ReownSnapshot>({connected:false});
  const lifecycle=useRef({active:true,epoch:0}),runtime=useRef<ReownRuntime|null>(null),pending=useRef<Promise<ReownRuntime>|null>(null),unsubscribe=useRef<(()=>void)|null>(null);
  const connection=useRef<{controller:AbortController;promise:Promise<string>}|null>(null);

@@ -48,7 +48,7 @@ npm run build:mainnet
 npm run prepare:mainnet
 ```
 
-`build:mainnet` dùng môi trường được lọc, build production frontend với `VITE_APP_ENV=arc-mainnet`, để trống Circle/Reown và ghi inventory hash riêng cho frontend/backend trong `.cache/mainnet-build/<run>/BUILD.json`. Đây là build chuẩn bị, chưa phải artifact được phép activation. `prepare:mainnet` không có provider, ví, ký hoặc broadcast; kiểm compiler/source còn khớp trước khi xuất `.cache/mainnet-preparation/<sourceFingerprint>/UNSIGNED_REVIEW.json`. Các output này không đưa vào Git.
+`build:mainnet` dùng môi trường được lọc, build production frontend với `VITE_APP_ENV=arc-mainnet`, lấy hai ID công khai từ `shared/mainnet-public.json` và ghi inventory hash riêng cho frontend/backend trong `.cache/mainnet-build/<run>/BUILD.json`. Kiểm tra artifact chứa đúng ID và không chứa ID fixture, `.env` hay source map. Đây là build chuẩn bị, chưa phải artifact được phép activation. `prepare:mainnet` không có provider, ví, ký hoặc broadcast; kiểm compiler/source còn khớp trước khi xuất `.cache/mainnet-preparation/<sourceFingerprint>/UNSIGNED_REVIEW.json`. Các output này không đưa vào Git.
 
 Gói giữ cả hai artifact để đối chiếu lịch sử; **GroupDealHubV2 được chọn cho Mainnet**. V1 không được chọn cho đợt phát hành này và Testnet tiếp tục giữ deployment V1:
 
@@ -85,7 +85,7 @@ Không ghi API key, seed phrase, private key, OTP, session hoặc entitlement v�
 | ID | Nội dung cần chốt/thực hiện | Người/quyền cần có | Đầu ra | Trạng thái |
 |---|---|---|---|---|
 | M01 | Chọn contract, rebate và phạm vi Mainnet đầu tiên | Chủ sản phẩm, reviewer contract | Version, phạm vi và tiêu chí nghiệm thu | **V2 đã chốt 02/11/2026**; thanh toán USDC, swap Mainnet để sau. Chưa tạo campaign hoặc tự bật early rebate. |
-| M02 | Circle production, email, frontend app ID và Reown project/origin; chứng minh auth/challenge/transaction theo `ARC` | Chủ Circle/Reown/email | Tham chiếu cấu hình không secret, kết quả dịch vụ thật | Chưa thực hiện |
+| M02 | Circle production, email, frontend app ID và Reown project/origin; chứng minh auth/challenge/transaction theo `ARC` | Chủ Circle/Reown/email | Tham chiếu cấu hình không secret, kết quả dịch vụ thật | **PARTIAL**: 02/11 người dùng xác nhận Mainnet/SMTP đã bật; App ID/Project ID đã ghi cấu hình công khai. Chưa cấu hình API key backend, chưa xác minh origin/login/OTP/transaction thật. |
 | M03 | Owner/deployer, authorization signer, operator và Security Safe độc lập; xác minh quyền, Safe owners/threshold/version/runtime hash | Người giữ khóa, owners Safe | Địa chỉ công khai và chính sách; không gửi khóa cho agent | **Cần địa chỉ/chính sách**; không kế thừa role Testnet |
 | M04 | Ngân sách deploy/gas/giao dịch thử, ví funding và nguồn USDC thật | Chủ ngân sách, ví funding | Hạn mức, người nhận và nguồn đã xác minh | Chưa xin chi tiền |
 | M05 | Review độc lập code, constructor/calldata, bytecode, signer/custody và các kết quả FAIL/SKIP còn lại | Reviewer độc lập, chủ sản phẩm | Kết luận theo exact commit/artifact và ngoại lệ | Chưa thực hiện; browser tổng hợp chưa ổn định |
@@ -128,7 +128,16 @@ Subdomain Testnet đã deploy thành công bằng commit vận hành `31ae9920db
 
 - Người dùng chọn V2 và đồng ý trình tự chuẩn bị estimate, ký deployment, triển khai VPS và xác nhận sau deploy khi đủ đầu vào. Manifest đã chọn `protocolVersion: 2`, giữ nguyên `UNDEPLOYED`, Hub/receipt/hash/role/Safe còn trống.
 - Gói offline đánh dấu riêng GroupDealHubV2 là `selectedForRelease`; V1 vẫn giữ để đối chiếu, không chọn cho Mainnet. Không sửa contract hoặc deployment Testnet.
-- Chưa có địa chỉ owner/deployer, signer, operator, Safe owners/threshold và cấu hình production. Chưa thể encode giao dịch cụ thể hoặc lấy estimate đúng sender/constructor. Chưa ký, funding, tạo Safe, broadcast hay activation VPS.
+- Chưa có địa chỉ owner/deployer, signer, operator, Safe owners/threshold và secret production cho backend. Chưa thể encode giao dịch cụ thể hoặc lấy estimate đúng sender/constructor. Chưa ký, funding, tạo Safe, broadcast hay activation VPS.
 - Các build/preview ngày 29/10 là artifact lịch sử trước quyết định V2; không gán chúng thành bản release sau khi sửa manifest. Cần build lại exact commit khi đã đủ cấu hình production.
-- Bước người dùng đang thực hiện: bật Mainnet trong Circle Console, cấu hình Email OTP/SMTP, lấy App ID và tạo API key Mainnet; hướng dẫn trong `docs/mainnet-owner-guide.md`.
+- Người dùng xác nhận Circle Mainnet đã bật, SMTP Email OTP đã cấu hình và cung cấp hai ID công khai. API key Mainnet vẫn cần nhập bảo mật ở backend; hướng dẫn trong `docs/mainnet-owner-guide.md`.
 - Kiểm tra thay đổi chọn V2: cú pháp script offline PASS; fixture Mainnet PASS, gồm từ chối startup khi `UNDEPLOYED` và không tạo database runtime; frontend TypeScript PASS. Không chạy lại full CI hoặc giao dịch live.
+
+### Circle/Reown công khai đã nhận
+
+- **USER_REPORTED**: Circle Mainnet đã bật, SMTP Email OTP đã cấu hình.
+- App ID `2ee19943-ce4c-59a0-958b-3814cfdeb215` và Project ID `b40cf0b4a742fcc69708d59a34765a50` được lưu trong `shared/mainnet-public.json` và mẫu env Mainnet. Đây là ID công khai, không phải API key hoặc khóa ký.
+- Frontend Mainnet dùng hai ID này khi môi trường build không truyền giá trị khác; cấu hình fixture tường minh vẫn được ưu tiên. Testnet không kế thừa các giá trị mặc định Mainnet, không thay đổi checkout/nhánh Testnet trong lượt này.
+- `build:mainnet` kiểm tra ID đầu vào, ghim cấu hình vào fingerprint qua file shared, kiểm tra ID trong JavaScript cuối và không phát hành `.env`/source map/ID fixture. Trạng thái live auth, origin allowlist, SMTP và Circle API key backend còn tách riêng với kết quả build.
+- Manifest vẫn V2/`UNDEPLOYED`, chưa có địa chỉ quản trị/Safe/Hub; chưa cấu hình API key server, xin OTP, ký/broadcast hoặc deploy VPS.
+- Reown: đọc endpoint cấu hình công khai với origin `https://groupdeal.tech` trả HTTP 200; SDK 1.8.24 diễn giải `email=false`, không có social và `reownAuthentication=false`, kết quả **COMPATIBLE** với luồng Circle riêng. Đây không phải xác minh allowlist origin hoặc đăng nhập ví. Không thay đổi remote settings. Frontend TypeScript PASS.

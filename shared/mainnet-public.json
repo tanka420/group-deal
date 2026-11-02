@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "environment": "arc-mainnet",
+  "chainId": 5042,
+  "publicAppUrl": "https://groupdeal.tech",
+  "circleAppId": "2ee19943-ce4c-59a0-958b-3814cfdeb215",
+  "reownProjectId": "b40cf0b4a742fcc69708d59a34765a50"
+}
