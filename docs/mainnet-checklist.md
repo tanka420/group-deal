@@ -2,9 +2,26 @@
 
 Cập nhật: 02/11/2026, giờ Việt Nam.
 
+## Trình tự đang áp dụng
+
+Người dùng đã dừng hướng deploy contract/Studio trước và yêu cầu hoàn thiện Mainnet theo thứ tự. Các quyết định, quote và hướng dẫn Studio ở phần lịch sử bên dưới không phải phạm vi phát hành hiện hành. Giữ nguyên mã và các địa chỉ đã nhận; không xóa Testnet hoặc hồ sơ cũ.
+
+| Bước | Đầu ra cần hoàn tất | Trạng thái hiện tại |
+|---|---|---|
+| 1. Chốt phạm vi, ví và quyền | V2/USDC; owner, signer riêng, operator, Safe owners/threshold và cách giữ khóa | **ĐANG LÀM**. V2/USDC đã chốt; người dùng chọn Safe 2/2 với hai ví đã gửi và xác nhận tự giữ quyền ký cả hai (USER_REPORTED, chưa phải chữ ký chứng minh quyền). Còn địa chỉ signer riêng và chuẩn bị/xác minh deployment Safe. |
+| 2. Hoàn thiện mã và cấu hình | Frontend/backend đúng Mainnet, production config/secret tách riêng, nguồn token và các lỗi còn lại được xử lý hoặc ghi ngoại lệ | Nguồn chuyển mạng/UI đã có; Circle API key backend, origin/auth thật, indexer và cấu hình runtime còn thiếu. Nhập secret qua kênh bảo mật, không qua chat/Git. |
+| 3. Kiểm và đóng bản phát hành | Kiểm tra đúng scope, build exact commit đã push, inventory riêng frontend/backend; ghi rõ FAIL/SKIP/NOT_RUN còn lại | Chỉ có kết quả lịch sử; không tự nâng thành PASS cho bản tương lai. Không tự mở lại toàn bộ test mà người dùng đã bỏ qua. |
+| 4. Deploy và xác minh contract | Safe phù hợp, constructor cuối cùng, quote mới/hạn mức cụ thể, chủ ví ký; finalized receipt/code/roles và link explorer thật | **NOT_RUN**. Chỉ làm sau khi chốt role/candidate. Contract-only plan cũ đã SUPERSEDED; không phát lại creation data/quote từ plan đó. |
+| 5. Triển khai ứng dụng | Manifest theo deployment thật; backend/DB/secret/backup/monitoring riêng, frontend/backend commit riêng; triển khai trên VPS theo phạm vi được duyệt | **NOT_RUN** cho bản Mainnet. Giữ Testnet và dữ liệu của nó riêng. |
+| 6. Xác nhận trước mở công khai | Login/OTP/ví thật, hành trình tài chính giới hạn có phạm vi/ngân sách, đối soát và xử lý lỗi; chuyển `groupdeal.tech` và hậu kiểm | **NOT_RUN**. Hoàn thành trước khi công bố nhận tiền thật; Studio/share không thay cho các bước này. |
+
+Role trong manifest chuẩn bị: `0xe48B30eA70F77E5FA6311471c2E9687f8A701Ead` làm owner/deployer; `0x7477f3fd762e4DB846D5b17C656395B09Fb0f27c` làm operator; signer mới riêng cho backend còn trống; securityAuthority sẽ là địa chỉ Safe chưa deploy. Người dùng đã chọn **Safe 2/2** với hai ví hiện có làm owners. Đã ghi operator, danh sách owners và threshold vào manifest, giữ địa chỉ/version/hash Safe và signer trống, trạng thái `UNDEPLOYED`. Safe 2/2 cần cả hai khóa ký. [Khái niệm owners/threshold của Safe](https://docs.safe.global/advanced/smart-account-concepts).
+
+Việc cần người dùng tiếp theo: tạo/cung cấp địa chỉ signer riêng cho backend (không gửi khóa). Signer ký giấy phép mua EIP-712 off-chain, không cần nạp gas để thực hiện chữ ký đó. Secret của signer chỉ nhập qua cấu hình bảo mật ở bước phù hợp. Chưa xin funding/chữ ký deployment ở bước này.
+
 ## Trạng thái
 
-Đã chuyển mã nguồn sang chọn mạng thống nhất và thêm bản chuẩn bị Arc Mainnet. Người dùng đã chọn **V2** ngày 02/11/2026. **Chưa sẵn sàng nhận tiền thật.** Manifest Mainnet vẫn `UNDEPLOYED`, `protocolVersion: 2`, đã ghi owner/deployer công khai; Hub và ba role còn lại chưa có cấu hình hợp lệ. Startup và các đường gửi giao dịch từ frontend từ chối cấu hình này trước khi mở dịch vụ hoặc yêu cầu ví ký.
+Đã chuyển mã nguồn sang chọn mạng thống nhất và thêm bản chuẩn bị Arc Mainnet. Người dùng đã chọn **V2** ngày 02/11/2026. **Chưa sẵn sàng nhận tiền thật.** Manifest Mainnet vẫn `UNDEPLOYED`, `protocolVersion: 2`; đã ghi owner/deployer, operator và owners/threshold Safe 2/2. Hub, signer và địa chỉ/version/hash Safe còn thiếu. Startup và các đường gửi giao dịch từ frontend từ chối cấu hình này trước khi mở dịch vụ hoặc yêu cầu ví ký.
 
 | Mục | Giá trị |
 |---|---|
@@ -57,7 +74,7 @@ Gói giữ cả hai artifact để đối chiếu lịch sử; **GroupDealHubV2 
 | GroupDealHub V1 | `0x3a1582e949fb7f89c882c24f25d8b0a44f4be01311529ddf5f9cde0a5e1e7d69` |
 | GroupDealHubV2 | `0xbd48ca6dae806508c5afcc426bf802f100a1f7409ae167029578dd777da6bdd5` |
 
-Compiler `0.8.24`, Cancun, viaIR, optimizer 200. Runtime trong gói là **template có immutable**, không phải runtime hash đã deploy. Constructor là `(USDC, authorizedSigner, operator, securityAuthority)`, owner là `msg.sender`. Sau khi nhận ví bảo mật thứ hai, gói offline lấy constructor từ `config/mainnet-contract-deployment.json`, điền `from` và encode creation `data` cho V2; `nonce/gas/fee` chờ quote chỉ đọc. V2 có trạng thái `ENCODED_AWAITING_NONCE_FEES_BUDGET_AND_OWNER_SIGNATURE`. Chính sách role trong giai đoạn deploy contract chưa đáp ứng startup production; chưa có quyền ký hoặc kích hoạt dịch vụ. Xem phạm vi ưu tiên ở cuối checklist và `docs/arc-studio-handoff.md`.
+Compiler `0.8.24`, Cancun, viaIR, optimizer 200. Runtime trong gói là **template có immutable**, không phải runtime hash đã deploy. Constructor là `(USDC, authorizedSigner, operator, securityAuthority)`, owner là `msg.sender`. Plan hai ví trong `config/mainnet-contract-deployment.json` đã được đánh dấu `SUPERSEDED`. Gói offline giữ constructor cũ để đối chiếu, không encode creation `data` mới từ plan đó; V2 có trạng thái `NOT_CONSTRUCTED_AWAITING_PRODUCTION_ROLE_PLAN`. Cần chốt role/Safe trước khi chuẩn bị transaction phát hành; quote wrapper từ chối plan cũ trước khi gọi RPC.
 
 ## Kiểm chứng ngày 28/10/2026
 
@@ -86,7 +103,7 @@ Không ghi API key, seed phrase, private key, OTP, session hoặc entitlement v�
 |---|---|---|---|---|
 | M01 | Chọn contract, rebate và phạm vi Mainnet đầu tiên | Chủ sản phẩm, reviewer contract | Version, phạm vi và tiêu chí nghiệm thu | **V2 đã chốt 02/11/2026**; thanh toán USDC, swap Mainnet để sau. Chưa tạo campaign hoặc tự bật early rebate. |
 | M02 | Circle production, email, frontend app ID và Reown project/origin; chứng minh auth/challenge/transaction theo `ARC` | Chủ Circle/Reown/email | Tham chiếu cấu hình không secret, kết quả dịch vụ thật | **PARTIAL**: 02/11 người dùng xác nhận Mainnet/SMTP đã bật; App ID/Project ID đã ghi cấu hình công khai. Chưa cấu hình API key backend, chưa xác minh origin/login/OTP/transaction thật. |
-| M03 | Owner/deployer, authorization signer, operator và Security Safe độc lập; xác minh quyền, Safe owners/threshold/version/runtime hash | Người giữ khóa, owners Safe | Địa chỉ công khai và chính sách; không gửi khóa cho agent | **PARTIAL**: đã đủ hai địa chỉ cho constructor V2 ở phạm vi deploy contract trước; owner/signer/operator dùng ví đầu, securityAuthority dùng ví thứ hai. Tách role và xác minh Safe còn cần trước activation production. |
+| M03 | Owner/deployer, authorization signer, operator và Security Safe độc lập; xác minh quyền, Safe owners/threshold/version/runtime hash | Người giữ khóa, owners Safe | Địa chỉ công khai và chính sách; không gửi khóa cho agent | **ĐANG LÀM**: đã chốt Safe 2/2 với hai ví người dùng giữ; manifest chuẩn bị ghi owner/operator và Safe owners/threshold. Còn signer riêng, deployment/kiểm quyền Safe. Plan contract-only trước đó không phải cấu hình phát hành. |
 | M04 | Ngân sách deploy/gas/giao dịch thử, ví funding và nguồn USDC thật | Chủ ngân sách, ví funding | Hạn mức, người nhận và nguồn đã xác minh | Chưa xin chi tiền |
 | M05 | Review độc lập code, constructor/calldata, bytecode, signer/custody và các kết quả FAIL/SKIP còn lại | Reviewer độc lập, chủ sản phẩm | Kết luận theo exact commit/artifact và ngoại lệ | Chưa thực hiện; browser tổng hợp chưa ổn định |
 | M06 | Sau M01/M03: chuẩn bị tx cụ thể với sender/nonce/phí/hạn mức, rồi xin ký deployment/configuration theo từng thao tác | Deployer, owner, Safe | Receipt finalized, deployment block, actual runtime hash, token/roles/Safe readback; cập nhật manifest | Chưa ký/broadcast/deploy |
@@ -152,7 +169,7 @@ Subdomain Testnet đã deploy thành công bằng commit vận hành `31ae9920db
 - Gói offline điền `from` của owner đã chọn, giữ các tham số còn thiếu và calldata/phí/nonce rỗng. Chưa chuẩn bị giao dịch có thể ký, funding, broadcast, deploy hay activation. Testnet giữ nguyên. Không chạy full CI hoặc live financial test trong lượt ghi nhận này.
 - Kiểm tra giới hạn: **PASS** định dạng/checksum địa chỉ, cú pháp script, đầu ra offline ghi đúng owner/from, các trường chưa đủ vẫn `null`, mọi quyền ký/broadcast/activation vẫn `false` và guard từ chối manifest chưa deploy. Kết luận constructor dựa trên mã nguồn đã đối chiếu, không phải giao dịch thử live. Build mới **NOT_RUN** vì chưa có cấu hình role hợp lệ; artifact `f2ddc2b` ở trên vẫn là bằng chứng lịch sử trước thay đổi owner. Testnet kiểm lại vẫn ở `478a91f`, giữ nguyên báo cáo chưa track của người dùng.
 
-### Phạm vi ưu tiên: deploy contract và preview Studio trước
+### Lịch sử: deploy contract và preview Studio trước (đã thay thế)
 
 - Người dùng làm rõ mục tiêu: deploy V2, đưa GitHub cho Arc Studio build để có link chia sẻ; xử lý backend/VPS/Circle secret/role production sau. Không dùng các mục activation ứng dụng để chặn việc nhập repo hoặc chuẩn bị contract-only deployment.
 - Người dùng cung cấp thêm securityAuthority `0x7477f3fd762e4db846d5b17c656395b09fb0f27c` (checksum `0x7477f3fd762e4DB846D5b17C656395B09Fb0f27c`). Owner/deployer/signer/operator tạm dùng `0xe48B30eA70F77E5FA6311471c2E9687f8A701Ead`. Đây là hai địa chỉ khác nhau, đáp ứng điều kiện constructor V2; không cần sửa Solidity. Chưa xác minh ví thứ hai là Safe.
@@ -161,3 +178,7 @@ Subdomain Testnet đã deploy thành công bằng commit vận hành `31ae9920db
 - `node scripts/quote_mainnet_deployment.cjs` chỉ cho phép các RPC đọc/estimate/simulate tại RPC Mainnet chính thức. Kiểm chain, nonce chưa có giao dịch pending, code, block mới; tính gas có dự phòng 20%, đề xuất trần phí, ghi balance, calldata hash và predicted CREATE address. `eth_call` là mô phỏng, không phải receipt/runtime triển khai thật. Quote hết hạn sau 5 phút, budget/signing/broadcast/activation luôn `false`; owner tự duyệt và ký sau quote mới.
 - Hướng dẫn repo/branch, build/preview, backend còn thiếu và prompt giới hạn cho Studio: `docs/arc-studio-handoff.md`. Arc Studio hỗ trợ import GitHub và live preview; theo tài liệu chính thức, không cung cấp hosting production hoặc phát giao dịch Mainnet thay người dùng. Phải xác minh link share và quyền truy cập thực tế, không trình link project/preview thành deployment Mainnet.
 - Kiểm giới hạn **PASS**: cú pháp hai script, giải mã constructor từ creation data khớp đủ bốn địa chỉ, V2 được chọn/V1 không có creation data, plan có trong fingerprint, các cờ quyền vẫn `false`, guard runtime vẫn chặn. RPC wrapper từ chối `eth_sendRawTransaction` trước network và quote từ chối chain Testnet. Không chạy lại full CI hoặc test tài chính theo phạm vi người dùng ưu tiên.
+
+Quote chỉ đọc từ commit `48499b3` trước khi đổi trình tự: chain 5042, estimate 4.650.432 gas; gas limit dự phòng 5.580.519; trần phí lúc đọc khoảng 0,2232281402363775 USDC, số dư native lúc đọc 1 USDC. Báo cáo `.cache/mainnet-preparation/a0969702931f0e2c8a09ea40ac903fe4e70d099d75c464b4de101f603895090b/QUOTE-c96f42d8-dd28-4675-9e8c-dbe51b82c325.json`. **HISTORICAL / NOT_APPROVED_FOR_SPEND**; không sử dụng lại cho constructor/candidate mới, không phải chi phí cố định hay receipt deployment. Chưa ký/gửi giao dịch, chưa có link contract đã deploy được xác minh.
+
+Kiểm giới hạn khi đổi trình tự: cú pháp hai script **PASS**; V2 vẫn được chọn, creation data/hash mới đều `null`, trạng thái `NOT_CONSTRUCTED_AWAITING_PRODUCTION_ROLE_PLAN`; quote từ chối plan SUPERSEDED trước RPC (**0 network calls**); các cờ ký/broadcast/activation vẫn `false`, runtime UNDEPLOYED vẫn bị chặn. Không chạy full CI, build mới hoặc live test cho thay đổi plan này. Testnet kiểm lại giữ `478a91f` và báo cáo chưa track của người dùng.

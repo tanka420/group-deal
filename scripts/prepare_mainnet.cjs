@@ -10,6 +10,7 @@ function prepareMainnet(){
  const ownerAddress=manifest.roles?.owner?.address||null;
  if(ownerAddress&&(!ethers.isAddress(ownerAddress)||ownerAddress===ethers.ZeroAddress))throw Error('MAINNET_OWNER_ADDRESS_INVALID');
  const deploymentPlan=JSON.parse(fs.readFileSync(path.join(root,'config/mainnet-contract-deployment.json'),'utf8'));
+ const planSuperseded=deploymentPlan.releaseStatus==='SUPERSEDED';
  const plannedRoles=deploymentPlan.roles;
  if(deploymentPlan.schemaVersion!==1||deploymentPlan.scope!=='CONTRACT_DEPLOYMENT_ONLY'||deploymentPlan.environment!=='arc-mainnet'||deploymentPlan.chainId!==5042
   ||deploymentPlan.protocolVersion!==selectedVersion||deploymentPlan.runtimeActivationAuthorized!==false
@@ -32,7 +33,7 @@ function prepareMainnet(){
   if(!ethers.isHexString(artifact.bytecode)||!ethers.isHexString(artifact.deployedBytecode))throw Error('MAINNET_UNLINKED_BYTECODE');
   const selectedForRelease=selectedVersion===index+1;
   const constructorArguments=selectedForRelease?[manifest.contracts.USDC.address,plannedRoles.authorizedSigner,plannedRoles.operator,plannedRoles.securityAuthority]:[manifest.contracts.USDC.address,null,null,null];
-  const deploymentData=selectedForRelease?ethers.concat([artifact.bytecode,new ethers.Interface(artifact.abi).encodeDeploy(constructorArguments)]):null;
+  const deploymentData=selectedForRelease&&!planSuperseded?ethers.concat([artifact.bytecode,new ethers.Interface(artifact.abi).encodeDeploy(constructorArguments)]):null;
   return {contract:name,protocolVersion:index+1,selectedForRelease:selectedVersion===index+1,compiler:build.solcLongVersion,compilerSettings:build.input.settings,
    abi:artifact.abi,creationBytecode:artifact.bytecode,creationBytecodeHash:ethers.keccak256(artifact.bytecode),
    runtimeBytecodeTemplate:artifact.deployedBytecode,runtimeBytecodeTemplateHash:ethers.keccak256(artifact.deployedBytecode),
@@ -40,15 +41,15 @@ function prepareMainnet(){
    constructor:{signature:'constructor(address usdcToken,address authorizedSigner,address operatorAddress,address securityAuthority)',arguments:constructorArguments,owner:ownerAddress||'msg.sender; owner/deployer not selected'},
    unsignedTransaction:{chainId:5042,to:null,from:ownerAddress,data:deploymentData,value:'0',nonce:null,gasLimit:null,maxFeePerGas:null,maxPriorityFeePerGas:null},
    deploymentDataHash:deploymentData?ethers.keccak256(deploymentData):null,
-   transactionStatus:selectedForRelease?'ENCODED_AWAITING_NONCE_FEES_BUDGET_AND_OWNER_SIGNATURE':'NOT_SELECTED_FOR_RELEASE'};
+   transactionStatus:selectedForRelease?(planSuperseded?'NOT_CONSTRUCTED_AWAITING_PRODUCTION_ROLE_PLAN':'ENCODED_AWAITING_NONCE_FEES_BUDGET_AND_OWNER_SIGNATURE'):'NOT_SELECTED_FOR_RELEASE'};
  });
  const selected=candidates.find(candidate=>candidate.selectedForRelease);
  return {schemaVersion:1,layer:'OFFLINE_MAINNET_PREPARATION',acceptanceEligible:false,signingAuthorized:false,broadcastAuthorized:false,activationAuthorized:false,
   sourceCommit:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),sourceFingerprint,files,manifest,deploymentPlan,
   release:{frontend:{sourceFingerprint,environment:'arc-mainnet',artifact:null},backend:{sourceFingerprint,environment:'arc-mainnet',artifact:null}},
   selectedCandidate:selected?{contract:selected.contract,protocolVersion:selected.protocolVersion,creationBytecodeHash:selected.creationBytecodeHash}:null,
-  candidates,blockers:[...(selected?[]:['M01: select protocol version and release scope']),'M03 before runtime activation: rotate initial shared roles and verify the required Safe owners/threshold','M04: approve budget and obtain a fresh nonce/fee quote','M05: independent review of the exact commit and bytecode','M06: owner-controlled deployment, finalized receipt, runtime hash and role readback','M09: separately approve service activation'],
-  notes:['No Testnet address or signing key is used as a Mainnet deployment default.',selected?`${selected.contract} is selected for Mainnet preparation; this selection does not authorize signing or broadcasting.`:'Both variants are proposals; neither is selected for release.','Constructor calldata uses the user-selected contract-only deployment plan; this plan does not satisfy or weaken the production runtime guard.','A fresh nonce, fee quote and approved cost limit are required before asking for a signature.','Deployment block and actual runtime hash must come from a real finalized receipt; neither is predicted here.']};
+  candidates,blockers:[...(selected?[]:['M01: select protocol version and release scope']),planSuperseded?'M03 before deployment: finalize production owner, signer, operator and Safe plan; historical constructor assignments are superseded':'M03 before runtime activation: rotate initial shared roles and verify the required Safe owners/threshold','M04: approve budget and obtain a fresh nonce/fee quote','M05: independent review of the exact commit and bytecode','M06: owner-controlled deployment, finalized receipt, runtime hash and role readback','M09: separately approve service activation'],
+  notes:['No Testnet address or signing key is used as a Mainnet deployment default.',selected?`${selected.contract} is selected for Mainnet preparation; this selection does not authorize signing or broadcasting.`:'Both variants are proposals; neither is selected for release.',planSuperseded?'The previous contract-only plan is historical. Constructor assignments are retained for comparison; creation calldata is withheld until the production role plan is finalized.':'Constructor calldata uses the user-selected contract-only deployment plan; this plan does not satisfy or weaken the production runtime guard.','A fresh nonce, fee quote and approved cost limit are required before asking for a signature.','Deployment block and actual runtime hash must come from a real finalized receipt; neither is predicted here.']};
 }
 function main(){
  if(process.argv.length>2)throw Error('MAINNET_PREPARATION_ACCEPTS_NO_SIGNING_OR_DEPLOY_ARGUMENTS');

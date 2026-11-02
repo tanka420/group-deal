@@ -18,10 +18,11 @@ function createRpc(url){
 }
 const quantity=value=>{if(typeof value!=='string'||!/^0x(?:0|[1-9a-f][0-9a-f]*)$/i.test(value))throw Error('MAINNET_QUOTE_INVALID_QUANTITY');return BigInt(value);};
 async function quoteDeployment(preparation,rpc){
- if(quantity(await rpc('eth_chainId',[]))!==5042n)throw Error('MAINNET_QUOTE_CHAIN_MISMATCH');
  const candidate=preparation.candidates.find(c=>c.selectedForRelease);
+ if(preparation.deploymentPlan?.releaseStatus==='SUPERSEDED')throw Error('MAINNET_PRODUCTION_ROLE_PLAN_REQUIRED');
  if(preparation.signingAuthorized!==false||preparation.broadcastAuthorized!==false||preparation.activationAuthorized!==false
   ||candidate?.protocolVersion!==2||!ethers.isHexString(candidate.unsignedTransaction.data)||!ethers.isAddress(candidate.unsignedTransaction.from))throw Error('MAINNET_QUOTE_CANDIDATE_INVALID');
+ if(quantity(await rpc('eth_chainId',[]))!==5042n)throw Error('MAINNET_QUOTE_CHAIN_MISMATCH');
  const {from,data}=candidate.unsignedTransaction;
  const block=await rpc('eth_getBlockByNumber',['latest',false]);
  if(!block||!ethers.isHexString(block.hash,32)||!block.number||Math.abs(Date.now()/1000-Number(quantity(block.timestamp)))>120)throw Error('MAINNET_QUOTE_BLOCK_UNAVAILABLE_OR_STALE');

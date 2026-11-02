@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "scope": "CONTRACT_DEPLOYMENT_ONLY",
+  "releaseStatus": "SUPERSEDED",
   "environment": "arc-mainnet",
   "chainId": 5042,
   "protocolVersion": 2,
@@ -13,7 +14,8 @@
   "securityAuthoritySafeVerified": false,
   "runtimeActivationAuthorized": false,
   "notes": [
-    "User selected contract deployment and Arc Studio preview first; production application setup is deferred.",
+    "Historical constructor draft. On 2 November 2026 the user replaced the contract/Studio-first approach with sequential production readiness.",
+    "Retain these public addresses as history; finalize signer, operator and Safe assignments before constructing another release transaction.",
     "Initial owner/signer/operator share the user-provided address. Security authority is a different user-provided address.",
     "These are constructor assignments only, not a verified production runtime manifest or permission to sign/broadcast.",
     "Before application activation, rotate roles and configure/verify the Safe required by the existing Mainnet guard."

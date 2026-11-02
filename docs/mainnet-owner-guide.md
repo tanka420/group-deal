@@ -1,6 +1,6 @@
 # Các quyết định chủ dự án cần chuẩn bị trước Mainnet
 
-Cập nhật 02/11/2026. Người dùng đã chọn V2; các bước tiếp theo còn cần địa chỉ và cấu hình thực tế. Tài liệu giải thích các mục trong checklist; không cấp quyền ký, nạp tiền, thêm thẻ hoặc deploy.
+Cập nhật 02/11/2026. Người dùng đã chọn V2 và yêu cầu quay lại hoàn thiện Mainnet tuần tự. Trình tự hiện hành nằm ở đầu `docs/mainnet-checklist.md`; phương án deploy contract/Studio trước đã thành lịch sử. Tài liệu giải thích các mục trong checklist; không cấp quyền ký, nạp tiền, thêm thẻ hoặc deploy.
 
 ## Circle production và thanh toán
 
@@ -71,7 +71,7 @@ Ví chính có thể làm nguồn cấp USDC hoặc một owner Safe do anh tự
 ## Đầu vào còn cần
 
 - V2 đã được chọn. Chính sách early rebate được chốt khi tạo campaign; chưa tự bật hoặc tạo campaign.
-- Đã nhận đủ hai địa chỉ cho phạm vi deploy contract trước: ví đầu là owner/signer/operator, ví thứ hai là securityAuthority. Việc tách role và Safe được để sau, trước activation ứng dụng production; không cần sửa V2 để encode constructor này.
+- Đã nhận hai địa chỉ và người dùng xác nhận giữ quyền ký cả hai; đã chọn Safe 2/2 với chính hai ví này làm owners. Manifest chuẩn bị ghi ví đầu làm owner/deployer, ví thứ hai làm operator; signer mới riêng cho backend còn thiếu, địa chỉ Safe chưa deploy. Cần địa chỉ signer tiếp theo; không gửi khóa trong chat. Runtime vẫn UNDEPLOYED.
 - Trạng thái Circle Mainnet, App ID production, Reown project/origin; chủ tài khoản tự xử lý Billing/xét duyệt và cấu hình secret an toàn.
 - Trần chi phí được duyệt sau estimate, người giữ ví funding và người ký từng transaction.
 - Nguồn indexer token Mainnet dùng được từ server: endpoint công khai explorer hiện trả HTTP 403/trang xác minh trên cả máy local và VPS. Mã tự tìm token đã có phân trang và fallback nhập contract; chưa thể nghiệm thu tự liệt kê đầy đủ trên dữ liệu Mainnet thật.

@@ -1,5 +1,7 @@
 # GroupDeal: contract deployment and Arc Studio preview first
 
+**Historical handoff, superseded on 2 November 2026.** The user now wants sequential production readiness. Follow the current order at the top of `docs/mainnet-checklist.md`. Do not treat the constructor-only plan or this Studio prompt as the current deployment priority or permission to publish/deploy.
+
 Updated 2 November 2026 (Vietnam time). This phase prepares the V2 contract deployment and a shareable app preview. Production backend, Circle server credentials, role separation, Safe, database and VPS/domain activation follow later.
 
 ## Source for Arc Studio
