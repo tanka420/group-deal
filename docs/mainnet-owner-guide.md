@@ -1,6 +1,6 @@
 # Các quyết định chủ dự án cần chuẩn bị trước Mainnet
 
-Cập nhật 29/10/2026. Tài liệu giải thích các mục trong checklist; không cấp quyền ký, nạp tiền, thêm thẻ hoặc deploy.
+Cập nhật 02/11/2026. Người dùng đã chọn V2; các bước tiếp theo còn cần địa chỉ và cấu hình thực tế. Tài liệu giải thích các mục trong checklist; không cấp quyền ký, nạp tiền, thêm thẻ hoặc deploy.
 
 ## Circle production và thanh toán
 
@@ -11,6 +11,15 @@ Theo [FAQ Circle Wallets](https://help.circle.com/support/en/circle-wallets-faqs
 [Biểu phí Circle](https://help.circle.com/support/en/developer-services-product-fee-schedule?id=kb_article_view&sysparm_article=KB0010546) công bố 1.000 monthly active wallets đầu miễn phí mỗi tháng. Bậc 1.001–5.000 có giá $0,038/ví cho Signing API Only hoặc $0,050/ví cho All Included, theo gói/mạng thực tế được cấp cho tài khoản. MAW tính theo địa chỉ ví có hoạt động đủ điều kiện, gồm tạo ví, gửi/nhận hoặc ký; không đồng nghĩa số người mở trang. Tài khoản có điều khoản riêng có thể có mức khác.
 
 Thẻ ở mục Billing dùng thanh toán dịch vụ phát sinh; không phải tự động mua USDC cho người dùng. Phí Circle Wallets được tính theo sử dụng và lập hóa đơn; không nên hiểu thêm thẻ là toàn bộ dịch vụ và gas sẽ miễn phí. Kiểm tra mức phí/điều khoản thể hiện trong Console trước khi lưu. Nếu bật Gas Station, đây là dịch vụ trả gas thay người dùng: biểu phí hiện công bố gas thực tế cộng 5% phí nền tảng và thuế áp dụng. Chưa có phạm vi bật tài trợ gas trong đợt này.
+
+## Các bước cấu hình Circle Mainnet
+
+1. Đăng nhập [Circle Console](https://console.circle.com/) bằng tài khoản Administrator. Yêu cầu mở Mainnet và hoàn thành Billing/xét duyệt đang hiển thị; chờ trạng thái được cấp Mainnet theo [FAQ Wallets](https://help.circle.com/support/en/circle-wallets-faqs?id=kb_article_view&sysparm_article=KB0010611).
+2. Trong môi trường Mainnet: `Wallets → User Controlled → Configurator → Authentication Methods → Email`. Cấu hình địa chỉ gửi và SMTP production của anh; dùng thông tin gửi mail thật, rồi sao chép App ID tại Configurator. [Tài liệu cấu hình Email OTP](https://developers.circle.com/wallets/user-controlled/build-a-wallet-app).
+3. Tạo API key khi đang ở Mainnet theo đường dẫn tài liệu: `Keys → Create a key → API key → Standard Key`. Key được giữ riêng để cấu hình backend Mainnet; App ID dùng cho frontend. Ứng dụng đã chọn mã mạng `ARC` theo manifest.
+4. Gửi App ID công khai và trạng thái Mainnet/SMTP. Không gửi API key, mật khẩu SMTP, OTP hoặc thông tin thẻ trong chat. Những secret được nhập riêng vào cấu hình dịch vụ đúng môi trường.
+
+Email OTP của Circle cần SMTP được cấu hình trong Circle; SMTP thông báo của backend GroupDeal là cấu hình riêng. [Mô tả cơ chế xác thực](https://developers.circle.com/wallets/user-controlled/authentication-methods).
 
 ## Hạn mức deploy/gas
 
@@ -45,7 +54,7 @@ Ví chính có thể làm nguồn cấp USDC hoặc một owner Safe do anh tự
 
 ## Đầu vào còn cần
 
-- Chọn V1/V2 và chốt có bật early rebate ngay không.
+- V2 đã được chọn. Chính sách early rebate được chốt khi tạo campaign; chưa tự bật hoặc tạo campaign.
 - Địa chỉ deployer/owner, authorization signer, operator; địa chỉ Safe đã có trên Arc hoặc danh sách owners và threshold để chuẩn bị tạo Safe.
 - Trạng thái Circle Mainnet, App ID production, Reown project/origin; chủ tài khoản tự xử lý Billing/xét duyệt và cấu hình secret an toàn.
 - Trần chi phí được duyệt sau estimate, người giữ ví funding và người ký từng transaction.

@@ -24,7 +24,7 @@ import {bridgeRouter} from '../src/routes/bridgeRoutes';
 async function main(){
  assert.equal(ARC_CHAIN_ID,5042);assert.equal(ARC_CIRCLE_BLOCKCHAIN,'ARC');assert.equal(ARC_KIT_CHAIN,'Arc');
  assert.equal(config.arcChainId,5042);assert.equal(config.environment,'arc-mainnet');assert.match(config.runtimeDataDirectory,/data[\\/]arc-mainnet$/);
- assert.equal(config.hubAddress,'');assert.equal(config.protocolVersion,0);assert.equal(ARC_NETWORK.deploymentStatus,'UNDEPLOYED');
+ assert.equal(config.hubAddress,'');assert.equal(config.protocolVersion,2);assert.equal(ARC_NETWORK.protocolVersion,2);assert.equal(ARC_NETWORK.deploymentStatus,'UNDEPLOYED');
  assert.throws(()=>assertDeploymentConfigured(),/MAINNET_DEPLOYMENT_NOT_CONFIGURED/);
  assert.throws(()=>validateRuntimeSecurity(),/MAINNET_DEPLOYMENT_NOT_CONFIGURED/);
  const hadMainnetDirectory=fs.existsSync(config.runtimeDataDirectory);

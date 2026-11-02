@@ -3,7 +3,7 @@
   "networkName": "Arc Mainnet",
   "chainId": 5042,
   "chainIdHex": "0x13b2",
-  "protocolVersion": null,
+  "protocolVersion": 2,
   "deploymentStatus": "UNDEPLOYED",
   "rpc": {
     "primary": "https://rpc.mainnet.arc.io",

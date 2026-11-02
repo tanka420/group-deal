@@ -5,7 +5,7 @@ test.skip(process.env.VITE_APP_ENV!=='arc-mainnet','Mainnet bundle fixture only'
 test.beforeEach(async({page})=>{
  await page.route('https://**',route=>route.abort());
  await page.route('**/api/**',route=>route.fulfill({json:{notifications:[],unread:0}}));
- await page.route('**/api/health',route=>route.fulfill({json:{status:'OK',chainId:5042,protocolVersion:0,hubAddress:'',usdcAddress:'0x3600000000000000000000000000000000000000'}}));
+ await page.route('**/api/health',route=>route.fulfill({json:{status:'OK',chainId:5042,protocolVersion:2,hubAddress:'',usdcAddress:'0x3600000000000000000000000000000000000000'}}));
  await page.route('**/api/v1/catalog?**',route=>route.fulfill({json:{...emptyCatalog(route.request().url()),chainId:5042}}));
 });
 

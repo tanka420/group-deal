@@ -1,10 +1,10 @@
 # Chuẩn bị GroupDeal Arc Mainnet
 
-Cập nhật: 29/10/2026, giờ Việt Nam.
+Cập nhật: 02/11/2026, giờ Việt Nam.
 
 ## Trạng thái
 
-Đã chuyển mã nguồn sang chọn mạng thống nhất và thêm bản chuẩn bị Arc Mainnet. **Chưa sẵn sàng nhận tiền thật.** Manifest Mainnet vẫn `UNDEPLOYED`, `protocolVersion: null`, Hub và các role để trống. Startup và các đường gửi giao dịch từ frontend từ chối cấu hình này trước khi mở dịch vụ hoặc yêu cầu ví ký.
+Đã chuyển mã nguồn sang chọn mạng thống nhất và thêm bản chuẩn bị Arc Mainnet. Người dùng đã chọn **V2** ngày 02/11/2026. **Chưa sẵn sàng nhận tiền thật.** Manifest Mainnet vẫn `UNDEPLOYED`, `protocolVersion: 2`, Hub và các role để trống. Startup và các đường gửi giao dịch từ frontend từ chối cấu hình này trước khi mở dịch vụ hoặc yêu cầu ví ký.
 
 | Mục | Giá trị |
 |---|---|
@@ -50,14 +50,14 @@ npm run prepare:mainnet
 
 `build:mainnet` dùng môi trường được lọc, build production frontend với `VITE_APP_ENV=arc-mainnet`, để trống Circle/Reown và ghi inventory hash riêng cho frontend/backend trong `.cache/mainnet-build/<run>/BUILD.json`. Đây là build chuẩn bị, chưa phải artifact được phép activation. `prepare:mainnet` không có provider, ví, ký hoặc broadcast; kiểm compiler/source còn khớp trước khi xuất `.cache/mainnet-preparation/<sourceFingerprint>/UNSIGNED_REVIEW.json`. Các output này không đưa vào Git.
 
-Gói hiện gồm hai **đề xuất**, chưa chọn một bản để phát hành:
+Gói giữ cả hai artifact để đối chiếu lịch sử; **GroupDealHubV2 được chọn cho Mainnet**. V1 không được chọn cho đợt phát hành này và Testnet tiếp tục giữ deployment V1:
 
 | Contract | Creation bytecode keccak256 |
 |---|---|
 | GroupDealHub V1 | `0x3a1582e949fb7f89c882c24f25d8b0a44f4be01311529ddf5f9cde0a5e1e7d69` |
 | GroupDealHubV2 | `0xbd48ca6dae806508c5afcc426bf802f100a1f7409ae167029578dd777da6bdd5` |
 
-Compiler `0.8.24`, Cancun, viaIR, optimizer 200. Runtime trong gói là **template có immutable**, không phải runtime hash đã deploy. Constructor là `(USDC, authorizedSigner, operator, securityAuthority)`, owner là `msg.sender`. Chưa có địa chỉ được chốt nên `from/data/nonce/gas/fee` còn `null`, trạng thái `NOT_CONSTRUCTED_AWAITING_VERSION_AND_AUTHORITY_ADDRESSES`. Không trình template này như một giao dịch đã sẵn sàng ký. Sau M01/M03 phải encode transaction cụ thể và lấy nonce/phí mới trước khi xin M04/M06.
+Compiler `0.8.24`, Cancun, viaIR, optimizer 200. Runtime trong gói là **template có immutable**, không phải runtime hash đã deploy. Constructor là `(USDC, authorizedSigner, operator, securityAuthority)`, owner là `msg.sender`. Chưa có địa chỉ được chốt nên `from/data/nonce/gas/fee` còn `null`; V2 có trạng thái `NOT_CONSTRUCTED_AWAITING_AUTHORITY_ADDRESSES`. Không trình template này như một giao dịch đã sẵn sàng ký. Sau M03 phải encode transaction cụ thể và lấy nonce/phí mới trước khi xin M04/M06.
 
 ## Kiểm chứng ngày 28/10/2026
 
@@ -84,7 +84,7 @@ Không ghi API key, seed phrase, private key, OTP, session hoặc entitlement v�
 
 | ID | Nội dung cần chốt/thực hiện | Người/quyền cần có | Đầu ra | Trạng thái |
 |---|---|---|---|---|
-| M01 | Chọn contract V1/V2, rebate và phạm vi Mainnet đầu tiên; duyệt đề xuất USDC trực tiếp | Chủ sản phẩm, reviewer contract | Version, phạm vi và tiêu chí nghiệm thu | **Cần chốt**; chưa tự chọn V2 |
+| M01 | Chọn contract, rebate và phạm vi Mainnet đầu tiên | Chủ sản phẩm, reviewer contract | Version, phạm vi và tiêu chí nghiệm thu | **V2 đã chốt 02/11/2026**; thanh toán USDC, swap Mainnet để sau. Chưa tạo campaign hoặc tự bật early rebate. |
 | M02 | Circle production, email, frontend app ID và Reown project/origin; chứng minh auth/challenge/transaction theo `ARC` | Chủ Circle/Reown/email | Tham chiếu cấu hình không secret, kết quả dịch vụ thật | Chưa thực hiện |
 | M03 | Owner/deployer, authorization signer, operator và Security Safe độc lập; xác minh quyền, Safe owners/threshold/version/runtime hash | Người giữ khóa, owners Safe | Địa chỉ công khai và chính sách; không gửi khóa cho agent | **Cần địa chỉ/chính sách**; không kế thừa role Testnet |
 | M04 | Ngân sách deploy/gas/giao dịch thử, ví funding và nguồn USDC thật | Chủ ngân sách, ví funding | Hạn mức, người nhận và nguồn đã xác minh | Chưa xin chi tiền |
@@ -123,3 +123,12 @@ Subdomain Testnet đã deploy thành công bằng commit vận hành `31ae9920db
 | Xem hai artifact trong Chrome với API/session giả lập và chặn kết nối ngoài local | Hai commit ở trên | PASS: ba trang chưa đăng nhập chỉ có section đăng nhập; câu bảo mật cuối popup giữ nguyên; mobile 390px không tràn ngang; cả hai có nền lưới. Testnet vẫn có nút Hoán đổi và EURC/cirBTC; Mainnet không có nút Hoán đổi hay nội dung Testnet. |
 
 Đã push cả `codex/mainnet` và `codex/arc-candidate` lên origin. Không chạy full CI hoặc live acceptance. Các cảnh báo chunk/bundler trong build được giữ trong log local. Hai lượt xem artifact ban đầu gặp lỗi selector và dữ liệu fixture trình duyệt còn lại; đã sửa script xem và xác nhận lại bằng phiên Chrome mới, không sửa dữ liệu hay tài khoản live.
+
+## Quyết định ngày 02/11/2026
+
+- Người dùng chọn V2 và đồng ý trình tự chuẩn bị estimate, ký deployment, triển khai VPS và xác nhận sau deploy khi đủ đầu vào. Manifest đã chọn `protocolVersion: 2`, giữ nguyên `UNDEPLOYED`, Hub/receipt/hash/role/Safe còn trống.
+- Gói offline đánh dấu riêng GroupDealHubV2 là `selectedForRelease`; V1 vẫn giữ để đối chiếu, không chọn cho Mainnet. Không sửa contract hoặc deployment Testnet.
+- Chưa có địa chỉ owner/deployer, signer, operator, Safe owners/threshold và cấu hình production. Chưa thể encode giao dịch cụ thể hoặc lấy estimate đúng sender/constructor. Chưa ký, funding, tạo Safe, broadcast hay activation VPS.
+- Các build/preview ngày 29/10 là artifact lịch sử trước quyết định V2; không gán chúng thành bản release sau khi sửa manifest. Cần build lại exact commit khi đã đủ cấu hình production.
+- Bước người dùng đang thực hiện: bật Mainnet trong Circle Console, cấu hình Email OTP/SMTP, lấy App ID và tạo API key Mainnet; hướng dẫn trong `docs/mainnet-owner-guide.md`.
+- Kiểm tra thay đổi chọn V2: cú pháp script offline PASS; fixture Mainnet PASS, gồm từ chối startup khi `UNDEPLOYED` và không tạo database runtime; frontend TypeScript PASS. Không chạy lại full CI hoặc giao dịch live.
