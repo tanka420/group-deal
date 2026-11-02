@@ -29,6 +29,8 @@ Email OTP của Circle cần SMTP được cấu hình trong Circle; SMTP thông
 - Hai ID được lưu tại `shared/mainnet-public.json`, dùng mặc định chỉ trong môi trường Mainnet khi build trực tiếp từ GitHub. Giá trị `VITE_CIRCLE_APP_ID`/`VITE_REOWN_PROJECT_ID` được truyền tường minh sẽ ghi đè, kể cả giá trị rỗng để fixture tắt provider. `build:mainnet` dùng ID công khai này và kiểm tra chúng có trong artifact.
 - API key Circle Mainnet chưa được nhập vào backend. Nhập riêng qua cấu hình dịch vụ bảo mật; không gửi key hoặc mật khẩu SMTP trong chat/Git. Reown cần cho phép origin `https://groupdeal.tech`; khả năng đăng nhập ví thực tế vẫn cần xác minh sau khi cấu hình đầy đủ.
 
+Người dùng đã xác nhận có API key Mainnet và khóa signer riêng. Hướng dẫn nhập ẩn, lưu kho mã hóa local và kiểm tra không lộ giá trị ở `docs/mainnet-secret-setup.md`. Đây là staging local, chưa phải cấu hình backend trên VPS hoặc kiểm chứng auth Circle live.
+
 ## Hạn mức deploy/gas
 
 Deploy là đưa bytecode contract lên Arc. Tạo Safe, deploy Hub và thay đổi cấu hình trên chain đều có thể phát sinh gas. [Arc dùng USDC để trả gas](https://docs.arc.io/arc/references/gas-and-fees), cùng tài sản USDC có giao diện ERC-20; không cộng hai cách biểu diễn thành hai số dư.
