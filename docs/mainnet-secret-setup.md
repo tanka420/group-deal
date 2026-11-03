@@ -31,6 +31,26 @@ Chỉ đọc metadata tại `.cache/mainnet-secret-input/<run>/STATUS.json` đ�
 
 SMTP Email OTP trong Circle khác SMTP thông báo của backend. Các đầu vào SMTP backend, Safe/Hub thật, manifest, backup/monitoring và nghiệm thu live vẫn phải hoàn tất theo checklist.
 
+## Kiểm tra Circle bằng GET và nhập SMTP
+
+Ngày 03/11 đã xác minh kho local thật: signer khớp, app secrets hiện diện, verify-only không làm đổi vault. Để kiểm quyền đọc cấu hình Circle và App ID đúng với bản Mainnet:
+
+```powershell
+powershell.exe -NoLogo -NoProfile -File E:\apps\group-deal-mainnet\scripts\initialize_mainnet_secrets.ps1 -VerifyOnly -CheckCircle
+```
+
+Chế độ này chỉ gửi Circle API key tới GET cố định `https://api.circle.com/v1/w3s/config/entity`, không gửi khóa signer ra ngoài. Full key phải có prefix `LIVE_API_KEY` theo [Circle](https://developers.circle.com/api-reference/keys). HTTP 200/App ID khớp là bằng chứng quyền đọc cấu hình; không chứng minh OTP hoặc giao dịch ví Arc đã hoạt động. Không tạo entity secret/user/wallet/subscription.
+
+Người dùng chọn dùng cùng tài khoản SMTP như trong Circle. Nhập cấu hình riêng của backend bằng:
+
+```powershell
+powershell.exe -NoLogo -NoProfile -File E:\apps\group-deal-mainnet\scripts\configure_mainnet_smtp.ps1
+```
+
+Nhập hostname, port 465 hoặc 587 (mặc định 587), username, email gửi (để trống dùng username) và mật khẩu ẩn. Dùng đúng thông tin provider đã cấu hình trong Circle. Cửa sổ chỉ kiểm kết nối TLS và đăng nhập qua Nodemailer `verify()`, không gửi email; TLS/certificate verification được giữ. Theo [Nodemailer](https://nodemailer.com/smtp), việc verify không đảm bảo server sẽ chấp nhận email gửi bằng địa chỉ From đã chọn.
+
+SMTP lưu mã hóa riêng ở `.cache/mainnet-private/smtp.dpapi.json`; kho `secrets.dpapi.json` không thay đổi. Có vault sẵn thì chỉ xác minh, không ghi đè. `configure_mainnet_smtp.ps1 -VerifyOnly` chỉ kiểm format local, không kết nối server. Metadata nằm tại `.cache/mainnet-smtp-input/<run>/STATUS.json`; không in password hoặc nội dung vault. Các test SMTP dùng transport mock, chưa phải bằng chứng email thật đã gửi/nhận.
+
 ## Kiểm chứng công cụ
 
 ```text

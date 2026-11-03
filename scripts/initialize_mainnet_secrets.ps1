@@ -1,4 +1,4 @@
-param([switch]$VerifyOnly,[string]$ReportDirectory='')
+param([switch]$VerifyOnly,[switch]$CheckCircle,[string]$ReportDirectory='')
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 Add-Type -AssemblyName System.Security
@@ -54,6 +54,22 @@ function Check-Secrets{
   return @{result='PASS';signerAddress=$expectedSigner}
  }finally{$child.Dispose()}
 }
+function Check-CircleCredential{
+ $start=New-Object Diagnostics.ProcessStartInfo;$start.FileName=$script:nodeExe;$start.Arguments='"'+(Join-Path $PSScriptRoot 'check_mainnet_providers.cjs')+'"'
+ $start.WorkingDirectory=$taskRoot;$start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardInput=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
+ $child=New-Object Diagnostics.Process;$child.StartInfo=$start
+ try{
+  [void]$child.Start();$child.StandardInput.Write($serializer.Serialize(@{provider='circle';circleApiKey=$script:secretPayload['secrets']['CIRCLE_API_KEY']}));$child.StandardInput.Close()
+  $publicOutput=$child.StandardOutput.ReadToEnd();[void]$child.StandardError.ReadToEnd();$child.WaitForExit()
+  if($publicOutput.Length -gt 4096){throw 'CIRCLE_PROBE_FAILED'};$checked=$serializer.DeserializeObject($publicOutput)
+  if($child.ExitCode -ne 0 -or $checked['result'] -ne 'PASS'){
+   $safeCodes=@('CIRCLE_MAINNET_KEY_FORMAT_INVALID','CIRCLE_AUTHENTICATION_FAILED','CIRCLE_CONFIG_READ_UNAVAILABLE','CIRCLE_CONFIG_RESPONSE_INVALID','CIRCLE_APP_ID_MISMATCH','CIRCLE_READONLY_REQUEST_FAILED','CIRCLE_TLS_VALIDATION_DISABLED')
+   $code=if($safeCodes -contains $checked['code']){$checked['code']}else{'CIRCLE_PROBE_FAILED'};throw $code
+  }
+  if($checked['httpStatus'] -ne 200 -or $checked['circleCredentialVerified'] -ne $true -or $checked['circleAppIdMatches'] -ne $true){throw 'CIRCLE_PROBE_FAILED'}
+  return $true
+ }finally{$child.Dispose()}
+}
 try{
  $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
  if($identity.Name -match 'CodexSandbox'){throw 'RUN_AS_YOUR_WINDOWS_ACCOUNT'}
@@ -81,7 +97,7 @@ try{
  Write-Status @{result='WAITING_FOR_OWNER_INPUT';expectedSigner=$expectedSigner;sourceCommit=$sourceCommit}
  Write-Host 'GroupDeal Arc Mainnet - LOCAL SECRET SETUP' -ForegroundColor Cyan
  Write-Host ('Expected signer: '+$expectedSigner)
- Write-Host 'No network calls, signatures, deployment, billing or VPS changes.'
+ if($CheckCircle){Write-Host 'Only GET https://api.circle.com/v1/w3s/config/entity. No wallet/OTP creation or transactions.'}else{Write-Host 'No network calls, signatures, deployment, billing or VPS changes.'}
  Write-Host 'Input is hidden. Paste keys only in this window, never in chat.'
  if(Test-Path -LiteralPath $vaultPath){
   if((Get-Item -LiteralPath $vaultPath).Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'MAINNET_PRIVATE_PATH_REPARSE_POINT'}
@@ -126,14 +142,16 @@ try{
   if($secretPayload['secrets'][$name] -notmatch '^[a-f0-9]{64}$'){throw 'LOCAL_APP_SECRET_INVALID'}
  }
  if($secretPayload['secrets']['MASTER_ENCRYPTION_KEY_ID'] -ne 'mainnet-v1'){throw 'LOCAL_APP_SECRET_INVALID'}
- Write-Status @{result='LOCAL_SECRETS_STAGED';sourceCommit=$sourceCommit;signerAddress=$validation['signerAddress'];signerMatchesManifest=$true;circleKeyPresent=$true;appSecretsPresent=$true;protection='Windows-DPAPI-CurrentUser';productionRuntimeConfigured=$false}
+ $circleVerified=$false
+ if($CheckCircle){$setupPhase='CIRCLE_READONLY_AUTH_CHECK';$circleVerified=Check-CircleCredential}
+ Write-Status @{result='LOCAL_SECRETS_STAGED';sourceCommit=$sourceCommit;signerAddress=$validation['signerAddress'];signerMatchesManifest=$true;circleKeyPresent=$true;appSecretsPresent=$true;protection='Windows-DPAPI-CurrentUser';productionRuntimeConfigured=$false;circleCredentialVerified=$circleVerified;circleAppIdMatches=$circleVerified;otpVerified=$false}
  Write-Host 'PASS: signer matches; encrypted local vault saved/verified.' -ForegroundColor Green
- Write-Host 'Circle key authentication and production runtime remain unverified.'
+ if($circleVerified){Write-Host 'PASS: Circle accepted the LIVE key for configuration read; App ID matches. OTP/Arc transactions remain unverified.'}else{Write-Host 'Circle key authentication and production runtime remain unverified.'}
  Write-Host ('Public status: '+$statusPath)
  $setupSucceeded=$true
 }catch{
  # Do not print exceptions, inputs, stack traces, or child stderr (they may contain secrets).
- $knownCodes=@('CIRCLE_KEY_FORMAT_INVALID_OR_TEST_KEY','SIGNER_KEY_FORMAT_INVALID','SIGNER_ADDRESS_MISMATCH','SIGNER_ROLE_COLLISION','SECRET_INPUT_INVALID','EXPECTED_MAINNET_SIGNER_MISSING','SECRET_INPUT_UNREADABLE','SECRET_VALIDATION_FAILED','SECRET_VALIDATOR_OUTPUT_INVALID','RUN_AS_YOUR_WINDOWS_ACCOUNT','MAINNET_PRIVATE_PATH_REPARSE_POINT','MAINNET_SOURCE_COMMIT_INVALID','MAINNET_MANIFEST_INVALID','MAINNET_LOCAL_TOOL_MISSING','LOCAL_VAULT_INVALID','LOCAL_VAULT_CONTEXT_MISMATCH','LOCAL_VAULT_NOT_CREATED','LOCAL_APP_SECRET_INVALID')
+ $knownCodes=@('CIRCLE_KEY_FORMAT_INVALID_OR_TEST_KEY','SIGNER_KEY_FORMAT_INVALID','SIGNER_ADDRESS_MISMATCH','SIGNER_ROLE_COLLISION','SECRET_INPUT_INVALID','EXPECTED_MAINNET_SIGNER_MISSING','SECRET_INPUT_UNREADABLE','SECRET_VALIDATION_FAILED','SECRET_VALIDATOR_OUTPUT_INVALID','RUN_AS_YOUR_WINDOWS_ACCOUNT','MAINNET_PRIVATE_PATH_REPARSE_POINT','MAINNET_SOURCE_COMMIT_INVALID','MAINNET_MANIFEST_INVALID','MAINNET_LOCAL_TOOL_MISSING','LOCAL_VAULT_INVALID','LOCAL_VAULT_CONTEXT_MISMATCH','LOCAL_VAULT_NOT_CREATED','LOCAL_APP_SECRET_INVALID','CIRCLE_MAINNET_KEY_FORMAT_INVALID','CIRCLE_AUTHENTICATION_FAILED','CIRCLE_CONFIG_READ_UNAVAILABLE','CIRCLE_CONFIG_RESPONSE_INVALID','CIRCLE_APP_ID_MISMATCH','CIRCLE_READONLY_REQUEST_FAILED','CIRCLE_TLS_VALIDATION_DISABLED','CIRCLE_PROBE_FAILED')
  $safeCode=if($knownCodes -contains $_.Exception.Message){$_.Exception.Message}else{'LOCAL_SECRET_SETUP_FAILED'}
  if(Test-Path -LiteralPath $taskReportDirectory){Write-Status @{result='FAIL';code=$safeCode;phase=$setupPhase;errorType=$_.Exception.GetType().FullName;errorLine=$_.InvocationInfo.ScriptLineNumber}}
  Write-Host ('Setup stopped: '+$safeCode) -ForegroundColor Red

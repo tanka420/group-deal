@@ -1,6 +1,6 @@
 # Chuẩn bị GroupDeal Arc Mainnet
 
-Cập nhật: 02/11/2026, giờ Việt Nam.
+Cập nhật: 03/11/2026, giờ Việt Nam.
 
 ## Trình tự đang áp dụng
 
@@ -9,7 +9,7 @@ Người dùng đã dừng hướng deploy contract/Studio trước và yêu c�
 | Bước | Đầu ra cần hoàn tất | Trạng thái hiện tại |
 |---|---|---|
 | 1. Chốt phạm vi, ví và quyền | V2/USDC; owner, signer riêng, operator, Safe owners/threshold và cách giữ khóa | **ĐÃ CHỐT PHÂN VAI**: đủ ba địa chỉ riêng và Safe 2/2. Người dùng xác nhận giữ quyền ký hai owners (USER_REPORTED, chưa phải chữ ký chứng minh quyền). Deployment/readback Safe thực hiện ở bước 4, chưa đánh dấu đã tạo. |
-| 2. Hoàn thiện mã và cấu hình | Frontend/backend đúng Mainnet, production config/secret tách riêng, nguồn token và các lỗi còn lại được xử lý hoặc ghi ngoại lệ | **ĐANG LÀM**. Người dùng xác nhận đã có hai key; công cụ nhập ẩn và kho mã hóa local đã chuẩn bị, chưa coi là đã nhập/xác minh key thật. Mẫu env đã điền operator/origin và NODE_ENV production. Còn credential runtime, SMTP backend, origin/auth thật, indexer và cấu hình dịch vụ. |
+| 2. Hoàn thiện mã và cấu hình | Frontend/backend đúng Mainnet, production config/secret tách riêng, nguồn token và các lỗi còn lại được xử lý hoặc ghi ngoại lệ | **ĐANG LÀM**. 03/11 đã nhập/xác minh lại kho local: signer khớp, Circle key và app secrets hiện diện, vault không đổi. Chưa đồng nghĩa credential runtime đã hoạt động. Người dùng chọn cùng tài khoản SMTP như Circle; công cụ SMTP và Circle read-only probe đã chuẩn bị. Còn SMTP thật, Circle readback, origin/auth, indexer và cấu hình dịch vụ. |
 | 3. Kiểm và đóng bản phát hành | Kiểm tra đúng scope, build exact commit đã push, inventory riêng frontend/backend; ghi rõ FAIL/SKIP/NOT_RUN còn lại | Chỉ có kết quả lịch sử; không tự nâng thành PASS cho bản tương lai. Không tự mở lại toàn bộ test mà người dùng đã bỏ qua. |
 | 4. Deploy và xác minh contract | Safe phù hợp, constructor cuối cùng, quote mới/hạn mức cụ thể, chủ ví ký; finalized receipt/code/roles và link explorer thật | **NOT_RUN**. Chỉ làm sau khi chốt role/candidate. Contract-only plan cũ đã SUPERSEDED; không phát lại creation data/quote từ plan đó. |
 | 5. Triển khai ứng dụng | Manifest theo deployment thật; backend/DB/secret/backup/monitoring riêng, frontend/backend commit riêng; triển khai trên VPS theo phạm vi được duyệt | **NOT_RUN** cho bản Mainnet. Giữ Testnet và dữ liệu của nó riêng. |
@@ -17,7 +17,7 @@ Người dùng đã dừng hướng deploy contract/Studio trước và yêu c�
 
 Role trong manifest chuẩn bị: `0xe48B30eA70F77E5FA6311471c2E9687f8A701Ead` làm owner/deployer; `0x7477f3fd762e4DB846D5b17C656395B09Fb0f27c` làm operator; `0xc9691f85f149e71C4e1C14c6E6204128546Eef17` làm signer riêng cho backend; securityAuthority sẽ là địa chỉ Safe chưa deploy. Người dùng đã chọn **Safe 2/2** với hai ví đầu làm owners. Đã ghi đủ ba role EOA, danh sách owners và threshold vào manifest; giữ địa chỉ/version/hash Safe trống, trạng thái `UNDEPLOYED`. Safe 2/2 cần cả hai khóa ký. [Khái niệm owners/threshold của Safe](https://docs.safe.global/advanced/smart-account-concepts).
 
-Đã nhận địa chỉ signer và kiểm tra checksum/khác owner/operator; chưa nhận hoặc xác minh khóa signer. Signer ký giấy phép mua EIP-712 off-chain, không cần nạp gas để thực hiện chữ ký đó. Bước tiếp theo là chuẩn bị cấu hình production và kênh nhập Circle API key/khóa signer bảo mật; không gửi secret trong chat. Chưa xin funding/chữ ký deployment ở bước này.
+Đã nhận địa chỉ signer, kiểm tra khác owner/operator và xác minh khóa trong kho local khớp signer ngày 03/11. Giá trị khóa không đi qua chat hoặc Git. Signer ký giấy phép mua EIP-712 off-chain, không cần nạp gas để thực hiện chữ ký đó. Còn cấu hình credential vào runtime production ở bước phù hợp; chưa xin funding/chữ ký deployment ở bước này.
 
 Người dùng đã xác nhận có Circle Mainnet API key và khóa signer. Công cụ và hướng dẫn nhập trực tiếp trên máy: `docs/mainnet-secret-setup.md`. Chỉ đọc STATUS metadata để cập nhật tiến độ; không đọc/in secret hoặc plaintext vault vào tool output/chat. Việc người dùng nói có key không được ghi thành credential đã được cấu hình/xác thực.
 
@@ -202,3 +202,10 @@ Kiểm giới hạn khi đổi trình tự: cú pháp hai script **PASS**; V2 v�
 - **PASS**: 3 nhóm kiểm Node với fixture mới; parser PowerShell; fixture Windows kiểm toàn đường lưu/đọc DPAPI, ACL riêng, app secrets khác nhau, metadata không chứa secret, verify không đổi vault và context signer đổi bị chặn. Fixture không dùng key thật hoặc Testnet, không phải cấu hình production đã hoàn tất.
 - Trạng thái input thật được ghi sau khi người dùng nhập tại `.cache/mainnet-secret-input/<run>/STATUS.json`. Chưa có trạng thái `LOCAL_SECRETS_STAGED` thật tại thời điểm chuẩn bị công cụ; không nâng kết quả fixture thành PASS credential của người dùng. Chưa chạy build/full CI hoặc live auth trong lượt này.
 - Lần mở đầu tiên **FAIL trước input** do khác môi trường PowerShell độc lập (tool/module lookup); không phải kết quả kiểm key. Đã sửa bằng đường dẫn công cụ dự phòng, hash .NET và cập nhật DACL mà không đổi owner NTFS; lỗi chỉ xuất mã/phase/type/số dòng, cửa sổ lỗi tự đóng. Fixture đầy đủ chạy lại bằng **Windows PowerShell 5.1 độc lập PASS**, gồm DPAPI/ACL và không ghi đè. Không đổi ExecutionPolicy hoặc nới quyền thư mục private.
+
+### Xác minh local ngày 03/11 và cấu hình provider tiếp theo
+
+- **PASS local thật**: người dùng đã nhập hai key; STATUS `LOCAL_SECRETS_STAGED` từ source `90d6d213ca949750baa9ed6c68f9a2ac105a88d6`. Chạy `-VerifyOnly` lại thành công, signer `0xc9691f85f149e71C4e1C14c6E6204128546Eef17` khớp manifest, ba app secrets có mặt và encrypted vault không đổi. Metadata tại `.cache/mainnet-secret-input/verify-9f2c32b4-2ead-4cab-b139-6d8cfff0c8a7/STATUS.json`; không đọc/in giá trị vào chat. Backend chưa cấu hình/kích hoạt; Circle live auth vẫn chưa được suy từ kết quả này.
+- Người dùng chọn **dùng cùng tài khoản SMTP đã cấu hình Circle** cho thông báo backend. `configure_mainnet_smtp.ps1` nhập host/port/user/from/password (password ẩn), lưu SMTP ở kho DPAPI riêng `smtp.dpapi.json`; không đọc, xoay hoặc ghi đè kho Circle/signer/app secrets. Chỉ verify TLS/login; không gọi `sendMail`. Password không đưa vào argv/env/log/plaintext file.
+- `check_mainnet_providers.cjs` giữ hai thao tác: SMTP verify và duy nhất `GET https://api.circle.com/v1/w3s/config/entity` với redirect bị chặn, deadline/bộ đệm hữu hạn. Route GET/data.appId đã đối chiếu SDK Circle user-controlled 10.8.1 đang khóa. Probe yêu cầu full `LIVE_API_KEY`, so appId với `shared/mainnet-public.json`; không tạo user/wallet/OTP hoặc gửi giao dịch. `initialize_mainnet_secrets.ps1 -VerifyOnly -CheckCircle` chỉ xuất kết quả đã lọc. [Circle API keys](https://developers.circle.com/api-reference/keys).
+- **PASS fixture**: 4 nhóm Node kiểm strict TLS/no-send, lỗi chứa credential không bị echo, input sai bị chặn trước kết nối, fixed Circle GET/App ID, auth/transport/response lỗi. Fixture SMTP Windows PowerShell 5.1 độc lập kiểm nhập/mã hóa, không lộ password, main vault nguyên vẹn, verify-only không ghi đè; SMTP transport được mock, không phải auth thật. Kết quả SMTP/Circle thật chỉ ghi sau khi chạy tương ứng.

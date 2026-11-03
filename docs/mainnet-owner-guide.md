@@ -31,6 +31,8 @@ Email OTP của Circle cần SMTP được cấu hình trong Circle; SMTP thông
 
 Người dùng đã xác nhận có API key Mainnet và khóa signer riêng. Hướng dẫn nhập ẩn, lưu kho mã hóa local và kiểm tra không lộ giá trị ở `docs/mainnet-secret-setup.md`. Đây là staging local, chưa phải cấu hình backend trên VPS hoặc kiểm chứng auth Circle live.
 
+Ngày 03/11 đã nhập và verify-only lại: signer khớp manifest, Circle key và app secrets được lưu trong kho mã hóa local; vault không đổi. Người dùng chọn cùng tài khoản SMTP của Circle cho thông báo backend. Cấu hình SMTP được nhập vào kho riêng bằng công cụ trong hướng dẫn trên; không tự sao chép credential Testnet hoặc đọc mật khẩu từ Circle Console.
+
 ## Hạn mức deploy/gas
 
 Deploy là đưa bytecode contract lên Arc. Tạo Safe, deploy Hub và thay đổi cấu hình trên chain đều có thể phát sinh gas. [Arc dùng USDC để trả gas](https://docs.arc.io/arc/references/gas-and-fees), cùng tài sản USDC có giao diện ERC-20; không cộng hai cách biểu diễn thành hai số dư.
