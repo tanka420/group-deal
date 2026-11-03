@@ -1,4 +1,4 @@
-import {ARC_CHAIN_ID} from '../../shared/network.mjs';
+import {ARC_CHAIN_ID,ARC_IS_MAINNET} from '../../shared/network.mjs';
 import { WebhookService } from "./services/webhookService";
 import express from "express";
 import cors from "cors";
@@ -283,7 +283,7 @@ export async function startServer(fixture?:LocalStartupFixture) {
     const block=await provider.getBlockNumber();await IndexerService.syncThroughBlock(block);
     const report=await ReconciliationService.runReconciliation({fixedBlockNumber:block,customProvider:provider,projectionStore:store});
     if(report.status!=='HEALTHY'||!report.perOrderVerified||!report.coverageVerified||!report.onchainBalanceVerified||!report.conservationLawPassed||report.blockNumber!==block||report.projectionBlock!==block||(await provider.getBlock(block))?.hash?.toLowerCase()!==report.blockHash.toLowerCase())throw new Error('RECOVERY_APPLICATION_FRESH_RECONCILIATION_REQUIRED');
-  },listen:()=>new Promise((resolve,reject)=>{const server=localDevelopment?app.listen(config.port,'127.0.0.1'):app.listen(config.port);server.once('error',reject);server.once('listening',()=>{server.removeListener('error',reject);console.log('GroupDeal API listening on port',config.port,'chain',config.arcChainId);resolve(server);});}),startWorkers:()=>{
+  },listen:()=>new Promise((resolve,reject)=>{const server=localDevelopment||ARC_IS_MAINNET?app.listen(config.port,'127.0.0.1'):app.listen(config.port);server.once('error',reject);server.once('listening',()=>{server.removeListener('error',reject);console.log('GroupDeal API listening on port',config.port,'chain',config.arcChainId);resolve(server);});}),startWorkers:()=>{
     if(fixture?.startWorkers)return fixture.startWorkers();
     const stopReconciliation=ReconciliationService.startObservingCurrent();
     if(localDevelopment)return stopReconciliation;
