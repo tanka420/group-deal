@@ -37,7 +37,7 @@ Circle read-only probe đã thành công bằng LIVE key: API chấp nhận GET 
 
 SMTP backend đã qua kiểm tra TLS/login và lưu mã hóa riêng, không đổi core vault; chưa gửi email thật. Bước này không thay thế nghiệm thu OTP của Circle hoặc email thông báo đã đến người nhận.
 
-Danh sách token Mainnet dùng Universal Blockscout API (backend-only key); số dư được đọc lại từ Arc RPC. [Gói Free hiện có 100K credits/ngày, 5 request/giây, không cần thẻ](https://docs.blockscout.com/devs/blockscout-api). Đây là credits, không phải 100K lượt gọi: theo [bảng credits](https://docs.blockscout.com/devs/blockscout-api-responses-and-routes), endpoint không liệt kê riêng mặc định tốn 20 credits/lượt, hết hạn mức Free sẽ từ chối request đến lần reset. Không tự nâng gói hoặc thanh toán. Key đã gửi trong chat cần thu hồi rồi thay bằng key mới qua ô nhập ẩn theo `docs/mainnet-secret-setup.md`.
+Danh sách token Mainnet dùng Universal Blockscout API (backend-only key); số dư được đọc lại từ Arc RPC. [Gói Free hiện có 100K credits/ngày, 5 request/giây, không cần thẻ](https://docs.blockscout.com/devs/blockscout-api). Đây là credits, không phải 100K lượt gọi: theo [bảng credits](https://docs.blockscout.com/devs/blockscout-api-responses-and-routes), endpoint không liệt kê riêng mặc định tốn 20 credits/lượt, hết hạn mức Free sẽ từ chối request đến lần reset. Không tự nâng gói hoặc thanh toán. Ngày 03/11 người dùng xác nhận đã thu hồi key gửi chat và nhập key mới qua ô ẩn; GET token được chấp nhận và ba vault verify không đổi. Nghiệm thu danh sách nhiều trang/số dư ví thật chưa thực hiện.
 
 ## Hạn mức deploy/gas
 
