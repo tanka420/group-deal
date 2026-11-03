@@ -1,6 +1,6 @@
 # Tạo Safe Mainnet theo hạn mức đã duyệt
 
-Ngày 03/11/2026, chủ ví duyệt **ngân sách tối đa 0,02 USDC cho riêng một giao dịch tạo Safe 2/2**. Chưa duyệt ký hoặc gửi giao dịch. Scope công khai ở `config/mainnet-safe-budget.json`; không có private key, API key hoặc tài khoản Testnet trong công cụ này.
+Ngày 03/11/2026, chủ ví duyệt **ngân sách tối đa 0,02 USDC cho riêng một giao dịch tạo Safe 2/2**, sau đó duyệt riêng tạo đúng Safe trong gói đã review và tự phê duyệt bằng OKX/Rabby. Hai cờ ký/gửi đã được bật trong scope công khai `config/mainnet-safe-budget.json`; vẫn chờ thao tác trực tiếp của chủ ví, chưa có bằng chứng deployment. Không có private key, API key hoặc tài khoản Testnet trong công cụ này.
 
 ## Gói giao dịch
 

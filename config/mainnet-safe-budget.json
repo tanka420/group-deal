@@ -17,8 +17,9 @@
   "maximumGasCostUsdc": "0.02",
   "budgetApproved": true,
   "budgetApprovalSource": "User confirmation on 2026-11-03: maximum 0.02 USDC for Safe creation only",
-  "signingAuthorized": false,
-  "broadcastAuthorized": false,
+  "signingAuthorized": true,
+  "broadcastAuthorized": true,
+  "transactionApprovalSource": "User confirmation on 2026-11-03: create this Safe 2/2 on Arc 5042, owners/from/factory/dataHash pinned here, zero native value, maximum gas cost 0.02 USDC; owner approves in OKX/Rabby",
   "hubDeploymentAuthorized": false,
   "activationAuthorized": false
 }
