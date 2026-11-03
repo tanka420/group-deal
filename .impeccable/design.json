@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-03T16:14:50.625Z",
+  "generatedAt": "2026-11-03T16:34:08.819Z",
   "title": "Design System: GroupDeal Testnet Buyer Interface",
   "extensions": {
     "colorMeta": {
@@ -367,7 +367,7 @@
   ],
   "narrative": {
     "northStar": "The Clear Product Shelf",
-    "overview": "Give the product and buying decision room to be understood: real catalog items lead, with price, availability, delivery, and license details nearby. The shared buyer language is open and calm: white static surfaces, navy text, cobalt actions, fine dividers, and restrained status colors.\n\nBe Vietnam Pro supports English and Vietnamese. Catalog images come from product data and use a labeled fallback when unavailable. Seller and operator workspaces are outside this .storefront-app system. User refinements retain the supplied static marketplace banner, bordered rounded product cards, English as the first-visit default, a shared buyer content width and continuous pricing milestones. License and delivery details remain on the deal page, not in card disclosures.",
+    "overview": "Give the product and buying decision room to be understood: real catalog items lead, with price, availability, delivery, and license details nearby. The shared buyer language is open and calm: white static surfaces, navy text, cobalt actions, fine dividers, and restrained status colors.\n\nBe Vietnam Pro supports English and Vietnamese. Catalog images come from product data and use a labeled fallback when unavailable. Seller and operator workspaces are outside this .storefront-app system. User refinements retain the supplied static marketplace banner, bordered rounded product cards, English as the first-visit default, a shared buyer content width and continuous pricing milestones. License and delivery details remain on the deal page, not in card disclosures. The banner must show the complete supplied image at its original aspect ratio, with transparent HTML copy over its empty left side, never a separate information background.",
     "keyCharacteristics": [
       "Product-led hierarchy with current catalog content.",
       "Spacious white surfaces with navy text and cobalt actions.",

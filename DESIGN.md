@@ -23,7 +23,7 @@ colors:
   countdown-text: "#a42e40"
   countdown-surface: "#fff4f4"
 typography:
-  display: {fontFamily: "Be Vietnam Pro, system-ui, sans-serif", fontSize: "43px", fontWeight: 700, lineHeight: 1.1, letterSpacing: "-0.04em"}
+  display: {fontFamily: "Be Vietnam Pro, system-ui, sans-serif", fontSize: "36px", fontWeight: 700, lineHeight: 1.1, letterSpacing: "-0.04em"}
   headline: {fontFamily: "Be Vietnam Pro, system-ui, sans-serif", fontSize: "40px", fontWeight: 700, lineHeight: 1.2}
   title: {fontFamily: "Be Vietnam Pro, system-ui, sans-serif", fontSize: "20px", fontWeight: 600, lineHeight: 1.4, letterSpacing: "-0.025em"}
   body: {fontFamily: "Be Vietnam Pro, system-ui, sans-serif", fontSize: "14px", fontWeight: 400, lineHeight: 1.7}
@@ -70,7 +70,7 @@ Clear cobalt emphasizes actions and tier progress. Navy and slate carry informat
 **Display / Body:** Be Vietnam Pro (system-ui, sans-serif fallback).
 
 ### Hierarchy
-- **Display** (700): the supplied-image home banner uses 43px desktop, 36px at intermediate widths, and 34px on phones.
+- **Display** (700): banner overlay copy scales from 36px desktop to compact 13–16px on phones so the full image remains visible. Supporting banner copy recedes at narrow widths; primary touch targets remain 44px.
 - **Headline** (700): Explore and deal titles, 40px desktop and 31–32px mobile.
 - **Title** (600): product titles and section headings.
 - **Body** (400): descriptions and terms; long detail copy stays near 75ch.
@@ -80,7 +80,7 @@ Clear cobalt emphasizes actions and tier progress. Navy and slate carry informat
 
 ## Layout
 
-Buyer main content, header inner content and footer inner content share one container: up to 1360px wide, with 24px outer gutters and 16px at 700px and below. Their inner horizontal padding is zero. Seller and operator remain full width for sidebars. Home leads with the supplied static banner image and live HTML copy, followed by the featured catalog item and product grid. The grid drops to two columns below 1100px and one below 700px. Deal detail stacks below 992px.
+Buyer main content, header inner content and footer inner content share one container: up to 1360px wide, with 24px outer gutters and 16px at 700px and below. Their inner horizontal padding is zero. Seller and operator remain full width for sidebars. Home shows the complete supplied banner at its 1896:829 aspect ratio. HTML copy and actions overlay the empty left side of that image with a transparent background; never split it into image and information panels. The featured catalog item and product grid follow. The grid drops to two columns below 1100px and one below 700px. Deal detail stacks below 992px.
 
 Explore's advanced filters start closed on desktop. At 768px the filter button opens a dialog; its initial state is closed. Keep search, categories, active-filter chips, prices, availability, and pagination in the real catalog flow.
 
