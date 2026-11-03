@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "scope": "SAFE_CREATION_ONLY",
+  "chainId": 5042,
+  "safeVersion": "1.5.0",
+  "from": "0xe48B30eA70F77E5FA6311471c2E9687f8A701Ead",
+  "factory": "0x14F2982D601c9458F93bd70B218933A6f8165e7b",
+  "owners": [
+    "0xe48B30eA70F77E5FA6311471c2E9687f8A701Ead",
+    "0x7477f3fd762e4DB846D5b17C656395B09Fb0f27c"
+  ],
+  "threshold": 2,
+  "predictedSafeAddress": "0x1d4a6c23d9FC7A1Ca05Ecdf4efD0dF750D804B99",
+  "dataHash": "0x49dd9cf067bf65658a2c225cf05f3f67a3926a15936dacfddf152ea035a70ee4",
+  "nativeValue": "0",
+  "maximumGasCostNative": "20000000000000000",
+  "maximumGasCostUsdc": "0.02",
+  "budgetApproved": true,
+  "budgetApprovalSource": "User confirmation on 2026-11-03: maximum 0.02 USDC for Safe creation only",
+  "signingAuthorized": false,
+  "broadcastAuthorized": false,
+  "hubDeploymentAuthorized": false,
+  "activationAuthorized": false
+}
