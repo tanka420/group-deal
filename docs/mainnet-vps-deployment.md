@@ -1,8 +1,8 @@
-# Chuẩn bị ứng dụng Mainnet trên VPS
+# Ứng dụng Mainnet nội bộ trên VPS
 
-Ngày 03/11/2026. Hub V2 và Safe đã finalized; ứng dụng chưa activation. Giai đoạn kế tiếp là **dịch vụ nội bộ**, chưa đổi domain công khai hoặc mở hành trình mua bán.
+Ngày 03/11/2026. Hub V2 và Safe đã finalized; ứng dụng đã activation **nội bộ** theo scope owner duyệt cho gói `98ea809`. API chỉ ở localhost 4100; public domain và hành trình mua bán chưa chuyển sang Mainnet.
 
-## Gói đã kiểm và đang chờ duyệt activation nội bộ
+## Gói đã duyệt và kích hoạt nội bộ
 
 | Mục | Giá trị |
 |---|---|
@@ -13,14 +13,14 @@ Ngày 03/11/2026. Hub V2 và Safe đã finalized; ứng dụng chưa activation.
 | Linux staging | `/home/ubuntu/groupdeal-mainnet-staging/98ea809408a463a7b0a54518e299097da4abcb80/payload` |
 | Linux Node binary SHA-256 | `7fde7b8afa198da66257f42ee2001d874c7355631e6d1579a5fb5ef1f246df4c` (v24.21.0) |
 | Dependencies production | 3.598 file/link; tree fingerprint `8d8c96410d7fdc81570f13939b8468af641d706fc4892802926979d993039247` |
-| Giai đoạn được chuẩn bị | Credential Mainnet → env root 0600; user/data riêng; API localhost 4100; local encrypted backup và health timers |
-| Quyền hiện tại | Package/preflight `activationAuthorized: false`; credential export, service activation, public cutover và giao dịch tài chính chưa được chốt trong gói này |
+| Giai đoạn đã hoàn tất | Credential Mainnet → env root 0600; user/data riêng; API localhost 4100; local encrypted backup và health timers |
+| Quyền hiện tại | Owner đã trả lời “Cho phép triển khai nội bộ trong phạm vi này” cho gói này; credential/internal service/backup/health được duyệt. Public cutover, restart Testnet, giao dịch tài chính và email thử chưa được cấp quyền. Package/preflight cũ giữ `activationAuthorized: false` như ảnh chụp bước chuẩn bị, không sửa artifact đã pin. |
 
 **PASS build** từ exact commit trên: `.cache/mainnet-build/2e432576-5bf2-4b88-8bec-2c8a19e77d69/BUILD.json`; TypeScript backend/frontend và Vite PASS, còn cảnh báo chunk lớn. **PASS_LINUX_MAINNET_STAGING**: đối chiếu SHA archive + 418 file, `npm ci --omit=dev --ignore-scripts --no-audit --no-fund` với config/cache riêng; module runtime và SQLite memory check PASS. Candidate Nginx `nginx -t` PASS trong config thử riêng, không install/reload config đang chạy. Systemd verify theo đường runtime/user thật thực hiện sau khi cài các prerequisites của giai đoạn được duyệt, chưa ghi PASS cho service thực.
 
 Proof `.cache/mainnet-vps-preparation/STAGING.json` và `VERIFIED.json`, bản trên VPS tại thư mục staging cùng `STAGING.json`/`payload/LINUX_PREFLIGHT.json`. **PASS_STAGING_WITH_TESTNET_PRESERVED**: PID `1253620`, restart count `0`, bốn hash config Nginx public và deployment Testnet giữ nguyên; cả hai domain vẫn Testnet. Mainnet unit `not-found`, port 4100 trống; `/opt`, `/etc`, `/var/lib` Mainnet chưa tạo. Lượt staging command đầu tiên FAIL do escape chuỗi Python trước khi bất kỳ mã Python nào thực thi; lượt sửa sau PASS, không nâng lượt lỗi thành thành công.
 
-## VPS đã quan sát chỉ đọc
+## Lịch sử kiểm kê chỉ đọc trước activation
 
 - Ubuntu 24.04.4 LTS, Linux x86_64/glibc 2.39. Node hiện có `/home/ubuntu/groupdeal-runtime/node-v24.21.0-linux-x64/bin/node`, npm 11.6.2; Node không nằm trên PATH mặc định. Không nâng cấp runtime Testnet.
 - `groupdeal-testnet.service` active, localhost `18420`; health trả chain 5042002, protocol 1, Hub Testnet cũ. `groupdeal-mainnet.service` chưa tồn tại, port 4100 trống; các thư mục Mainnet được đề xuất chưa tồn tại.
@@ -31,7 +31,7 @@ Proof `.cache/mainnet-vps-preparation/STAGING.json` và `VERIFIED.json`, bản t
 
 `scripts/prepare_mainnet_release.cjs <BUILD.json>` chỉ nhận build từ exact commit sạch đã push, cùng fingerprint, manifest VERIFIED và hash từng file. Gói có frontend build, backend build/lockfile, shared modules/manifests và ops. Không có `.env`, DB, secret, node_modules Windows hoặc dữ liệu Testnet. Sau khi staging trên Linux, cài dependencies production từ lockfile bằng npm ci, tắt lifecycle scripts/audit/fund. Kiểm lại hash gói và các module cần thiết; không startup backend khi staging.
 
-| Thành phần | Đích triển khai được chuẩn bị |
+| Thành phần | Đích đã triển khai nội bộ |
 |---|---|
 | Mã ứng dụng | `/opt/groupdeal-mainnet/releases/<sourceCommit>`; symlink `current` riêng |
 | User dịch vụ | `groupdeal-mainnet`, system user riêng, không đăng nhập shell |
@@ -45,13 +45,15 @@ Proof `.cache/mainnet-vps-preparation/STAGING.json` và `VERIFIED.json`, bản t
 
 `scripts/mainnet-ops/start.cjs` kiểm môi trường/mạng/origin/storage cố định, sau đó gọi startup guard hiện hành. Mainnet bind loopback trực tiếp trong `backend/src/index.ts`; Testnet giữ hành vi trước đó. Service user không có khóa owner/deployer/operator/Safe. Chỉ signer backend C có trong runtime cùng Circle/SMTP/Blockscout và ba secret ứng dụng riêng.
 
-## Chuyển credential sau khi có phạm vi tương ứng
+## Credential đã chuyển theo phạm vi đã duyệt
 
 `scripts/export_mainnet_credentials.ps1 -ReleaseCommit <sourceCommit> -InstallApproved` phải chạy bằng Windows account giữ DPAPI. Không chạy trước khi chốt gói/phạm vi giai đoạn 1. Script kiểm owner/ACL/chain của ba vault; JSON plaintext chỉ qua stdin của SSH xác thực đến alias `tan-picks`, không qua argv, log, Git hoặc file plaintext local. Remote receiver xác minh signer bằng suy ra địa chỉ local, không gọi API/ký; chỉ tạo env lần đầu bằng thao tác atomic, không ghi đè credential hiện có. Dùng quoting cho systemd EnvironmentFile; từ chối newline/control/khóa ngoài danh sách. Không copy `.env` hay DB Testnet.
 
 Kết quả SSH không rõ phải đọc lại metadata trạng thái đích trước khi quyết định tiếp; không tự lặp để thay secret. Giữ nguyên ba vault local. SMTP connection/OTP/transaction acceptance vẫn có kiểm riêng; việc tạo env không chứng minh các dịch vụ đã hoạt động.
 
-## Thứ tự activation cần duyệt
+Lượt cài thật ngày 03/11 đã PASS: ba vault không đổi, signer receiver khớp manifest, env root 0600 trong thư mục root 0700. Probe từ chính VPS sau cài cũng PASS Circle LIVE GET/App ID, SMTP TLS/auth và Blockscout GET; không gửi email, OTP, chữ ký hoặc giao dịch. OTP/wallet login, email delivery và số dư/multipage chưa nghiệm thu.
+
+## Quy trình activation đã áp dụng và rollback
 
 1. Pin hash archive/commit/frontend/backend và Linux dependency receipt đã chuẩn bị. Đối chiếu lại health Testnet, port, đường dẫn và state chưa có Mainnet writer. Giữ hash/copy các file ops sắp cài để rollback; không đụng `.env`, DB hoặc units Testnet.
 2. Tạo system user và thư mục Mainnet riêng; cài Node binary đã pin, app package/dependencies, liên kết data mới và current. Code/config root sở hữu, user dịch vụ chỉ có quyền ghi data/backup.
@@ -69,4 +71,13 @@ Kết quả SSH không rõ phải đọc lại metadata trạng thái đích tr�
 
 ## Kiểm phù hợp
 
-Năm nhóm Node ops kiểm retention fail-closed/unknown files, integrity/path scope, health đúng chain + backup, artifact không lẫn data/env và **SQLite backup/restore thật với contact mã hóa giả lập**, nguồn fixture được giữ nguyên. Hai nhóm Python kiểm quoting và từ chối newline/extra key/commit sai/secret trùng; chạy qua stdin trên Python VPS, không tạo file hoặc cài credential. PowerShell parser PASS, không chạy export thật. `check:mainnet` PASS fixture mạng/runtime/roles/Safe và holdings; không chạy full CI hoặc nghiệm thu ứng dụng live.
+Năm nhóm Node ops kiểm retention fail-closed/unknown files, integrity/path scope, health đúng chain + backup, artifact không lẫn data/env và **SQLite backup/restore thật với contact mã hóa giả lập**, nguồn fixture được giữ nguyên. Hai nhóm Python kiểm quoting và từ chối newline/extra key/commit sai/secret trùng; chạy qua stdin trên Python VPS, không tạo file hoặc cài credential. PowerShell parser PASS; export thật sau khi owner duyệt cũng PASS. `check:mainnet` PASS fixture mạng/runtime/roles/Safe và holdings; không chạy full CI hoặc nghiệm thu ứng dụng live.
+
+## Kết quả activation thật
+
+- Authority, before/install/credential/start/health/backup/enable/postcheck/provider receipts nằm tại `.cache/mainnet-vps-activation/e6f4809c-266e-43a6-83bd-e7525950ea4b/`. File `VERIFIED.json` có result **PASS_MAINNET_INTERNAL_ACTIVATION**, kiểm lúc 12:23 ngày 03/11 (UTC 05:23); bản trên VPS `/opt/groupdeal-mainnet/VERIFIED.json`, root 0600. Không đưa private receipt/env/database/archive vào Git.
+- `groupdeal-mainnet.service` active/enabled, PID 461592/NRestarts 0, user riêng UID 999; process cwd/Node và 418 code/artifact hashes/3.598 dependency file-link còn khớp gói đã duyệt. Health đúng chain 5042/V2/Hub, socket `127.0.0.1:4100`. Frontend cùng source được cài trong `/opt` nhưng chưa phục vụ public; ghi riêng backend runtime và frontend installed version, đều `98ea809`.
+- DB Mainnet mới SQLite quick_check `ok`, không seed users/deals/orders/operations hoặc hàng chờ email/webhook; chỉ metadata/audit/deployment journal. Data và backups user riêng 0700; env root 0600/thư mục root 0700. Không dùng database hay key của Testnet.
+- Systemd verify ba service/hai timer PASS. Backup lần đầu và lần do timer khởi động đã mã hóa/restore verify thành công; 2 archive hiện tại trong policy giữ tối đa 3. Local backup hourly và health mỗi phút enabled/active/waiting; oneshot exit 0. Chưa offhost, public HTTPS health hoặc email alert delivery acceptance.
+- **PASS_VPS_MAINNET_READONLY_PROVIDERS**: Circle LIVE GET HTTP 200/App ID khớp, SMTP TLS/auth verify PASS, Blockscout chain 5042 GET HTTP 200. Chạy transient process riêng nhận env qua systemd; không thay artifact, không in credential, không gửi email hay giao dịch. Nguồn checker SHA `35943cf5c93452a9543b804fea216d891735b9bb655d6dfea2f1a729eeca4fda`; proof `PROVIDERS.json` trong receipt folder. Đây chưa phải OTP/login/delivery/holdings acceptance.
+- Testnet vẫn PID 1253620/NRestarts 0; bốn hash config public không đổi. Health cả apex/subdomain vẫn Testnet 5042002/V1/Hub cũ, chưa reload Nginx hoặc cutover; Testnet source `478a91f` và báo cáo chưa track giữ nguyên. Không có giao dịch blockchain do lượt activation gửi.
