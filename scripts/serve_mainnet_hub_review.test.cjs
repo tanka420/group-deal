@@ -1,0 +1,8 @@
+const test=require('node:test'),assert=require('node:assert/strict'),{ethers}=require('../backend/node_modules/ethers'),{validateHubBudget}=require('./serve_mainnet_hub_review.cjs');
+const from=ethers.Wallet.createRandom().address,dataHash=ethers.id('isolated-hub-deployment-data'),candidate={contract:'GroupDealHubV2',deploymentDataHash:dataHash,unsignedTransaction:{from}};
+const p={productionDeploymentPlan:{},candidates:[{...candidate,selectedForRelease:true}]};
+const budget={schemaVersion:1,scope:'PRODUCTION_HUB_V2_DEPLOYMENT',chainId:5042,from,dataHash,nonce:'0x1',expectedContractAddress:ethers.getCreateAddress({from,nonce:1}),nativeValue:'0',maximumGasCostNative:'250000000000000000',maximumGasCostUsdc:'0.25',budgetApproved:true,signingAuthorized:false,broadcastAuthorized:false,activationAuthorized:false};
+test('Hub gas budget grants no signature/broadcast authority and stays bound to exact creation/from/nonce',()=>{assert.equal(validateHubBudget(budget,p).contract,'GroupDealHubV2');assert.equal(budget.signingAuthorized,false);assert.equal(budget.broadcastAuthorized,false);});
+test('changed scope, chain, signer, value, cap, data hash, address or authorization parity is rejected',()=>{
+ for(const patch of [{scope:'SAFE_CREATION_ONLY'},{chainId:5042002},{from:ethers.Wallet.createRandom().address},{nativeValue:'1'},{maximumGasCostNative:'300000000000000000'},{dataHash:ethers.id('changed')},{nonce:'0x2'},{expectedContractAddress:ethers.Wallet.createRandom().address},{signingAuthorized:true},{activationAuthorized:true},{budgetApproved:false}])assert.throws(()=>validateHubBudget({...budget,...patch},p),/HUB_REVIEW_BUDGET_OR_SCOPE_INVALID/);
+});

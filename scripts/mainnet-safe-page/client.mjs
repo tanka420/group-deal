@@ -1,18 +1,19 @@
 import {keccak256,formatUnits} from 'ethers';
 const packet=__SAFE_REVIEW_PACKET__,$=id=>document.getElementById(id),providers=[],seen=new Set();
+const hub=packet.scope==='PRODUCTION_HUB_V2_DEPLOYMENT',subject=hub?'Hub V2':'Safe',budgetText=String(packet.maximumGasCostUsdc||'0.02').replace('.',',')+' USDC';
 const arcChain={chainId:'0x13b2',chainName:'Arc Mainnet',rpcUrls:['https://rpc.mainnet.arc.io'],nativeCurrency:{name:'USDC',symbol:'USDC',decimals:18},blockExplorerUrls:['https://explorer.arc.io']};
 let selected=null,connected=null,account=null,quote=null,busy=false,locked=false,epoch=0;
 const same=(a,b)=>typeof a==='string'&&typeof b==='string'&&a.toLowerCase()===b.toLowerCase();
-const authorized=()=>packet.signingAuthorized===true&&packet.broadcastAuthorized===true;
+const authorized=()=>packet.budgetApproved===true&&packet.signingAuthorized===true&&packet.broadcastAuthorized===true;
 const fresh=()=>quote&&Date.now()<Date.parse(quote.expiresAt)&&Date.now()>=Date.parse(quote.createdAt);
 function status(text){$('status').textContent=text;}
 function render(){ $('refresh').disabled=busy||locked;$('connect').disabled=busy||locked||!selected;$('switch-network').disabled=busy||locked||!selected;$('send').disabled=busy||locked||!account||!authorized()||!fresh()||!$('consent').checked;for(const b of $('wallets').children)b.disabled=busy||locked; }
 function reset(){epoch++;account=null;connected=null;$('consent').checked=false;$('account').textContent='Ví hoặc mạng đã thay đổi. Kết nối lại để kiểm tra.';$('network').textContent=(selected?.name||'Ví')+' · chưa kiểm tra lại chain ID. Yêu cầu Arc Mainnet 5042.';render();}
 function validateQuote(value){
  const tx=value?.unsignedTransaction;
- if(!tx||value.sourceFingerprint!==packet.sourceFingerprint||!same(tx.from,packet.from)||!same(tx.to,packet.factory)||!same(value.predictedSafeAddress,packet.predictedSafeAddress)
-  ||!same(value.dataHash,packet.dataHash)||!same(keccak256(tx.data),packet.dataHash)||tx.chainId!=='0x13b2'||tx.value!=='0x0'||tx.type!=='0x2'
-  ||JSON.stringify(value.owners?.map(a=>a.toLowerCase()))!==JSON.stringify(packet.owners.map(a=>a.toLowerCase()))||value.threshold!==2
+ if(!tx||value.sourceFingerprint!==packet.sourceFingerprint||!same(tx.from,packet.from)
+  ||(hub?(Object.hasOwn(tx,'to')&&tx.to!==null||!same(value.expectedContractAddress,packet.expectedContractAddress)||tx.nonce!==packet.nonce||value.contract!=='GroupDealHubV2'||!same(value.constructor?.owner,packet.from)||JSON.stringify(value.constructor?.arguments?.map(a=>a.toLowerCase()))!==JSON.stringify(packet.constructorArguments.map(a=>a.toLowerCase()))||!same(value.securityAuthority?.address,packet.securityAuthority)||value.securityAuthority?.safeVerified!==true):(!same(tx.to,packet.factory)||!same(value.predictedSafeAddress,packet.predictedSafeAddress)||JSON.stringify(value.owners?.map(a=>a.toLowerCase()))!==JSON.stringify(packet.owners.map(a=>a.toLowerCase()))||value.threshold!==2))
+  ||!same(hub?value.deploymentDataHash:value.dataHash,packet.dataHash)||!same(keccak256(tx.data),packet.dataHash)||tx.chainId!=='0x13b2'||tx.value!=='0x0'||tx.type!=='0x2'
   ||value.signingAuthorized!==packet.signingAuthorized||value.broadcastAuthorized!==packet.broadcastAuthorized||value.budgetApproved!==true
   ||BigInt(tx.gas)<=0n||BigInt(tx.maxFeePerGas)<20_000_000_000n||BigInt(tx.maxPriorityFeePerGas)>BigInt(tx.maxFeePerGas)
   ||BigInt(tx.gas)*BigInt(tx.maxFeePerGas)>BigInt(packet.maximumGasCostNative)||!/^0x[\da-f]+$/i.test(tx.nonce)
@@ -25,7 +26,7 @@ async function request(path,body){
 }
 async function refresh(){const value=await request('/quote');quote=validateQuote(value);if(value.attemptRecorded){locked=true;status('Đã có một lần yêu cầu giao dịch. Cần đối chiếu trạng thái trước khi làm tiếp.');}
  $('quote-summary').textContent='Trần phí theo quote: '+formatUnits(BigInt(quote.unsignedTransaction.gas)*BigInt(quote.unsignedTransaction.maxFeePerGas),18)+' USDC · nonce '+BigInt(quote.unsignedTransaction.nonce)+'. Hết hạn '+new Date(quote.expiresAt).toLocaleTimeString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})+' (giờ Việt Nam).';
- $('transaction').textContent=JSON.stringify(quote.unsignedTransaction,null,2);render();return quote;
+ $('transaction').textContent=JSON.stringify(quote.unsignedTransaction,null,2);if(hub)$('hub-address').textContent=quote.expectedContractAddress+' (chưa deploy)';render();return quote;
 }
 function addProvider(provider,name){if(!provider||typeof provider.request!=='function'||seen.has(provider))return;seen.add(provider);const item={provider,name:String(name||'Ví trình duyệt').slice(0,64)},button=document.createElement('button');button.type='button';button.textContent=item.name;button.setAttribute('aria-pressed',String(!selected));button.addEventListener('click',()=>{if(busy||locked)return;selected=item;reset();for(const b of $('wallets').children)b.setAttribute('aria-pressed',String(b===button));});providers.push(item);$('wallets').append(button);if(!selected){selected=item;$('network').textContent='Đang chọn '+item.name+'. Yêu cầu Arc Mainnet · chain ID 5042 (0x13b2).';}$('no-wallet').hidden=true;render();}
 async function readChain(provider){const raw=await provider.request({method:'eth_chainId'});if(typeof raw!=='string'||!/^0x[\da-f]{1,32}$/i.test(raw))throw Error('CHAIN_RESPONSE_INVALID');const id=BigInt(raw),name=id===5042n?'Arc Mainnet':id===5042002n?'Arc Testnet':id===1n?'Ethereum':'mạng khác';$('network').textContent=(selected?.name||'Ví')+' đang trả chain ID '+id+' ('+name+', '+raw+'). Yêu cầu Arc Mainnet 5042.';return id;}
@@ -39,18 +40,20 @@ async function connect(){if(busy||locked||!selected)return;busy=true;const item=
 async function send(){if(busy||locked||!connected||!account||!authorized()||!$('consent').checked)return;busy=true;const provider=connected,current=epoch;let attempted=false,activeQuote=null,returnedHash=null;render();try{
  await checkWallet(provider);activeQuote=await refresh();if(locked||epoch!==current||!fresh())throw Error('CONTEXT_CHANGED');await checkWallet(provider);
  await request('/attempt',{quoteId:activeQuote.quoteId});attempted=true;locked=true;await checkWallet(provider);if(epoch!==current||!fresh())throw Error('CONTEXT_CHANGED');
- status('Anh tự kiểm tra và phê duyệt trong ví. Tổng phí gas phải không vượt 0,02 USDC.');
- const hash=await provider.request({method:'eth_sendTransaction',params:[{...activeQuote.unsignedTransaction}]});
+ status('Anh tự kiểm tra và phê duyệt trong ví. Tổng phí gas phải không vượt '+budgetText+'.');
+ const tx={...activeQuote.unsignedTransaction};if(hub)delete tx.to;
+ const hash=await provider.request({method:'eth_sendTransaction',params:[tx]});
  if(typeof hash!=='string'||!/^0x[\da-f]{64}$/i.test(hash))throw Error('UNKNOWN_OUTCOME');
- returnedHash=hash;$('result').textContent='Tx hash: '+hash+'. Gửi hash này trong chat để kiểm tra receipt/finalized/Safe roles.';await request('/result',{quoteId:activeQuote.quoteId,outcome:'HASH_RETURNED',hash});status('Ví trả về tx hash. Chưa kết luận Safe đã deploy thành công.');
+ returnedHash=hash;$('result').textContent='Tx hash: '+hash+'. Gửi hash này trong chat để kiểm tra receipt/finalized và quyền contract.';await request('/result',{quoteId:activeQuote.quoteId,outcome:'HASH_RETURNED',hash});status('Ví trả về tx hash. Chưa kết luận '+subject+' đã deploy thành công.');
  }catch(e){if(attempted){try{await request('/result',{quoteId:activeQuote.quoteId,outcome:returnedHash?'HASH_RETURNED':e?.code===4001?'REJECTED':'UNKNOWN',hash:returnedHash});}catch{}locked=true;}status(returnedHash?'Ví đã trả tx hash nhưng chưa xác nhận lưu kết quả. Giữ hash và gửi trong chat để đối chiếu; không gửi lại giao dịch.':errorText(e));}finally{busy=false;render();}}
 $('refresh').addEventListener('click',async()=>{if(busy||locked)return;busy=true;render();try{await refresh();status('Đã cập nhật quote. Chưa ký hoặc gửi giao dịch.');}catch(e){quote=null;status(errorText(e));}finally{busy=false;render();}});
 $('switch-network').addEventListener('click',()=>void switchNetwork());$('connect').addEventListener('click',()=>void connect());$('consent').addEventListener('change',render);$('send').addEventListener('click',()=>void send());
 try{
- if(window.self!==window.top||location.hostname!=='127.0.0.1')throw Error('QUOTE_INVALID');
+ if(window.self!==window.top||location.hostname!=='127.0.0.1'||!['SAFE_CREATION_ONLY','PRODUCTION_HUB_V2_DEPLOYMENT'].includes(packet.scope)||packet.maximumGasCostNative!==(hub?'250000000000000000':'20000000000000000'))throw Error('QUOTE_INVALID');
  for(const a of packet.owners){const span=document.createElement('span');span.textContent=a;$('owners').append(span);}
- $('safe').textContent=packet.predictedSafeAddress+' (chưa xác minh deployment)';$('sender').textContent=packet.from;$('factory').textContent=packet.factory;
- $('authority').textContent=authorized()?'Đã duyệt phạm vi tạo Safe; anh tự xem và phê duyệt giao dịch trong ví.':'Đã chốt ngân sách 0,02 USDC. Quyền ký/gửi chưa được duyệt; nút ký đang khóa.';
+ $('safe').textContent=hub?packet.securityAuthority+' (Safe đã finalized)':packet.predictedSafeAddress+' (chưa xác minh deployment)';$('sender').textContent=packet.from;$('factory').textContent=hub?'Tạo contract mới, không có địa chỉ nhận USDC':packet.factory;
+ if(hub){$('usdc').textContent=packet.constructorArguments[0];$('signer').textContent=packet.constructorArguments[1];$('operator').textContent=packet.constructorArguments[2];$('hub-address').textContent=packet.expectedContractAddress+' (dự kiến)';}
+ $('authority').textContent=authorized()?'Đã duyệt phạm vi tạo '+subject+'; anh tự xem và phê duyệt giao dịch trong ví.':'Đã chốt ngân sách '+budgetText+'. Quyền ký/gửi chưa được duyệt; nút ký đang khóa.';
  window.addEventListener('eip6963:announceProvider',e=>addProvider(e.detail?.provider,e.detail?.info?.name));window.dispatchEvent(new Event('eip6963:requestProvider'));
  for(const p of window.ethereum?.providers||[])addProvider(p,p.isRabby?'Rabby':p.isOkxWallet?'OKX Wallet':'Ví trình duyệt');
  addProvider(window.rabby,'Rabby');addProvider(window.okxwallet,'OKX Wallet');addProvider(window.ethereum,window.ethereum?.isRabby?'Rabby':window.ethereum?.isOkxWallet?'OKX Wallet':'Ví trình duyệt');

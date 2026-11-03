@@ -20,7 +20,7 @@ function createReviewServer({packet,files,quoteLoader,attemptDirectory,assertCon
     return reply(200,{...report,quoteId,attemptRecorded:readJournal()!==null});
    }
    if(req.method!=='POST'||!['/attempt','/result'].includes(req.url))return reply(405,{code:'METHOD_NOT_ALLOWED'});
-   if(packet.signingAuthorized!==true||packet.broadcastAuthorized!==true)return reply(403,{code:'SIGNING_AND_BROADCAST_NOT_AUTHORIZED'});
+   if(packet.budgetApproved!==true||packet.signingAuthorized!==true||packet.broadcastAuthorized!==true)return reply(403,{code:'SIGNING_AND_BROADCAST_NOT_AUTHORIZED'});
    if(req.headers.origin!==origin||req.headers['content-type']!=='application/json')return reply(403,{code:'REQUEST_REJECTED'});
    const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>1024)return reply(413,{code:'REQUEST_TOO_LARGE'});chunks.push(chunk);}
    const body=JSON.parse(Buffer.concat(chunks).toString());

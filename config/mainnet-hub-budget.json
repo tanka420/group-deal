@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "scope": "PRODUCTION_HUB_V2_DEPLOYMENT",
+  "chainId": 5042,
+  "from": "0xe48B30eA70F77E5FA6311471c2E9687f8A701Ead",
+  "expectedContractAddress": "0x52A893b45C1BeaBdCe04f58705D7812eA2519Ff8",
+  "nonce": "0x1",
+  "dataHash": "0xc8c2573541c11638eb5ebe08c9829767d9f18700ae3032a9a077699a8f02739e",
+  "nativeValue": "0",
+  "maximumGasCostNative": "250000000000000000",
+  "maximumGasCostUsdc": "0.25",
+  "budgetApproved": true,
+  "budgetApprovalSource": "User confirmation on 2026-11-03: maximum 0.25 USDC gas for Hub V2 deployment only; not signing, broadcast or VPS activation",
+  "signingAuthorized": false,
+  "broadcastAuthorized": false,
+  "activationAuthorized": false
+}

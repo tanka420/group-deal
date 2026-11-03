@@ -5,15 +5,15 @@ const {chromium}=require('../frontend/node_modules/@playwright/test');
 const {createReviewServer}=require('./serve_mainnet_safe_review.cjs');
 const root=path.resolve(__dirname,'..'),output=path.join(root,'.cache/mainnet-safe-page-tests',crypto.randomUUID());fs.mkdirSync(output,{recursive:true});
 const addr=()=>ethers.Wallet.createRandom().address,data='0x12345678';
-const base={from:addr(),factory:addr(),owners:[addr(),addr()],threshold:2,predictedSafeAddress:addr(),dataHash:ethers.keccak256(data),sourceFingerprint:'a'.repeat(64),maximumGasCostNative:'20000000000000000'};
+const base={scope:'SAFE_CREATION_ONLY',budgetApproved:true,from:addr(),factory:addr(),owners:[addr(),addr()],threshold:2,predictedSafeAddress:addr(),dataHash:ethers.keccak256(data),sourceFingerprint:'a'.repeat(64),maximumGasCostNative:'20000000000000000',maximumGasCostUsdc:'0.02'};
 const txHash=ethers.id('simulated-safe-creation-not-broadcast');
 const results=[];
 async function run(name,fn){await fn();results.push(name);console.log('PASS '+name);}
-async function setup(browser,{authorized=false,mode='normal',patch={}}={}){
- const packet={...base,signingAuthorized:authorized,broadcastAuthorized:authorized},attemptDirectory=path.join(output,crypto.randomUUID());
+async function setup(browser,{authorized=false,mode='normal',patch={},hub=false}={}){
+ const packet={...base,...(hub?{scope:'PRODUCTION_HUB_V2_DEPLOYMENT',maximumGasCostNative:'250000000000000000',maximumGasCostUsdc:'0.25',nonce:'0x1',expectedContractAddress:ethers.getCreateAddress({from:base.from,nonce:1}),securityAuthority:addr(),constructorArguments:[]}:{}),signingAuthorized:authorized,broadcastAuthorized:authorized},attemptDirectory=path.join(output,crypto.randomUUID());if(hub)packet.constructorArguments=[addr(),addr(),addr(),packet.securityAuthority];
  const built=await esbuild.build({entryPoints:[path.join(__dirname,'mainnet-safe-page/client.mjs')],bundle:true,write:false,platform:'browser',format:'iife',target:'es2022',nodePaths:[path.join(root,'backend/node_modules')],define:{__SAFE_REVIEW_PACKET__:JSON.stringify(packet)}});
- const files={'/':{bytes:fs.readFileSync(path.join(__dirname,'mainnet-safe-page/index.html')),type:'text/html'},'/client.js':{bytes:built.outputFiles[0].contents,type:'text/javascript'},'/style.css':{bytes:fs.readFileSync(path.join(__dirname,'mainnet-safe-page/style.css')),type:'text/css'}};
- const quoteLoader=async()=>{const now=Date.now();return {report:{schemaVersion:1,sourceFingerprint:packet.sourceFingerprint,signingAuthorized:authorized,broadcastAuthorized:authorized,budgetApproved:true,predictedSafeAddress:packet.predictedSafeAddress,dataHash:packet.dataHash,owners:packet.owners,threshold:2,createdAt:new Date(now).toISOString(),expiresAt:new Date(now+300000).toISOString(),unsignedTransaction:{type:'0x2',chainId:'0x13b2',from:packet.from,to:packet.factory,data,value:'0x0',nonce:'0x0',gas:mode==='over-budget'?'0x1c9c380':'0x51e2b',maxFeePerGas:'0x98bca5a00',maxPriorityFeePerGas:'0x3b9aca00'},...patch}};};
+ const files={'/':{bytes:fs.readFileSync(path.join(__dirname,hub?'mainnet-hub-page/index.html':'mainnet-safe-page/index.html')),type:'text/html'},'/client.js':{bytes:built.outputFiles[0].contents,type:'text/javascript'},'/style.css':{bytes:fs.readFileSync(path.join(__dirname,'mainnet-safe-page/style.css')),type:'text/css'}};
+ const quoteLoader=async()=>{const now=Date.now();return {report:{schemaVersion:1,sourceFingerprint:packet.sourceFingerprint,signingAuthorized:authorized,broadcastAuthorized:authorized,budgetApproved:true,predictedSafeAddress:packet.predictedSafeAddress,dataHash:packet.dataHash,owners:packet.owners,threshold:2,...(hub?{contract:'GroupDealHubV2',expectedContractAddress:packet.expectedContractAddress,deploymentDataHash:packet.dataHash,constructor:{owner:packet.from,arguments:packet.constructorArguments},securityAuthority:{address:packet.securityAuthority,safeVerified:true}}:{}),createdAt:new Date(now).toISOString(),expiresAt:new Date(now+300000).toISOString(),unsignedTransaction:{type:'0x2',chainId:'0x13b2',from:packet.from,...(hub&&mode!=='creation-target'?{}:{to:packet.factory}),data,value:'0x0',nonce:hub?'0x1':'0x0',gas:mode==='over-budget'?'0x1c9c380':hub?'0x2625a0':'0x51e2b',maxFeePerGas:'0x98bca5a00',maxPriorityFeePerGas:'0x3b9aca00'},...patch}};};
  const server=createReviewServer({packet,files,quoteLoader,attemptDirectory});await new Promise(r=>server.listen(0,'127.0.0.1',r));
  const origin='http://127.0.0.1:'+server.address().port,context=await browser.newContext({viewport:{width:1000,height:900}}),page=await context.newPage();
  await page.route('**/*',route=>new URL(route.request().url()).origin===origin?route.continue():route.abort());
@@ -100,6 +100,19 @@ async function main(){
     await f.page.getByRole('button',{name:'Rabby',exact:true}).click();await connect(f.page);assert((await f.page.locator('#network').textContent()).includes('Rabby đang trả chain ID 1'));assert(await f.page.locator('#send').isDisabled());
     await f.page.getByRole('button',{name:'OKX Wallet',exact:true}).click();await connect(f.page);assert((await f.page.locator('#network').textContent()).includes('OKX Wallet đang trả chain ID 5042'));await f.page.locator('#consent').check();assert(await f.page.locator('#send').isEnabled());assert(!(await f.page.evaluate(()=>window.__calls)).some(c=>c.method.startsWith('wallet_')||c.method==='eth_sendTransaction'));
    }finally{await f.close();}
+  });
+  await run('Hub V2 budget-only review shows four constructor roles and 0.25 cap but cannot request a transaction',async()=>{
+   const f=await setup(browser,{hub:true});try{
+    await connect(f.page);await f.page.locator('#consent').check();assert(await f.page.locator('#send').isDisabled());assert((await f.page.locator('#authority').textContent()).includes('0,25 USDC'));assert.equal(await f.page.locator('#signer').textContent(),f.packet.constructorArguments[1]);assert((await f.page.locator('#safe').textContent()).includes(f.packet.securityAuthority));assert(!(await f.page.evaluate(()=>window.__calls)).some(c=>c.method==='eth_sendTransaction'));assert(!fs.existsSync(path.join(f.attemptDirectory,'ATTEMPT.json')));
+   }finally{await f.close();}
+  });
+  await run('authorized Hub fixture requests one zero-value contract creation with no recipient and pinned nonce',async()=>{
+   const f=await setup(browser,{hub:true,authorized:true});try{
+    await connect(f.page);await f.page.locator('#consent').check();await f.page.locator('#send').click();await f.page.getByRole('status').filter({hasText:'Chưa kết luận Hub V2 đã deploy'}).waitFor();const calls=await f.page.evaluate(()=>window.__calls.filter(c=>c.method==='eth_sendTransaction'));assert.equal(calls.length,1);assert.equal(calls[0].params[0].to,undefined);assert.equal(calls[0].params[0].value,'0x0');assert.equal(calls[0].params[0].nonce,'0x1');assert.equal(calls[0].params[0].data,data);assert.equal(JSON.parse(fs.readFileSync(path.join(f.attemptDirectory,'ATTEMPT.json'))).actualDeployment,false);
+   }finally{await f.close();}
+  });
+  await run('Hub constructor, recipient, predicted address, Safe proof or over-budget changes block signing',async()=>{
+   for(const change of [{patch:{constructor:{owner:base.from,arguments:[addr()]}}},{mode:'creation-target'},{patch:{expectedContractAddress:addr()}},{patch:{securityAuthority:{address:addr(),safeVerified:false}}},{mode:'over-budget'}]){const f=await setup(browser,{hub:true,authorized:true,...change});try{await connect(f.page);await f.page.locator('#consent').check();assert(await f.page.locator('#send').isDisabled());assert(!(await f.page.evaluate(()=>window.__calls)).some(c=>c.method==='eth_sendTransaction'));assert(!fs.existsSync(path.join(f.attemptDirectory,'ATTEMPT.json')));}finally{await f.close();}}
   });
   await run('wallet rejection or unknown outcome remains locked across reload, with no automatic send retry',async()=>{
    for(const mode of ['reject','unknown']){const f=await setup(browser,{authorized:true,mode});try{
