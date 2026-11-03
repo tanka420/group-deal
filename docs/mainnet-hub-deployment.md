@@ -1,6 +1,6 @@
 # Review deploy GroupDealHub V2
 
-Safe đã finalized và ghim vào manifest. Owner chốt **0,25 USDC gas riêng cho deploy V2**, chưa duyệt ký/gửi giao dịch hoặc activation VPS. Cấu hình quyền riêng ở `config/mainnet-hub-budget.json`; production plan `config/mainnet-hub-deployment.json` chỉ là gói unsigned, các cờ trong plan không cấp quyền thực thi.
+Safe đã finalized và ghim vào manifest. Owner chốt **0,25 USDC gas riêng cho deploy V2**, sau đó duyệt riêng một giao dịch tạo đúng V2 trong gói đã review, tự phê duyệt trong OKX. Hai cờ ký/gửi trong `config/mainnet-hub-budget.json` được bật; chưa có bằng chứng Hub đã deploy hoặc quyền activation VPS. Production plan `config/mainnet-hub-deployment.json` chỉ là gói unsigned, các cờ trong plan không cấp quyền thực thi.
 
 ## Giao dịch đang chuẩn bị
 
