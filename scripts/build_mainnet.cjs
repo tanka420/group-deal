@@ -25,6 +25,7 @@ if(!javascript.includes(publicConfiguration.circleAppId)||!javascript.includes(p
 const record={schemaVersion:1,result:'PASS',layer:'LOCAL_MAINNET_PREPARATION_BUILD',acceptanceEligible:false,sourceCommit:before.sourceCommit,sourceFingerprint:before.sourceFingerprint,node:process.version,
  frontend:{environment:'arc-mainnet',publicProviderIdentifiersConfigured:true,publicConfiguration,liveAuthenticationVerified:false,directory:path.join(output,'frontend'),files:frontendFiles},
  backend:{environment:'arc-mainnet',productionCredentialsConfigured:false,directory:path.join(root,'backend/dist'),files:files(path.join(root,'backend/dist'))},
- activationAuthorized:false,notes:['Mainnet manifest remains UNDEPLOYED.','Only public Circle/Reown identifiers are configured; backend credentials, authority addresses and exact release review are still required.']};
+ contractDeployment:{status:before.manifest.deploymentStatus,...before.manifest.contracts.GroupDealHub},
+ activationAuthorized:false,notes:[`Contract deployment status in the pinned manifest: ${before.manifest.deploymentStatus}.`,'The build contains public Circle/Reown identifiers and pinned contract roles. Production backend credentials are not configured in this build environment; VPS activation, independent release review and live application acceptance remain separate steps.']};
 const report=path.join(output,'BUILD.json');fs.writeFileSync(report,JSON.stringify(record,null,2)+'\n');
 console.log(JSON.stringify({result:record.result,layer:record.layer,sourceFingerprint:record.sourceFingerprint,report,acceptanceEligible:false},null,2));

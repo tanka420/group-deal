@@ -24,13 +24,17 @@ import {bridgeRouter} from '../src/routes/bridgeRoutes';
 async function main(){
  assert.equal(ARC_CHAIN_ID,5042);assert.equal(ARC_CIRCLE_BLOCKCHAIN,'ARC');assert.equal(ARC_KIT_CHAIN,'Arc');
  assert.equal(config.arcChainId,5042);assert.equal(config.environment,'arc-mainnet');assert.match(config.runtimeDataDirectory,/data[\\/]arc-mainnet$/);
- assert.equal(config.hubAddress,'');assert.equal(config.protocolVersion,2);assert.equal(ARC_NETWORK.protocolVersion,2);assert.equal(ARC_NETWORK.deploymentStatus,'UNDEPLOYED');
- assert.throws(()=>assertDeploymentConfigured(),/MAINNET_DEPLOYMENT_NOT_CONFIGURED/);
- assert.throws(()=>validateRuntimeSecurity(),/MAINNET_DEPLOYMENT_NOT_CONFIGURED/);
- const hadMainnetDirectory=fs.existsSync(config.runtimeDataDirectory);
- const {startServer}=await import('../src/index');
- await assert.rejects(startServer(),/MAINNET_DEPLOYMENT_NOT_CONFIGURED/);
- assert.equal(fs.existsSync(config.runtimeDataDirectory),hadMainnetDirectory,'Blocked startup must not create the runtime database directory');
+ assert.equal(config.hubAddress,ARC_NETWORK.contracts.GroupDealHub.address);assert.equal(config.protocolVersion,2);assert.equal(ARC_NETWORK.protocolVersion,2);
+ const sourceStatus=ARC_NETWORK.deploymentStatus;assert.ok(['UNDEPLOYED','VERIFIED'].includes(sourceStatus));if(sourceStatus==='VERIFIED')assertDeploymentConfigured();
+ // This invalid manifest exists only in this isolated child process. Never rewrite source or admit live storage.
+ ARC_NETWORK.deploymentStatus='UNDEPLOYED';
+ try{
+  assert.throws(()=>assertDeploymentConfigured(),/MAINNET_DEPLOYMENT_NOT_CONFIGURED/);
+  assert.throws(()=>validateRuntimeSecurity(),/MAINNET_DEPLOYMENT_NOT_CONFIGURED/);
+  const hadMainnetDirectory=fs.existsSync(config.runtimeDataDirectory),{startServer}=await import('../src/index');
+  await assert.rejects(startServer(),/MAINNET_DEPLOYMENT_NOT_CONFIGURED/);
+  assert.equal(fs.existsSync(config.runtimeDataDirectory),hadMainnetDirectory,'Blocked startup must not create the runtime database directory');
+ }finally{ARC_NETWORK.deploymentStatus=sourceStatus;}
  assert.equal(networkManifest('arc-testnet').chainId,5042002);assert.equal(networkManifest('local').chainId,31337);assert.throws(()=>networkManifest('mainnett'),/UNSUPPORTED/);
  assert.deepEqual(Object.keys(ARC_WALLET_TOKENS),['USDC']);assert.throws(()=>arcWalletToken('EURC'),/UNSUPPORTED/);
  assert.equal(parseWalletAmount('1.000001','USDC'),1000001n);assert.throws(()=>parseWalletAmount('0.0000001','USDC'),/PRECISION/);

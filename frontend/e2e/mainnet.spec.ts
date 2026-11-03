@@ -1,11 +1,12 @@
 import {test,expect} from '@playwright/test';
 import {emptyCatalog} from './fixtures/catalog';
+const hubAddress='0x52A893b45C1BeaBdCe04f58705D7812eA2519Ff8';
 
 test.skip(process.env.VITE_APP_ENV!=='arc-mainnet','Mainnet bundle fixture only');
 test.beforeEach(async({page})=>{
  await page.route('https://**',route=>route.abort());
  await page.route('**/api/**',route=>route.fulfill({json:{notifications:[],unread:0}}));
- await page.route('**/api/health',route=>route.fulfill({json:{status:'OK',chainId:5042,protocolVersion:2,hubAddress:'',usdcAddress:'0x3600000000000000000000000000000000000000'}}));
+ await page.route('**/api/health',route=>route.fulfill({json:{status:'OK',chainId:5042,protocolVersion:2,hubAddress,usdcAddress:'0x3600000000000000000000000000000000000000'}}));
  await page.route('**/api/v1/catalog?**',route=>route.fulfill({json:{...emptyCatalog(route.request().url()),chainId:5042}}));
 });
 
@@ -50,18 +51,19 @@ test('Fallback rejects the Testnet wallet without opening a signing request',asy
  expect(await page.evaluate(()=>(window as any).requests.some((m:string)=>/send|sign/i.test(m)))).toBe(false);
 });
 
-test('Undeployed Mainnet fallback stops before RPC or a wallet transaction',async({page})=>{
- await page.addInitScript(()=>{(window as any).ethereum={request:async({method}:any)=>method==='eth_requestAccounts'?['0x1111111111111111111111111111111111111111']:method==='eth_chainId'?'0x13b2':Promise.reject(Error('No transaction authorized'))};});
+test('Mainnet fallback requires verified RPC context before a wallet transaction',async({page})=>{
+ await page.addInitScript(()=>{(window as any).requests=[];(window as any).ethereum={request:async({method}:any)=>{(window as any).requests.push(method);return method==='eth_requestAccounts'?['0x1111111111111111111111111111111111111111']:method==='eth_chainId'?'0x13b2':Promise.reject(Error('No transaction authorized'));}};});
  await page.goto('/fallback.html');await page.locator('#connect').click();await page.locator('#campaign').fill('1');await page.locator('#order').fill('1');await page.locator('#action').selectOption('BUYER_CLAIM');
  await page.locator('#prepare button[type=submit]').click();await expect(page.locator('#error')).toBeVisible();await expect(page.locator('#sign')).not.toBeVisible();
+ expect(await page.evaluate(()=>(window as any).requests.some((m:string)=>/send|sign/i.test(m)))).toBe(false);
 });
 
-test('Undeployed Mainnet transfer cannot open the wallet',async({page})=>{
+test('Pinned Mainnet deployment rejects a malformed transfer before opening the wallet',async({page})=>{
  await page.goto('/');
  const result=await page.evaluate(async()=>{
   const module=await import('/src/services/walletFlow.ts');let walletCalls=0,message='';
   try{await module.sendExternalWalletStep({} as any,{} as any,{request:async()=>{walletCalls++;}} as any,()=>{},()=>{});}catch(e){message=String(e);}
   return{walletCalls,message};
  });
- expect(result.walletCalls).toBe(0);expect(result.message).toContain('MAINNET_DEPLOYMENT_NOT_CONFIGURED');
+ expect(result.walletCalls).toBe(0);expect(result.message).toContain('WALLET_RESPONSE_INVALID');
 });

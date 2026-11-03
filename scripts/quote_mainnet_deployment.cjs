@@ -20,6 +20,7 @@ const quantity=value=>{if(typeof value!=='string'||!/^0x(?:0|[1-9a-f][0-9a-f]*)$
 async function quoteDeployment(preparation,rpc){
  const candidate=preparation.candidates.find(c=>c.selectedForRelease);
  const plan=preparation.productionDeploymentPlan||preparation.deploymentPlan;
+ if(plan?.releaseStatus==='FINALIZED_VERIFIED')throw Error('MAINNET_HUB_ALREADY_DEPLOYED_NO_NEW_QUOTE');
  if(plan?.releaseStatus==='SUPERSEDED')throw Error('MAINNET_PRODUCTION_ROLE_PLAN_REQUIRED');
  if(preparation.productionDeploymentPlan&&(plan.scope!=='PRODUCTION_HUB_V2_DEPLOYMENT'||plan.releaseStatus!=='PREPARED_FOR_OWNER_REVIEW'||['budgetApproved','signingAuthorized','broadcastAuthorized','runtimeActivationAuthorized'].some(k=>plan[k]!==false)))throw Error('MAINNET_QUOTE_PRODUCTION_SCOPE_INVALID');
  if(preparation.signingAuthorized!==false||preparation.broadcastAuthorized!==false||preparation.activationAuthorized!==false

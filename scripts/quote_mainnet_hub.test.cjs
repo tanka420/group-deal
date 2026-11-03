@@ -22,6 +22,7 @@ test('production quote uses the actual Safe and distinct plan while retaining al
 test('a superseded legacy plan never becomes deployable without a separate valid production plan',async()=>{
  const f=fixture();delete f.prep.productionDeploymentPlan;await assert.rejects(quoteDeployment(f.prep,f.rpc),/MAINNET_PRODUCTION_ROLE_PLAN_REQUIRED/);assert.equal(f.calls.length,0);
  const g=fixture();g.prep.productionDeploymentPlan.signingAuthorized=true;await assert.rejects(quoteDeployment(g.prep,g.rpc),/MAINNET_QUOTE_PRODUCTION_SCOPE_INVALID/);assert.equal(g.calls.length,0);
+ const done=fixture();done.prep.productionDeploymentPlan.releaseStatus='FINALIZED_VERIFIED';await assert.rejects(quoteDeployment(done.prep,done.rpc),/MAINNET_HUB_ALREADY_DEPLOYED_NO_NEW_QUOTE/);assert.equal(done.calls.length,0);
 });
 test('changed Safe bytecode, owners, threshold, version, nonce, modules or pending sender blocks estimate',async()=>{
  for(const mode of ['wrong-code','owners','threshold','version','safe-nonce','module','pending']){const f=fixture(mode);await assert.rejects(quoteDeployment(f.prep,f.rpc),/MAINNET_QUOTE_/);assert(!f.calls.includes('eth_estimateGas'));}

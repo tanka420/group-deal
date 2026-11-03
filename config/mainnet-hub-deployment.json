@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "scope": "PRODUCTION_HUB_V2_DEPLOYMENT",
-  "releaseStatus": "PREPARED_FOR_OWNER_REVIEW",
+  "releaseStatus": "FINALIZED_VERIFIED",
   "environment": "arc-mainnet",
   "chainId": 5042,
   "protocolVersion": 2,
@@ -16,6 +16,12 @@
     "bytecodeHash": "0x4e381985ca68b3e5d27b4425fa581c19cf33146d3f887a3cfca96f55528ea46f",
     "deploymentBlock": 29259255,
     "deploymentTxHash": "0x50494a7916fbd46f362a8e5cc858fc787e7ebf10f124e0e80982cee1950fbb36"
+  },
+  "deployment": {
+    "address": "0x52A893b45C1BeaBdCe04f58705D7812eA2519Ff8",
+    "deploymentBlock": 29264761,
+    "bytecodeHash": "0x2e2ff00c522d47f7fc8e78e6d6f66a0cdec52286ac175be0e2bc64734a458352",
+    "txHash": "0xa227e5a1ffde4639b867e61716f562a8525ef52f0fb5752219a0669b1133f050"
   },
   "budgetApproved": false,
   "signingAuthorized": false,

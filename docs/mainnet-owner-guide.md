@@ -47,7 +47,7 @@ Phí thực tế = gas đã dùng × giá gas thực tế. Trần dự phòng c�
 
 Ví dụ minh họa: 4.000.000 gas × 25 Gwei = 0,1 USDC. Đây không phải estimate cho deployment GroupDeal. Sau khi chốt version/địa chỉ/constructor sẽ đọc RPC và estimate cho từng transaction cụ thể, thêm biên dự phòng rồi xin ký.
 
-Hạn mức đã chốt ngày 03/11 là **0,02 USDC riêng cho một giao dịch tạo Safe**; Safe đã finalized với chi phí thực 0,00545701376025 USDC. Scope đã đóng, không chuyển phần dư sang Hub. Ngân sách deploy Hub V2 và các thao tác sau cần quote/phạm vi riêng; đề xuất tổng quát trước đây không phải quyền chi tiền. Phí bridge, Circle, tiền mua deal và vận hành dài hạn được chốt riêng. Vượt trần không tự retry hoặc tăng ngân sách.
+Ngày 03/11 đã chốt riêng **0,02 USDC cho tạo Safe** và **0,25 USDC cho deploy Hub V2**, sau đó chủ ví tự ký hai giao dịch đã review. Cả hai đã finalized: chi thực lần lượt 0,00545701376025 và 0,092259757321386672 USDC. Hai scope đã đóng; không chuyển phần dư thành quyền chi tiếp. Phí bridge, Circle, tiền mua deal và vận hành dài hạn được chốt riêng. Vượt trần không tự retry hoặc tăng ngân sách.
 
 ## Các quyền trong GroupDeal
 
@@ -81,7 +81,7 @@ Ví chính có thể làm nguồn cấp USDC hoặc một owner Safe do anh tự
 ## Đầu vào còn cần
 
 - V2 đã được chọn. Chính sách early rebate được chốt khi tạo campaign; chưa tự bật hoặc tạo campaign.
-- Đã đủ bốn role riêng: owner/deployer `0xe48B30eA70F77E5FA6311471c2E9687f8A701Ead`, operator `0x7477f3fd762e4DB846D5b17C656395B09Fb0f27c`, signer `0xc9691f85f149e71C4e1C14c6E6204128546Eef17`, securityAuthority là [Safe 2/2 đã finalized](https://explorer.arc.io/address/0x1d4a6c23d9FC7A1Ca05Ecdf4efD0dF750D804B99). Signer/Circle/SMTP/indexer đã staging/verify local; chưa export vào VPS. Hub chưa deploy nên runtime vẫn UNDEPLOYED. Production constructor mới ở `config/mainnet-hub-deployment.json`; không dùng plan all-one-wallet lịch sử.
+- Đã đủ bốn role riêng: owner/deployer `0xe48B30eA70F77E5FA6311471c2E9687f8A701Ead`, operator `0x7477f3fd762e4DB846D5b17C656395B09Fb0f27c`, signer `0xc9691f85f149e71C4e1C14c6E6204128546Eef17`, securityAuthority là [Safe 2/2 đã finalized](https://explorer.arc.io/address/0x1d4a6c23d9FC7A1Ca05Ecdf4efD0dF750D804B99). [Hub V2 đã finalized](https://explorer.arc.io/address/0x52A893b45C1BeaBdCe04f58705D7812eA2519Ff8), runtime/token/roles/Safe khớp hai RPC; manifest VERIFIED. Signer/Circle/SMTP/indexer đã staging/verify local, chưa export vào VPS. Không cần ký deploy lại; còn review/activation/nhận nghiệm thu ứng dụng theo scope riêng.
 - Trạng thái Circle Mainnet, App ID production, Reown project/origin; chủ tài khoản tự xử lý Billing/xét duyệt và cấu hình secret an toàn.
-- Trần chi phí được duyệt sau estimate, người giữ ví funding và người ký từng transaction.
-- Nguồn indexer token Mainnet dùng được từ server: endpoint công khai explorer hiện trả HTTP 403/trang xác minh trên cả máy local và VPS. Mã tự tìm token đã có phân trang và fallback nhập contract; chưa thể nghiệm thu tự liệt kê đầy đủ trên dữ liệu Mainnet thật.
+- Ngân sách/giao dịch nghiệm thu tài chính và phạm vi activation VPS chưa chốt; không dùng lại ngân sách Safe/Hub đã tiêu thụ.
+- Indexer đã chuyển sang API Blockscout chain 5042 bằng key backend riêng; GET thật được chấp nhận và fixture phân trang/RPC PASS. Chưa nghiệm thu danh sách nhiều trang và đối soát ví thật.

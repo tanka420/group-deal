@@ -11,8 +11,12 @@
   "maximumGasCostUsdc": "0.25",
   "budgetApproved": true,
   "budgetApprovalSource": "User confirmation on 2026-11-03: maximum 0.25 USDC gas for Hub V2 deployment only; not signing, broadcast or VPS activation",
-  "signingAuthorized": true,
-  "broadcastAuthorized": true,
+  "signingAuthorized": false,
+  "broadcastAuthorized": false,
   "transactionApprovalSource": "User confirmation on 2026-11-03: one GroupDealHubV2 contract creation on Arc 5042 from the pinned owner, nonce 1, pinned constructor/data hash, native value zero, gas maximum 0.25 USDC; owner approves in OKX; no VPS or trading authority",
+  "authorizationConsumed": true,
+  "completionStatus": "FINALIZED_VERIFIED",
+  "completedTransactionHash": "0xa227e5a1ffde4639b867e61716f562a8525ef52f0fb5752219a0669b1133f050",
+  "actualGasCostUsdc": "0.092259757321386672",
   "activationAuthorized": false
 }
