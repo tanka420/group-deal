@@ -33,3 +33,11 @@ The two skills are pinned project-local dependencies in `docs/ui-skills.json`. T
 - An independent review scored its two material design findings resolved: products now start in the first desktop Explore viewport, and amendment history has an explicit mobile position. This is a scoped rendered-design review, not financial or deployment acceptance.
 
 No full CI, live transaction, production release or deployment claim is made. Screenshot evidence remains in the ignored cache.
+
+## User refinements, 3 November 2026
+
+The user requested bordered 14px product cards, rounded-up day countdowns in place of active status badges, no card license/delivery disclosure or personal-rebate unit sentence, and English for a first visit while retaining saved language preferences. The supplied `image/banner home.png` is copied unchanged to `frontend/public/images/marketplace-banner.png`; Home uses HTML headline and actions informed by `image/GroupDeal Marketplace Landing Page.png`. The artwork is illustrative, while catalog prices stay authoritative.
+
+Buyer main/header/footer content now shares one 1360px maximum container with matching outer gutters and no inner side padding. Orders, Wallet and Account headings match Explore. Seller/admin keep their full-width sidebar layouts. The shared tier rail draws one continuous line ending at the first/last milestone centers. Existing purchase, authentication and wallet behavior stays unchanged.
+
+Refinement verification: 52 catalog/guest-checkout/navigation cases, three wallet-route cases, one pricing-rail geometry case and five explicit-locale sign-in/recovery cases passed across the targeted runs (61 unique cases). Legacy wallet and sign-in assertions were aligned with existing baseline UI behavior: signed-out wallets show the sign-in prompt, and the unavailable wallet action is labeled Connect wallet. No application authentication or financial behavior was changed. Thirty responsive/localization combinations had no overflow; header/main/footer edges matched exactly in the 24 six-page width checks. The local rendered-layout review passed. These checks are not full CI or live acceptance.

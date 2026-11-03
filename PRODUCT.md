@@ -20,7 +20,7 @@ Taste leads composition and visual direction. Impeccable verifies hierarchy, usa
 
 - Existing React/TypeScript/Vite/plain CSS stack and current APIs.
 - Preserve wallet, authorization, accounting, pricing, rights, delivery and transaction recovery behavior.
-- Vietnamese and English; desktop and mobile.
+- Vietnamese and English; English on a first visit, while respecting a saved language choice; desktop and mobile.
 - Arc Testnet and test-token disclosures remain explicit.
 - Static background; no continuously moving grid or tiled perspective image.
 - No deployment or production data operations in this design step.

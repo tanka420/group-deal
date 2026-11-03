@@ -3,6 +3,8 @@ import { expect, test } from "@playwright/test";
 import {installEmptyCatalog} from './fixtures/catalog';
 
 test.beforeEach(async ({ page }) => {
+  // These interaction scenarios intentionally exercise Vietnamese copy.
+  await page.addInitScript(()=>localStorage.setItem("groupdeal_lang","vi"));
   await installEmptyCatalog(page,'0x2A7aECd1CE90f1284EB060488c8dDEF4b1bE0574');
   await page.route("**/*circle-fin_w3s-pw-web-sdk.js*", (route) => route.fulfill({
     contentType: "application/javascript",
@@ -62,9 +64,9 @@ test("renders Arc identity and keeps unavailable sign-in actions disabled", asyn
   await expect(footer.getByRole('link',{name:'Ticket hỗ trợ',exact:true})).toHaveAttribute('href','/support');
 
   await page.getByRole("button", { name: /đăng nhập/i }).click();
-  const walletLogin = page.getByRole("button", { name: "Đăng nhập bằng ví hiện chưa sẵn sàng", exact: true });
+  const walletLogin = page.getByRole("button", { name: "Kết nối ví", exact: true });
   await expect(walletLogin).toBeDisabled();
-  await expect(page.getByText(/Thao tác này không tạo giao dịch chuyển tiền/i)).toBeVisible();
+  await expect(page.getByText("Kết nối ví tạm chưa sẵn sàng.",{exact:true})).toBeVisible();
   await page.getByLabel("Địa chỉ email", { exact: true }).fill("buyer@example.com");
   const submit = page.getByRole("button", { name: "Gửi mã OTP", exact: true });
   await expect(submit).toBeDisabled();

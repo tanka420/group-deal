@@ -166,15 +166,15 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string;onOpenAuth:()=>vo
     <div className="app-page buyer-dashboard">
       {selectedOrderId&&<a className="btn btn-secondary" href={backHref}>{text('Quay lại danh sách đơn','Back to orders')}</a>}
       {loadError&&<div role="alert" className="notice notice-error">{text("Không tải được dữ liệu. Thử lại khi kết nối ổn định.","Unable to load orders. Retry when your connection is stable.")}<button className="btn btn-secondary" onClick={fetchOrders}>{text("Thử lại","Retry")}</button></div>}
-      <div className="workspace-heading">
+      <header className="catalog-heading buyer-page-heading">
         <div>
-          <h1 style={{ fontSize: "1.85rem", marginBottom: "0.25rem" }}>{selectedOrderId?text('Chi tiết đơn hàng','Order details'):text('Đơn hàng','Orders')}</h1>
-          <p style={{ color: "var(--text-secondary)", fontSize: "0.92rem" }}>
+          <h1>{selectedOrderId?text('Chi tiết đơn hàng','Order details'):text('Đơn hàng','Orders')}</h1>
+          <p className="muted">
             {text("Theo dõi đơn, nhận tài nguyên số và kiểm tra rebate, hoàn tiền đã phân bổ.","Track orders, access digital resources and check allocated rebates and refunds.")}
           </p>
         </div>
         <div className="action-row"><a className="btn btn-primary" href="#explore">{text("Khám phá deal","Explore deals")}</a><a className="btn btn-secondary" href="#support">{text("Ticket hỗ trợ","Support tickets")}</a></div>
-      </div>
+      </header>
 
       {/* Overview Balance Cards */}
       <p className="muted">{selectedOrderId?text('Khoản được phân bổ cho đơn đang xem.','Allocations for the selected order.'):text('Tổng khoản được phân bổ của tất cả đơn trong tài khoản; không đổi theo bộ lọc danh sách.','Total allocations across your account orders; list filters do not change these totals.')}</p>

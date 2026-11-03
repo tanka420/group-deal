@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-import {ArrowRight} from 'lucide-react';
+import {ArrowRight,Users,ShieldCheck,Layers,PlayCircle} from 'lucide-react';
 import {useLanguage} from '../context/LanguageContext';
 import {useWeb3} from '../context/Web3Context';
 import {getCatalog,defaultCatalogFilters,catalogHref,type CatalogPage} from '../services/catalog';
@@ -13,9 +13,15 @@ export function HomePage({onSelectCampaign}:{onSelectCampaign:(id:string)=>void}
  const imageFailed=(id:string)=>setFailed(v=>v.includes(id)?v:[...v,id]);
  const featured=page?.deals[0];
  return <section className="home-page" aria-labelledby="home-title">
-  <header className="home-hero">
-   <h1 id="home-title">{text('Cùng mua. Giá tốt hơn.','Buy together. Better prices.')}</h1>
-   <div className="home-hero-copy"><p>{text('Khám phá sản phẩm số, cùng tham gia và mở từng bậc giá. Xem rõ license và điều kiện trước khi mua bằng USDC.','Discover digital products, join a group and unlock each price tier. Review the license and terms before buying with USDC.')}</p><a className="text-link" href="/explore">{text('Khám phá deal','Explore deals')}<ArrowRight size={18} aria-hidden="true"/></a></div>
+  <header className="home-hero marketplace-hero">
+   <figure className="marketplace-hero-art"><img src="/images/marketplace-banner.png" alt={text('Minh họa người mua cùng mở bậc giá tốt hơn','Illustration of buyers unlocking better group prices')} width={1896} height={829} decoding="async"/></figure>
+   <div className="home-hero-copy">
+    <h1 id="home-title">{text('Phần mềm tốt hơn.','Better software.')}{' '}<span>{text('Giá tốt hơn. Cùng nhau.','Lower prices. Together.')}</span></h1>
+    <p>{text('Tham gia mua chung phần mềm và sản phẩm số. Càng nhiều người mua, cả nhóm càng gần bậc giá tốt hơn.','Join group deals for premium software and digital products. More buyers unlock lower prices for everyone.')}</p>
+    <ul className="home-hero-benefits"><li><Users size={20} aria-hidden="true"/><span>{text('Cùng mua, cùng mở giá','Buy together')}<small>{text('Theo từng bậc của deal','Unlock group price tiers')}</small></span></li><li><ShieldCheck size={20} aria-hidden="true"/><span>{text('Điều khoản rõ ràng','Clear terms')}<small>{text('Xem trước khi cam kết','Review before committing')}</small></span></li><li><Layers size={20} aria-hidden="true"/><span>Arc Testnet<small>{text('Thanh toán bằng USDC','Pay with USDC')}</small></span></li></ul>
+    <div className="home-hero-actions"><a className="btn btn-primary" href="/explore">{text('Khám phá deal','Browse deals')}<ArrowRight size={18} aria-hidden="true"/></a><a className="btn btn-secondary" href="/policies/how"><PlayCircle size={18} aria-hidden="true"/>{text('Cách hoạt động','How it works')}</a></div>
+    <p className="home-banner-caption">{text('Hình minh họa cơ chế giá nhóm. Giá và điều kiện theo từng deal.','Group pricing illustrated. Prices and terms follow each deal.')}</p>
+   </div>
   </header>
   {!page&&!error&&<div className="home-loading" role="status"><span className="home-loading-art" aria-hidden="true"/><p>{text('Đang tải deal…','Loading deals…')}</p></div>}
   {error&&<div className="notice notice-error home-load-state"><p role="alert">{text('Chưa tải được deal. Vui lòng thử lại.','Deals could not be loaded. Please try again.')}</p><button className="btn btn-secondary" onClick={()=>setRevision(v=>v+1)}>{text('Thử lại','Retry')}</button></div>}

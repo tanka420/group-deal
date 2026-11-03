@@ -1,9 +1,9 @@
 import {test,expect,type Page} from '@playwright/test';
 import {emptyCatalog} from './fixtures/catalog';
 
-async function fixture(page:Page,signedIn=false,language='en'){
+async function fixture(page:Page,signedIn=false,language:string|null='en'){
  const errors:string[]=[],writes:string[]=[];
- await page.addInitScript(({signedIn,language})=>{if(!localStorage.getItem('groupdeal_lang'))localStorage.setItem('groupdeal_lang',language);if(signedIn)localStorage.setItem('groupdeal_token','navigation-fixture');},{signedIn,language});
+ await page.addInitScript(({signedIn,language})=>{if(language&&!localStorage.getItem('groupdeal_lang'))localStorage.setItem('groupdeal_lang',language);if(signedIn)localStorage.setItem('groupdeal_token','navigation-fixture');},{signedIn,language});
  page.on('pageerror',error=>errors.push(error.message));
  await page.route('**/*',r=>new URL(r.request().url()).hostname==='127.0.0.1'?r.continue():r.abort());
  await page.route('**/api/**',r=>{
@@ -123,4 +123,13 @@ test('enlarged desktop text uses reachable navigation without overlapping header
  await trigger.click();await expect(page.locator('#mobile-navigation').getByRole('link',{name:'Wallet',exact:true})).toBeVisible();
  await page.screenshot({path:info.outputPath('header-text200.png'),animations:'disabled'});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
+});
+
+
+test('English is the first-visit default and a saved Vietnamese choice survives reload',async({page})=>{
+ const f=await fixture(page,false,null);await page.goto('/account');
+ await expect(page.locator('html')).toHaveAttribute('lang','en');await expect(page.getByRole('heading',{name:'Account',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Language: English',exact:true}).click();await expect(page.locator('html')).toHaveAttribute('lang','vi');
+ await page.reload();await expect(page.locator('html')).toHaveAttribute('lang','vi');await expect(page.getByRole('heading',{name:'Tài khoản',exact:true})).toBeVisible();
+ expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
 });

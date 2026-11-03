@@ -20,13 +20,15 @@ colors:
   status-neutral-surface: "#eef3fa"
   status-neutral-text: "#4d6280"
   category-selected: "#172c4d"
+  countdown-text: "#a42e40"
+  countdown-surface: "#fff4f4"
 typography:
-  display: {fontFamily: "Be Vietnam Pro, system-ui, sans-serif", fontSize: "62px", fontWeight: 700, lineHeight: 1.1, letterSpacing: "-0.04em"}
+  display: {fontFamily: "Be Vietnam Pro, system-ui, sans-serif", fontSize: "43px", fontWeight: 700, lineHeight: 1.1, letterSpacing: "-0.04em"}
   headline: {fontFamily: "Be Vietnam Pro, system-ui, sans-serif", fontSize: "40px", fontWeight: 700, lineHeight: 1.2}
   title: {fontFamily: "Be Vietnam Pro, system-ui, sans-serif", fontSize: "20px", fontWeight: 600, lineHeight: 1.4, letterSpacing: "-0.025em"}
   body: {fontFamily: "Be Vietnam Pro, system-ui, sans-serif", fontSize: "14px", fontWeight: 400, lineHeight: 1.7}
   label: {fontFamily: "Be Vietnam Pro, system-ui, sans-serif", fontSize: "13px", fontWeight: 600, lineHeight: 1.7}
-rounded: {badge: "4px", category: "6px", control: "8px", panel: "12px", circle: "50%"}
+rounded: {badge: "4px", category: "6px", control: "8px", panel: "12px", product: "14px", banner: "16px", circle: "50%"}
 spacing: {compact: "8px", small: "12px", medium: "16px", large: "24px", wide: "40px", section: "64px"}
 components:
   button-primary: {backgroundColor: "{colors.primary}", textColor: "{colors.surface}", typography: "{typography.label}", rounded: "{rounded.control}"}
@@ -68,7 +70,7 @@ Clear cobalt emphasizes actions and tier progress. Navy and slate carry informat
 **Display / Body:** Be Vietnam Pro (system-ui, sans-serif fallback).
 
 ### Hierarchy
-- **Display** (700): home lead; scales from 62px down to 39px.
+- **Display** (700): the supplied-image home banner uses 43px desktop, 36px at intermediate widths, and 34px on phones.
 - **Headline** (700): Explore and deal titles, 40px desktop and 31–32px mobile.
 - **Title** (600): product titles and section headings.
 - **Body** (400): descriptions and terms; long detail copy stays near 75ch.
@@ -78,7 +80,7 @@ Clear cobalt emphasizes actions and tier progress. Navy and slate carry informat
 
 ## Layout
 
-Centered content is 1280px wide, with a 1360px header and 1200px footer. Home uses a split introduction, featured product, then three product columns; the catalog drops to two columns below 1100px and one below 700px. Deal detail has gallery and terms beside a sticky purchase panel, then stacks below 992px. Mobile content uses 20px side padding, then 16px below 360px.
+Buyer main content, header inner content and footer inner content share one container: up to 1360px wide, with 24px outer gutters and 16px at 700px and below. Their inner horizontal padding is zero. Seller and operator remain full width for sidebars. Home leads with the supplied static banner image and live HTML copy, followed by the featured catalog item and product grid. The grid drops to two columns below 1100px and one below 700px. Deal detail stacks below 992px.
 
 Explore's advanced filters start closed on desktop. At 768px the filter button opens a dialog; its initial state is closed. Keep search, categories, active-filter chips, prices, availability, and pagination in the real catalog flow.
 
@@ -92,7 +94,7 @@ Catalog tiles, galleries, and the purchase panel are flat at rest. Pale surfaces
 
 ## Shapes
 
-Use the frontmatter radius scale for controls, badges, and panels. Product tiles and image wells stay square and unframed; seller avatars are circular. Keyboard focus is a cobalt outline with offset, not a glow.
+Use the frontmatter radius scale for controls, badges, and panels. Product cards have a 1px quiet border, 14px corner radius, clipped image corners and 20px content padding. The banner uses a 16px radius; detail image wells remain flat. Seller avatars are circular. Keyboard focus is a cobalt outline with offset, not a glow.
 
 ## Components
 
@@ -101,16 +103,16 @@ Use the frontmatter radius scale for controls, badges, and panels. Product tiles
 - Search is a labeled form. Keep price validation and USDC-per-unit meaning visible.
 
 ### Catalog Products and Filters
-- Product cards are unboxed. Use the thumbnail URL from catalog data, lazy-load it, and show the labeled unavailable-image fallback on absence or error.
-- Keep current price, tier progress, deadline, and seller facts with the card. License and delivery use a native, initially closed disclosure.
+- Product cards are bordered and rounded. Use the catalog thumbnail with a labeled fallback on absence or error. Active campaign badges show days remaining, rounded up: 0–24 hours shows 1 day; expired campaigns show Ended.
+- Keep current price, tier progress, deadline and seller facts with the card. Cards omit the license/delivery disclosure and the per-unit personal-rebate sentence; the full license and delivery facts remain on deal detail and purchase review.
 - Desktop advanced filters begin closed. Compact screens use the existing filter dialog; selected categories and removable filter chips retain clear states.
 
 ### Navigation and Deal Detail
-- The buyer header is white with a fine lower divider and a thin cobalt active-route underline; it is 84px tall desktop and 72px mobile.
+- The buyer header is white with a fine lower divider and a thin cobalt active-route underline; it is 84px tall desktop and 72px mobile. The login button is solid cobalt with white text. Orders, Wallet and Account use the same title structure and type as Explore, including signed-out states. English is the first-visit default; saved language choices remain respected.
 - Keep gallery, seller, key facts, license, delivery, and purchase panel in the existing detail order. License and delivery navigation targets remain keyboard reachable.
 
 ### Purchase Panel
-- Keep status, deadline, unit price, tier rail, fee note, and join action together. Preserve the existing pre-transaction review, consent, authentication, funding, wallet authorization, transaction status, and recovery behavior.
+- The tier rail is one continuous track joining the centers of its first and last circular milestones. There are no per-tier line gaps or track overhangs. Keep status, deadline, unit price, tier rail, fee note, and join action together. Preserve the existing pre-transaction review, consent, authentication, funding, wallet authorization, transaction status, and recovery behavior.
 
 ## Do's and Don'ts
 

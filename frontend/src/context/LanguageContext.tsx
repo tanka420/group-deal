@@ -12,11 +12,12 @@ const LanguageContext = createContext<LanguageContextType>({} as LanguageContext
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguage] = useState<Language>(()=>{
     try{const saved=localStorage.getItem("groupdeal_lang");if(saved==="vi"||saved==="en")return saved;}catch{}
-    return "vi";
+    return "en";
   });
 
   useEffect(() => {
     document.documentElement.lang=language;
+    document.title=language==='en'?'GroupDeal | Digital Group Buying on Arc Testnet':'GroupDeal | Mua Chung Sản Phẩm Số trên Arc Testnet';
   }, [language]);
 
   const handleSetLang = (lang: Language) => {

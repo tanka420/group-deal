@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-03T10:19:11.727Z",
+  "generatedAt": "2026-11-03T16:14:50.625Z",
   "title": "Design System: GroupDeal Testnet Buyer Interface",
   "extensions": {
     "colorMeta": {
@@ -345,9 +345,9 @@
     {
       "name": "Catalog Product",
       "kind": "card",
-      "description": "Unboxed product details with image well and native terms disclosure.",
-      "html": "<article class=\"ds-product\"><div>Product image</div><h3>Product title</h3><p>Current price and progress</p><details><summary>License and delivery</summary><p>Terms from catalog data.</p></details></article>",
-      "css": ".ds-product{font-family:var(--font-body);color:var(--text-primary)}.ds-product>div{height:250px;display:grid;place-items:center;background:#f0f4fa}.ds-product h3{font-size:20px;font-weight:600;line-height:1.4}.ds-product details{padding-top:10px;border-top:1px solid var(--border-subtle);font-size:12px}.ds-product summary{min-height:36px;cursor:pointer}"
+      "description": "Bordered, rounded catalog card with an upward-rounded day countdown and exact pricing.",
+      "html": "<article class=\"ds-product\"><div>Product image</div><section><h3>Product title</h3><p>Current price and progress</p><span>1 day left</span></section></article>",
+      "css": ".ds-product{border:1px solid var(--border-subtle);border-radius:14px;overflow:hidden;font-family:var(--font-body);color:var(--text-primary)}.ds-product>div{height:250px;display:grid;place-items:center;background:#f0f4fa}.ds-product>section{padding:20px}.ds-product h3{font-size:20px;font-weight:600;line-height:1.4}"
     },
     {
       "name": "Selected Category",
@@ -363,18 +363,11 @@
       "description": "Text navigation with a thin active-route underline.",
       "html": "<nav class=\"ds-nav\"><a href=\"#\">Home</a><a href=\"#\" aria-current=\"page\">Explore</a></nav>",
       "css": ".ds-nav{display:flex;gap:24px;padding:16px 0;border-bottom:1px solid var(--border-subtle);font:500 14px var(--font-body)}.ds-nav a{padding-bottom:5px;color:var(--text-primary);text-decoration:none}.ds-nav a[aria-current]{border-bottom:2px solid var(--primary)}.ds-nav a:focus-visible{outline:3px solid var(--primary);outline-offset:4px}"
-    },
-    {
-      "name": "License Disclosure",
-      "kind": "custom",
-      "description": "Native closed disclosure for product license and delivery facts.",
-      "html": "<details class=\"ds-terms\"><summary>License and delivery</summary><p>Facts from the current catalog item.</p></details>",
-      "css": ".ds-terms{padding-top:10px;border-top:1px solid var(--border-subtle);font:12px var(--font-body)}.ds-terms summary{min-height:36px;padding:6px 0;color:var(--text-primary);font-weight:500;cursor:pointer}.ds-terms summary:focus-visible{outline:3px solid var(--primary);outline-offset:4px}"
     }
   ],
   "narrative": {
     "northStar": "The Clear Product Shelf",
-    "overview": "Give the product and buying decision room to be understood: real catalog items lead, with price, availability, delivery, and license details nearby. The shared buyer language is open and calm: white static surfaces, navy text, cobalt actions, fine dividers, and restrained status colors.\n\nBe Vietnam Pro supports English and Vietnamese. Catalog images come from product data and use a labeled fallback when unavailable. Seller and operator workspaces are outside this .storefront-app system.",
+    "overview": "Give the product and buying decision room to be understood: real catalog items lead, with price, availability, delivery, and license details nearby. The shared buyer language is open and calm: white static surfaces, navy text, cobalt actions, fine dividers, and restrained status colors.\n\nBe Vietnam Pro supports English and Vietnamese. Catalog images come from product data and use a labeled fallback when unavailable. Seller and operator workspaces are outside this .storefront-app system. User refinements retain the supplied static marketplace banner, bordered rounded product cards, English as the first-visit default, a shared buyer content width and continuous pricing milestones. License and delivery details remain on the deal page, not in card disclosures.",
     "keyCharacteristics": [
       "Product-led hierarchy with current catalog content.",
       "Spacious white surfaces with navy text and cobalt actions.",

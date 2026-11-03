@@ -50,9 +50,9 @@ test('default availability, price validation, draft reset/cancel and applied URL
  await page.getByRole('button',{name:'Remove: From 105 USDC',exact:true}).click();await expect(page).not.toHaveURL(/minPrice=/);await page.getByRole('button',{name:'Clear filters',exact:true}).click();await loaded(page);await expect(page).toHaveURL(/purchasable=0/);await page.getByRole('button',{name:'Load more campaigns',exact:true}).click();await loaded(page,15,15);await expect(page.getByText('You have reached the end of the matching results.',{exact:true})).toBeVisible();await clean(page,f);
 });
 test('Home is distinct from Explore and displays only real unique deals',async({page},info)=>{
- const f=await fixture(page);await page.goto('/');await expect(page.getByRole('heading',{name:'Buy together. Better prices.'})).toBeVisible();await expect(page.locator('.home-page .catalog-grid article')).toHaveCount(3);expect(await page.locator('.home-page .catalog-grid h3').allTextContents()).toEqual(['Template toolkit 14','Template toolkit 13','Template toolkit 12']);await expect(page.locator('#catalog-search')).toHaveCount(0);
+ const f=await fixture(page);await page.goto('/');await expect(page.getByRole('heading',{name:'Better software. Lower prices. Together.'})).toBeVisible();await expect(page.locator('.home-page .catalog-grid article')).toHaveCount(3);expect(await page.locator('.home-page .catalog-grid h3').allTextContents()).toEqual(['Template toolkit 14','Template toolkit 13','Template toolkit 12']);await expect(page.locator('#catalog-search')).toHaveCount(0);
  for(const width of [375,768,1440]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:info.outputPath('home-'+width+'.png')});}
- await page.locator('.home-hero').getByRole('link',{name:'Explore deals'}).click();await expect(page).toHaveURL(/\/explore$/);await loaded(page,12,13);await clean(page,f);
+ await page.locator('.home-hero').getByRole('link',{name:'Browse deals'}).click();await expect(page).toHaveURL(/\/explore$/);await loaded(page,12,13);await clean(page,f);
 });
 test('real API search, category, metric, stable pagination and all-page summary drive Explore',async({page})=>{
  const f=await fixture(page);await page.goto('/explore?purchasable=0');await loaded(page);await expect(page.locator('.catalog-grid article')).toHaveCount(12);await page.getByRole('button',{name:'Load more campaigns',exact:true}).click();await loaded(page,15,15);await expect(page.locator('.catalog-grid article')).toHaveCount(15);
@@ -79,4 +79,14 @@ for(const language of ['vi','en'])test(`catalog ${language} exact prices, filter
   if(width<=768){const button=page.getByRole('button',{name:en?/^Filters/:/^Bộ lọc/});await button.click();const dialog=page.getByRole('dialog',{name:en?'Filters and sorting':'Bộ lọc và sắp xếp',exact:true});await expect(dialog.getByRole('heading')).toBeFocused();await expect(page.locator('body')).toHaveCSS('overflow','hidden');expect(await dialog.evaluate(node=>node.scrollWidth<=node.clientWidth+1)).toBe(true);await dialog.getByLabel(en?'Category':'Danh mục',{exact:true}).selectOption('Courses');const last=dialog.getByRole('button',{name:en?'Apply filters':'Áp dụng bộ lọc',exact:true});await last.focus();await page.keyboard.press('Tab');await expect(dialog.getByRole('button',{name:en?'Close filters':'Đóng bộ lọc',exact:true})).toBeFocused();await page.keyboard.press('Escape');await expect(dialog).not.toBeVisible();await expect(button).toBeFocused();await button.click();await expect(dialog.getByLabel(en?'Category':'Danh mục',{exact:true})).toHaveValue('');await page.screenshot({path:info.outputPath(`catalog-filters-${language}-${width}.png`)});await page.keyboard.press('Escape');}
  }
  await clean(page,f);
+});
+
+
+test('catalog countdown rounds a partial day up and removes retired card copy',async({page})=>{
+ const f=await fixture(page),now=Math.floor(Date.now()/1000);await page.clock.setFixedTime(new Date(now*1000));
+ await page.route('**/api/v1/catalog**',async route=>{const request=new URL(route.request().url()),response=await page.request.get(base+request.pathname+request.search),json=await response.json();const offsets=[0,86400,86401,-1];for(let i=0;i<offsets.length;i++){json.campaigns[i].endTime=now+offsets[i];json.campaigns[i].status='ACTIVE';json.campaigns[i].card.endTime=now+offsets[i];json.campaigns[i].card.status='ACTIVE';}await route.fulfill({json});});
+ await page.goto('/explore');await loaded(page,12,13);
+ for(const [index,label]of ['1 day left','1 day left','2 days left','Ended'].entries())await expect(page.locator('.catalog-grid article').nth(index).locator('.catalog-countdown')).toHaveText(label);
+ await expect(page.locator('.catalog-card-terms')).toHaveCount(0);await expect(page.locator('.catalog-grid')).not.toContainText('Per unit, before personal rebates');
+ await expect(page.locator('.catalog-grid article').first()).toHaveCSS('border-radius','14px');await clean(page,f);
 });

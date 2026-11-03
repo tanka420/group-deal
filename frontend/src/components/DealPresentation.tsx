@@ -15,9 +15,9 @@ export function PriceDisplay({ amount, large = false }: { amount: string; large?
 export function PriceTierRail({ tiers, current = 0, metric, count, preview = false, canUnlock = false, finalized = false }: { tiers: DealTier[]; current?: number; metric: string; count?: number; preview?: boolean; canUnlock?: boolean; finalized?: boolean }) {
   const { text } = useDealLanguage();
   const unit = metric === "BUYER_COUNT" ? text("tài khoản đủ điều kiện", "eligible accounts") : text("đơn vị cam kết", "committed units");
-  return <section className="price-tier-rail" aria-label={text("Các bậc giá nhóm", "Group pricing tiers")}>
+  return <section className="price-tier-rail continuous-tier-rail" aria-label={text("Các bậc giá nhóm", "Group pricing tiers")}>
     <h3>{text("Tiến độ giá nhóm", "Group pricing progress")}</h3><p className="muted">{text("Mốc mở giá theo", "Pricing milestones by")} {unit}</p>
-    <ol style={{ "--tier-count": tiers.length } as React.CSSProperties}>{tiers.map((tier, index) => <li key={index} className={!preview && index === current ? "tier-current" : !preview && index < current ? "tier-passed" : ""} aria-current={!preview && index === current ? "step" : undefined}>
+    <ol style={{ "--tier-count": Math.max(1,tiers.length), "--tier-fill": `${preview||tiers.length<2?0:Math.max(0,Math.min(current,tiers.length-1))/(tiers.length-1)*100}%` } as React.CSSProperties}>{tiers.map((tier, index) => <li key={index} className={!preview && index === current ? "tier-current" : !preview && index < current ? "tier-passed" : ""} aria-current={!preview && index === current ? "step" : undefined}>
       <span className="rail-dot" aria-hidden="true" />
       <PriceDisplay amount={tier.price} />
       <span>{tier.threshold}+</span>

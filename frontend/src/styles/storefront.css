@@ -4,6 +4,7 @@
 @font-face{font-family:'Be Vietnam Pro';src:url('/fonts/be-vietnam-pro/600.ttf') format('truetype');font-style:normal;font-weight:600;font-display:swap}
 @font-face{font-family:'Be Vietnam Pro';src:url('/fonts/be-vietnam-pro/700.ttf') format('truetype');font-style:normal;font-weight:700;font-display:swap}
 .storefront-app{
+ --storefront-width:1360px;--storefront-gutter:24px;
  --font-display:'Be Vietnam Pro',system-ui,sans-serif;--font-body:'Be Vietnam Pro',system-ui,sans-serif;
  --bg-primary:#fff;--bg-secondary:#fff;--bg-tertiary:#f1f5fb;--bg-card:#fff;--bg-card-hover:#f7f9fc;
  --text-primary:#17243a;--text-secondary:#53647c;--text-muted:#5e6d82;
@@ -16,7 +17,9 @@
 .storefront-app :is(h1,h2,h3){letter-spacing:-.035em;text-wrap:balance;line-height:1.25}
 .storefront-app :is(a,button,input,select,summary):focus-visible{outline:3px solid var(--primary);outline-offset:4px}
 .storefront-app a{text-underline-offset:5px}
-.storefront-app .main-content{max-width:1280px;padding:0 40px 76px}
+.storefront-app :is(.main-content,.app-header .header-inner,.footer-content){width:min(var(--storefront-width),calc(100% - var(--storefront-gutter) * 2));max-width:var(--storefront-width);padding-inline:0;margin-inline:auto}
+.storefront-app .main-content{padding-block:0 76px}
+.storefront-app .main-content>:is(section,.app-page){width:100%;max-width:none;margin-inline:0;padding-inline:0}
 .storefront-app .btn{font-family:var(--font-body);font-size:13px;font-weight:600;min-height:46px;border-radius:8px;box-shadow:none;transform:none;transition:background-color .15s}
 .storefront-app .btn-primary{background:var(--primary);border-color:var(--primary);color:#fff}
 .storefront-app .btn-primary:hover:not(:disabled){background:var(--primary-dark);box-shadow:none;transform:none}
@@ -26,7 +29,7 @@
 .storefront-app .text-link{display:inline-flex;align-items:center;gap:12px;min-height:44px;color:var(--text-primary);font-size:14px;font-weight:600;text-decoration:none}
 .storefront-app .text-link:hover{text-decoration:underline}
 .storefront-app .app-header{background:#fff;border-bottom:1px solid var(--border-subtle);backdrop-filter:none}
-.storefront-app .app-header .header-inner{max-width:1360px;min-height:84px;padding:16px 40px;gap:24px}
+.storefront-app .app-header .header-inner{max-width:1360px;min-height:84px;padding:16px 0;gap:24px}
 .storefront-app .logo-group{gap:8px}
 .storefront-app .logo-mark{width:30px;height:36px;background:none;box-shadow:none;color:var(--primary);border-radius:0}
 .storefront-app .logo-text{font-size:23px;font-weight:700;letter-spacing:-.04em;background:none;-webkit-text-fill-color:currentColor;color:#12243e}
@@ -37,18 +40,18 @@
 .storefront-app .desktop-navigation .primary-navigation a[aria-current]:after{content:'';position:absolute;inset:auto 0 -5px;height:2px;background:var(--primary)}
 .storefront-app .header-actions{gap:12px;flex-wrap:nowrap}
 .storefront-app .header-language{border:0;background:none;padding:6px}
-.storefront-app .header-login{background:#fff;color:var(--text-primary);border-color:var(--border-medium)}
-.storefront-app .header-login:hover{background:#f1f5fb;color:var(--text-primary)}
+.storefront-app .header-login{background:var(--primary);color:#fff;border-color:var(--primary)}
+.storefront-app .header-login:hover{background:var(--primary-dark);color:#fff}
 .storefront-app .header-funding{font-size:12px}
 .storefront-app .account-dropdown-menu{box-shadow:var(--shadow-lg)}
-.storefront-app .app-footer{background:white;padding:44px 40px 28px;border-top:1px solid var(--border-subtle)}
-.storefront-app .footer-content{max-width:1200px;margin:auto}
+.storefront-app .app-footer{background:white;padding:44px 0 28px;border-top:1px solid var(--border-subtle)}
+.storefront-app .footer-content{padding:0}
 .storefront-app .footer-groups{gap:40px}
 .storefront-app .footer-groups strong{font-size:14px;color:var(--text-primary);font-weight:600}
 .storefront-app .footer-groups a,.storefront-app .footer-bottom{font-size:13px;color:var(--text-secondary)}
 .storefront-app .footer-bottom{margin-top:35px;padding-top:24px;border-top:1px solid var(--border-subtle)}
 
-/* The first product is the hero material; no separate promotional banner. */
+/* Home content foundations; the supplied marketplace banner is defined below. */
 .storefront-app .home-hero{display:grid;grid-template-columns:1.1fr 1fr;gap:100px;align-items:end;padding:54px 0 42px;background:none;border:0;border-radius:0;overflow:visible}
 .storefront-app .home-hero h1{max-width:600px;font-size:62px;font-weight:700;line-height:1.1;letter-spacing:-.04em;margin:0}
 .storefront-app .home-hero-copy{padding-bottom:5px}
@@ -74,14 +77,14 @@
 .storefront-app .home-load-state{padding:36px;background:#f5f7fb;margin:0 0 40px}
 .storefront-app .home-load-state p{margin:16px 0}
 
-/* Gallery cards retain exact prices, states and the complete license disclosure. */
+/* Product cards: clear boundaries, live day countdown and exact catalog prices. */
 .storefront-app .catalog-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:36px 28px;margin-top:24px}
-.storefront-app .catalog-deal{display:flex;flex-direction:column;padding:0;background:transparent;border:0;border-radius:0;box-shadow:none;overflow:visible;min-width:0}
+.storefront-app .catalog-deal{display:flex;flex-direction:column;padding:0;background:#fff;border:1px solid var(--border-subtle);border-radius:14px;box-shadow:none;overflow:hidden;min-width:0}
 .storefront-app .catalog-deal-media{display:block;height:250px;min-width:0;position:relative;background:#f0f4fa;border-radius:0;overflow:hidden;text-decoration:none}
 .storefront-app .catalog-deal-media img{width:100%;height:100%;display:block;object-fit:contain}
 .storefront-app .catalog-deal-badges{position:absolute;inset:auto 14px 12px;display:flex;flex-wrap:wrap;gap:6px}
 .storefront-app .catalog-deal-badges .badge{box-shadow:none;font-size:11px;line-height:1.5;padding:4px 7px;font-weight:500;border-radius:4px;border:0}
-.storefront-app .catalog-deal-content{padding:20px 0 0;min-width:0;display:flex;flex-direction:column}
+.storefront-app .catalog-deal-content{padding:20px;min-width:0;display:flex;flex-direction:column}
 .storefront-app .catalog-category{font-size:13px;color:var(--text-secondary);margin:0 0 9px}
 .storefront-app .catalog-deal-content h3{font-size:20px;line-height:1.4;margin:0 0 10px;letter-spacing:-.025em;font-weight:600}
 .storefront-app .catalog-deal-description{font-size:14px;line-height:1.8;margin:0;color:var(--text-secondary);-webkit-line-clamp:2}
@@ -218,8 +221,9 @@
  .storefront-app .home-how ol{gap:26px}
 }
 @media(max-width:700px){
- .storefront-app .main-content{padding:0 20px 48px}
- .storefront-app .app-header .header-inner{min-height:72px;padding:10px 20px;gap:6px}
+ .storefront-app{--storefront-gutter:16px}
+ .storefront-app .main-content{padding:0 0 48px}
+ .storefront-app .app-header .header-inner{min-height:72px;padding:10px 0;gap:6px}
  .storefront-app .app-header .logo-text{font-size:21px}.storefront-app .app-header .logo-mark{width:27px;height:30px}
  .storefront-app .app-header .header-actions{gap:5px}.storefront-app .app-header .header-language{font-size:11px;padding:2px}
  .storefront-app .home-hero{display:block;padding:34px 0 28px}
@@ -244,7 +248,7 @@
  .storefront-app .home-how ol{display:block;margin-top:24px}.storefront-app .home-how li{position:relative;padding-left:47px;margin-top:25px}
  .storefront-app .home-how li:before{position:absolute;left:0;top:0}.storefront-app .home-how h3{font-size:16px}
  .storefront-app .home-how p{font-size:13px;margin-top:10px}
- .storefront-app .app-footer{padding:32px 20px 24px}.storefront-app .footer-groups{gap:24px}
+ .storefront-app .app-footer{padding:32px 0 24px}.storefront-app .footer-groups{gap:24px}
  .storefront-app .footer-groups a,.storefront-app .footer-bottom{font-size:12px}
  .storefront-app .catalog-heading{padding:32px 0 26px}.storefront-app .catalog-heading h1{font-size:32px;margin-bottom:14px}
  .storefront-app .catalog-heading p{font-size:14px;line-height:1.8}
@@ -271,6 +275,68 @@
  .storefront-app .deal-purchase-panel .deal-join-cta{border-radius:0;gap:18px;min-height:58px}
  .storefront-app .home-loading{grid-template-columns:1fr;gap:0;min-height:330px}.storefront-app .home-loading-art{height:250px}.storefront-app .home-loading p{padding:20px}
 }
-@media(max-width:359px){.storefront-app .app-header .logo-text{display:none}.storefront-app .main-content{padding-inline:16px}.storefront-app .home-hero h1{font-size:39px}.storefront-app .catalog-results-heading h2{font-size:22px}}
+@media(max-width:359px){.storefront-app .app-header .logo-text{display:none}.storefront-app .main-content{padding-inline:0}.storefront-app .home-hero h1{font-size:39px}.storefront-app .catalog-results-heading h2{font-size:22px}}
 @media(max-height:500px){.storefront-app .deal-purchase-panel{position:static}}
 @media(prefers-reduced-motion:reduce){.storefront-app .btn{transition:none}}
+
+/* Buyer page titles share Explore's typography and baseline in every auth state. */
+.storefront-app .buyer-page-heading{display:flex;align-items:center;justify-content:space-between;gap:24px}
+.storefront-app .buyer-page-heading>div{min-width:0}
+.storefront-app .buyer-page-heading .action-row{margin:0;flex-shrink:0}
+.storefront-app .signed-out-page{display:block;padding:0;border:0;border-radius:0;background:none}
+.storefront-app .account-page{gap:24px}
+.storefront-app .catalog-countdown{display:inline-flex;align-items:center;gap:5px;color:#a42e40;background:#fff4f4}
+
+/* A continuous track connects the centers of the first and last milestones. */
+.continuous-tier-rail.price-tier-rail ol{position:relative;isolation:isolate;display:grid;grid-template-columns:repeat(var(--tier-count),minmax(0,1fr));gap:0;padding:0;margin-top:24px}
+.continuous-tier-rail.price-tier-rail ol:before,.continuous-tier-rail.price-tier-rail ol:after{content:'';position:absolute;top:5px;left:calc(50% / var(--tier-count));right:calc(50% / var(--tier-count));height:3px;background:var(--border-medium);pointer-events:none;z-index:0}
+.continuous-tier-rail.price-tier-rail ol:after{background:var(--primary);clip-path:inset(0 calc(100% - var(--tier-fill)) 0 0)}
+.continuous-tier-rail.price-tier-rail li{border:0;padding:30px 4px 4px;text-align:center;align-items:center;position:relative;z-index:1;gap:8px}
+.continuous-tier-rail .rail-dot{top:0;left:50%;transform:translateX(-50%);width:13px;height:13px;box-shadow:none;border:0;background:var(--border-medium)}
+.continuous-tier-rail :is(.tier-current,.tier-passed) .rail-dot{background:var(--primary)}
+.continuous-tier-rail .tier-current .rail-dot{width:17px;height:17px;top:-2px;border:2px solid #fff;outline:2px solid var(--primary);outline-offset:0}
+.continuous-tier-rail .rail-current-label{font-size:11px;line-height:1.7}
+
+/* The supplied banner is static; live copy remains real, selectable HTML. */
+.storefront-app .marketplace-hero{position:relative;isolation:isolate;display:grid;grid-template-columns:40% 60%;align-items:center;gap:0;min-height:540px;margin:30px 0 32px;padding:0;background:#eef5ff;border-radius:16px;overflow:hidden}
+.storefront-app .marketplace-hero-art{position:absolute;inset:0 0 0 39%;margin:0;overflow:hidden;z-index:-1}
+.storefront-app .marketplace-hero-art img{height:auto;width:147%;max-width:none;position:absolute;right:0;bottom:0}
+.storefront-app .marketplace-hero .home-hero-copy{padding:38px 32px;min-width:0;max-width:none;margin:0}
+.storefront-app .marketplace-hero h1{font-size:43px;line-height:1.12;letter-spacing:-.04em;max-width:none;margin:0 0 22px;text-wrap:initial}
+.storefront-app .marketplace-hero h1>span{display:block;color:var(--primary)}
+.storefront-app .marketplace-hero .home-hero-copy>p{font-size:14px;line-height:1.8;max-width:none}
+.storefront-app .home-hero-benefits{display:flex;flex-wrap:wrap;gap:16px 20px;list-style:none;padding:0;margin:24px 0 28px}
+.storefront-app .home-hero-benefits li{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:600}
+.storefront-app .home-hero-benefits svg{color:var(--primary);flex:none}
+.storefront-app .home-hero-benefits small{display:block;color:var(--text-secondary);font-size:11px;font-weight:400}
+.storefront-app .home-hero-actions{display:flex;flex-wrap:wrap;gap:12px}
+.storefront-app .home-hero-actions .btn{gap:10px;min-height:48px;padding:12px 18px;white-space:normal}
+.storefront-app .marketplace-hero .home-hero-copy>.home-banner-caption{font-size:11px;line-height:1.65;margin-top:18px;color:#526780}
+@media(max-width:1199px){
+ .storefront-app .marketplace-hero{grid-template-columns:46% 54%;min-height:510px}
+ .storefront-app .marketplace-hero-art{left:45%}
+ .storefront-app .marketplace-hero h1{font-size:36px}
+ .storefront-app .marketplace-hero .home-hero-copy{padding:32px 26px}
+ .storefront-app .home-hero-benefits{gap:14px}
+}
+@media(max-width:1100px){
+ .storefront-app .marketplace-hero{grid-template-columns:1fr;min-height:0;padding:0;display:flex;flex-direction:column;align-items:stretch}
+ .storefront-app .marketplace-hero .home-hero-copy{order:0;padding:32px;max-width:660px}
+ .storefront-app .marketplace-hero-art{position:relative;inset:auto;order:1;width:100%;height:auto;aspect-ratio:1896/829;z-index:0}
+ .storefront-app .marketplace-hero-art img{position:static;display:block;width:100%;height:100%;object-fit:contain}
+ .storefront-app .marketplace-hero h1{font-size:43px}
+ .storefront-app .buyer-page-heading{align-items:flex-start;flex-wrap:wrap}
+}
+@media(max-width:700px){
+ .storefront-app .marketplace-hero{margin:20px 0 24px}
+ .storefront-app .marketplace-hero .home-hero-copy{padding:28px 23px}
+ .storefront-app .marketplace-hero h1{font-size:34px;line-height:1.15;margin-bottom:20px;max-width:none}
+ .storefront-app .marketplace-hero .home-hero-copy>p{font-size:14px}
+ .storefront-app .marketplace-hero-art{height:auto}
+ .storefront-app .home-hero-benefits{display:grid;gap:14px;margin:22px 0 26px}
+ .storefront-app .home-hero-benefits li{font-size:13px}
+ .storefront-app .home-hero-benefits small{font-size:12px}
+ .storefront-app .home-hero-actions .btn{padding:11px 15px;font-size:12px}
+ .storefront-app .buyer-page-heading{gap:18px}
+ .storefront-app .buyer-page-heading .action-row{flex-wrap:wrap}
+}

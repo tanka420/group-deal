@@ -199,3 +199,14 @@ for(const language of ["vi","en"])for(const guest of [false,true])test(`compact 
   else{await page.locator(".account-pill-btn").click();await expect(page.locator("#header-account").getByRole("button",{name:language==="en"?"Fund USDC":"Nạp USDC",exact:true})).toBeVisible();await expect(page.getByRole("region",{name:language==="en"?"Account menu":"Menu tài khoản"})).toBeVisible();await expect(page.getByRole("button",{name:language==="en"?"Language: English":"Ngôn ngữ: Tiếng Việt",exact:true})).toBeVisible();await page.keyboard.press("Escape");}
   await scrollForCapture(page);await page.screenshot({path:info.outputPath(`header-${guest?"guest":"account"}-${language}-320.png`)});
 });
+
+
+test('continuous tier track terminates at its first and last milestone for two to five tiers',async({page})=>{
+ const data=await fixture(page,'en'),all=[...data.campaign.tiers,{threshold:200,price:'60000000'}];
+ for(const count of [2,4,5]){data.campaign.tiers=all.slice(0,count);await page.goto('/deals/master');await expect(page.locator('.deal-purchase-panel .price-tier-rail li')).toHaveCount(count);
+  for(const width of [320,768,1440]){await page.setViewportSize({width,height:900});await page.evaluate(()=>document.fonts.ready);
+   const rail=await page.locator('.deal-purchase-panel .price-tier-rail ol').evaluate(ol=>{const r=ol.getBoundingClientRect(),line=getComputedStyle(ol,':before'),dots=[...ol.querySelectorAll('.rail-dot')].map(e=>{const b=e.getBoundingClientRect();return{x:b.x+b.width/2,y:b.y+b.height/2};});return{start:r.x+parseFloat(line.left),end:r.right-parseFloat(line.right),y:r.y+parseFloat(line.top)+parseFloat(line.height)/2,dots,overflow:document.documentElement.scrollWidth>innerWidth};});
+   expect(rail.overflow).toBe(false);expect(Math.abs(rail.start-rail.dots[0].x)).toBeLessThan(1);expect(Math.abs(rail.end-rail.dots.at(-1)!.x)).toBeLessThan(1);for(const dot of rail.dots)expect(Math.abs(dot.y-rail.y)).toBeLessThan(1);
+  }
+ }
+});

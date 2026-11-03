@@ -5,7 +5,7 @@ const key="groupdeal_operation:buyer:op-replacement";
 async function history(page:Page){
  const state={phase:"SUBMITTED",txHash:original,recoveries:0,replacements:[] as any[],reject:false};
  const operation=()=>({id:"op-replacement",action:"BUYER_CLAIM",resourceId:"campaign",chainId:5042002,hubAddress:"0x2A7aECd1CE90f1284EB060488c8dDEF4b1bE0574",principal,calldata:"0x",createdAt:0,updatedAt:0,expectedEventArgs:{},phase:state.phase,txHash:state.txHash,replacements:state.replacements});
- await page.addInitScript(({key,original})=>{localStorage.setItem("groupdeal_token","fixture");if(!localStorage.getItem(key))localStorage.setItem(key,JSON.stringify({id:"op-replacement",txHash:original,phase:"SUBMITTED"}));},{key,original});
+ await page.addInitScript(({key,original})=>{localStorage.setItem("groupdeal_lang","vi");localStorage.setItem("groupdeal_token","fixture");if(!localStorage.getItem(key))localStorage.setItem(key,JSON.stringify({id:"op-replacement",txHash:original,phase:"SUBMITTED"}));},{key,original});
  await page.route("https://fonts.googleapis.com/**",r=>r.fulfill({contentType:"text/css",body:""}));
  await page.route("**/*circle-fin_w3s-pw-web-sdk.js*",r=>r.fulfill({contentType:"application/javascript",body:"export class W3SSdk {updateConfigs(){}};export default {W3SSdk};"}));
  await page.route("**/src/context/Web3Context.tsx*",r=>r.fulfill({contentType:"application/javascript",body:`export const Web3Provider=({children})=>children;export const useWeb3=()=>({account:null,usdcBalance:"0",walletMode:"NONE",preflightPreparedOperation:async()=>{},broadcastPreparedOperation:async()=>{window.unexpectedSign=true;throw new Error("Unexpected signature")}});`}));
