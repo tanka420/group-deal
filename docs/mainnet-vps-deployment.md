@@ -2,6 +2,24 @@
 
 Ngày 03/11/2026. Hub V2 và Safe đã finalized; ứng dụng chưa activation. Giai đoạn kế tiếp là **dịch vụ nội bộ**, chưa đổi domain công khai hoặc mở hành trình mua bán.
 
+## Gói đã kiểm và đang chờ duyệt activation nội bộ
+
+| Mục | Giá trị |
+|---|---|
+| Nguồn frontend và backend | `98ea809408a463a7b0a54518e299097da4abcb80`, đã push trên `codex/mainnet` |
+| Source fingerprint | `bb200707afd239256d71cc865e60493e6fafff3488a3e42fe7b29b6acc6e05fd` |
+| Archive SHA-256 | `8b3a22190c7be609f9291607f0115104f922cd690a1f811c507903397a94c487` |
+| Local package | `.cache/mainnet-release/fe4155a8-58d2-48c7-8883-2faef5b16f4d/PACKAGE.json` và `PACKAGE.tar.gz` |
+| Linux staging | `/home/ubuntu/groupdeal-mainnet-staging/98ea809408a463a7b0a54518e299097da4abcb80/payload` |
+| Linux Node binary SHA-256 | `7fde7b8afa198da66257f42ee2001d874c7355631e6d1579a5fb5ef1f246df4c` (v24.21.0) |
+| Dependencies production | 3.598 file/link; tree fingerprint `8d8c96410d7fdc81570f13939b8468af641d706fc4892802926979d993039247` |
+| Giai đoạn được chuẩn bị | Credential Mainnet → env root 0600; user/data riêng; API localhost 4100; local encrypted backup và health timers |
+| Quyền hiện tại | Package/preflight `activationAuthorized: false`; credential export, service activation, public cutover và giao dịch tài chính chưa được chốt trong gói này |
+
+**PASS build** từ exact commit trên: `.cache/mainnet-build/2e432576-5bf2-4b88-8bec-2c8a19e77d69/BUILD.json`; TypeScript backend/frontend và Vite PASS, còn cảnh báo chunk lớn. **PASS_LINUX_MAINNET_STAGING**: đối chiếu SHA archive + 418 file, `npm ci --omit=dev --ignore-scripts --no-audit --no-fund` với config/cache riêng; module runtime và SQLite memory check PASS. Candidate Nginx `nginx -t` PASS trong config thử riêng, không install/reload config đang chạy. Systemd verify theo đường runtime/user thật thực hiện sau khi cài các prerequisites của giai đoạn được duyệt, chưa ghi PASS cho service thực.
+
+Proof `.cache/mainnet-vps-preparation/STAGING.json` và `VERIFIED.json`, bản trên VPS tại thư mục staging cùng `STAGING.json`/`payload/LINUX_PREFLIGHT.json`. **PASS_STAGING_WITH_TESTNET_PRESERVED**: PID `1253620`, restart count `0`, bốn hash config Nginx public và deployment Testnet giữ nguyên; cả hai domain vẫn Testnet. Mainnet unit `not-found`, port 4100 trống; `/opt`, `/etc`, `/var/lib` Mainnet chưa tạo. Lượt staging command đầu tiên FAIL do escape chuỗi Python trước khi bất kỳ mã Python nào thực thi; lượt sửa sau PASS, không nâng lượt lỗi thành thành công.
+
 ## VPS đã quan sát chỉ đọc
 
 - Ubuntu 24.04.4 LTS, Linux x86_64/glibc 2.39. Node hiện có `/home/ubuntu/groupdeal-runtime/node-v24.21.0-linux-x64/bin/node`, npm 11.6.2; Node không nằm trên PATH mặc định. Không nâng cấp runtime Testnet.
