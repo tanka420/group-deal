@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "scope": "PRODUCTION_HUB_V2_DEPLOYMENT",
+  "releaseStatus": "PREPARED_FOR_OWNER_REVIEW",
+  "environment": "arc-mainnet",
+  "chainId": 5042,
+  "protocolVersion": 2,
+  "roles": {
+    "owner": "0xe48B30eA70F77E5FA6311471c2E9687f8A701Ead",
+    "authorizedSigner": "0xc9691f85f149e71C4e1C14c6E6204128546Eef17",
+    "operator": "0x7477f3fd762e4DB846D5b17C656395B09Fb0f27c",
+    "securityAuthority": "0x1d4a6c23d9FC7A1Ca05Ecdf4efD0dF750D804B99"
+  },
+  "safe": {
+    "version": "1.5.0",
+    "bytecodeHash": "0x4e381985ca68b3e5d27b4425fa581c19cf33146d3f887a3cfca96f55528ea46f",
+    "deploymentBlock": 29259255,
+    "deploymentTxHash": "0x50494a7916fbd46f362a8e5cc858fc787e7ebf10f124e0e80982cee1950fbb36"
+  },
+  "budgetApproved": false,
+  "signingAuthorized": false,
+  "broadcastAuthorized": false,
+  "runtimeActivationAuthorized": false
+}

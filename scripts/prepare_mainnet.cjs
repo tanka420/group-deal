@@ -17,8 +17,20 @@ function prepareMainnet(){
   ||!plannedRoles||!['owner','authorizedSigner','operator','securityAuthority'].every(k=>ethers.isAddress(plannedRoles[k])&&plannedRoles[k]!==ethers.ZeroAddress)
   ||plannedRoles.owner.toLowerCase()!==ownerAddress?.toLowerCase()
   ||plannedRoles.operator.toLowerCase()===plannedRoles.securityAuthority.toLowerCase())throw Error('MAINNET_CONTRACT_DEPLOYMENT_PLAN_INVALID');
+ const productionFile=path.join(root,'config/mainnet-hub-deployment.json');
+ const productionDeploymentPlan=fs.existsSync(productionFile)?JSON.parse(fs.readFileSync(productionFile,'utf8')):null;
+ if(productionDeploymentPlan){
+  const p=productionDeploymentPlan,safe=manifest.roles.securityAuthority,roleNames=['owner','authorizedSigner','operator','securityAuthority'];
+  if(p.schemaVersion!==1||p.scope!=='PRODUCTION_HUB_V2_DEPLOYMENT'||p.releaseStatus!=='PREPARED_FOR_OWNER_REVIEW'||p.environment!=='arc-mainnet'||p.chainId!==5042||p.protocolVersion!==2||selectedVersion!==2
+   ||!roleNames.every(k=>ethers.isAddress(p.roles?.[k])&&p.roles[k]!==ethers.ZeroAddress&&p.roles[k].toLowerCase()===manifest.roles[k].address.toLowerCase())||new Set(roleNames.map(k=>p.roles[k].toLowerCase())).size!==4
+   ||safe.type!=='safe-multisig'||safe.owners.length!==2||safe.threshold!==2||safe.safeVersion!=='1.5.0'||!ethers.isHexString(safe.bytecodeHash,32)||!ethers.isHexString(safe.deploymentTxHash,32)||!Number.isSafeInteger(safe.deploymentBlock)||safe.deploymentBlock<=0
+   ||p.safe?.version!==safe.safeVersion||p.safe?.bytecodeHash!==safe.bytecodeHash||p.safe?.deploymentTxHash!==safe.deploymentTxHash||p.safe?.deploymentBlock!==safe.deploymentBlock
+   ||['budgetApproved','signingAuthorized','broadcastAuthorized','runtimeActivationAuthorized'].some(k=>p[k]!==false))throw Error('MAINNET_PRODUCTION_HUB_PLAN_INVALID');
+ }
  const tracked=execFileSync('git',['ls-files','--cached','--others','--exclude-standard','-z'],{cwd:root,encoding:'utf8'}).split('\0');
  const names=[...new Set(tracked)].filter(f=>/^(?:backend\/src\/|frontend\/(?:src|build)\/|shared\/|sdk\/src\/|contracts\/contracts\/|scripts\/mainnet-safe-page\/)/.test(f)||['config/mainnet-contract-deployment.json','config/mainnet-safe-budget.json','config/mainnet.env.example','contracts/hardhat.config.ts','scripts/prepare_mainnet.cjs','scripts/prepare_mainnet_safe.cjs','scripts/quote_mainnet_safe.cjs','scripts/serve_mainnet_safe_review.cjs','scripts/initialize_mainnet_secrets.ps1','scripts/validate_mainnet_secret_input.cjs','scripts/configure_mainnet_smtp.ps1','scripts/configure_mainnet_indexer.ps1','scripts/check_mainnet_providers.cjs','scripts/quote_mainnet_deployment.cjs','scripts/build_mainnet.cjs','scripts/local_check_runtime.cjs','scripts/local_network_guard.cjs','backend/package-lock.json','frontend/package-lock.json','contracts/package-lock.json','sdk/package-lock.json'].includes(f)).sort();
+ for(const extra of ['config/mainnet-hub-deployment.json','scripts/verify_mainnet_safe.cjs'])if(tracked.includes(extra)&&!names.includes(extra))names.push(extra);
+ names.sort();
  const files=names.map(f=>({path:f,sha256:sha(fs.readFileSync(path.join(root,f)))}));
  const sourceFingerprint=sha(JSON.stringify(files));
  const candidates=['GroupDealHub','GroupDealHubV2'].map((name,index)=>{
@@ -32,10 +44,11 @@ function prepareMainnet(){
   }
   if(!ethers.isHexString(artifact.bytecode)||!ethers.isHexString(artifact.deployedBytecode))throw Error('MAINNET_UNLINKED_BYTECODE');
   const selectedForRelease=selectedVersion===index+1;
-  const constructorArguments=selectedForRelease?(planSuperseded
+  const activeRoles=productionDeploymentPlan?.roles||plannedRoles;
+  const constructorArguments=selectedForRelease?(productionDeploymentPlan?[manifest.contracts.USDC.address,activeRoles.authorizedSigner,activeRoles.operator,activeRoles.securityAuthority]:planSuperseded
    ?[manifest.contracts.USDC.address,manifest.roles.authorizedSigner.address||null,manifest.roles.operator.address||null,manifest.roles.securityAuthority.address||null]
    :[manifest.contracts.USDC.address,plannedRoles.authorizedSigner,plannedRoles.operator,plannedRoles.securityAuthority]):[manifest.contracts.USDC.address,null,null,null];
-  const deploymentData=selectedForRelease&&!planSuperseded?ethers.concat([artifact.bytecode,new ethers.Interface(artifact.abi).encodeDeploy(constructorArguments)]):null;
+  const deploymentData=selectedForRelease&&(productionDeploymentPlan||!planSuperseded)?ethers.concat([artifact.bytecode,new ethers.Interface(artifact.abi).encodeDeploy(constructorArguments)]):null;
   return {contract:name,protocolVersion:index+1,selectedForRelease:selectedVersion===index+1,compiler:build.solcLongVersion,compilerSettings:build.input.settings,
    abi:artifact.abi,creationBytecode:artifact.bytecode,creationBytecodeHash:ethers.keccak256(artifact.bytecode),
    runtimeBytecodeTemplate:artifact.deployedBytecode,runtimeBytecodeTemplateHash:ethers.keccak256(artifact.deployedBytecode),
@@ -43,15 +56,15 @@ function prepareMainnet(){
    constructor:{signature:'constructor(address usdcToken,address authorizedSigner,address operatorAddress,address securityAuthority)',arguments:constructorArguments,owner:ownerAddress||'msg.sender; owner/deployer not selected'},
    unsignedTransaction:{chainId:5042,to:null,from:ownerAddress,data:deploymentData,value:'0',nonce:null,gasLimit:null,maxFeePerGas:null,maxPriorityFeePerGas:null},
    deploymentDataHash:deploymentData?ethers.keccak256(deploymentData):null,
-   transactionStatus:selectedForRelease?(planSuperseded?'NOT_CONSTRUCTED_AWAITING_PRODUCTION_ROLE_PLAN':'ENCODED_AWAITING_NONCE_FEES_BUDGET_AND_OWNER_SIGNATURE'):'NOT_SELECTED_FOR_RELEASE'};
+   transactionStatus:selectedForRelease?(productionDeploymentPlan?'ENCODED_PRODUCTION_V2_AWAITING_BUDGET_AND_OWNER_SIGNATURE':planSuperseded?'NOT_CONSTRUCTED_AWAITING_PRODUCTION_ROLE_PLAN':'ENCODED_AWAITING_NONCE_FEES_BUDGET_AND_OWNER_SIGNATURE'):'NOT_SELECTED_FOR_RELEASE'};
  });
  const selected=candidates.find(candidate=>candidate.selectedForRelease);
  return {schemaVersion:1,layer:'OFFLINE_MAINNET_PREPARATION',acceptanceEligible:false,signingAuthorized:false,broadcastAuthorized:false,activationAuthorized:false,
-  sourceCommit:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),sourceFingerprint,files,manifest,deploymentPlan,
+  sourceCommit:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),sourceFingerprint,files,manifest,deploymentPlan,productionDeploymentPlan,
   release:{frontend:{sourceFingerprint,environment:'arc-mainnet',artifact:null},backend:{sourceFingerprint,environment:'arc-mainnet',artifact:null}},
   selectedCandidate:selected?{contract:selected.contract,protocolVersion:selected.protocolVersion,creationBytecodeHash:selected.creationBytecodeHash}:null,
-  candidates,blockers:[...(selected?[]:['M01: select protocol version and release scope']),planSuperseded?'M03 before deployment: finalize production owner, signer, operator and Safe plan; historical constructor assignments are superseded':'M03 before runtime activation: rotate initial shared roles and verify the required Safe owners/threshold','M04: approve budget and obtain a fresh nonce/fee quote','M05: independent review of the exact commit and bytecode','M06: owner-controlled deployment, finalized receipt, runtime hash and role readback','M09: separately approve service activation'],
-  notes:['No Testnet address or signing key is used as a Mainnet deployment default.',selected?`${selected.contract} is selected for Mainnet preparation; this selection does not authorize signing or broadcasting.`:'Both variants are proposals; neither is selected for release.',planSuperseded?'The previous contract-only plan is historical. Candidate constructor arguments now reflect the production manifest with nulls for missing addresses; historical assignments remain only in deploymentPlan. Creation calldata is withheld until the production role plan is finalized.':'Constructor calldata uses the user-selected contract-only deployment plan; this plan does not satisfy or weaken the production runtime guard.','A fresh nonce, fee quote and approved cost limit are required before asking for a signature.','Deployment block and actual runtime hash must come from a real finalized receipt; neither is predicted here.']};
+  candidates,blockers:[...(selected?[]:['M01: select protocol version and release scope']),...(productionDeploymentPlan?[]:[planSuperseded?'M03 before deployment: finalize production owner, signer, operator and Safe plan; historical constructor assignments are superseded':'M03 before runtime activation: rotate initial shared roles and verify the required Safe owners/threshold']),'M04: approve budget and obtain a fresh nonce/fee quote','M05: independent review of the exact commit and bytecode','M06: owner-controlled deployment, finalized receipt, runtime hash and role readback','M09: separately approve service activation'],
+  notes:['No Testnet address or signing key is used as a Mainnet deployment default.',selected?`${selected.contract} is selected for Mainnet preparation; this selection does not authorize signing or broadcasting.`:'Both variants are proposals; neither is selected for release.',productionDeploymentPlan?'The historical contract-only plan remains superseded. Constructor data uses the distinct production roles and verified Safe in mainnet-hub-deployment.json; no budget, signing, broadcast or activation authority is granted.':planSuperseded?'The previous contract-only plan is historical. Candidate constructor arguments now reflect the production manifest with nulls for missing addresses; historical assignments remain only in deploymentPlan. Creation calldata is withheld until the production role plan is finalized.':'Constructor calldata uses the user-selected contract-only deployment plan; this plan does not satisfy or weaken the production runtime guard.','A fresh nonce, fee quote and approved cost limit are required before asking for a signature.','Deployment block and actual runtime hash must come from a real finalized receipt; neither is predicted here.']};
 }
 function main(){
  if(process.argv.length>2)throw Error('MAINNET_PREPARATION_ACCEPTS_NO_SIGNING_OR_DEPLOY_ARGUMENTS');

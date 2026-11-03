@@ -1,6 +1,8 @@
 # Tạo Safe Mainnet theo hạn mức đã duyệt
 
-Ngày 03/11/2026, chủ ví duyệt **ngân sách tối đa 0,02 USDC cho riêng một giao dịch tạo Safe 2/2**, sau đó duyệt riêng tạo đúng Safe trong gói đã review và tự phê duyệt bằng OKX/Rabby. Hai cờ ký/gửi đã được bật trong scope công khai `config/mainnet-safe-budget.json`; vẫn chờ thao tác trực tiếp của chủ ví, chưa có bằng chứng deployment. Không có private key, API key hoặc tài khoản Testnet trong công cụ này.
+Ngày 03/11/2026, chủ ví duyệt **ngân sách tối đa 0,02 USDC cho riêng một giao dịch tạo Safe 2/2**, sau đó duyệt riêng tạo đúng Safe trong gói đã review và tự phê duyệt bằng OKX/Rabby. Hai cờ ký/gửi từng được bật trong scope công khai `config/mainnet-safe-budget.json`; giao dịch đã hoàn tất và scope đã đóng như kết quả bên dưới. Không có private key, API key hoặc tài khoản Testnet trong công cụ này.
+
+**Đã hoàn tất:** [Safe 0x1d4a…4B99](https://explorer.arc.io/address/0x1d4a6c23d9FC7A1Ca05Ecdf4efD0dF750D804B99) đã finalized ở block 29.259.255 bằng [giao dịch](https://explorer.arc.io/tx/0x50494a7916fbd46f362a8e5cc858fc787e7ebf10f124e0e80982cee1950fbb36). Readback hai RPC PASS, chi gas 0,00545701376025 USDC. Scope một lần đã dùng xong, hai cờ ký/gửi hiện được tắt và journal được giữ. Các hướng dẫn tạo bên dưới là hồ sơ thao tác; không chạy lại để tạo Safe khác. Hub V2/VPS chưa deploy theo scope này.
 
 ## Gói giao dịch
 
@@ -8,7 +10,7 @@ Ngày 03/11/2026, chủ ví duyệt **ngân sách tối đa 0,02 USDC cho riêng
 - Ví trả gas: `0xe48B30eA70F77E5FA6311471c2E9687f8A701Ead`.
 - Owners: ví trả gas và `0x7477f3fd762e4DB846D5b17C656395B09Fb0f27c`; threshold 2/2.
 - Factory: `0x14F2982D601c9458F93bd70B218933A6f8165e7b`.
-- Địa chỉ dự kiến: `0x1d4a6c23d9FC7A1Ca05Ecdf4efD0dF750D804B99`. Chưa phải địa chỉ đã deploy.
+- Địa chỉ đã deploy và xác minh: `0x1d4a6c23d9FC7A1Ca05Ecdf4efD0dF750D804B99`.
 - Factory calldata hash: `0x49dd9cf067bf65658a2c225cf05f3f67a3926a15936dacfddf152ea035a70ee4`.
 - Native value, setup payment và delegatecall đều bằng 0/rỗng. Hạn mức chỉ trả gas; không nạp tiền vào Safe hoặc deploy Hub V2.
 

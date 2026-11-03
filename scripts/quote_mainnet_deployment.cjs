@@ -19,7 +19,9 @@ function createRpc(url){
 const quantity=value=>{if(typeof value!=='string'||!/^0x(?:0|[1-9a-f][0-9a-f]*)$/i.test(value))throw Error('MAINNET_QUOTE_INVALID_QUANTITY');return BigInt(value);};
 async function quoteDeployment(preparation,rpc){
  const candidate=preparation.candidates.find(c=>c.selectedForRelease);
- if(preparation.deploymentPlan?.releaseStatus==='SUPERSEDED')throw Error('MAINNET_PRODUCTION_ROLE_PLAN_REQUIRED');
+ const plan=preparation.productionDeploymentPlan||preparation.deploymentPlan;
+ if(plan?.releaseStatus==='SUPERSEDED')throw Error('MAINNET_PRODUCTION_ROLE_PLAN_REQUIRED');
+ if(preparation.productionDeploymentPlan&&(plan.scope!=='PRODUCTION_HUB_V2_DEPLOYMENT'||plan.releaseStatus!=='PREPARED_FOR_OWNER_REVIEW'||['budgetApproved','signingAuthorized','broadcastAuthorized','runtimeActivationAuthorized'].some(k=>plan[k]!==false)))throw Error('MAINNET_QUOTE_PRODUCTION_SCOPE_INVALID');
  if(preparation.signingAuthorized!==false||preparation.broadcastAuthorized!==false||preparation.activationAuthorized!==false
   ||candidate?.protocolVersion!==2||!ethers.isHexString(candidate.unsignedTransaction.data)||!ethers.isAddress(candidate.unsignedTransaction.from))throw Error('MAINNET_QUOTE_CANDIDATE_INVALID');
  if(quantity(await rpc('eth_chainId',[]))!==5042n)throw Error('MAINNET_QUOTE_CHAIN_MISMATCH');
@@ -27,12 +29,19 @@ async function quoteDeployment(preparation,rpc){
  const block=await rpc('eth_getBlockByNumber',['latest',false]);
  if(!block||!ethers.isHexString(block.hash,32)||!block.number||Math.abs(Date.now()/1000-Number(quantity(block.timestamp)))>120)throw Error('MAINNET_QUOTE_BLOCK_UNAVAILABLE_OR_STALE');
  const [senderCode,securityCode,usdcCode,balanceHex,latestNonce,pendingNonce,gasPriceHex,tipHex]=await Promise.all([
-  rpc('eth_getCode',[from,block.number]),rpc('eth_getCode',[preparation.deploymentPlan.roles.securityAuthority,block.number]),
+  rpc('eth_getCode',[from,block.number]),rpc('eth_getCode',[plan.roles.securityAuthority,block.number]),
   rpc('eth_getCode',[preparation.manifest.contracts.USDC.address,block.number]),rpc('eth_getBalance',[from,block.number]),
   rpc('eth_getTransactionCount',[from,block.number]),rpc('eth_getTransactionCount',[from,'pending']),rpc('eth_gasPrice',[]),rpc('eth_maxPriorityFeePerGas',[])
  ]);
  if(senderCode!=='0x')throw Error('MAINNET_QUOTE_REQUIRES_EOA_CREATION_SENDER');
  if(!ethers.isHexString(usdcCode)||usdcCode==='0x'||!ethers.isHexString(securityCode))throw Error('MAINNET_QUOTE_CONTRACT_CODE_INVALID');
+ if(preparation.productionDeploymentPlan){
+  const safe=preparation.manifest.roles.securityAuthority,abi=new ethers.Interface(['function getOwners() view returns(address[])','function getThreshold() view returns(uint256)','function VERSION() view returns(string)','function nonce() view returns(uint256)','function getModulesPaginated(address,uint256) view returns(address[],address)']);
+  if(securityCode==='0x'||ethers.keccak256(securityCode).toLowerCase()!==safe.bytecodeHash.toLowerCase())throw Error('MAINNET_QUOTE_SAFE_CODE_MISMATCH');
+  const call=async(name,args=[])=>abi.decodeFunctionResult(name,await rpc('eth_call',[{to:safe.address,data:abi.encodeFunctionData(name,args)},block.number]));
+  const [owners,threshold,version,safeNonce,modules]=await Promise.all([call('getOwners'),call('getThreshold'),call('VERSION'),call('nonce'),call('getModulesPaginated',['0x0000000000000000000000000000000000000001',20])]);
+  if(JSON.stringify(Array.from(owners[0]).map(a=>a.toLowerCase()))!==JSON.stringify(safe.owners.map(a=>a.toLowerCase()))||threshold[0]!==2n||version[0]!==safe.safeVersion||safeNonce[0]!==0n||modules[0].length!==0||modules[1].toLowerCase()!=='0x0000000000000000000000000000000000000001')throw Error('MAINNET_QUOTE_SAFE_STATE_CHANGED');
+ }
  const nonce=quantity(pendingNonce);
  if(nonce!==quantity(latestNonce))throw Error('MAINNET_QUOTE_PENDING_SENDER_TRANSACTION');
  const baseFee=quantity(block.baseFeePerGas),tip=quantity(tipHex),suggestedGasPrice=quantity(gasPriceHex);
@@ -54,10 +63,10 @@ async function quoteDeployment(preparation,rpc){
   expectedContractAddress:ethers.getCreateAddress({from,nonce}),estimatedGas:estimatedGas.toString(),gasLimit:gasLimit.toString(),gasMarginPercent:20,
   fees:{baseFeePerGas:baseFee.toString(),suggestedGasPrice:suggestedGasPrice.toString(),maxFeePerGas:maxFee.toString(),maxPriorityFeePerGas:tip.toString(),maximumGasCostNative:maxCost.toString(),maximumGasCostUsdc:ethers.formatUnits(maxCost,18)},
   sender:{address:from,balanceNative:balance.toString(),balanceUsdc:ethers.formatUnits(balance,18),sufficientForMaximumGasCost:balance>=maxCost},
-  securityAuthority:{address:preparation.deploymentPlan.roles.securityAuthority,hasCode:securityCode!=='0x',safeVerified:false},
+  securityAuthority:{address:plan.roles.securityAuthority,hasCode:securityCode!=='0x',safeVerified:!!preparation.productionDeploymentPlan},
   simulation:{method:'eth_call',runtimeBytecodeHash:ethers.keccak256(simulatedRuntime),actualDeployment:false},
   budgetApproved:false,signingAuthorized:false,broadcastAuthorized:false,activationAuthorized:false,acceptanceEligible:false,
-  notes:['No transaction was signed or sent. The predicted address is not deployment evidence.','USDC native gas uses 18 decimals. Maximum cost is a proposed transaction fee cap, not an approved budget.','Refresh the quote before signature; verify wallet sender/network/nonce/data/fee limit. A wallet may propose different fee fields.','This contract-only deployment does not satisfy the production application role/Safe/startup requirements.']};
+  notes:['No transaction was signed or sent. The predicted address is not deployment evidence.','USDC native gas uses 18 decimals. Maximum cost is a proposed transaction fee cap, not an approved budget.','Refresh the quote before signature; verify wallet sender/network/nonce/data/fee limit. A wallet may propose different fee fields.',preparation.productionDeploymentPlan?'Distinct production roles and the verified Safe are used; Hub still requires finalized receipt/runtime/role readback and separate application activation.':'This contract-only deployment does not satisfy the production application role/Safe/startup requirements.']};
 }
 async function main(){
  if(process.argv.length>2)throw Error('MAINNET_QUOTE_ACCEPTS_NO_SIGNING_OR_DEPLOY_ARGUMENTS');
