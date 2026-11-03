@@ -33,6 +33,8 @@ Người dùng đã xác nhận có API key Mainnet và khóa signer riêng. Hư
 
 Ngày 03/11 đã nhập và verify-only lại: signer khớp manifest, Circle key và app secrets được lưu trong kho mã hóa local; vault không đổi. Người dùng chọn cùng tài khoản SMTP của Circle cho thông báo backend. Cấu hình SMTP được nhập vào kho riêng bằng công cụ trong hướng dẫn trên; không tự sao chép credential Testnet hoặc đọc mật khẩu từ Circle Console.
 
+Circle read-only probe đã thành công bằng LIVE key: API chấp nhận GET cấu hình và App ID khớp ứng dụng đã chốt. Đây chưa phải bằng chứng OTP/login hoặc giao dịch ví Arc đã hoạt động; các phần đó vẫn chờ nghiệm thu theo checklist.
+
 ## Hạn mức deploy/gas
 
 Deploy là đưa bytecode contract lên Arc. Tạo Safe, deploy Hub và thay đổi cấu hình trên chain đều có thể phát sinh gas. [Arc dùng USDC để trả gas](https://docs.arc.io/arc/references/gas-and-fees), cùng tài sản USDC có giao diện ERC-20; không cộng hai cách biểu diễn thành hai số dư.
