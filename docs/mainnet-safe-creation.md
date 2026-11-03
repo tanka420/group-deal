@@ -21,9 +21,15 @@ node scripts/quote_mainnet_safe.cjs
 node scripts/serve_mainnet_safe_review.cjs
 ```
 
+Có thể dùng `--port=60286` để giữ nguyên origin localhost qua lần khởi động lại. Port chỉ nhận số 1024–65535 và vẫn bind `127.0.0.1`; không nhận địa chỉ RPC, wallet hoặc transaction từ CLI.
+
 Hai lệnh chỉ chạy nguồn đã commit/push trên `codex/mainnet`, từ chối working tree chưa sạch. Trang chỉ bind `127.0.0.1` tại port được cấp khi chạy; URL và inventory nằm tại `.cache/mainnet-safe-review/<run>/SERVE.json`. Mở URL bằng trình duyệt có OKX/Rabby. Công cụ không chạy backend GroupDeal, đọc kho secret, mở DB hoặc deploy VPS.
 
 Trang hiển thị đủ owners, địa chỉ dự kiến, factory, sender, dữ liệu giao dịch, nonce, phí và hạn quote 5 phút. Có thể chọn tiện ích và tự kết nối ví trả gas; ví phải đang ở Arc Mainnet. Không tự đổi mạng hoặc yêu cầu nhập seed/private key. Source/fingerprint thay đổi sẽ chặn packet cũ.
+
+Nếu OKX báo mạng không khớp, chọn đúng **OKX Wallet** trên trang rồi bấm **Chuyển ví sang Arc Mainnet**. Đây là thao tác riêng của owner, dùng `wallet_switchEthereumChain` theo [EIP-3326](https://eips.ethereum.org/EIPS/eip-3326); chỉ khi ví trả lỗi 4902 mới xin thêm mạng qua `wallet_addEthereumChain`, sau đó xin chuyển và đọc lại chain ID. Thông số được ghim theo [Arc Mainnet chính thức](https://docs.arc.io/arc/references/connect-to-arc): 5042/`0x13b2`, `https://rpc.mainnet.arc.io`, native USDC 18 decimals, explorer `https://explorer.arc.io`. Không thay mạng hoặc thêm mạng lúc tải trang/kết nối.
+
+Trang hiện tên provider và chain ID thực do ví trả về; đọc chain trước `eth_requestAccounts`. Khi đúng 5042 mới xin kết nối tài khoản, rồi vẫn kiểm lại account/chain trước gửi. Sau chuyển, bấm **Kết nối ví đã chọn**, kiểm owner và tích ô xác nhận. Hủy chuyển, mạng chưa đổi, sai ví hoặc sai quote đều giữ nút gửi khóa, không tạo attempt. Đổi mạng trong một tiện ích không được dùng làm bằng chứng cho tiện ích khác.
 
 Khi chỉ duyệt ngân sách, `signingAuthorized` và `broadcastAuthorized` đều **false**: nút ký bị khóa, server từ chối ghi attempt. Trước khi bật hai cờ này, cần người giữ ví duyệt riêng **tạo đúng Safe trên Arc từ sender/factory/owners/calldata ở trên, phí không vượt 0,02 USDC**. Không suy sự đồng ý từ việc mở trang, kết nối ví hoặc duyệt ngân sách. Sau khi ghi quyền tương ứng vào cấu hình, phải commit/push và khởi chạy lại helper với artifact mới.
 

@@ -46,7 +46,8 @@ function createReviewServer({packet,files,quoteLoader,attemptDirectory,assertCon
  server.requestTimeout=50000;server.headersTimeout=10000;server.keepAliveTimeout=1000;return server;
 }
 async function main(){
- if(process.argv.length>2)throw Error('SAFE_REVIEW_ACCEPTS_NO_WALLET_OR_TRANSACTION_ARGUMENTS');
+ const args=process.argv.slice(2),port=args.length===1&&/^--port=\d{4,5}$/.test(args[0])?Number(args[0].slice(7)):0;
+ if(args.length&&(args.length!==1||port<1024||port>65535))throw Error('SAFE_REVIEW_ACCEPTS_ONLY_LOCAL_PORT');
  const before=prepareMainnet(),budget=JSON.parse(fs.readFileSync(path.join(root,'config/mainnet-safe-budget.json'),'utf8'));
  // The budget is validated against canonical Safe setup during the initial quote, before opening the server.
  const initial=await currentQuote();if(initial.report.sourceFingerprint!==before.sourceFingerprint)throw Error('SAFE_REVIEW_SOURCE_CHANGED');
@@ -60,7 +61,7 @@ async function main(){
  };
  const attemptDirectory=path.join(root,'.cache/mainnet-safe-attempts',budget.dataHash.slice(2));
  const assertContext=()=>{if(prepareMainnet().sourceFingerprint!==packet.sourceFingerprint)throw Error('SAFE_REVIEW_SOURCE_CHANGED');};
- const server=createReviewServer({packet,files,quoteLoader:currentQuote,attemptDirectory,assertContext});await new Promise(r=>server.listen(0,'127.0.0.1',r));
+ const server=createReviewServer({packet,files,quoteLoader:currentQuote,attemptDirectory,assertContext});await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,'127.0.0.1',resolve);});
  const url='http://127.0.0.1:'+server.address().port,reportDirectory=path.join(root,'.cache/mainnet-safe-review',crypto.randomUUID());fs.mkdirSync(reportDirectory,{recursive:true});
  const artifactDirectory=path.join(reportDirectory,'page');fs.mkdirSync(artifactDirectory);
  for(const [route,item] of Object.entries(files))fs.writeFileSync(path.join(artifactDirectory,route==='/'?'index.html':route.slice(1)),item.bytes,{flag:'wx'});
