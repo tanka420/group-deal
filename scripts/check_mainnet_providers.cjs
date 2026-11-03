@@ -1,7 +1,8 @@
-// Stdin-only credentials, fixed Circle GET or SMTP verify. No wallet/DB/backend imports.
+// Stdin-only credentials, fixed provider GETs or SMTP verify. No wallet/DB/backend imports.
 const nodemailer=require('../backend/node_modules/nodemailer');
 const publicConfig=require('../shared/mainnet-public.json');
 const CIRCLE_URL='https://api.circle.com/v1/w3s/config/entity';
+const blockscoutUrl=()=>'https://api.blockscout.com/5042/api/v2/addresses/'+require('../shared/manifests/arc-mainnet.json').roles.owner.address.toLowerCase()+'/tokens?type=ERC-20';
 const base={emailsSent:0,transactionsSubmitted:0,signaturesCreated:0,backendActivated:false};
 const failed=(code,extra={})=>({...base,result:'FAIL',code,...extra});
 function smtpOptions(s){
@@ -27,9 +28,9 @@ async function checkSmtp(settings,verifyConnection,transportFactory=nodemailer.c
  }catch(error){return failed(error?.code==='EAUTH'?'SMTP_AUTHENTICATION_FAILED':'SMTP_TLS_OR_CONNECTION_FAILED',{smtpConnectionVerified:false,networkCalls:1});}
  finally{clearTimeout(timer);try{transport?.close();}catch{}}
 }
-async function readJson(response){
+async function readJson(response,maxBytes=65536){
  const reader=response.body?.getReader();if(!reader)throw Error();const chunks=[];let size=0;
- try{for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>65536)throw Error();chunks.push(value);}
+ try{for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>maxBytes)throw Error();chunks.push(value);}
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
  }finally{try{await reader.cancel();}catch{}}
 }
@@ -46,7 +47,20 @@ async function checkCircle(apiKey,fetcher=fetch){
    arcWalletOperationVerified:false,otpVerified:false,endpoint:CIRCLE_URL};
  }catch{return failed('CIRCLE_READONLY_REQUEST_FAILED',{networkCalls:1});}
 }
-module.exports={smtpOptions,checkSmtp,checkCircle,CIRCLE_URL};
+async function checkBlockscout(apiKey,verifyConnection,fetcher=fetch){
+ if(process.env.NODE_TLS_REJECT_UNAUTHORIZED==='0')return failed('INDEXER_TLS_VALIDATION_DISABLED',{networkCalls:0});
+ if(typeof apiKey!=='string'||!/^proapi_[\x21-\x7e]{1,512}$/.test(apiKey))return failed('INDEXER_KEY_FORMAT_INVALID',{networkCalls:0});
+ if(!verifyConnection)return {...base,result:'PASS',indexerConfigurationPresent:true,indexerReadVerified:false,networkCalls:0};
+ try{
+  const endpoint=blockscoutUrl();
+  const response=await fetcher(endpoint,{method:'GET',redirect:'error',headers:{accept:'application/json',authorization:'Bearer '+apiKey},signal:AbortSignal.timeout(15000)});
+  if(response.status!==200){try{await response.body?.cancel();}catch{}return failed(response.status===401||response.status===402?'INDEXER_AUTHENTICATION_FAILED':'INDEXER_READ_UNAVAILABLE',{httpStatus:response.status,networkCalls:1});}
+  const body=await readJson(response,1024*1024);
+  if(!Array.isArray(body?.items)||body.items.length>50||!Object.hasOwn(body,'next_page_params')||!body.items.every(r=>r?.token?.type==='ERC-20'&&/^0x[a-f0-9]{40}$/i.test(r.token.address_hash)))return failed('INDEXER_RESPONSE_INVALID',{httpStatus:200,networkCalls:1});
+  return {...base,result:'PASS',httpStatus:200,networkCalls:1,indexerConfigurationPresent:true,indexerReadVerified:true,chainId:5042,endpoint,holdingsComparedToRpc:false};
+ }catch{return failed('INDEXER_READONLY_REQUEST_FAILED',{networkCalls:1});}
+}
+module.exports={smtpOptions,checkSmtp,checkCircle,checkBlockscout,CIRCLE_URL,blockscoutUrl};
 if(require.main===module){
  (async()=>{
   let result;try{
@@ -55,6 +69,7 @@ if(require.main===module){
    const input=JSON.parse(Buffer.concat(chunks).toString('utf8'));
    if(input?.provider==='circle'&&Object.keys(input).sort().join(',')==='circleApiKey,provider')result=await checkCircle(input.circleApiKey);
    else if(input?.provider==='smtp'&&Object.keys(input).sort().join(',')==='provider,settings,verifyConnection'&&typeof input.verifyConnection==='boolean')result=await checkSmtp(input.settings,input.verifyConnection);
+   else if(input?.provider==='blockscout'&&Object.keys(input).sort().join(',')==='apiKey,provider,verifyConnection'&&typeof input.verifyConnection==='boolean')result=await checkBlockscout(input.apiKey,input.verifyConnection);
    else throw Error();
   }catch{result=failed('PROVIDER_INPUT_INVALID');}
   process.stdout.write(JSON.stringify(result)+'\n');process.exitCode=result.result==='PASS'?0:1;

@@ -51,6 +51,20 @@ Nhập hostname, port 465 hoặc 587 (mặc định 587), username, email gửi 
 
 SMTP lưu mã hóa riêng ở `.cache/mainnet-private/smtp.dpapi.json`; kho `secrets.dpapi.json` không thay đổi. Có vault sẵn thì chỉ xác minh, không ghi đè. `configure_mainnet_smtp.ps1 -VerifyOnly` chỉ kiểm format local, không kết nối server. Metadata nằm tại `.cache/mainnet-smtp-input/<run>/STATUS.json`; không in password hoặc nội dung vault. Các test SMTP dùng transport mock, chưa phải bằng chứng email thật đã gửi/nhận.
 
+## Nhập key Blockscout cho danh sách token Mainnet
+
+Tạo API key tại [Blockscout Dev Portal](https://dev.blockscout.com/) bằng gói Free; chỉ nhập key mới chưa gửi trong chat. Nếu đã gửi key trong chat, thu hồi key đó trước. Công cụ không tự tạo tài khoản, thêm thẻ hoặc nâng gói.
+
+```powershell
+powershell.exe -NoLogo -NoProfile -File E:\apps\group-deal-mainnet\scripts\configure_mainnet_indexer.ps1
+```
+
+Ô `NEW BLOCKSCOUT_API_KEY` được ẩn. Key chỉ truyền qua stdin cho checker, gửi trong Authorization header của GET cố định tới `https://api.blockscout.com/5042/api/v2/addresses/<owner>/tokens?type=ERC-20`. Request dùng credits của gói API; không ký hoặc gửi giao dịch. Kết quả chỉ trả metadata, không trả token list, key hoặc exception thô. Một GET thành công chưa chứng minh danh sách ví đầy đủ hoặc balance đã đối chiếu RPC.
+
+Key được lưu riêng bằng DPAPI CurrentUser tại `.cache/mainnet-private/indexer.dpapi.json`; hai vault Circle/signer/app secrets và SMTP được kiểm hash không đổi, không giải mã. Công cụ không ghi đè vault có sẵn. `-VerifyOnly` chỉ kiểm local và không gọi API. Metadata tại `.cache/mainnet-indexer-input/<run>/STATUS.json` phân biệt `indexerReadVerified` với trạng thái lưu local. Chưa xuất credential sang VPS hoặc kích hoạt backend.
+
+Biến `BLOCKSCOUT_API_KEY` chỉ dành cho backend; tuyệt đối không dùng prefix `VITE_`, không nhập vào mẫu env/Git. Backend không có key vẫn đọc token nhập contract thủ công và báo discovery chưa đầy đủ. Frontend/backend Testnet không thay đổi.
+
 ## Kiểm chứng công cụ
 
 ```text

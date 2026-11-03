@@ -1,6 +1,6 @@
 # Các quyết định chủ dự án cần chuẩn bị trước Mainnet
 
-Cập nhật 02/11/2026. Người dùng đã chọn V2 và yêu cầu quay lại hoàn thiện Mainnet tuần tự. Trình tự hiện hành nằm ở đầu `docs/mainnet-checklist.md`; phương án deploy contract/Studio trước đã thành lịch sử. Tài liệu giải thích các mục trong checklist; không cấp quyền ký, nạp tiền, thêm thẻ hoặc deploy.
+Cập nhật 03/11/2026. Người dùng đã chọn V2 và yêu cầu quay lại hoàn thiện Mainnet tuần tự. Trình tự hiện hành nằm ở đầu `docs/mainnet-checklist.md`; phương án deploy contract/Studio trước đã thành lịch sử. Tài liệu giải thích các mục trong checklist; không cấp quyền ký, nạp tiền, thêm thẻ hoặc deploy.
 
 ## Circle production và thanh toán
 
@@ -27,13 +27,17 @@ Email OTP của Circle cần SMTP được cấu hình trong Circle; SMTP thông
 - Circle App ID công khai: `2ee19943-ce4c-59a0-958b-3814cfdeb215`.
 - Reown Project ID công khai: `b40cf0b4a742fcc69708d59a34765a50`.
 - Hai ID được lưu tại `shared/mainnet-public.json`, dùng mặc định chỉ trong môi trường Mainnet khi build trực tiếp từ GitHub. Giá trị `VITE_CIRCLE_APP_ID`/`VITE_REOWN_PROJECT_ID` được truyền tường minh sẽ ghi đè, kể cả giá trị rỗng để fixture tắt provider. `build:mainnet` dùng ID công khai này và kiểm tra chúng có trong artifact.
-- API key Circle Mainnet chưa được nhập vào backend. Nhập riêng qua cấu hình dịch vụ bảo mật; không gửi key hoặc mật khẩu SMTP trong chat/Git. Reown cần cho phép origin `https://groupdeal.tech`; khả năng đăng nhập ví thực tế vẫn cần xác minh sau khi cấu hình đầy đủ.
+- API key Circle Mainnet đã được lưu mã hóa local và GET cấu hình/App ID xác minh thành công ngày 03/11; chưa cấu hình runtime VPS. Chủ tài khoản xác nhận Reown đã cho phép origin `https://groupdeal.tech` (USER_REPORTED); đăng nhập ví thực tế vẫn cần xác minh.
 
-Người dùng đã xác nhận có API key Mainnet và khóa signer riêng. Hướng dẫn nhập ẩn, lưu kho mã hóa local và kiểm tra không lộ giá trị ở `docs/mainnet-secret-setup.md`. Đây là staging local, chưa phải cấu hình backend trên VPS hoặc kiểm chứng auth Circle live.
+Người dùng đã xác nhận có API key Mainnet và khóa signer riêng. Hướng dẫn nhập ẩn, lưu kho mã hóa local và kiểm tra không lộ giá trị ở `docs/mainnet-secret-setup.md`. Đây là staging local, chưa phải cấu hình backend trên VPS hoặc bằng chứng OTP/login thật.
 
 Ngày 03/11 đã nhập và verify-only lại: signer khớp manifest, Circle key và app secrets được lưu trong kho mã hóa local; vault không đổi. Người dùng chọn cùng tài khoản SMTP của Circle cho thông báo backend. Cấu hình SMTP được nhập vào kho riêng bằng công cụ trong hướng dẫn trên; không tự sao chép credential Testnet hoặc đọc mật khẩu từ Circle Console.
 
 Circle read-only probe đã thành công bằng LIVE key: API chấp nhận GET cấu hình và App ID khớp ứng dụng đã chốt. Đây chưa phải bằng chứng OTP/login hoặc giao dịch ví Arc đã hoạt động; các phần đó vẫn chờ nghiệm thu theo checklist.
+
+SMTP backend đã qua kiểm tra TLS/login và lưu mã hóa riêng, không đổi core vault; chưa gửi email thật. Bước này không thay thế nghiệm thu OTP của Circle hoặc email thông báo đã đến người nhận.
+
+Danh sách token Mainnet dùng Universal Blockscout API (backend-only key); số dư được đọc lại từ Arc RPC. [Gói Free hiện có 100K credits/ngày, 5 request/giây, không cần thẻ](https://docs.blockscout.com/devs/blockscout-api). Đây là credits, không phải 100K lượt gọi: theo [bảng credits](https://docs.blockscout.com/devs/blockscout-api-responses-and-routes), endpoint không liệt kê riêng mặc định tốn 20 credits/lượt, hết hạn mức Free sẽ từ chối request đến lần reset. Không tự nâng gói hoặc thanh toán. Key đã gửi trong chat cần thu hồi rồi thay bằng key mới qua ô nhập ẩn theo `docs/mainnet-secret-setup.md`.
 
 ## Hạn mức deploy/gas
 
