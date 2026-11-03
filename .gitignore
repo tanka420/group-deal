@@ -47,3 +47,8 @@ Thumbs.db
 /reports/ui-review/
 /reports/baseline-sync/
 /.playwright-cli/
+
+# Local state from the pinned design skills.
+/.taste-skill/
+/.impeccable/*
+!/.impeccable/design.json

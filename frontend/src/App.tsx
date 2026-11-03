@@ -100,7 +100,7 @@ const MainApp: React.FC = () => {
   const isSeller = user?.roles?.includes("seller");
 
   return (
-    <div className={'app-container'+(['seller','operator'].includes(currentTab)?' workspace-app':'')}>
+    <div className={'app-container'+(['seller','operator'].includes(currentTab)?' workspace-app':' storefront-app')}>
       <a className="skip-link" href="#main-content" onClick={event=>{event.preventDefault();focusPageElement(document.getElementById("main-content"));}}>{language==="en"?"Skip to main content":"Đến nội dung chính"}</a>
       <AuthModal isOpen={isAuthOpen} onClose={closeAuth}/>
       {currentTab==='operator'?<AdminHeader/>:<Header

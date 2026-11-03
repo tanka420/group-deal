@@ -358,12 +358,13 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
   return (
     <div className="buyer-deal-detail">
       <nav className="deal-breadcrumb" aria-label={text("Điều hướng deal", "Deal navigation")}><button className="btn btn-secondary" onClick={onBack}><ArrowLeft size={16}/>{text("Quay lại danh sách", "Back to deals")}</button><span>{campaign.category}</span></nav>
+      <header className="deal-title"><div className="deal-badges"><span className="badge">{campaign.category}</span><span className="badge badge-sla">Arc Testnet</span></div><h1>{campaign.title}</h1><p>{campaign.description}</p></header>
       <div className="campaign-detail-grid">
         <div className="deal-main">
           <ProductGallery key={campaign.id} title={campaign.title} thumbnailUrl={campaign.thumbnailUrl} media={campaign.product?.media}/>
           <SellerIdentity seller={seller}/>
-          <header className="deal-title"><div className="deal-badges"><span className="badge">{campaign.category}</span><span className="badge badge-sla">Arc Testnet</span></div><h1>{campaign.title}</h1><p>{campaign.description}</p></header>
-          {Array.isArray(campaign.amendments)&&campaign.amendments.length>0&&<CampaignAmendmentHistory items={campaign.amendments}/>}
+
+          {Array.isArray(campaign.amendments)&&campaign.amendments.length>0&&<div className="deal-amendment-history"><CampaignAmendmentHistory items={campaign.amendments}/></div>}
           <DealKeyFacts product={campaign.product} slaSeconds={campaign.deliverySlaSeconds}/>
           <nav className="deal-section-nav" aria-label={text("Nội dung sản phẩm", "Product information")}><button className="btn btn-secondary" onClick={()=>focusPageElement(document.getElementById("deal-license"))}>{text("License và quyền sử dụng", "License and usage rights")}</button><button className="btn btn-secondary" onClick={()=>focusPageElement(document.getElementById("deal-delivery"))}>{text("Giao hàng và điều khoản", "Delivery and terms")}</button></nav>
           <div id="deal-license" className="deal-license-section" tabIndex={-1}><LicenseSummary product={campaign.product} rights={campaign.rights}/></div>

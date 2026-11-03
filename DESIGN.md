@@ -1,0 +1,123 @@
+---
+name: GroupDeal Testnet Buyer Interface
+description: Product-first group buying with clear prices, terms, and next steps.
+colors:
+  primary: "#1757e5"
+  primary-hover: "#1048c7"
+  surface: "#ffffff"
+  surface-muted: "#f1f5fb"
+  surface-soft: "#f5f7fb"
+  gallery-well: "#f0f4fa"
+  text-primary: "#17243a"
+  text-secondary: "#53647c"
+  text-muted: "#5e6d82"
+  border-subtle: "#e1e7f0"
+  border-medium: "#cdd7e6"
+  status-positive-surface: "#e4f2ea"
+  status-positive-text: "#256545"
+  status-discount-surface: "#eaf5ee"
+  status-discount-text: "#236548"
+  status-neutral-surface: "#eef3fa"
+  status-neutral-text: "#4d6280"
+  category-selected: "#172c4d"
+typography:
+  display: {fontFamily: "Be Vietnam Pro, system-ui, sans-serif", fontSize: "62px", fontWeight: 700, lineHeight: 1.1, letterSpacing: "-0.04em"}
+  headline: {fontFamily: "Be Vietnam Pro, system-ui, sans-serif", fontSize: "40px", fontWeight: 700, lineHeight: 1.2}
+  title: {fontFamily: "Be Vietnam Pro, system-ui, sans-serif", fontSize: "20px", fontWeight: 600, lineHeight: 1.4, letterSpacing: "-0.025em"}
+  body: {fontFamily: "Be Vietnam Pro, system-ui, sans-serif", fontSize: "14px", fontWeight: 400, lineHeight: 1.7}
+  label: {fontFamily: "Be Vietnam Pro, system-ui, sans-serif", fontSize: "13px", fontWeight: 600, lineHeight: 1.7}
+rounded: {badge: "4px", category: "6px", control: "8px", panel: "12px", circle: "50%"}
+spacing: {compact: "8px", small: "12px", medium: "16px", large: "24px", wide: "40px", section: "64px"}
+components:
+  button-primary: {backgroundColor: "{colors.primary}", textColor: "{colors.surface}", typography: "{typography.label}", rounded: "{rounded.control}"}
+  button-secondary: {backgroundColor: "{colors.surface}", textColor: "{colors.text-primary}", typography: "{typography.label}", rounded: "{rounded.control}"}
+  input-search: {backgroundColor: "{colors.surface}", textColor: "{colors.text-primary}", typography: "{typography.body}", rounded: "{rounded.control}"}
+  category-selected: {backgroundColor: "{colors.category-selected}", textColor: "{colors.surface}", typography: "{typography.label}", rounded: "{rounded.category}"}
+---
+
+# Design System: GroupDeal Testnet Buyer Interface
+
+## Overview
+
+**Creative North Star: "The Clear Product Shelf"**
+
+Give the product and buying decision room to be understood: real catalog items lead, with price, availability, delivery, and license details nearby. The shared buyer language is open and calm: white static surfaces, navy text, cobalt actions, fine dividers, and restrained status colors.
+
+Be Vietnam Pro supports English and Vietnamese. Catalog images come from product data and use a labeled fallback when unavailable. Seller and operator workspaces are outside this `.storefront-app` system.
+
+**Key Characteristics:** product-led; spacious and static; bilingual; factual status colors.
+
+## Colors
+
+Clear cobalt emphasizes actions and tier progress. Navy and slate carry information; pale blue surfaces and fine borders separate content. Green and slate statuses remain semantic.
+
+### Primary
+- **Clear Cobalt:** primary action and progress.
+- **Deep Cobalt:** primary hover.
+
+### Neutral
+- **Paper White:** page and control surfaces.
+- **Cool Mist, Soft Blue Gray, Gallery Mist:** quiet sections, purchase surface, and product-image wells.
+- **Navy Ink, Slate Ink, Muted Slate:** headings, body, and supporting copy.
+- **Fine Blue Gray, Quiet Blue Gray:** dividers and outlines.
+
+**The Quiet Status Rule.** Green and slate badges describe actual product or purchase states; they are not decoration.
+
+## Typography
+
+**Display / Body:** Be Vietnam Pro (system-ui, sans-serif fallback).
+
+### Hierarchy
+- **Display** (700): home lead; scales from 62px down to 39px.
+- **Headline** (700): Explore and deal titles, 40px desktop and 31–32px mobile.
+- **Title** (600): product titles and section headings.
+- **Body** (400): descriptions and terms; long detail copy stays near 75ch.
+- **Label** (600): buttons and concise field labels.
+
+**The Two-Language Rule.** Keep the same hierarchy in both languages; do not shrink or truncate Vietnamese labels to make layouts fit.
+
+## Layout
+
+Centered content is 1280px wide, with a 1360px header and 1200px footer. Home uses a split introduction, featured product, then three product columns; the catalog drops to two columns below 1100px and one below 700px. Deal detail has gallery and terms beside a sticky purchase panel, then stacks below 992px. Mobile content uses 20px side padding, then 16px below 360px.
+
+Explore's advanced filters start closed on desktop. At 768px the filter button opens a dialog; its initial state is closed. Keep search, categories, active-filter chips, prices, availability, and pagination in the real catalog flow.
+
+**The Product-First Rule.** Lead with the real product, title, current price, and status; keep the complete license and delivery details reachable from it.
+
+## Elevation & Depth
+
+Catalog tiles, galleries, and the purchase panel are flat at rest. Pale surfaces and borders provide separation; the overlay shadow is reserved for menus and the compact filter drawer. Buttons use a 150ms background transition; reduced-motion preference removes it. Backgrounds stay static.
+
+**The Flat Surface Rule.** Do not add ambient shadows to product tiles, galleries, or the purchase panel.
+
+## Shapes
+
+Use the frontmatter radius scale for controls, badges, and panels. Product tiles and image wells stay square and unframed; seller avatars are circular. Keyboard focus is a cobalt outline with offset, not a glow.
+
+## Components
+
+### Buttons and Inputs
+- Primary buttons are solid cobalt; secondary actions are white with a quiet outline. Base buttons are at least 46px tall, search controls 48px, and the purchase action 50px desktop / 58px mobile. Hover deepens color without lift; focus uses a 3px outline with 4px offset.
+- Search is a labeled form. Keep price validation and USDC-per-unit meaning visible.
+
+### Catalog Products and Filters
+- Product cards are unboxed. Use the thumbnail URL from catalog data, lazy-load it, and show the labeled unavailable-image fallback on absence or error.
+- Keep current price, tier progress, deadline, and seller facts with the card. License and delivery use a native, initially closed disclosure.
+- Desktop advanced filters begin closed. Compact screens use the existing filter dialog; selected categories and removable filter chips retain clear states.
+
+### Navigation and Deal Detail
+- The buyer header is white with a fine lower divider and a thin cobalt active-route underline; it is 84px tall desktop and 72px mobile.
+- Keep gallery, seller, key facts, license, delivery, and purchase panel in the existing detail order. License and delivery navigation targets remain keyboard reachable.
+
+### Purchase Panel
+- Keep status, deadline, unit price, tier rail, fee note, and join action together. Preserve the existing pre-transaction review, consent, authentication, funding, wallet authorization, transaction status, and recovery behavior.
+
+## Do's and Don'ts
+
+### Do:
+- **Do** use real product imagery and the labeled fallback; keep price, rights, license, and delivery attached to that product.
+- **Do** preserve English/Vietnamese and visible Arc Testnet and USDC context.
+
+### Don't:
+- **Don't** invent live products, sales, testimonials, or rights-approval states.
+- **Don't** add moving or repeating perspective grids, or bypass the existing financial and transaction flows.

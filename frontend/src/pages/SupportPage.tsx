@@ -29,7 +29,11 @@ export function SupportPage({route}:{route:string}){
  };
  useEffect(()=>{alive.current=true;busy.current=false;try{sessionEpoch.current=getSessionEpoch();}catch{sessionEpoch.current=null;}generation.current++;controller.current=new AbortController();try{if(userId)setCheckpoint(loadSupportCheckpoint(userId));}catch{setStorageError(true);}void load();return()=>{alive.current=false;generation.current++;fileGeneration.current++;controller.current.abort();intent.current=null;};},[]);
  useEffect(()=>{if(alive.current)void load();},[view,filter]);
- useEffect(()=>{if(notice||error)focusPageElement(statusRef.current);},[notice,error]);
+ useEffect(()=>{
+  // A late support response must not interrupt someone already using navigation.
+  const active=document.activeElement;
+  if((notice||error)&&!(active instanceof HTMLElement&&active.closest('.app-header')))focusPageElement(statusRef.current);
+ },[notice,error]);
  const acknowledge=(v:any,c:SupportCheckpoint)=>{const t=readSupportReceipt(v,c,operator);clearSupportCheckpoint(c);setCheckpoint(null);setMissing(false);intent.current=null;setMessage('');setSubject('');setUploads([]);setRemove(null);show(t);setNotice(uiMessage('Máy chủ đã xác nhận thao tác hỗ trợ.','The server confirmed the support action.'));};
  const send=async(action:SupportAction,path:string,body:any)=>{if(!userId||!token||busy.current||checkpoint||storageError||!filesReady||!ready||action==='ASSIGN'&&(!operator||!ticket?.canAssign))return;busy.current=true;setPending(true);setError('');setNotice('');setMissing(false);
   try{const c=await supportCheckpoint(userId,action,ticket?.id??null,body);if(!current())return;saveSupportCheckpoint(c);setCheckpoint(c);intent.current={checkpoint:c,path,body};const value=await supportRequest(path,token,controller.current.signal,body);if(current())acknowledge(value,c);}

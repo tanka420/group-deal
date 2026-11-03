@@ -66,13 +66,7 @@ body {
   min-height: 100vh;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  background-image:
-    radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.92), transparent 65%),
-    radial-gradient(ellipse at 90% 35%, rgba(0, 102, 245, 0.035), transparent 60%),
-    linear-gradient(rgba(0, 102, 245, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 102, 245, 0.045) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 48px 48px, 48px 48px;
-  background-repeat: no-repeat, no-repeat, repeat, repeat;
+  background-image: none;
 
 }
 

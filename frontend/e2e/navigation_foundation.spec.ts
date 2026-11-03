@@ -34,6 +34,19 @@ for(const width of [375,768,1440])test(`buyer navigation remains reachable at ${
  expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
 });
 
+test('a late support error does not steal focus from open navigation',async({page})=>{
+ const f=await fixture(page,true);await page.setViewportSize({width:375,height:812});
+ let release!:()=>void,held=false;const response=new Promise<void>(resolve=>{release=resolve;});
+ await page.route('**/api/support/tickets?**',async route=>{held=true;await response;await route.fulfill({status:503,json:{error:'LOCAL_FIXTURE_UNAVAILABLE'}});});
+ await page.goto('/support');await expect.poll(()=>held).toBe(true);
+ const trigger=page.getByRole('button',{name:'Open navigation'}),menu=page.getByRole('region',{name:'Navigation',exact:true});
+ await trigger.click();await expect(menu).toBeVisible();release();
+ await expect(page.getByRole('alert')).toContainText('Support data could not be verified');
+ await expect(trigger).toBeFocused();await expect(menu).toBeVisible();
+ await menu.getByRole('link',{name:'Home',exact:true}).click();await expect(page).toHaveURL(/\/$/);
+ expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
+});
+
 test('catalog query is the source for reload, Back and Forward',async({page})=>{
  const f=await fixture(page);await page.goto('/explore?q=first&sort=oldest');await expect(page.locator('#catalog-search')).toHaveValue('first');
  await page.locator('#catalog-search').fill('second');await page.getByRole('button',{name:'Search',exact:true}).click();await expect(page).toHaveURL(/q=second/);

@@ -11,6 +11,7 @@ import "./styles/workspace-layout.css";
 import "./styles/workspace-refinements.css";
 import "./styles/record-lists.css";
 import "./styles/header.css";
+import "./styles/storefront.css";
 import { ExternalWalletProvider } from "./context/ExternalWalletContext";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

@@ -6,3 +6,9 @@
 - For a baseline check, run `node scripts/verify_vps_baseline.cjs`; add `--artifacts` only when the recorded release artifacts are available. This verifies the historical baseline, not arbitrary future changes. A matching baseline is not full product acceptance or a new full-CI result.
 - For subsequent work: edit locally, review the diff, run checks appropriate to the change, commit and push to GitHub, then build/deploy the approved exact commit or its recorded artifact. Record frontend and backend versions separately if only one is released. Do not deploy an uncommitted checkout or treat a local sample preview as production evidence.
 - Keep credentials, runtime databases, local archives, and generated private evidence out of Git. Baseline synchronization does not authorize moving production data, restarting services, or deploying changes. Follow the user's current scope for those actions.
+
+# Testnet interface design
+
+- Use the pinned project-local Taste and Impeccable skills recorded in `docs/ui-skills.json`. Taste leads visual direction; Impeccable supplies review and verification. Read `PRODUCT.md` for the current task and product constraints.
+- The user set aside `codex/ui-v2`; do not carry its frontend, preview, background, or visual contract into this redesign. The two design directions are preserved in `design/testnet-concepts/`. On 3 November 2026 the user selected A (product-led gallery). Implement that direction in the actual buyer interface; the comparison prototypes are references, not application logic.
+- Preserve existing business behavior and bilingual support. Keep generated design evidence under ignored `.cache/` paths. Static backgrounds only.

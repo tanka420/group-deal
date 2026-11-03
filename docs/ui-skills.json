@@ -1,0 +1,9 @@
+{
+  "scope": "project",
+  "installedAt": "2026-11-03",
+  "automaticHooks": false,
+  "skills": [
+    {"name":"impeccable","repository":"https://github.com/pbakaus/impeccable","commit":"9fadc41729c38fd47d7ae622b501558653f9d2e9","sourcePath":".agents/skills/impeccable","installedPath":".agents/skills/impeccable","license":"Apache-2.0"},
+    {"name":"design-taste-frontend","repository":"https://github.com/Leonxlnx/taste-skill","commit":"12af471f627f866411b4bd785b19646d3672784c","sourcePath":"skills/taste-skill","installedPath":".agents/skills/design-taste-frontend","license":"MIT"}
+  ]
+}

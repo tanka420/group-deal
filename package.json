@@ -106,7 +106,8 @@
     "check:circle-fee-review": "node scripts/run_circle_fee_review_checks.cjs",
     "check:circle-operation-recovery": "node scripts/run_circle_operation_recovery_checks.cjs --regressions",
     "typecheck:circle-operation-recovery": "node backend/node_modules/typescript/bin/tsc --noEmit --strict --esModuleInterop --skipLibCheck --target ES2022 --module commonjs --moduleResolution node --typeRoots backend/node_modules/@types backend/test/circle_operation_recovery.test.ts frontend/test/circle_operation_recovery.test.ts",
-    "start:testnet": "node scripts/start_testnet_application.cjs"
+    "start:testnet": "node scripts/start_testnet_application.cjs",
+    "preview:testnet-design": "node scripts/preview_testnet_design.mjs"
   },
   "keywords": [
     "arc-testnet",

@@ -1,0 +1,415 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-03T10:19:11.727Z",
+  "title": "Design System: GroupDeal Testnet Buyer Interface",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Clear Cobalt",
+        "tonalRamp": [
+          "oklch(15% .08 263)",
+          "oklch(25% .14 263)",
+          "oklch(37% .19 263)",
+          "oklch(49% .22 263)",
+          "oklch(61% .20 263)",
+          "oklch(73% .16 263)",
+          "oklch(85% .10 263)",
+          "oklch(95% .04 263)"
+        ]
+      },
+      "primary-hover": {
+        "role": "primary",
+        "displayName": "Deep Cobalt",
+        "tonalRamp": [
+          "oklch(15% .08 263)",
+          "oklch(25% .14 263)",
+          "oklch(37% .19 263)",
+          "oklch(49% .22 263)",
+          "oklch(61% .20 263)",
+          "oklch(73% .16 263)",
+          "oklch(85% .10 263)",
+          "oklch(95% .04 263)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Paper White",
+        "tonalRamp": [
+          "oklch(15% .008 260)",
+          "oklch(25% .008 260)",
+          "oklch(37% .008 260)",
+          "oklch(49% .008 260)",
+          "oklch(61% .008 260)",
+          "oklch(73% .008 260)",
+          "oklch(85% .008 260)",
+          "oklch(95% .008 260)"
+        ]
+      },
+      "surface-muted": {
+        "role": "neutral",
+        "displayName": "Cool Mist",
+        "tonalRamp": [
+          "oklch(15% .012 255)",
+          "oklch(25% .012 255)",
+          "oklch(37% .012 255)",
+          "oklch(49% .012 255)",
+          "oklch(61% .012 255)",
+          "oklch(73% .012 255)",
+          "oklch(85% .012 255)",
+          "oklch(95% .012 255)"
+        ]
+      },
+      "surface-soft": {
+        "role": "neutral",
+        "displayName": "Soft Blue Gray",
+        "tonalRamp": [
+          "oklch(15% .015 255)",
+          "oklch(25% .015 255)",
+          "oklch(37% .015 255)",
+          "oklch(49% .015 255)",
+          "oklch(61% .015 255)",
+          "oklch(73% .015 255)",
+          "oklch(85% .015 255)",
+          "oklch(95% .015 255)"
+        ]
+      },
+      "gallery-well": {
+        "role": "neutral",
+        "displayName": "Gallery Mist",
+        "tonalRamp": [
+          "oklch(15% .018 255)",
+          "oklch(25% .018 255)",
+          "oklch(37% .018 255)",
+          "oklch(49% .018 255)",
+          "oklch(61% .018 255)",
+          "oklch(73% .018 255)",
+          "oklch(85% .018 255)",
+          "oklch(95% .018 255)"
+        ]
+      },
+      "text-primary": {
+        "role": "neutral",
+        "displayName": "Navy Ink",
+        "tonalRamp": [
+          "oklch(15% .025 260)",
+          "oklch(25% .035 260)",
+          "oklch(37% .04 260)",
+          "oklch(49% .045 260)",
+          "oklch(61% .04 260)",
+          "oklch(73% .03 260)",
+          "oklch(85% .02 260)",
+          "oklch(95% .01 260)"
+        ]
+      },
+      "text-secondary": {
+        "role": "neutral",
+        "displayName": "Slate Ink",
+        "tonalRamp": [
+          "oklch(15% .02 255)",
+          "oklch(25% .03 255)",
+          "oklch(37% .035 255)",
+          "oklch(49% .04 255)",
+          "oklch(61% .035 255)",
+          "oklch(73% .03 255)",
+          "oklch(85% .02 255)",
+          "oklch(95% .01 255)"
+        ]
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Muted Slate",
+        "tonalRamp": [
+          "oklch(15% .018 255)",
+          "oklch(25% .025 255)",
+          "oklch(37% .03 255)",
+          "oklch(49% .035 255)",
+          "oklch(61% .03 255)",
+          "oklch(73% .025 255)",
+          "oklch(85% .018 255)",
+          "oklch(95% .01 255)"
+        ]
+      },
+      "border-subtle": {
+        "role": "neutral",
+        "displayName": "Fine Blue Gray",
+        "tonalRamp": [
+          "oklch(15% .012 255)",
+          "oklch(25% .015 255)",
+          "oklch(37% .018 255)",
+          "oklch(49% .02 255)",
+          "oklch(61% .02 255)",
+          "oklch(73% .018 255)",
+          "oklch(85% .015 255)",
+          "oklch(95% .012 255)"
+        ]
+      },
+      "border-medium": {
+        "role": "neutral",
+        "displayName": "Quiet Blue Gray",
+        "tonalRamp": [
+          "oklch(15% .014 255)",
+          "oklch(25% .018 255)",
+          "oklch(37% .022 255)",
+          "oklch(49% .025 255)",
+          "oklch(61% .025 255)",
+          "oklch(73% .022 255)",
+          "oklch(85% .018 255)",
+          "oklch(95% .014 255)"
+        ]
+      },
+      "status-positive-surface": {
+        "role": "tertiary",
+        "displayName": "Positive Mist",
+        "tonalRamp": [
+          "oklch(15% .04 150)",
+          "oklch(25% .07 150)",
+          "oklch(37% .10 150)",
+          "oklch(49% .13 150)",
+          "oklch(61% .12 150)",
+          "oklch(73% .09 150)",
+          "oklch(85% .06 150)",
+          "oklch(95% .025 150)"
+        ]
+      },
+      "status-positive-text": {
+        "role": "tertiary",
+        "displayName": "Positive Green",
+        "tonalRamp": [
+          "oklch(15% .04 150)",
+          "oklch(25% .07 150)",
+          "oklch(37% .10 150)",
+          "oklch(49% .13 150)",
+          "oklch(61% .12 150)",
+          "oklch(73% .09 150)",
+          "oklch(85% .06 150)",
+          "oklch(95% .025 150)"
+        ]
+      },
+      "status-discount-surface": {
+        "role": "tertiary",
+        "displayName": "Discount Mist",
+        "tonalRamp": [
+          "oklch(15% .04 150)",
+          "oklch(25% .07 150)",
+          "oklch(37% .10 150)",
+          "oklch(49% .13 150)",
+          "oklch(61% .12 150)",
+          "oklch(73% .09 150)",
+          "oklch(85% .06 150)",
+          "oklch(95% .025 150)"
+        ]
+      },
+      "status-discount-text": {
+        "role": "tertiary",
+        "displayName": "Discount Green",
+        "tonalRamp": [
+          "oklch(15% .04 150)",
+          "oklch(25% .07 150)",
+          "oklch(37% .10 150)",
+          "oklch(49% .13 150)",
+          "oklch(61% .12 150)",
+          "oklch(73% .09 150)",
+          "oklch(85% .06 150)",
+          "oklch(95% .025 150)"
+        ]
+      },
+      "status-neutral-surface": {
+        "role": "neutral",
+        "displayName": "Status Blue Gray",
+        "tonalRamp": [
+          "oklch(15% .018 255)",
+          "oklch(25% .025 255)",
+          "oklch(37% .03 255)",
+          "oklch(49% .035 255)",
+          "oklch(61% .03 255)",
+          "oklch(73% .025 255)",
+          "oklch(85% .018 255)",
+          "oklch(95% .01 255)"
+        ]
+      },
+      "status-neutral-text": {
+        "role": "neutral",
+        "displayName": "Status Slate",
+        "tonalRamp": [
+          "oklch(15% .02 255)",
+          "oklch(25% .03 255)",
+          "oklch(37% .035 255)",
+          "oklch(49% .04 255)",
+          "oklch(61% .035 255)",
+          "oklch(73% .03 255)",
+          "oklch(85% .02 255)",
+          "oklch(95% .01 255)"
+        ]
+      },
+      "category-selected": {
+        "role": "primary",
+        "displayName": "Selected Navy",
+        "tonalRamp": [
+          "oklch(15% .025 260)",
+          "oklch(25% .035 260)",
+          "oklch(37% .04 260)",
+          "oklch(49% .045 260)",
+          "oklch(61% .04 260)",
+          "oklch(73% .03 260)",
+          "oklch(85% .02 260)",
+          "oklch(95% .01 260)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Home lead."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Explore and detail titles."
+      },
+      "title": {
+        "displayName": "Product Title",
+        "purpose": "Catalog and section titles."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Descriptions and terms."
+      },
+      "label": {
+        "displayName": "Action Label",
+        "purpose": "Buttons and field labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "flat-rest",
+        "value": "none",
+        "purpose": "Tiles, galleries, purchase panel."
+      },
+      {
+        "name": "overlay",
+        "value": "0 12px 36px #0000001a",
+        "purpose": "Menus and compact filter drawer."
+      }
+    ],
+    "motion": [
+      {
+        "name": "button-background",
+        "value": "background-color 150ms ease",
+        "purpose": "Button state; removed for reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide-layout",
+        "value": "1100px"
+      },
+      {
+        "name": "detail-stack",
+        "value": "992px"
+      },
+      {
+        "name": "compact-filters",
+        "value": "768px"
+      },
+      {
+        "name": "single-column",
+        "value": "700px"
+      },
+      {
+        "name": "narrow-phone",
+        "value": "359px"
+      },
+      {
+        "name": "short-viewport",
+        "value": "500px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary action without lift.",
+      "html": "<button class=\"ds-primary\">Join group</button>",
+      "css": ".ds-primary{font:600 13px var(--font-body);min-height:46px;padding:10px 18px;border:1px solid var(--primary);border-radius:8px;background:var(--primary);color:white;transition:background-color .15s}.ds-primary:hover{background:var(--primary-dark)}.ds-primary:focus-visible{outline:3px solid var(--primary);outline-offset:4px}@media(prefers-reduced-motion:reduce){.ds-primary{transition:none}}"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "input-search",
+      "description": "Labeled touch-sized catalog search.",
+      "html": "<label class=\"ds-search\">Search products<input type=\"search\" /></label>",
+      "css": ".ds-search{display:grid;gap:8px;font:500 13px var(--font-body)}.ds-search input{min-height:48px;padding:10px 14px;border:1px solid var(--border-medium);border-radius:8px;background:var(--bg-primary);font:400 14px/1.7 var(--font-body)}.ds-search input:focus-visible{outline:3px solid var(--primary);outline-offset:4px}"
+    },
+    {
+      "name": "Catalog Product",
+      "kind": "card",
+      "description": "Unboxed product details with image well and native terms disclosure.",
+      "html": "<article class=\"ds-product\"><div>Product image</div><h3>Product title</h3><p>Current price and progress</p><details><summary>License and delivery</summary><p>Terms from catalog data.</p></details></article>",
+      "css": ".ds-product{font-family:var(--font-body);color:var(--text-primary)}.ds-product>div{height:250px;display:grid;place-items:center;background:#f0f4fa}.ds-product h3{font-size:20px;font-weight:600;line-height:1.4}.ds-product details{padding-top:10px;border-top:1px solid var(--border-subtle);font-size:12px}.ds-product summary{min-height:36px;cursor:pointer}"
+    },
+    {
+      "name": "Selected Category",
+      "kind": "chip",
+      "refersTo": "category-selected",
+      "description": "Text-first category filter with clear selection.",
+      "html": "<button class=\"ds-category\" aria-pressed=\"true\">All categories</button>",
+      "css": ".ds-category{min-height:44px;padding:8px 15px;border:0;border-radius:6px;background:transparent;color:var(--text-secondary);font:13px var(--font-body)}.ds-category[aria-pressed=true]{background:#172c4d;color:white}.ds-category:focus-visible{outline:3px solid var(--primary);outline-offset:4px}"
+    },
+    {
+      "name": "Buyer Navigation",
+      "kind": "nav",
+      "description": "Text navigation with a thin active-route underline.",
+      "html": "<nav class=\"ds-nav\"><a href=\"#\">Home</a><a href=\"#\" aria-current=\"page\">Explore</a></nav>",
+      "css": ".ds-nav{display:flex;gap:24px;padding:16px 0;border-bottom:1px solid var(--border-subtle);font:500 14px var(--font-body)}.ds-nav a{padding-bottom:5px;color:var(--text-primary);text-decoration:none}.ds-nav a[aria-current]{border-bottom:2px solid var(--primary)}.ds-nav a:focus-visible{outline:3px solid var(--primary);outline-offset:4px}"
+    },
+    {
+      "name": "License Disclosure",
+      "kind": "custom",
+      "description": "Native closed disclosure for product license and delivery facts.",
+      "html": "<details class=\"ds-terms\"><summary>License and delivery</summary><p>Facts from the current catalog item.</p></details>",
+      "css": ".ds-terms{padding-top:10px;border-top:1px solid var(--border-subtle);font:12px var(--font-body)}.ds-terms summary{min-height:36px;padding:6px 0;color:var(--text-primary);font-weight:500;cursor:pointer}.ds-terms summary:focus-visible{outline:3px solid var(--primary);outline-offset:4px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Clear Product Shelf",
+    "overview": "Give the product and buying decision room to be understood: real catalog items lead, with price, availability, delivery, and license details nearby. The shared buyer language is open and calm: white static surfaces, navy text, cobalt actions, fine dividers, and restrained status colors.\n\nBe Vietnam Pro supports English and Vietnamese. Catalog images come from product data and use a labeled fallback when unavailable. Seller and operator workspaces are outside this .storefront-app system.",
+    "keyCharacteristics": [
+      "Product-led hierarchy with current catalog content.",
+      "Spacious white surfaces with navy text and cobalt actions.",
+      "Compact semantic status colors and fine dividers.",
+      "Bilingual typography and static backgrounds."
+    ],
+    "rules": [
+      {
+        "name": "The Quiet Status Rule",
+        "body": "Green and slate badges describe actual product or purchase states; they are not decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two-Language Rule",
+        "body": "Keep the same hierarchy in both languages; do not shrink or truncate Vietnamese labels to make layouts fit.",
+        "section": "typography"
+      },
+      {
+        "name": "The Product-First Rule",
+        "body": "Lead with the real product, title, current price, and status; keep the complete license and delivery details reachable from it.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat Surface Rule",
+        "body": "Do not add ambient shadows to product tiles, galleries, or the purchase panel.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use real product imagery and the labeled fallback; keep price, rights, license, and delivery attached to that product.",
+      "Do preserve English/Vietnamese and visible Arc Testnet and USDC context."
+    ],
+    "donts": [
+      "Don't invent live products, sales, testimonials, or rights-approval states.",
+      "Don't add moving or repeating perspective grids, or bypass the existing financial and transaction flows."
+    ]
+  }
+}
