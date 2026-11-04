@@ -61,7 +61,7 @@ test("checkout releases only verified expired BUY and prepares a fresh key on a 
  const state=await fixture(page,{checkout:true});await expect(page.getByRole("button",{name:"Kiểm tra lại giao dịch / đơn cũ"})).toBeVisible();expect(state.expiries).toBe(0);await page.getByRole("button",{name:"Kiểm tra lại giao dịch / đơn cũ"}).click();
  await expect(page.getByRole("heading",{name:"Chứng thực mua đã hết hạn"})).toBeVisible();await expect(page.getByRole("button",{name:"Xem đơn hàng của tôi"})).toHaveCount(0);expect(state.expiries).toBe(1);expect(state.authorizations).toEqual([]);expect(state.recoveries).toBe(0);
  expect(await page.evaluate(keys=>keys.map(key=>localStorage.getItem(key)),[checkout,retry,checkpoint])).toEqual([null,null,null]);await page.setViewportSize({width:375,height:700});await page.screenshot({path:info.outputPath("buy-expired-checkout.png"),fullPage:true});
- await page.getByRole("button",{name:"Đóng",exact:true}).click();await page.getByRole("button",{name:/cam kết mua/i}).click();await page.locator(".modal-content input[type=checkbox]").last().check();await page.locator(".modal-content > button.btn-primary").click();
+ await page.getByRole("button",{name:"Đóng",exact:true}).click();await page.locator('.deal-join-cta').click();await page.locator(".modal-content input[type=checkbox]").last().check();await page.locator(".modal-content > button.btn-primary").click();
  await expect(page.getByText("Cần kiểm tra giao dịch cũ",{exact:true})).toBeVisible();expect(state.authorizations.length).toBe(1);expect(state.authorizations[0]).toMatch(/^buy:/);expect(await page.evaluate(()=>(window as any).unexpectedSign)).toBeUndefined();
 });
 test("checkout preserves its no-hash intent when expiry cannot be proved",async({page})=>{
