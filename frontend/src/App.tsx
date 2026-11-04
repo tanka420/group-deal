@@ -3,7 +3,7 @@ import {PolicyPage} from './pages/PolicyPage';
 import {AdminWorkspace} from './components/AdminWorkspace';
 import {AdminHeader} from './components/AdminHeader';
 
-import React, { lazy, useState, useEffect, useRef } from "react";
+import React, { lazy, useState, useEffect, useLayoutEffect, useRef } from "react";
 import { LanguageProvider } from "./context/LanguageContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { Web3Provider } from "./context/Web3Context";
@@ -14,7 +14,7 @@ import { SellerRegisterModal } from "./components/SellerRegisterModal";
 import { ExplorePage } from "./pages/ExplorePage";
 import { HomePage } from "./pages/HomePage";
 import { DeferredPage } from "./components/DeferredPage";
-import { readAppRoute, navigateApp, migrateLegacyRoute, parseAppHash, parseAppPath, operatorDealHash, type AppRoute } from "./utils/appRoute";
+import { readAppRoute, routePath, navigateApp, migrateLegacyRoute, parseAppHash, parseAppPath, operatorDealHash, type AppRoute } from "./utils/appRoute";
 import { Store, Sparkles, Lock, ArrowRight } from "lucide-react";
 import { useLanguage } from "./context/LanguageContext";
 import { focusPageElement, revealFocus } from "./utils/focus";
@@ -47,6 +47,14 @@ const MainApp: React.FC = () => {
   }, [purchaseAuth, user?.id, user?.activeWallet, token, account]);
   const { language } = useLanguage();
   const [route, setRoute] = useState<AppRoute>(readAppRoute);
+  // Reset for a different page; catalog filter/query updates keep their position.
+  const pagePath = routePath(route);
+  useLayoutEffect(() => {
+    const previous = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
+    return () => { window.history.scrollRestoration = previous; };
+  }, []);
+  useLayoutEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }, [pagePath]);
   const catalogReturn = useRef('/explore');
   const currentTab = route.kind === "tab" ? route.tab : route.kind === "seller-section" ? "seller" : route.kind === "order" ? "orders" : route.kind === "policy" ? "policy" : route.kind === "support" ? route.path : ['operator-deal','operator-section','operator-user','operator-support'].includes(route.kind) ? "operator" : route.kind === "not-found" ? "not-found" : "explore";
   const selectedCampaignId = route.kind === "campaign" ? route.id : null;
@@ -124,7 +132,7 @@ const MainApp: React.FC = () => {
             key={selectedCampaignId}
             campaignId={selectedCampaignId}
             isAuthOpen={isAuthOpen}
-            onRequestAuth={() => { purchaseReturnFocus.current = document.querySelector<HTMLElement>('.deal-join-cta'); setPurchaseAuth(true); setIsAuthOpen(true); }}
+            onRequestAuth={target => { purchaseReturnFocus.current = target ?? document.querySelector<HTMLElement>('.deal-join-cta'); setPurchaseAuth(true); setIsAuthOpen(true); }}
             onBack={handleBackToExplore}
             onGoToOrders={() => handleTabChange("orders")}
           />

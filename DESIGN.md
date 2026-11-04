@@ -99,7 +99,7 @@ Use the frontmatter radius scale for controls, badges, and panels. Product cards
 ## Components
 
 ### Buttons and Inputs
-- Primary buttons are solid cobalt; secondary actions are white with a quiet outline. Base buttons are at least 46px tall, search controls 48px, and the purchase action 50px desktop / 58px mobile. Hover deepens color without lift; focus uses a 3px outline with 4px offset.
+- Primary buttons are solid cobalt; secondary actions are white with a quiet outline. Base buttons are at least 46px tall, search controls 48px, the in-panel purchase action 50px on every screen, and the separate mobile footer action at least 58px. Hover deepens color without lift; focus uses a 3px outline with 4px offset.
 - Search is a labeled form. Keep price validation and USDC-per-unit meaning visible.
 
 ### Catalog Products and Filters
@@ -110,6 +110,7 @@ Use the frontmatter radius scale for controls, badges, and panels. Product cards
 ### Navigation and Deal Detail
 - The buyer header is white with a fine lower divider and a thin cobalt active-route underline; it is 84px tall desktop and 72px mobile. The login button is solid cobalt with white text. Orders, Wallet and Account use the same title structure and type as Explore, including signed-out states. English is the first-visit default; saved language choices remain respected.
 - Keep gallery, seller, key facts, license, delivery, and purchase panel in the existing detail order. License and delivery navigation targets remain keyboard reachable.
+- Mobile retains the in-panel purchase action and adds a fixed bottom shortcut with the current price. Both open the same review, share blocking states and restore focus to the initiating button. Different pages start at the top, including Back/Forward; catalog query changes and in-page content navigation retain their own behavior.
 
 ### Purchase Panel
 - The tier rail is one continuous track joining the centers of its first and last circular milestones. There are no per-tier line gaps or track overhangs. Keep status, deadline, unit price, tier rail, fee note, and join action together. Preserve the existing pre-transaction review, consent, authentication, funding, wallet authorization, transaction status, and recovery behavior.

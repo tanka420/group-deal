@@ -133,3 +133,15 @@ test('English is the first-visit default and a saved Vietnamese choice survives 
  await page.reload();await expect(page.locator('html')).toHaveAttribute('lang','vi');await expect(page.getByRole('heading',{name:'Tài khoản',exact:true})).toBeVisible();
  expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
 });
+
+for(const width of [375,1440])test('page navigation resets scroll including Back and Forward at '+width,async({page})=>{
+ const f=await fixture(page);await page.setViewportSize({width,height:600});await page.goto('/policies/terms');await expect(page.locator('main h1')).toBeVisible();
+ await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeGreaterThan(200);
+ await page.locator('.site-footer').getByRole('link',{name:'How it works',exact:true}).click();await expect(page).toHaveURL(url=>url.pathname==='/policies/how');await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(0);
+ await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeGreaterThan(200);
+ await page.locator('.site-footer').getByRole('link',{name:'Explore deals',exact:true}).click();await expect(page).toHaveURL(url=>url.pathname==='/explore');await expect(page.locator('#catalog-search')).toBeVisible();await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(0);
+ await page.goBack();await expect(page).toHaveURL(url=>url.pathname==='/policies/how');await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(0);
+ await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeGreaterThan(200);
+ await page.goForward();await expect(page).toHaveURL(url=>url.pathname==='/explore');await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(0);
+ expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
+});

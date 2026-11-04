@@ -1,7 +1,7 @@
 /** Keep page focus clear of the measured app header and the mobile purchase bar. */
 export function revealFocus(element:HTMLElement|null){
   if(!element||!element.isConnected||element.closest('dialog,[role="dialog"],[aria-modal="true"]'))return;
-  const purchaseBar=document.querySelector<HTMLElement>(".deal-join-cta"),barRect=purchaseBar?.getBoundingClientRect();
+  const purchaseBar=document.querySelector<HTMLElement>(".deal-purchase-dock"),barRect=purchaseBar?.getBoundingClientRect();
   if(purchaseBar?.contains(element)&&getComputedStyle(purchaseBar).position==="fixed")return;
   // Native focus can leave a step partially clipped in a horizontal scroll container.
   element.scrollIntoView({block:"nearest",inline:"nearest",behavior:"instant"});

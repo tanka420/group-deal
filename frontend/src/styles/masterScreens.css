@@ -12,7 +12,6 @@
 .price-tier-rail li { padding-top:1rem; }
 .price-tier-rail .deal-price { font-size:1.05rem; }
 .price-tier-rail li > .deal-price { display:flex; flex-direction:column; }
-.mobile-purchase-price { display:none; }
 .tier-current .rail-dot { width:18px; height:18px; top:-11px; box-shadow:0 0 0 4px #dceaff; border:3px solid white; }
 .tier-next { margin-top:.75rem; padding:.85rem; background:var(--bg-tertiary); border-radius:var(--radius-sm); }
 .tier-next p + p { margin-top:.3rem; }
@@ -126,9 +125,6 @@
   .header .account-pill-btn > svg { display:none; }
   .header .nav-links { grid-column:1/-1; justify-content:space-between; flex-wrap:wrap; gap:.25rem; }
   .header .nav-item { min-height:44px; padding:.5rem .65rem; }
-  .mobile-purchase-price { display:block; }
-  .mobile-purchase-price .deal-price, .mobile-purchase-price .deal-price small { color:inherit; }
-  .deal-join-cta { justify-content:space-between; gap:1rem; padding-inline:1rem; }
   .seller-create-layout { grid-template-columns:minmax(0,1fr); gap:1rem; }
   .deal-preview { grid-column:1; }
   .deal-key-facts { grid-template-columns:minmax(0,1fr); }

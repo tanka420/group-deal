@@ -22,7 +22,7 @@ import { Share2, ShieldCheck, ArrowLeft } from "lucide-react";
 
 interface CampaignDetailPageProps {
   isAuthOpen: boolean;
-  onRequestAuth: () => void;
+  onRequestAuth: (returnFocus?: HTMLElement | null) => void;
   campaignId: string;
   onBack: () => void;
   onGoToOrders: () => void;
@@ -57,7 +57,9 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
     setJoinSelection(selection);
     if (campaign) saveJoinDraft(campaignId, campaign.termsHash, selection);
   };
-  const openJoin = () => {
+  const openJoin = (trigger: HTMLButtonElement) => {
+    purchaseTrigger.current = trigger;
+    trigger.focus({ preventScroll: true });
     setJoinSelection(fitJoinSelection(joinSelection, campaign));
     setResumeAfterAuth(false); setJoinNotice(false); setIsPreTxOpen(true);
   };
@@ -72,7 +74,7 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
   const [fundingIntent, setFundingIntent] = useState<CheckoutIntent | null>(null);
   const [requiredFunding, setRequiredFunding] = useState<string | undefined>();
   const committingRef = useRef(false);
-  const purchaseTrigger = useRef<HTMLButtonElement>(null);
+  const purchaseTrigger = useRef<HTMLButtonElement | null>(null);
   const accountRef = useRef(account);
   accountRef.current = account;
   const purchaseRetryKey=user?`groupdeal_buy_retry:${user.id}:${campaignId}`:"";
@@ -202,7 +204,7 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
   const handleConfirmPurchase = async (params: { quantity: number; requireEarlySlot: boolean; paymentSource?: "ARC_USDC" | "OTHER_USDC" }, resumed?: CheckoutIntent, locked = false): Promise<void> => {
     if (!user || !token || !account) {
       rememberJoin({ quantity: params.quantity, requireEarlySlot: params.requireEarlySlot, paymentSource: params.paymentSource ?? "ARC_USDC" });
-      setIsPreTxOpen(false); setResumeAfterAuth(true); onRequestAuth(); return;
+      setIsPreTxOpen(false); setResumeAfterAuth(true); onRequestAuth(purchaseTrigger.current); return;
     }
     if (!token || committingRef.current) return;
     const buyer = account;
@@ -377,7 +379,7 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
           <PriceDisplay amount={campaign.status === "FINALIZED" ? campaign.finalClearingPrice || "" : currentTier.price} large/><p className="muted">{text("Mỗi đơn vị · cam kết vào escrow ngay khi mua", "Per unit · transferred into escrow on purchase")}</p>
           <PriceTierRail tiers={campaign.tiers} current={campaign.currentUnlockedTier} metric={campaign.metric} count={currentMetric} canUnlock={purchaseIssue(campaign,now)===null} finalized={campaign.status==="FINALIZED"}/>
           {blocked && <p className="notice notice-warning" role="status">{blocked}</p>}
-          <button ref={purchaseTrigger} className="btn btn-primary btn-lg deal-join-cta" onClick={openJoin} disabled={isCommitting || !!blocked}><span className="mobile-purchase-price"><PriceDisplay amount={campaign.status==="FINALIZED"?campaign.finalClearingPrice||"":currentTier.price}/></span><span>{t("commitToBuy")}</span></button>
+          <button ref={purchaseTrigger} className="btn btn-primary btn-lg deal-join-cta" onClick={event=>openJoin(event.currentTarget)} disabled={isCommitting || !!blocked}>{t("commitToBuy")}</button>
           {blocked && <button className="btn btn-secondary" onClick={onGoToOrders}>{text("Xem đơn đã mua", "View existing orders")}</button>}
           <div className="deal-info"><p>{text("Giá nhóm thấp hơn có thể tạo rebate khi finalize. Buyer chủ động claim phần đã phân bổ; không tự động chuyển về ví.", "A lower group price can create a rebate at finalization. Buyers claim allocated funds; they are not automatically transferred.")}</p></div>
           <dl className="summary-list"><dt>{text("Giới hạn mỗi account", "Limit per account")}</dt><dd>{campaign.maxPerAccount} {text("đơn vị", "units")}</dd><dt>{text("Fee nền tảng", "Platform fee")}</dt><dd>{campaign.platformFeeBps === 0 ? "0 USDC" : text("Kiểm tra điều khoản", "Verify terms")}</dd></dl>
@@ -385,6 +387,8 @@ export const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({
           <p className="muted form-help">{text("Giá, số lượng, quyền phân phối và ví được kiểm lại trước ký. Phí mạng thanh toán riêng bằng USDC native.", "Price, quantity, rights and wallet are checked before signing. Network fees are paid separately in native USDC.")}</p>
         </aside>
       </div>
+
+      <div className="deal-purchase-dock"><button type="button" className="btn btn-primary deal-mobile-join-cta" onClick={event=>openJoin(event.currentTarget)} disabled={isCommitting || !!blocked}><PriceDisplay amount={campaign.status==="FINALIZED"?campaign.finalClearingPrice||"":currentTier.price}/><span>{t("commitToBuy")}</span></button></div>
 
       {/* Pre-Tx Modal */}
       <PreTxModal

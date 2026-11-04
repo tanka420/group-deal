@@ -120,3 +120,20 @@ test('Circle signing preflight does not prevent an external account from request
  const {state}=await fixture(page,'en',undefined,'EXTERNAL'),dialog=await review(page);await dialog.locator('.join-agreement input').check();await dialog.locator('.join-submit').click();
  await expect.poll(()=>state.writes).toEqual(['/api/orders/authorize']);expect(state.errors).toEqual([]);
 });
+
+for(const language of ['vi','en'])for(const width of [320,390])test('mobile purchase actions share review and restore the initiating button '+language+' '+width,async({page},info)=>{
+ await page.setViewportSize({width,height:812});const {data,state}=await fixture(page,language),en=language==='en';
+ const inline=page.locator('.deal-join-cta'),dock=page.locator('.deal-purchase-dock'),shortcut=dock.getByRole('button',{name:en?'Commit to Buy':'Cam kết mua ngay'});
+ await expect(inline).toBeVisible();await expect(inline).toHaveCSS('position','static');await expect(dock).toHaveCSS('position','fixed');
+ for(const trigger of [inline,shortcut]){
+  await trigger.click();const dialog=page.locator('dialog.join-dialog');await expect(dialog).toBeVisible();await expect(page.getByRole('dialog')).toHaveCount(1);
+  await expect(dialog.locator('.commitment-total')).toContainText('105 USDC');await page.keyboard.press('Escape');await expect(dialog).not.toBeVisible();await expect(trigger).toBeFocused();
+ }
+ await shortcut.click();await requestSignIn(page,page.locator('dialog.join-dialog'),en);
+ await page.getByRole('button',{name:en?'Close sign-in':'Đóng đăng nhập',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);await expect(shortcut).toBeFocused();
+ await inline.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('mobile-purchase-actions.png')});
+ const geometry=await dock.evaluate(el=>{const r=el.getBoundingClientRect();return {bottom:r.bottom,width:r.width,overflow:document.documentElement.scrollWidth>innerWidth};});expect(geometry.bottom).toBe(812);expect(geometry.width).toBe(width);expect(geometry.overflow).toBe(false);
+ // Both entry points must respect the same deal closure after a refresh.
+ data.campaign.endTime=Math.floor(Date.now()/1000)-1;await page.reload();await expect(inline).toBeDisabled();await expect(shortcut).toBeDisabled();
+ await page.setViewportSize({width:1440,height:900});await expect(dock).toBeHidden();await expect(inline).toBeVisible();expect(state.writes).toEqual([]);expect(state.errors).toEqual([]);
+});

@@ -986,8 +986,6 @@ summary { cursor:pointer; min-height:44px; padding:.5rem 0; }
 }
 @media(max-width:767px) {
   .buyer-deal-detail { padding-bottom:80px; }
-  .deal-join-cta { position:fixed; z-index:110; bottom:0; left:0; width:100%; min-height:56px; border-radius:0; padding-bottom:calc(.75rem + env(safe-area-inset-bottom)); box-shadow:var(--shadow-lg); flex-wrap:wrap; white-space:normal; }
-  .deal-join-cta > span { min-width:0; max-width:100%; }
   .deal-purchase-panel .summary-list { grid-template-columns:minmax(0,1fr); }
   .deal-purchase-panel .summary-list dd { text-align:left; }
   .buyer-deal-detail :focus { scroll-margin-block:180px 80px; }

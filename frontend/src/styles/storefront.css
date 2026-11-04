@@ -200,7 +200,7 @@
 .storefront-app .deal-info{font-size:13px;background:transparent;border:0;padding:6px 0;line-height:1.8}
 .storefront-app .deal-purchase-panel .summary-list{font-size:13px}
 .storefront-app .deal-purchase-panel>.form-help{font-size:12px}
-.storefront-app .deal-purchase-panel .deal-join-cta{font-size:14px;min-height:50px}
+.storefront-app .deal-purchase-panel .deal-join-cta{position:static;justify-content:center;width:100%;padding:12px 21px;border-radius:8px;font-size:14px;min-height:50px;box-shadow:none}
 
 @media(max-width:1100px){
  .storefront-app .home-hero{gap:48px}.storefront-app .home-hero h1{font-size:51px}
@@ -272,7 +272,7 @@
  .storefront-app .deal-license-section h2,.storefront-app .delivery-terms h2{font-size:24px;line-height:1.35}
  .storefront-app .detail-list{font-size:13px}
  .storefront-app .deal-license-section p,.storefront-app .delivery-terms p{font-size:14px}
- .storefront-app .deal-purchase-panel .deal-join-cta{border-radius:0;gap:18px;min-height:58px}
+ .storefront-app .deal-purchase-panel .deal-join-cta{border-radius:8px;gap:14px;min-height:50px}
  .storefront-app .home-loading{grid-template-columns:1fr;gap:0;min-height:330px}.storefront-app .home-loading-art{height:250px}.storefront-app .home-loading p{padding:20px}
 }
 @media(max-width:359px){.storefront-app .app-header .logo-text{display:none}.storefront-app .main-content{padding-inline:0}.storefront-app .home-hero h1{font-size:39px}.storefront-app .catalog-results-heading h2{font-size:22px}}
@@ -347,3 +347,11 @@
  .storefront-app .buyer-page-heading .action-row{flex-wrap:wrap}
 }
 @media(max-width:359px){.storefront-app .marketplace-hero h1{font-size:13px;line-height:1.1;margin-bottom:6px}.storefront-app .marketplace-hero .home-hero-copy{padding:8px}}
+
+/* Keep the in-panel action and provide a separate mobile footer shortcut. */
+.deal-purchase-dock{display:none}
+@media(max-width:767px){
+ .deal-purchase-dock{display:block;position:fixed;z-index:110;inset:auto 0 0;width:100%;background:var(--primary)}
+ .storefront-app .deal-mobile-join-cta{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px 18px;width:100%;min-height:58px;padding:12px 20px calc(12px + env(safe-area-inset-bottom));border:0;border-radius:0;font-size:14px;white-space:normal}
+ .deal-mobile-join-cta .deal-price,.deal-mobile-join-cta .deal-price small{color:inherit;font-size:14px}
+}

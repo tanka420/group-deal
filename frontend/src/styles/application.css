@@ -110,4 +110,4 @@
 .app-footer a { color:var(--text-secondary); display:inline-flex; align-items:center; min-height:44px; }
 @media(max-width:767px) { .workspace-heading { margin-bottom:1.25rem; } .workspace-tabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); padding:.5rem; } .workspace-tabs .btn { justify-content:flex-start; padding:.7rem; height:100%; } .ui-record-card { padding:1rem; } .ui-dialog { padding:1rem; } .public-seller-metrics { gap:.6rem; } .public-seller-metrics > div { padding:.75rem; } .access-state { padding:1.5rem 1rem; } .app-footer { padding:1.5rem .75rem; } }
 @media(max-height:500px) { .ui-dialog-close { position:static; } .developer-docs section { scroll-margin-top:16px; } }
-@media(max-width:767px) { .app-container:has(.deal-join-cta) .app-footer { padding-bottom:calc(1.5rem + 80px + env(safe-area-inset-bottom)); } }
+@media(max-width:767px) { .app-container:has(.deal-purchase-dock) .app-footer { padding-bottom:calc(1.5rem + 80px + env(safe-area-inset-bottom)); } }
