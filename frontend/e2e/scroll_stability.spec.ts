@@ -91,3 +91,12 @@ test('order query updates keep the current layout height while data reloads',asy
  await page.evaluate(async()=>{const {navigateApp}=await import('/src/utils/appRoute.ts');navigateApp('/orders?q=Scroll');});await expect(page.locator('.buyer-dashboard')).toHaveAttribute('data-scroll-ready','false');expect(await page.evaluate(()=>scrollY)).toBeCloseTo(saved,0);
  await expect(page.getByText('Scroll fixture 0',{exact:true})).toBeVisible();expect(await page.evaluate(()=>scrollY)).toBeCloseTo(saved,0);expect(f.writes).toEqual([]);expect(f.errors).toEqual([]);
 });
+
+
+test('order column headings cover the top of their scrolled list',async({page},info)=>{
+ const f=await fixture(page);await page.setViewportSize({width:1440,height:900});await page.goto('/orders');await expect(page.getByText('Scroll fixture 0',{exact:true})).toBeVisible();
+ const list=page.locator('.order-list'),head=page.locator('.order-column-head');await list.scrollIntoViewIfNeeded();await list.evaluate(el=>{el.scrollTop=250;});await frames(page);
+ const bounds=await head.evaluate(el=>{const h=el.getBoundingClientRect(),list=el.parentElement!,r=list.getBoundingClientRect(),border=parseFloat(getComputedStyle(list).borderTopWidth);return{gap:h.top-r.top-border,covered:el.contains(document.elementFromPoint(r.left+r.width/2,r.top+border+2)),scrollTop:list.scrollTop};});
+ expect(bounds.scrollTop).toBeGreaterThan(0);expect(Math.abs(bounds.gap)).toBeLessThanOrEqual(1);expect(bounds.covered).toBe(true);
+ await list.screenshot({path:info.outputPath('order-sticky-heading.png')});expect(f.writes).toEqual([]);expect(f.errors).toEqual([]);
+});

@@ -1,7 +1,7 @@
 import {usePageScroll} from './hooks/usePageScroll';
 import type {CursorPageState} from './hooks/useCursorPage';
 import {SiteFooter} from './components/SiteFooter';
-import {PolicyPage} from './pages/PolicyPage';
+
 import {AdminWorkspace} from './components/AdminWorkspace';
 import {AdminHeader} from './components/AdminHeader';
 
@@ -21,6 +21,7 @@ import { Store, Sparkles, Lock, ArrowRight } from "lucide-react";
 import { useLanguage } from "./context/LanguageContext";
 import { focusPageElement, revealFocus } from "./utils/focus";
 
+const PolicyPage = lazy(() => import('./pages/PolicyPage').then(module => ({default:module.PolicyPage})));
 const CampaignDetailPage = lazy(() => import("./pages/CampaignDetailPage").then(module => ({ default: module.CampaignDetailPage })));
 const BuyerDashboard = lazy(() => import("./pages/BuyerDashboard").then(module => ({ default: module.BuyerDashboard })));
 const SellerDashboard = lazy(() => import("./pages/SellerDashboard").then(module => ({ default: module.SellerDashboard })));

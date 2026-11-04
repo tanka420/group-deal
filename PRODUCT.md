@@ -28,3 +28,7 @@ Taste leads composition and visual direction. Impeccable verifies hierarchy, usa
 ## Evidence
 
 Current source and its existing UI fixtures. Concept examples must be labeled illustrative, never presented as live products, users or financial proof. No supplied testimonials or business-performance claims.
+
+## Footer information and page layout
+
+On 4 November the user requested complete, readable footer information, a detailed user guide, reading pages as wide as the shared header/footer container, consistent top and bottom page padding, and a fully covered sticky order-list heading. The guide uses the existing `/policies/help` URL. Describe implemented Testnet behavior in English and Vietnamese; do not invent corporate, legal, support-response, refund or Mainnet-launch guarantees. Preserve the functional support, wallet, seller and admin flows.

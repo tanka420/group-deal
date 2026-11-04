@@ -133,3 +133,8 @@ Use the frontmatter radius scale for controls, badges, and panels. Product cards
 ### Don't:
 - **Don't** invent live products, sales, testimonials, or rights-approval states.
 - **Don't** add moving or repeating perspective grids, or bypass the existing financial and transaction flows.
+
+### Shared page spacing and footer reading
+- Main content has equal top and bottom padding: 32px desktop, 24px below 768px. Page roots do not add a second outer block padding. Header/footer horizontal containers remain unchanged; seller and operator keep their sidebar layout.
+- Footer information fills the shared container without the old 800px cap. Use the existing type and cobalt links, a compact native contents disclosure, clear section headings, short paragraphs and procedure lists. Desktop sections use a heading column and a text column; mobile reads as one column. The user guide lives at `/policies/help`. Contents navigation focuses its heading and reveals the section below the app header without changing the route.
+- The order-list column heading is opaque, flush to the top of the bounded scroller and square inside its rounded outer frame. No padding strip, rounded header gaps or row gaps may expose records behind it.

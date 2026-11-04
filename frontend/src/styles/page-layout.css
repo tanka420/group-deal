@@ -1,0 +1,47 @@
+/* One outer page rhythm; the sidebar and shared horizontal containers retain their widths. */
+.app-container { --page-space-block: 32px; }
+.app-container .main-content { padding-block: var(--page-space-block); }
+.storefront-app .main-content > :is(section, article, .app-page) { margin-block: 0; padding-block: 0; }
+.storefront-app .catalog-heading { padding-block: 0 28px; }
+.storefront-app .marketplace-hero { margin-top: 0; }
+.storefront-app .deal-breadcrumb { padding-block: 0 24px; }
+.storefront-app .developer-docs > h1 { margin-top: 0; }
+.storefront-app .app-footer { padding-block: var(--page-space-block); }
+.workspace-app .site-footer .footer-content { padding-block: var(--page-space-block); }
+
+/* Reading pages occupy the same complete container as the header and footer. */
+.app-container .information-page { width: 100%; max-width: none; margin: 0; padding: 0; }
+.storefront-app .information-heading > p { max-width: none; }
+.information-contents { margin: 0 0 36px; border-block: 1px solid var(--border-subtle); }
+.information-contents > summary { display: list-item; cursor: pointer; padding: 14px 0; min-height: 48px; font-size: 14px; font-weight: 600; }
+.information-contents > summary > span { margin-left: 12px; color: var(--text-secondary); font-size: 13px; font-weight: 400; }
+.information-contents ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 32px; list-style: none; margin: 0; padding: 8px 0 20px; }
+.information-contents button { display: block; width: 100%; min-height: 44px; padding: 8px 0; background: none; border: 0; text-align: left; color: var(--primary); font: inherit; cursor: pointer; }
+.information-contents button:hover { text-decoration: underline; text-underline-offset: 4px; }
+.information-section { display: grid; grid-template-columns: minmax(180px, .7fr) minmax(0, 2fr); gap: 48px; align-items: start; }
+.information-section + .information-section { border-top: 1px solid var(--border-subtle); margin-top: 36px; padding-top: 32px; }
+.information-page .information-section h2 { margin: 0; font-size: 21px; font-weight: 600; line-height: 1.45; scroll-margin-top: calc(var(--app-header-height, 84px) + 24px); }
+.information-section-content { min-width: 0; font-size: 16px; line-height: 1.85; color: var(--text-secondary); }
+.information-page .information-section-content p { margin: 0; }
+.information-page .information-section-content p + p { margin-top: 16px; }
+.information-section-content :is(ul, ol) { margin: 0; padding-left: 24px; }
+.information-section-content p + :is(ul, ol) { margin-top: 16px; }
+.information-section-content li { padding-left: 5px; }
+.information-section-content li + li { margin-top: 14px; }
+.information-section-content li::marker { color: var(--text-primary); font-weight: 600; }
+.information-links { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; margin-top: 20px; }
+.information-links a { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; font-weight: 600; color: var(--primary); }
+
+@media (max-width: 767px) {
+ .app-container { --page-space-block: 24px; }
+ .storefront-app .catalog-heading { padding-block: 0 24px; }
+ .information-contents { margin-bottom: 28px; }
+ .information-contents ul { grid-template-columns: minmax(0, 1fr); }
+ .information-section { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+ .information-section + .information-section { margin-top: 28px; padding-top: 24px; }
+ .information-page .information-section h2 { font-size: 20px; }
+ .information-section-content { font-size: 15px; line-height: 1.85; }
+}
+
+.developer-docs .integration-steps { margin: 16px 0 0; padding-left: 24px; }
+.developer-docs .integration-steps li + li { margin-top: 16px; }

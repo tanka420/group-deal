@@ -34,10 +34,13 @@
 .operation-list > li + li, .record-list > li + li { border-top: 1px solid var(--border-subtle); }
 .operation-list > li { padding-inline: 16px; }
 .wallet-activity-list > .wallet-activity, .owned-session-rows > li { padding: 16px; }
-.record-list, .order-list.order-list { padding: 12px; background: var(--bg-primary); overflow: auto; }
+.record-list { padding: 12px; background: var(--bg-primary); overflow: auto; }
+.order-list.order-list { padding: 0; gap: 0; background: var(--bg-card); overflow: auto; isolation: isolate; }
+.order-list > .order-row { border: 0; border-bottom: 1px solid var(--border-subtle); border-radius: 0; }
+.order-list > .order-row:last-child { border-bottom: 0; }
 .product-studio .product-record-list { overflow: auto; gap: 16px; padding: 12px; background: var(--bg-primary); }
 .product-studio .product-record-list > .glass-card { border: 1px solid var(--border-subtle); border-radius: var(--radius-md); }
-.order-column-head { position: sticky; top: 0; z-index: 1; border-radius: var(--radius-md); }
+.order-column-head { position: sticky; top: 0; z-index: 2; border-radius: 0; background: var(--bg-tertiary); border-bottom: 1px solid var(--border-subtle); }
 
 .campaign-table-scroll { padding: 0 8px 0 4px; }
 .campaign-table-scroll .campaign-table { border-collapse: separate; border-spacing: 0 12px; }

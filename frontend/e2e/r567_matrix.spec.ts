@@ -53,8 +53,8 @@ for(const language of ['vi','en'])for(const width of [375,1280])for(const [group
    if(route==='/docs'&&language==='en')expect(await page.locator('.developer-docs').innerText()).not.toMatch(/[đĐăĂơƠưƯấầẩẫậắằẳẵặếềểễệốồổỗộớờởỡợứừửữự]/);
    expect(await page.evaluate(()=>localStorage.getItem('groupdeal_lang'))).toBe(language);
    if(width===375)await page.screenshot({path:info.outputPath(route.split('?')[0].replaceAll('/','_')+'-'+language+'.png'),animations:'disabled'});
-   if(route==='/docs')for(const [index,id]of ['docs-api','docs-webhook','docs-delivery'].entries()){
-    await page.locator('.docs-topics button').nth(index+1).focus();await page.keyboard.press('Enter');
+   if(route==='/docs')for(const id of ['docs-start','docs-network','docs-api','docs-webhook','docs-delivery']){
+    await page.locator('.docs-topics button[aria-controls="'+id+'"]').focus();await page.keyboard.press('Enter');
     await expect(page.locator('#'+id)).toBeFocused();await expect(page.locator('#'+id+' h2')).toBeInViewport();
     if(width===375)await page.screenshot({path:info.outputPath(id+'-'+language+'.png'),animations:'disabled'});
    }

@@ -6,6 +6,10 @@ Selected product and documentation changes. This starts with the current milesto
 
 ### Interface fixes
 
+- Expand the bilingual footer information pages and user guide, with a navigable table of contents and integration quick start.
+- Align reading pages with the shared header/footer container and use symmetric page padding across buyer and workspace routes.
+- Remove the exposed strip above the sticky order-list heading while keeping the bounded list scroller.
+
 - Start new pages at the top once; restore scroll, order filters and pagination on Back/Forward or a return link.
 - Keep order layout stable during refresh and cancel delayed scroll restoration when the user interacts.
 
