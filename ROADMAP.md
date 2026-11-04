@@ -2,7 +2,7 @@
 
 [English introduction](README.md) · [Giới thiệu tiếng Việt](README.vi.md)
 
-GroupDeal is a personal project developing group buying for digital goods with USDC settlement on Arc. The immediate goal is a useful, verifiable Testnet experience, followed by a small pilot and a separate Mainnet readiness decision.
+GroupDeal is a personal project developing group buying for digital goods with USDC settlement on Arc. The default branch develops Testnet; codex/mainnet develops Mainnet in a separate worktree. The immediate goals are a verifiable Testnet experience, a small pilot and completion of public Mainnet readiness. See [branch roles](docs/branches.md).
 
 This roadmap describes outcomes rather than promised dates. Priorities may change with testing and feedback. **Implemented** means code exists; **in progress** means validation or implementation remains; **planned** means a future milestone. Implemented features are not automatically independently audited or accepted through a complete live journey.
 
@@ -23,7 +23,7 @@ Evidence lives in source, tests and revision-specific CI. Some integration and r
 
 - [ ] Validate complete buyer and seller journeys on the current Testnet release, including the wallet and delivery paths actually used.
 - [ ] Finish review of error, retry and recovery cases; keep deferred cases explicitly recorded.
-- [ ] Separate Mainnet/Testnet asset roots, API routing, origins and release configuration. Review data and credential boundaries before introducing a Mainnet runtime.
+- [ ] Separate Mainnet/Testnet asset roots, API routing, origins and release configuration. Verify the existing isolated Mainnet runtime and its data/credential boundaries before public cutover.
 - [ ] Finish sanitized environment examples and a reproducible configured local-application guide.
 - [ ] Triage dependency advisories and review paths affected by compatible updates.
 - [ ] Improve accessibility and measure desktop/mobile performance.
@@ -40,7 +40,10 @@ Evidence lives in source, tests and revision-specific CI. Some integration and r
 
 **Exit:** evidence that participants can complete the intended workflow, with identified problems and follow-up work. A pilot is not counted as completed until it takes place.
 
-## 4. Mainnet readiness — planned
+## 4. Mainnet readiness — in progress, public launch pending
+
+- [x] Maintain Mainnet development separately on codex/mainnet in the existing Mainnet worktree.
+- [x] Record the V2 contract/Safe deployment and isolated internal application activation in the [Mainnet checklist](https://github.com/tanka420/group-deal/blob/codex/mainnet/docs/mainnet-checklist.md). These are the recorded Mainnet-branch milestones, not a new live verification by this documentation update.
 
 - [ ] Obtain independent contract/application security review and address findings.
 - [ ] Review signer/admin permissions, financial invariants, dispute authority and operational controls for the intended Mainnet deployment.

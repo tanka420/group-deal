@@ -72,6 +72,10 @@ npm --prefix backend run typecheck
 node scripts/scan_candidate_secrets.cjs
 ```
 
+## Mainnet development
+
+This guide describes the default/Testnet checkout. Mainnet work belongs to **codex/mainnet**, with its own manifests and commands. The maintainer already has the worktree **E:/apps/group-deal-mainnet**. Follow that checkout's AGENTS.md and [Mainnet checklist](https://github.com/tanka420/group-deal/blob/codex/mainnet/docs/mainnet-checklist.md) before working there; its setup is not interchangeable with this Testnet preview. See [branch roles](branches.md).
+
 ## Configured application development
 
 The preview and automated fixtures are the reproducible entry points from a clean clone. A complete application also needs network/deployment bindings, provider credentials and an appropriate isolated database. Sanitized environment examples and a standalone setup guide remain a [roadmap item](../ROADMAP.md).

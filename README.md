@@ -18,7 +18,7 @@ Buying software as a group should make the price and terms easier to understand.
 - **Sellers:** organize campaigns, manage digital inventory and fulfill orders.
 - **Integrations:** connect seller tools through public read APIs, a TypeScript SDK and signed webhooks.
 
-The project is in active development on **Arc Testnet**, using test tokens. Real-user validation and Mainnet readiness are future milestones.
+The default branch develops the **Arc Testnet** experience with test tokens. Mainnet development continues separately on **codex/mainnet**. Real-user validation and a public Mainnet application launch remain open milestones.
 
 ## How it works
 
@@ -47,13 +47,17 @@ The current network is **Arc Testnet, chain ID 5042002**. Contract references ar
 | --- | --- |
 | Core implementation | Buyer, seller and operator interfaces; contract, backend, delivery and integration code are present |
 | Testnet | [testnet.groupdeal.tech](https://testnet.groupdeal.tech/) is the application domain for testing and feedback |
-| Mainnet | [groupdeal.tech](https://groupdeal.tech/) is the Mainnet domain and currently shows a construction notice; a GroupDeal Mainnet release is pending |
+| Mainnet | [codex/mainnet](https://github.com/tanka420/group-deal/blob/codex/mainnet/docs/mainnet-checklist.md) develops Mainnet; its checklist records contract V2 deployment and internal runtime activation. [groupdeal.tech](https://groupdeal.tech/) still shows a construction notice; public launch is pending |
 | Validation | Automated checks and Testnet work continue; full live-journey and independent security review remain open |
-| Next focus | Finish Testnet validation, separate environments and prepare a small real-user pilot |
+| Next focus | Finish Testnet validation, separate public routing and prepare a small real-user pilot |
 
-Hosting separation remains open: the construction page does not establish an isolated Mainnet runtime. [Deployment status](docs/deployment-status.md) records the intended domain roles and observed configuration.
+Public routing separation remains open. [Deployment status](docs/deployment-status.md) distinguishes the recorded internal Mainnet activation from what the public domains currently serve.
 
 The [roadmap](ROADMAP.md) separates implemented work, work in progress and planned milestones. [GitHub Actions](https://github.com/tanka420/group-deal/actions/workflows/local-candidate.yml) records automated checks for individual revisions.
+
+## Development branches
+
+The repository maintains two branches: **codex/arc-candidate**, the default branch for Testnet, and **codex/mainnet**, for Mainnet development. They have separate working folders. See [branches and worktrees](docs/branches.md) for their roles and the existing Mainnet progress.
 
 ## Preview locally
 

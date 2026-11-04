@@ -6,9 +6,11 @@ Selected product and documentation changes. This starts with the current milesto
 
 ### Documentation
 
+- Retire old prototype/candidate/baseline branches; retain only the default Testnet branch and the existing Mainnet development branch.
+
 - Introduce GroupDeal as a personal project with USDC group buying on Arc.
 - Add English/Vietnamese introductions, a milestone roadmap, architecture and development guides.
-- Document Mainnet/Testnet roles and the open hosting-isolation task.
+- Document the two maintained development branches, their existing worktrees, recorded Mainnet internal progress and the open public-routing separation task.
 - Add actual UI screenshots with illustrative-data provenance.
 - Add the canonical MIT license, bundled-material notices and security reporting guidance.
 

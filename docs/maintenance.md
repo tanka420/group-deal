@@ -1,6 +1,6 @@
 # Temporary Mainnet website notice
 
-This gate applies to **`groupdeal.tech`**, the Mainnet domain. **`testnet.groupdeal.tech`** is the Testnet application domain and is not closed by this notice. The two hosts still share application infrastructure at the last inspection; see [deployment status](deployment-status.md). The website gate does not create an isolated Mainnet environment.
+This gate applies to **`groupdeal.tech`**, the Mainnet domain. **`testnet.groupdeal.tech`** is the Testnet application domain and is not closed by this notice. The public virtual hosts still reference the Testnet application root/upstream at the last inspection; see [deployment status](deployment-status.md). The website gate does not create an isolated Mainnet environment.
 
 `config/maintenance/index.html` is a standalone English/Vietnamese notice using the GroupDeal typeface and palette. It has no application bundle, authentication, telemetry or API calls.
 

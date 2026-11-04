@@ -4,6 +4,7 @@ Start with the [project introduction](../README.md) or [giới thiệu tiếng V
 
 | Read this | For |
 | --- | --- |
+| [Branches and worktrees](branches.md) | Default/Testnet and Mainnet development roles |
 | [Roadmap](../ROADMAP.md) | Implemented work, open validation and future milestones |
 | [Architecture](architecture.md) | Product flow, integrations and trust boundaries |
 | [Development](development.md) | UI preview, workspace installation and checks |

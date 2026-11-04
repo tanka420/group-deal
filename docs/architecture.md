@@ -1,6 +1,6 @@
 # Architecture
 
-GroupDeal combines a digital-product marketplace interface with USDC group-buy settlement on Arc. Buyers, sellers and operators use role-specific capabilities. The current implementation targets Arc Testnet (5042002).
+GroupDeal combines a digital-product marketplace interface with USDC group-buy settlement on Arc. Buyers, sellers and operators use role-specific capabilities. The default branch targets Arc Testnet (5042002); codex/mainnet contains the separate Mainnet implementation (5042). See [branch roles](branches.md).
 
 ## Product flow
 
@@ -68,4 +68,4 @@ Operator permissions support bounded operational and dispute work; they do not r
 - Local previews use illustrative fixtures and do not prove live wallet or delivery behavior.
 - Automated checks cover defined source/fixture scopes. Open live validation and independent review are tracked in the [roadmap](../ROADMAP.md).
 
-Hosting isolation between the two domains is pending. See [deployment status](deployment-status.md); separate Mainnet services or data stores are not established by this document.
+Public routing separation between the domains is pending. The Mainnet branch records an isolated internal runtime already; see [branch roles](branches.md) and [deployment status](deployment-status.md). Public routing checks and internal Mainnet activation evidence have different scopes.

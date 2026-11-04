@@ -11,7 +11,8 @@
 
 - `testnet.groupdeal.tech` is the Testnet application domain; `groupdeal.tech` is the Mainnet domain. The apex construction page must remain until the user explicitly requests reopening.
 - Do not infer the environment from a domain or service label alone. Check the target virtual host, static root, backend upstream, chain and configured origins before a release.
-- At the 4 November 2026 inspection the two domains still shared an application root and Testnet backend. Separation is an open task in `ROADMAP.md` and `docs/deployment-status.md`; do not claim that separate Mainnet services or data stores already exist. The apex website gate does not block its API.
+- Mainnet development is on `codex/mainnet` in the existing worktree `E:/apps/group-deal-mainnet`. Read its own `AGENTS.md` and `docs/mainnet-checklist.md` before work there; the default/Testnet source and Mainnet source have different manifests and runtime requirements.
+- At the 4 November 2026 public-routing inspection the two domains still shared the Testnet application root/upstream. Public cutover is an open task; the apex website gate does not block its API. The Mainnet branch separately records contract V2 deployment and an isolated internal runtime. Preserve that work and distinguish its recorded evidence from public-domain routing checks.
 
 # Testnet interface design
 

@@ -18,7 +18,7 @@ Mua chung phần mềm cần giúp người mua hiểu rõ cả giá và điều
 - **Người bán:** tổ chức chiến dịch, quản lý kho sản phẩm số và hoàn tất đơn hàng.
 - **Tích hợp:** kết nối công cụ riêng của người bán qua public read API, TypeScript SDK và webhook có chữ ký.
 
-Dự án đang phát triển trên **Arc Testnet**, sử dụng token thử nghiệm. Kiểm chứng với người dùng thật và chuẩn bị Mainnet là các cột mốc tiếp theo.
+Nhánh mặc định phát triển bản **Arc Testnet**, sử dụng token thử nghiệm. Mainnet được phát triển riêng trên **codex/mainnet**. Kiểm chứng với người dùng thật và mở ứng dụng Mainnet công khai vẫn là các cột mốc còn mở.
 
 ## Cách hoạt động
 
@@ -47,13 +47,17 @@ Mạng hiện tại là **Arc Testnet, chain ID 5042002**. Tham chiếu contract
 | --- | --- |
 | Mã nguồn chính | Đã có giao diện buyer, seller, operator; contract, backend, giao hàng và tích hợp |
 | Testnet | [testnet.groupdeal.tech](https://testnet.groupdeal.tech/) là domain ứng dụng dành cho thử nghiệm và phản hồi |
-| Mainnet | [groupdeal.tech](https://groupdeal.tech/) dành cho Mainnet, hiện có trang đang hoàn thiện; bản phát hành GroupDeal Mainnet còn chờ |
+| Mainnet | [codex/mainnet](https://github.com/tanka420/group-deal/blob/codex/mainnet/docs/mainnet-checklist.md) phát triển Mainnet; checklist ghi nhận contract V2 và runtime nội bộ đã triển khai. [groupdeal.tech](https://groupdeal.tech/) vẫn có trang đang hoàn thiện, chưa mở công khai |
 | Kiểm chứng | Tiếp tục kiểm thử tự động và Testnet; hành trình live đầy đủ và rà soát bảo mật độc lập còn mở |
-| Ưu tiên tiếp theo | Hoàn thiện kiểm chứng Testnet, tách môi trường và chuẩn bị pilot nhỏ với người dùng thật |
+| Ưu tiên tiếp theo | Hoàn thiện kiểm chứng Testnet, tách định tuyến công khai và chuẩn bị pilot nhỏ với người dùng thật |
 
-Việc tách hạ tầng vẫn còn mở: trang thông báo chưa đồng nghĩa đã có runtime Mainnet độc lập. [Trạng thái triển khai](docs/deployment-status.md) ghi rõ vai trò domain và cấu hình đã quan sát.
+Việc tách định tuyến công khai vẫn còn mở. [Trạng thái triển khai](docs/deployment-status.md) phân biệt tiến độ kích hoạt Mainnet nội bộ đã ghi nhận với nội dung hai domain hiện phục vụ.
 
 [Roadmap](ROADMAP.md) phân biệt phần đã triển khai, đang hoàn thiện và dự kiến. [GitHub Actions](https://github.com/tanka420/group-deal/actions/workflows/local-candidate.yml) ghi kết quả kiểm tra tự động của từng revision.
+
+## Hai nhánh phát triển
+
+Repo duy trì **codex/arc-candidate** làm nhánh mặc định để phát triển Testnet và **codex/mainnet** để phát triển Mainnet, với hai thư mục làm việc riêng. Xem [nhánh và worktree](docs/branches.md) để biết vai trò và tiến độ Mainnet hiện có.
 
 ## Xem giao diện trên máy
 
