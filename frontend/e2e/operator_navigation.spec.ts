@@ -32,11 +32,13 @@ const sectionIds=['DEALS','OUTBOX','OPERATIONS','LEGACY','USERS','PERMISSIONS','
 const menu=(page:Page)=>page.locator('.operator-workspace-nav').getByRole('button',{name:/^(Open workspace menu|Mở menu workspace)$/});
 async function snapshot(page:Page,info:any,name:string,width:number,language:string){expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);await page.screenshot({path:info.outputPath(`${name}-${language}-${width}.png`),fullPage:!name.includes('drawer'),animations:'disabled'});}
 for(const language of ['vi','en'])test('operator navigation: responsive sidebar and drawer in '+language,async({page},info)=>{
+ // Seven full route loads and screenshot checks share this case.
+ test.setTimeout(60000);
  const f=await fixture(page,language);for(const width of [320,375,430,768,1024,1280,1440]){
   await page.setViewportSize({width,height:1000});await page.goto('/#operator');await expect(page.locator('.operator-workspace-content')).toBeVisible();const root=page.locator('.operator-workspace-nav');
   if(width<1024){await expect(menu(page)).toBeVisible();const before=f.reads.length;await menu(page).click();await expect(page.getByRole('dialog')).toBeVisible();await expect(page.getByRole('dialog').getByRole('button')).toHaveCount(14);const close=page.getByRole('dialog').getByRole('button',{name:language==='en'?'Close dialog':'Đóng hộp thoại',exact:true}),bounds=await close.boundingBox();expect(bounds!.y).toBeGreaterThanOrEqual(0);expect(bounds!.y+bounds!.height).toBeLessThanOrEqual(1000);const triggerBounds=await menu(page).boundingBox();expect(triggerBounds!.width).toBeGreaterThan(width-80);expect(f.reads.length).toBe(before);await snapshot(page,info,'operator-navigation-drawer',width,language);await page.keyboard.press('Escape');await expect(menu(page)).toBeFocused();}
   else {await expect(menu(page)).toBeHidden();await expect(root.locator('.operator-navigation-list button')).toHaveCount(13);const bounds=await root.boundingBox();expect(bounds!.width).toBe(256);await expect(root).toHaveCSS('position','fixed');await expect(root.getByRole('button',{name:labels(language)[0],exact:true})).toBeVisible();}
-  await selectOperatorSection(page,{name:labels(language)[0],exact:true});if(await page.locator('.operator-deal .operator-order-list').getByRole('button',{name:language==='en'?'Inspect deal':'Kiểm tra deal',exact:true}).isVisible())await page.locator('.operator-deal .operator-order-list').getByRole('button',{name:language==='en'?'Inspect deal':'Kiểm tra deal',exact:true}).click();await expect(page.locator('.operator-deal-card h2')).toBeVisible();await expect(page.locator('.operator-workspace-content')).toHaveAttribute('data-section','DEALS');await page.evaluate(()=>{(document.activeElement as HTMLElement)?.blur();window.scrollTo(0,0);});await snapshot(page,info,'operator-navigation-detail',width,language);
+  await selectOperatorSection(page,{name:labels(language)[0],exact:true});await page.locator('.operator-deal .operator-order-list').getByRole('button',{name:language==='en'?'Inspect deal':'Kiểm tra deal',exact:true}).click();await expect(page.locator('.operator-deal-card h2')).toBeVisible();await expect(page.locator('.operator-workspace-content')).toHaveAttribute('data-section','DEALS');await page.evaluate(()=>{(document.activeElement as HTMLElement)?.blur();window.scrollTo(0,0);});await snapshot(page,info,'operator-navigation-detail',width,language);
  }expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
 });
 for(const language of ['vi','en'])test('operator navigation: keyboard, close and all sections in '+language,async({page},info)=>{
@@ -54,3 +56,16 @@ test('operator navigation: resize preserves detail, locale and releases the draw
   await selectOperatorSection(page,{name:'Admin account & access',exact:true});await expect(page.locator('.admin-identity')).toBeVisible();await expect(page.locator('.operator-access')).toContainText('The server verified');
   for(const width of [375,1440]){await page.setViewportSize({width,height:1000});expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);await page.screenshot({path:info.outputPath('admin-access-'+width+'.png'),fullPage:true});}
  });
+
+
+test('operator navigation waits for the deal list before opening its detail',async({page})=>{
+ const f=await fixture(page,'en');let release!:()=>void,requested=false;
+ const held=new Promise<void>(resolve=>{release=resolve;});
+ await page.route(/\/api\/operator\/deals(?:\?.*)?$/,async route=>{requested=true;await held;await route.fulfill({json:{campaigns:[masterFixture().detail.campaign],pagination:{nextCursor:null}}});});
+ try{
+  await page.setViewportSize({width:1280,height:1000});await page.goto('/admin');await selectOperatorSection(page,{name:'Inspect deals',exact:true});
+  await expect.poll(()=>requested).toBe(true);const inspect=page.locator('.operator-deal .operator-order-list').getByRole('button',{name:'Inspect deal',exact:true});await expect(inspect).toHaveCount(0);
+  release();await inspect.click();await expect(page.locator('.operator-deal-card h2')).toBeVisible();
+  await expect(page.locator('.operator-workspace-content')).toHaveAttribute('data-section','DEALS');expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
+ }finally{release();}
+});
