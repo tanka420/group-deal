@@ -26,7 +26,7 @@ async function fixture(page: Page, options: { funded?: boolean; indexerOffline?:
   const state = { funded: options.funded ?? true, campaignOpen: true, authorizations: 0, indexedReads: 0,indexerOffline:options.indexerOffline??false,partialProjection:options.partialProjection??false,phase:"PREPARED",prepared:false,recoveries:0 };
   const deadline=Math.floor(Date.now()/1000)+900;
   const operation={id:"durable-buy-fixture",action:"BUY",resourceId:"fixture",chainId:5042002,hubAddress:"0x2A7aECd1CE90f1284EB060488c8dDEF4b1bE0574",principal:buyer,calldata:new ethers.Interface(HUB_ABI).encodeFunctionData("commitToBuy",[1,identity,1,false,1,deadline,"0x1234"]),phase:"PREPARED",createdAt:Date.now(),updatedAt:Date.now(),expectedEventArgs:{campaignId:1,campaignIdentity:identity,buyerPrincipal:buyer,quantity:1},purchaseQuote:{blockNumber:125,blockHash:"0x"+"12".repeat(32),lockedUnitPrice:"1000000",commitmentAmount:"1000000",maxGrossAmount:"1000000",authorizationNonce:0,termsHash}};
-  await page.addInitScript(() => localStorage.setItem("groupdeal_token", "fixture-session"));
+  await page.addInitScript(() => { localStorage.setItem("groupdeal_token", "fixture-session"); localStorage.setItem("groupdeal_lang", "vi"); });
   const hubAddress=operation.hubAddress,usdcAddress="0x3600000000000000000000000000000000000000",blockHash=operation.purchaseQuote.blockHash;
   const event=new ethers.Interface(HUB_ABI).encodeEventLog(new ethers.Interface(HUB_ABI).getEvent("CommitmentMade")!,[1,2,identity,buyer,1,1000000,1000000,false,0]);
   let submitted:any,approvalTransaction:any;const approvalHash='0x'+'5'.repeat(64),approveData=new ethers.Interface(['function approve(address,uint256)']).encodeFunctionData('approve',[hubAddress,1000000]);
@@ -103,7 +103,7 @@ const fixtureErrors=new WeakMap<Page,string[]>();
 test.afterEach(async({page})=>{expect(fixtureErrors.get(page)??[]).toEqual([]);});
 
 async function confirm(page: Page, source = "ARC_USDC",sign = true) {
-  await page.getByRole("button", { name: /cam kết mua/i }).click();
+  await page.locator('.deal-join-cta').click();
   await page.getByLabel("Nguồn thanh toán").selectOption(source);
   await page.locator(".modal-content input[type=checkbox]").last().check();
   await page.locator(".modal-content > button.btn-primary").click();
@@ -208,7 +208,7 @@ test("another tab cannot queue a second purchase while the checkout lock is held
 
 test('external checkout requires separate fresh consent for approval and commitment',async({page})=>{
  const state=await fixture(page,{approveFirst:true});
- await page.getByRole('button',{name:/cam kết mua/i}).click();await page.locator('.join-agreement input').check();await page.locator('.join-submit').click();await chooseCheckoutWallet(page);
+ await page.locator('.deal-join-cta').click();await page.locator('.join-agreement input').check();await page.locator('.join-submit').click();await chooseCheckoutWallet(page);
  const fees=page.locator('dialog.external-fee-dialog');await expect(fees).toContainText('Cấp quyền USDC');await expect(fees.locator('[data-external-fee=goods]')).toHaveText('1.0 USDC');await expect(fees.getByRole('checkbox')).not.toBeChecked();expect(await page.evaluate(()=>(window as any).buyWrites)).toBe(0);
  await fees.getByRole('checkbox').check();await fees.getByRole('button',{name:'Tiếp tục trong ví',exact:true}).click();
  await expect(fees).toContainText('Cam kết mua');await expect(fees.locator('[data-external-fee=goods]')).toHaveText('1.0 USDC');await expect(fees.getByRole('checkbox')).not.toBeChecked();await expect(fees.getByRole('button',{name:'Tiếp tục trong ví',exact:true})).toBeDisabled();expect(await page.evaluate(()=>(window as any).buyWrites)).toBe(1);
