@@ -1,5 +1,5 @@
 import {SignedOutPage} from '../components/SignedOutPage';
-import {useCursorPage} from '../hooks/useCursorPage';
+import {useCursorPage,type CursorPageState} from '../hooks/useCursorPage';
 import {useAppSearch} from '../hooks/useAppSearch';
 import {readOrderFilters} from '../services/orderList';
 import {readPagination,type PaginationInfo} from '../components/ListPagination';
@@ -16,7 +16,7 @@ import {formatOrderDate} from '../services/orderList';
 import {OrderConversation} from '../components/OrderConversation';
 import {OrderDisputeSummary} from '../components/OrderDisputeSummary';
 import '../styles/orders.css';
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
 import { useWeb3 } from "../context/Web3Context";
@@ -39,7 +39,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-export const BuyerDashboard: React.FC<{selectedOrderId?:string;onOpenAuth:()=>void}> = ({selectedOrderId,onOpenAuth}) => {
+export const BuyerDashboard: React.FC<{selectedOrderId?:string;onOpenAuth:()=>void;pageCache?:Map<string,CursorPageState>}> = ({selectedOrderId,onOpenAuth,pageCache}) => {
   const { t, language } = useLanguage();
   const text=(vi:string,en:string)=>language==="en"?en:vi;
   const { user,token,getSessionEpoch } = useAuth();
@@ -48,7 +48,7 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string;onOpenAuth:()=>vo
     hubAddress,
   } = useWeb3();
 
-  const search=useAppSearch(),filters=readOrderFilters(),pager=useCursorPage(JSON.stringify([user?.id,token,selectedOrderId,search])),[pagination,setPagination]=useState<PaginationInfo>({limit:20,nextCursor:null}),[summary,setSummary]=useState<OrderSummary|null>(null);
+  const search=useAppSearch(),filters=readOrderFilters(),pager=useCursorPage(JSON.stringify([user?.id,token,account,selectedOrderId,search]),pageCache),[pagination,setPagination]=useState<PaginationInfo>({limit:20,nextCursor:null}),[summary,setSummary]=useState<OrderSummary|null>(null);
   const query=new URLSearchParams({limit:'20'});if(selectedOrderId)query.set('orderId',selectedOrderId);else{for(const [k,v]of Object.entries(filters))if(v)query.set(k,v);if(pager.cursor)query.set('cursor',pager.cursor);}
   const orderAction=useRef<ManagedOrderActionHandle>(null);
   const [orders, setOrders] = useState<any[]>([]);
@@ -57,6 +57,9 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string;onOpenAuth:()=>vo
   const dataController=useRef<AbortController|null>(null);
   const [ordersOwner,setOrdersOwner]=useState({userId:user?.id,token});
   const ordersVisible=ordersOwner.userId===user?.id&&ordersOwner.token===token;
+  const viewKey=JSON.stringify([user?.id,token,account,selectedOrderId,search,pager.cursor]),[loadedViewKey,setLoadedViewKey]=useState<string|null>(null),viewReady=loadedViewKey===viewKey;
+  const ordersRegion=useRef<HTMLDivElement>(null),retainedHeight=useRef(0);
+  useLayoutEffect(()=>{if(!ordersVisible||!viewReady||loading||!ordersRegion.current)return;const node=ordersRegion.current,measure=()=>{retainedHeight.current=node.getBoundingClientRect().height;};measure();const observer=new ResizeObserver(measure);observer.observe(node);return()=>observer.disconnect();},[ordersVisible,viewReady,loading]);
   const visibleOrders=ordersVisible?orders:[];
   const detailOrders=selectedOrderId?visibleOrders.filter(o=>o.id===selectedOrderId):[];
   const returnTo=new URLSearchParams(window.location.search).get('returnTo');
@@ -93,13 +96,13 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string;onOpenAuth:()=>vo
 
   const fetchOrders = () => {
     dataController.current?.abort();const controller=new AbortController();dataController.current=controller;
-    const owner={userId:user?.id,token};setOrdersOwner(owner);setLoading(true);setLoadError(null);setOrders([]);
+    const owner={userId:user?.id,token};if(ordersOwner.userId!==owner.userId||ordersOwner.token!==owner.token)retainedHeight.current=0;setOrdersOwner(owner);setLoading(true);setLoadError(null);setOrders([]);
     if(!user?.id||!token){setLoading(false);return;}
     const epoch=getSessionEpoch(),timer=setTimeout(()=>controller.abort(),15000),current=()=>dataController.current===controller&&scopeRef.current.userId===owner.userId&&scopeRef.current.token===owner.token&&getSessionEpoch()===epoch;
     Promise.all([fetch('/api/orders/buyer?'+query,{signal:controller.signal,headers:{Authorization:'Bearer '+token},redirect:'error',cache:'no-store'}).then(async r=>{if(!r.ok)throw Error('ORDER_VIEW_UNAVAILABLE');return r.json();}),fetch('/api/orders/summary',{signal:controller.signal,headers:{Authorization:'Bearer '+token},redirect:'error',cache:'no-store'}).then(async r=>r.ok?r.json():null).catch(()=>null)]).then(([data,overview])=>({data,overview}))
       .then(({data,overview})=>{if(controller.signal.aborted||!current())return;if(!Array.isArray(data.orders)||data.buyerAccountId!==undefined&&data.buyerAccountId!==owner.userId||data.orders.some((o:any)=>!o||typeof o.id!=='string'||!/^[-A-Za-z0-9_]{1,128}$/.test(o.id)||['constructor','__proto__','prototype'].includes(o.id)||o.buyerAccountId!==undefined&&o.buyerAccountId!==owner.userId)||new Set(data.orders.map((o:any)=>o.id)).size!==data.orders.length)throw Error('ORDER_VIEW_INVALID');setPagination(readPagination(data.pagination));try{setSummary(overview?readSummary(overview,owner.userId!) as OrderSummary:null);}catch{setSummary(null);}setOrders(data.orders);for(const o of data.orders){const saved=reviewDrafts.current.get(o.id);if(o.review)reviewDrafts.current.delete(o.id);else if(saved)saved.uncertain=false;}})
       .catch(()=>{if(current())setLoadError('ORDER_VIEW_UNAVAILABLE');})
-      .finally(()=>{clearTimeout(timer);if(current())setLoading(false);});
+      .finally(()=>{clearTimeout(timer);if(current()){setLoadedViewKey(viewKey);setLoading(false);}});
   };
   useEffect(()=>{fetchOrders();return()=>{dataController.current?.abort();dataController.current=null;};},[user?.id,token,account,selectedOrderId,search,pager.cursor]);
   useEffect(()=>{setDisputeModalOrder(null);setDisputeFieldErrors({});setReviewError(false);setDisputeReason('');setDisputeEvidence('');setReviewModalOrder(null);setIsSubmittingReview(false);setIsSubmittingDispute(false);setReviewComment('');reviewDrafts.current.clear();disputeDrafts.current.clear();},[user?.id,token]);
@@ -157,14 +160,14 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string;onOpenAuth:()=>vo
   // Calculate total claimables
   let totalClaimableRebates = 0n;
   let totalClaimableRefunds = 0n;
-  let amountsKnown=!!user?.id&&!!token&&ordersVisible&&!loading&&!loadError;
+  let amountsKnown=!!user?.id&&!!token&&ordersVisible&&viewReady&&!loading&&!loadError;
   (selectedOrderId?detailOrders:visibleOrders).forEach(o=>{const amounts=buyerOrderAmounts(o);if(amounts.remaining===null){amountsKnown=false;return;}totalClaimableRebates+=amounts.unpaidRebate;totalClaimableRefunds+=amounts.unpaidRefund;});
   if(!selectedOrderId){amountsKnown=amountsKnown&&summary?.claimableRebate!==null&&summary?.claimableRebate!==undefined&&summary?.claimableRefund!==null&&summary?.claimableRefund!==undefined;totalClaimableRebates=BigInt(summary?.claimableRebate??'0');totalClaimableRefunds=BigInt(summary?.claimableRefund??'0');}
   if(selectedOrderId&&!detailOrders.length)amountsKnown=false;
   if(!user||!token)return <SignedOutPage title={text('Đơn hàng','Orders')} description={text('Đăng nhập để xem đơn mua và theo dõi giao hàng.','Sign in to view your orders and track delivery.')} onOpenAuth={onOpenAuth}/>;
   return (
-    <div className="app-page buyer-dashboard">
-      {selectedOrderId&&<a className="btn btn-secondary" href={backHref}>{text('Quay lại danh sách đơn','Back to orders')}</a>}
+    <div className="app-page buyer-dashboard" data-scroll-ready={viewReady&&!loading?'true':'false'}>
+      {selectedOrderId&&<a className="btn btn-secondary" data-app-return href={backHref}>{text('Quay lại danh sách đơn','Back to orders')}</a>}
       {loadError&&<div role="alert" className="notice notice-error">{text("Không tải được dữ liệu. Thử lại khi kết nối ổn định.","Unable to load orders. Retry when your connection is stable.")}<button className="btn btn-secondary" onClick={fetchOrders}>{text("Thử lại","Retry")}</button></div>}
       <header className="catalog-heading buyer-page-heading">
         <div>
@@ -204,8 +207,10 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string;onOpenAuth:()=>vo
         </div>
       </div>
 
+      {/* Preserve layout while refreshing; previous account data is still cleared. */}
+      <div ref={ordersRegion} style={ordersVisible&&(loading||!viewReady)?{minHeight:retainedHeight.current}:undefined}>
       {/* Orders List */}
-      {(!user?.id||!token)?<p role="status">{text('Đăng nhập để xem đơn và quyền truy cập của bạn.','Sign in to view your orders and resource access.')}</p>:(!ordersVisible||loading) ? (
+      {(!user?.id||!token)?<p role="status">{text('Đăng nhập để xem đơn và quyền truy cập của bạn.','Sign in to view your orders and resource access.')}</p>:(!ordersVisible||loading||!viewReady) ? (
         <div style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)" }}>
           {text("Đang tải danh sách đơn hàng…","Loading orders…")}
         </div>
@@ -415,6 +420,7 @@ export const BuyerDashboard: React.FC<{selectedOrderId?:string;onOpenAuth:()=>vo
         </div>
       )}
 
+      </div>
       <ManagedOrderAction key={user?.id+'-'+(user&&token?getSessionEpoch():0)} ref={orderAction} onRecovered={fetchOrders}/>
       <TransactionHistory key={user?.id} onRecovered={fetchOrders}/>
 

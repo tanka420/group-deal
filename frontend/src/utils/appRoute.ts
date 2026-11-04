@@ -87,15 +87,27 @@ export function appHref(value: string): string {
   return value;
 }
 
-export function navigateApp(value: string, replace = false) {
+export type AppNavigationEntry={key:string;fromUrl?:string;fromKey?:string;scroll:'top'|'restore'};
+const navigationKey='__groupdealNavigation';
+function navigationState(entry:AppNavigationEntry){const state=window.history.state;return {...(state&&typeof state==='object'&&!Array.isArray(state)?state:{}),[navigationKey]:entry};}
+export function ensureAppNavigationEntry():AppNavigationEntry {
+ const entry=window.history.state?.[navigationKey];if(entry&&typeof entry.key==='string'&&entry.key.length<=128&&(entry.scroll==='top'||entry.scroll==='restore'))return entry;
+ const next:AppNavigationEntry={key:crypto.randomUUID(),scroll:'top'};window.history.replaceState(navigationState(next),'');return next;
+}
+
+export function navigateApp(value: string, replace = false, scroll:'top'|'restore'='top') {
   const href = appHref(value);
   if (!href.startsWith("/") || href.startsWith("//") || href.includes("\\")) return;
   const url = new URL(href, window.location.origin);
   if (url.origin !== window.location.origin || parseAppPath(url.pathname).kind === "not-found") return;
-  if (window.location.pathname + window.location.search + window.location.hash !== href) {
-    window.history[replace ? "replaceState" : "pushState"](null, "", href);
+  const fromUrl=location.pathname+location.search+location.hash,entry=ensureAppNavigationEntry();
+  window.dispatchEvent(new Event('groupdeal:before-navigate'));
+  if(!replace&&scroll==='restore'&&entry.fromUrl===href&&entry.fromKey&&window.history.length>1){window.history.back();return;}
+  if(fromUrl!==href){
+    const next:AppNavigationEntry=replace?{...entry,scroll}:{key:crypto.randomUUID(),fromUrl,fromKey:entry.key,scroll};
+    history[replace?'replaceState':'pushState'](replace?navigationState(next):{[navigationKey]:next},'',href);
   }
-  window.dispatchEvent(new Event("groupdeal:navigate"));
+  window.dispatchEvent(new CustomEvent('groupdeal:navigate',{detail:{scroll}}));
 }
 
 export function migrateLegacyRoute() {

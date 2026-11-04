@@ -6,6 +6,9 @@ Selected product and documentation changes. This starts with the current milesto
 
 ### Interface fixes
 
+- Start new pages at the top once; restore scroll, order filters and pagination on Back/Forward or a return link.
+- Keep order layout stable during refresh and cancel delayed scroll restoration when the user interacts.
+
 - Keep mobile order scrolling stable when browser chrome changes the viewport height; retain explicit keyboard focus visibility.
 - Position native dialogs in the current viewport and preserve the page offset when closing them.
 - Keep the close button sticky on short screens and return wallet Send/Receive focus to its trigger.

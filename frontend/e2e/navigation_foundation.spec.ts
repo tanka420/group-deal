@@ -89,8 +89,16 @@ for(const signedIn of [false,true])for(const language of ['vi','en'])test(`heade
  expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
 });
 
-for(const width of [1200,1280,1440,1920])for(const signedIn of [false,true])test(`desktop navigation is centered at ${width}px for ${signedIn?'account':'guest'}`,async({page})=>{
+for(const width of [1200,1280,1440,1920])for(const signedIn of [false,true])test(`navigation adapts and centers at ${width}px for ${signedIn?'account':'guest'}`,async({page})=>{
  const f=await fixture(page,signedIn,'vi');await page.setViewportSize({width,height:900});await page.goto('/explore');
+ // Classic scrollbars can leave less than 1200px of usable header width.
+ const usableWidth=await page.locator('.app-header').evaluate(e=>e.clientWidth);
+ if(usableWidth<1200){
+  await expect(page.locator('.desktop-navigation')).toBeHidden();
+  const trigger=page.locator('.mobile-menu-button');await trigger.click();
+  await expect(page.locator('#mobile-navigation a[href="/explore"]')).toBeVisible();
+  expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);return;
+ }
  await expect(page.locator('.desktop-navigation')).toBeVisible();
  const layout=await page.locator('.header-inner').evaluate(e=>{
   const box=e.getBoundingClientRect(),nav=e.querySelector('.desktop-navigation')!.getBoundingClientRect(),brand=e.querySelector('.header-brand')!.getBoundingClientRect(),actions=e.querySelector('.header-actions')!.getBoundingClientRect();
@@ -134,14 +142,16 @@ test('English is the first-visit default and a saved Vietnamese choice survives 
  expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
 });
 
-for(const width of [375,1440])test('page navigation resets scroll including Back and Forward at '+width,async({page})=>{
+for(const width of [375,1440])test('forward navigation resets scroll and Back/Forward restore history at '+width,async({page})=>{
  const f=await fixture(page);await page.setViewportSize({width,height:600});await page.goto('/policies/terms');await expect(page.locator('main h1')).toBeVisible();
  await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeGreaterThan(200);
  await page.locator('.site-footer').getByRole('link',{name:'How it works',exact:true}).click();await expect(page).toHaveURL(url=>url.pathname==='/policies/how');await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(0);
  await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeGreaterThan(200);
+ const howPosition=await page.evaluate(()=>scrollY);
  await page.locator('.site-footer').getByRole('link',{name:'Explore deals',exact:true}).click();await expect(page).toHaveURL(url=>url.pathname==='/explore');await expect(page.locator('#catalog-search')).toBeVisible();await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(0);
- await page.goBack();await expect(page).toHaveURL(url=>url.pathname==='/policies/how');await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(0);
+ await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));const explorePosition=await page.evaluate(()=>scrollY);expect(explorePosition).toBeGreaterThan(0);
+ await page.goBack();await expect(page).toHaveURL(url=>url.pathname==='/policies/how');await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeCloseTo(howPosition,0);
  await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeGreaterThan(200);
- await page.goForward();await expect(page).toHaveURL(url=>url.pathname==='/explore');await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(0);
+ await page.goForward();await expect(page).toHaveURL(url=>url.pathname==='/explore');await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeCloseTo(explorePosition,0);
  expect(f.errors).toEqual([]);expect(f.writes).toEqual([]);
 });

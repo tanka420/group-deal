@@ -15,7 +15,7 @@ export function OrderList({orders,pagination,page,pending,onPrevious,onNext}:{or
  const fromInput=useRef<HTMLInputElement>(null),toInput=useRef<HTMLInputElement>(null);
  useEffect(()=>{const sync=()=>{const next=readOrderFilters();setFilters(next);setDraft(next);setError(null);};window.addEventListener('popstate',sync);window.addEventListener('groupdeal:navigate',sync);return()=>{window.removeEventListener('popstate',sync);window.removeEventListener('groupdeal:navigate',sync);};},[]);
  const apply=(next:OrderFilters)=>{const invalid=orderFilterError(next);setError(invalid);if(invalid){focusPageElement(next.from&&orderDateBound(next.from)===null||invalid==='RANGE'?fromInput.current:toInput.current);return;}setFilters(next);setDraft(next);navigateApp(orderListHref(next));};
- const matching=orders,shown=orders,href=(id:string)=>'/orders/'+encodeURIComponent(id)+'?returnTo='+encodeURIComponent(orderListHref(filters));
+ const matching=orders,shown=orders,href=(id:string)=>'/orders/'+encodeURIComponent(id)+'?returnTo='+encodeURIComponent(window.location.pathname+window.location.search);
  return <section className="order-list-section" aria-label={text('Danh sách đơn mua','Purchase order list')}>
   <form className="glass-card order-filter-form" onSubmit={e=>{e.preventDefault();apply({...draft,q:draft.q.trim()});}}>
    <div><label htmlFor="order-search">{text('Tìm mã đơn hoặc sản phẩm','Search order ID or product')}</label><input id="order-search" type="search" maxLength={180} value={draft.q} onChange={e=>setDraft(v=>({...v,q:e.target.value}))}/></div>

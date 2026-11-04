@@ -23,7 +23,7 @@ export const DeferredPage: React.FC<{ route: string; children: React.ReactNode }
         </button>
       </section>
     }>
-      <Suspense fallback={<p role="status" aria-live="polite" aria-busy="true">{language === "en" ? "Loading page…" : "Đang tải trang…"}</p>}>
+      <Suspense fallback={<p role="status" aria-live="polite" aria-busy="true" data-scroll-ready="false">{language === "en" ? "Loading page…" : "Đang tải trang…"}</p>}>
         {children}
       </Suspense>
     </PageBoundary>

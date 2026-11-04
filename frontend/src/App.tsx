@@ -1,3 +1,5 @@
+import {usePageScroll} from './hooks/usePageScroll';
+import type {CursorPageState} from './hooks/useCursorPage';
 import {SiteFooter} from './components/SiteFooter';
 import {PolicyPage} from './pages/PolicyPage';
 import {AdminWorkspace} from './components/AdminWorkspace';
@@ -47,14 +49,10 @@ const MainApp: React.FC = () => {
   }, [purchaseAuth, user?.id, user?.activeWallet, token, account]);
   const { language } = useLanguage();
   const [route, setRoute] = useState<AppRoute>(readAppRoute);
-  // Reset for a different page; catalog filter/query updates keep their position.
-  const pagePath = routePath(route);
-  useLayoutEffect(() => {
-    const previous = window.history.scrollRestoration;
-    window.history.scrollRestoration = 'manual';
-    return () => { window.history.scrollRestoration = previous; };
-  }, []);
-  useLayoutEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }, [pagePath]);
+  const pagePath=routePath(route),orderOwnerKey=JSON.stringify([user?.id,token,account]);
+  const orderPageCache=useRef(new Map<string,CursorPageState>()),orderCacheOwner=useRef(orderOwnerKey);
+  if(orderCacheOwner.current!==orderOwnerKey){orderCacheOwner.current=orderOwnerKey;orderPageCache.current.clear();}
+  usePageScroll(pagePath,orderOwnerKey);
   const catalogReturn = useRef('/explore');
   const currentTab = route.kind === "tab" ? route.tab : route.kind === "seller-section" ? "seller" : route.kind === "order" ? "orders" : route.kind === "policy" ? "policy" : route.kind === "support" ? route.path : ['operator-deal','operator-section','operator-user','operator-support'].includes(route.kind) ? "operator" : route.kind === "not-found" ? "not-found" : "explore";
   const selectedCampaignId = route.kind === "campaign" ? route.id : null;
@@ -88,7 +86,7 @@ const MainApp: React.FC = () => {
       if(url.origin!==window.location.origin)return;
       if(url.hash&&parseAppHash(url.hash).kind==='not-found')return;
       if(!url.hash&&parseAppPath(url.pathname).kind==='not-found')return;
-      event.preventDefault();navigateApp(url.hash||url.pathname+url.search);
+      event.preventDefault();navigateApp(url.hash||url.pathname+url.search,false,anchor.hasAttribute('data-app-return')?'restore':'top');
     };
     sync();
     window.addEventListener('popstate',sync);window.addEventListener('hashchange',sync);window.addEventListener('groupdeal:navigate',sync);document.addEventListener('click',click);
@@ -103,7 +101,7 @@ const MainApp: React.FC = () => {
     navigateApp(hash);
   };
   const handleSelectCampaign = (id: string) => { catalogReturn.current=window.location.pathname+window.location.search; navigate('/deals/'+id+'?returnTo='+encodeURIComponent(catalogReturn.current)); };
-  const handleBackToExplore = () => { const back=new URLSearchParams(window.location.search).get('returnTo'); navigate(back&&(back==='/'||/^\/explore(?:\?|$)/.test(back))?back:catalogReturn.current); };
+  const handleBackToExplore = () => { const back=new URLSearchParams(window.location.search).get('returnTo'); navigateApp(back&&(back==='/'||/^\/explore(?:\?|$)/.test(back))?back:catalogReturn.current,false,'restore'); };
   const handleTabChange = (tab: string) => navigate("#" + tab);
 
   const isSeller = user?.roles?.includes("seller");
@@ -145,7 +143,7 @@ const MainApp: React.FC = () => {
               <ExplorePage onSelectCampaign={handleSelectCampaign} />
             )}
 
-            {currentTab === "orders" && <BuyerDashboard onOpenAuth={openAuth} key={user?.id} selectedOrderId={route.kind==='order'?route.id:undefined}/>}
+            {currentTab === "orders" && <BuyerDashboard onOpenAuth={openAuth} pageCache={orderPageCache.current} key={user?.id} selectedOrderId={route.kind==='order'?route.id:undefined}/>}
             {currentTab === "account" && <AccountPage key={user?.id} onOpenAuth={openAuth}/>}
             {currentTab === "wallet" && <WalletPage key={user?.id} onOpenAuth={openAuth}/>}
             {currentTab === "notifications" && <NotificationsPage key={user?.id} onOpenAuth={openAuth}/>}
