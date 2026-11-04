@@ -143,14 +143,15 @@ test("deal 404 and API outage offer distinct back/retry states",async({page})=>{
 });
 
 
-test("integration docs describe durable inbox, receipt SDK and JSON widget accurately across supported widths",async({page})=>{
-  await base(page,"buyer");await page.goto("/#docs");
-  await expect(page.getByRole("heading",{name:"Tích hợp với GroupDeal",exact:true})).toBeVisible();
-  await expect(page.getByText("SDK v2 là bản candidate",{exact:false})).toBeVisible();
-  await expect(page.getByText("Cửa sổ thời gian vẫn cho phép nhận trùng",{exact:false})).toBeVisible();
-  await expect(page.getByText("trả trang HTML chỉ đọc để nhúng iframe",{exact:false})).toBeVisible();
-  await expect(page.getByText("Khả năng này mới được kiểm tra local",{exact:false})).toBeVisible();
-  expect(await page.locator("iframe").count()).toBe(0);await noOverflow(page);
+for(const language of ['vi','en'] as const)test('integration docs describe durable inbox, receipt SDK and JSON widget accurately across supported widths '+language,async({page})=>{
+  await base(page,'buyer',language);await page.goto('/#docs');const en=language==='en';
+  await expect(page.getByRole('heading',{name:en?'Integrate with GroupDeal':'Tích hợp với GroupDeal',exact:true})).toBeVisible();
+  await expect(page.getByText(en?'SDK v2 is a repository candidate and has not been published':'SDK v2 là bản candidate trong repository; chưa phát hành',{exact:false})).toBeVisible();
+  await expect(page.getByText(en?'Events can still be duplicated within that window':'Cửa sổ thời gian vẫn cho phép nhận trùng',{exact:false})).toBeVisible();
+  await expect(page.getByText(en?'returns a read-only HTML page for an iframe':'trả trang HTML chỉ đọc để nhúng iframe',{exact:false})).toBeVisible();
+  await expect(page.getByText(en?'CSP allows embedding only on the widget route':'CSP cho phép nhúng chỉ tại route widget',{exact:false})).toBeVisible();
+  await expect(page.getByText(en?'Test signature verification and event handling in your integration before enabling automated processing':'Kiểm tra xác minh chữ ký và xử lý sự kiện trong hệ thống tích hợp trước khi bật tự động',{exact:false})).toBeVisible();
+  expect(await page.locator('iframe').count()).toBe(0);await noOverflow(page);
 });
 
 test("transaction history loads older pages without duplicate entries and preserves narrow-screen layout",async({page})=>{
