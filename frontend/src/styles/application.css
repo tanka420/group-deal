@@ -43,9 +43,9 @@
 .badge-verified-seller { color:#0758c9; background:#eef4ff; border-color:#c3d8f6; }
 .badge-verified-rights { color:#087a48; background:#e8faef; border-color:#b5dec7; }
 .app-page .glass-card { background:white; }
-.ui-dialog { width:min(680px,calc(100vw - 2rem)); max-width:none; max-height:calc(100dvh - 2rem); margin:auto; padding:1.5rem; color:var(--text-primary); background:white; overflow:auto; }
+.ui-dialog { position:fixed; inset:0; width:min(680px,calc(100vw - 2rem)); max-width:none; max-height:calc(100dvh - 2rem); margin:auto; padding:1.5rem; color:var(--text-primary); background:white; overflow:auto; }
 .ui-dialog::backdrop { background:rgb(16 26 51 / 50%); }
-.ui-dialog-close { position:sticky; top:0; float:right; z-index:2; background:white; margin-left:.75rem; }
+.ui-dialog-close { position:sticky; top:0; float:right; z-index:2; background:white; margin-left:.75rem; min-width:44px; min-height:44px; }
 .ui-dialog .modal-header { min-height:44px; }
 .ui-dialog .ui-row,.ui-dialog form { clear:both; }
 .ui-dialog .btn { white-space:normal; }
@@ -109,5 +109,5 @@
 .app-footer-links { display:flex; flex-wrap:wrap; align-items:center; gap:1rem; }
 .app-footer a { color:var(--text-secondary); display:inline-flex; align-items:center; min-height:44px; }
 @media(max-width:767px) { .workspace-heading { margin-bottom:1.25rem; } .workspace-tabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); padding:.5rem; } .workspace-tabs .btn { justify-content:flex-start; padding:.7rem; height:100%; } .ui-record-card { padding:1rem; } .ui-dialog { padding:1rem; } .public-seller-metrics { gap:.6rem; } .public-seller-metrics > div { padding:.75rem; } .access-state { padding:1.5rem 1rem; } .app-footer { padding:1.5rem .75rem; } }
-@media(max-height:500px) { .ui-dialog-close { position:static; } .developer-docs section { scroll-margin-top:16px; } }
+@media(max-height:500px) { .developer-docs section { scroll-margin-top:16px; } }
 @media(max-width:767px) { .app-container:has(.deal-purchase-dock) .app-footer { padding-bottom:calc(1.5rem + 80px + env(safe-area-inset-bottom)); } }

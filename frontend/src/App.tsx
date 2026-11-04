@@ -63,17 +63,18 @@ const MainApp: React.FC = () => {
   const [isSellerModalOpen, setIsSellerModalOpen] = useState(false);
   useEffect(()=>{
     let keyboard=false,frame=0;
-    const schedule=(target:HTMLElement)=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{if(document.activeElement===target)revealFocus(target);});};
+    const schedule=(target:HTMLElement)=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{if(keyboard&&document.activeElement===target)revealFocus(target);});};
     const keydown=(event:KeyboardEvent)=>{if(event.key==="Tab")keyboard=true;};
-    const pointerdown=()=>{keyboard=false;};
+    // Touch/wheel intent wins over queued keyboard focus reveals and browser-chrome resize.
+    const pointerdown=()=>{keyboard=false;cancelAnimationFrame(frame);};
     const focusin=(event:FocusEvent)=>{const target=event.target;if(keyboard&&target instanceof HTMLElement&&target.closest(".main-content"))schedule(target);};
-    const resize=()=>{const target=document.activeElement;if(target instanceof HTMLElement&&target.closest(".main-content"))schedule(target);};
+    const resize=()=>{if(!keyboard)return;const target=document.activeElement;if(target instanceof HTMLElement&&target.closest(".main-content"))schedule(target);};
     // Async status rows can move a keyboard-focused input even without a window resize.
     const content=document.querySelector<HTMLElement>(".main-content");
     const contentResize=new ResizeObserver(()=>{if(keyboard)resize();});
     if(content)contentResize.observe(content);
-    document.addEventListener("keydown",keydown,true);document.addEventListener("pointerdown",pointerdown,true);document.addEventListener("focusin",focusin);window.addEventListener("resize",resize);
-    return()=>{contentResize.disconnect();cancelAnimationFrame(frame);document.removeEventListener("keydown",keydown,true);document.removeEventListener("pointerdown",pointerdown,true);document.removeEventListener("focusin",focusin);window.removeEventListener("resize",resize);};
+    document.addEventListener("keydown",keydown,true);document.addEventListener("pointerdown",pointerdown,true);document.addEventListener("focusin",focusin);document.addEventListener("wheel",pointerdown,{passive:true,capture:true});document.addEventListener("touchmove",pointerdown,{passive:true,capture:true});window.addEventListener("resize",resize);
+    return()=>{contentResize.disconnect();cancelAnimationFrame(frame);document.removeEventListener("keydown",keydown,true);document.removeEventListener("pointerdown",pointerdown,true);document.removeEventListener("focusin",focusin);document.removeEventListener("wheel",pointerdown,true);document.removeEventListener("touchmove",pointerdown,true);window.removeEventListener("resize",resize);};
   },[]);
 
   // History navigation and legacy links resolve through the same route rules.

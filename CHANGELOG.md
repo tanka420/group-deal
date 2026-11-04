@@ -4,6 +4,12 @@ Selected product and documentation changes. This starts with the current milesto
 
 ## Unreleased
 
+### Interface fixes
+
+- Keep mobile order scrolling stable when browser chrome changes the viewport height; retain explicit keyboard focus visibility.
+- Position native dialogs in the current viewport and preserve the page offset when closing them.
+- Keep the close button sticky on short screens and return wallet Send/Receive focus to its trigger.
+
 ### Documentation
 
 - Retire old prototype/candidate/baseline branches; retain only the default Testnet branch and the existing Mainnet development branch.
