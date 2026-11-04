@@ -1,10 +1,18 @@
 import {useLayoutEffect,useRef} from 'react';
 import {ensureAppNavigationEntry} from '../utils/appRoute';
 
-type Position={x:number;y:number};
+type Offset={x:number;y:number};
+type Position=Offset&{regions?:Record<string,Offset>};
 type Current={key:string;url:string;path:string;position:Position};
 const here=()=>location.pathname+location.search+location.hash;
-const position=():Position=>({x:window.scrollX,y:window.scrollY});
+// Opt-in list offsets belong to the same account-scoped history entry as the page.
+const position=():Position=>{
+ const regions:Record<string,Offset>=Object.create(null);
+ for(const element of document.querySelectorAll<HTMLElement>('.main-content [data-scroll-restore]')){
+  const key=element.dataset.scrollRestore;if(key)regions[key]={x:element.scrollLeft,y:element.scrollTop};
+ }
+ return {x:window.scrollX,y:window.scrollY,regions};
+};
 
 /** Restore history entries after their content is ready; user input always wins. */
 export function usePageScroll(pagePath:string,ownerScope:string){
@@ -27,7 +35,7 @@ export function usePageScroll(pagePath:string,ownerScope:string){
   if(previous&&previous.key===entry.key&&previous.url===url&&!kind)return;
   stopRestore.current();
   const restore=kind==='pop'||kind==='navigate'&&entry.scroll==='restore';
-  const target=restore?(positions.current.get(entry.key)??byUrl.current.get(url)??{x:0,y:0}):previous?.path===pagePath?previous.position:{x:0,y:0};
+  const target:Position=restore?(positions.current.get(entry.key)??byUrl.current.get(url)??{x:0,y:0}):previous?.path===pagePath?previous.position:{x:0,y:0};
   current.current={key:entry.key,url,path:pagePath,position:target};
   if(!restore&&previous?.path!==pagePath){window.scrollTo({left:0,top:0,behavior:'instant'});return;}
   if(!restore)return;
@@ -39,6 +47,10 @@ export function usePageScroll(pagePath:string,ownerScope:string){
    const waiting=!!main.querySelector('[data-scroll-ready="false"]');
    const maxY=Math.max(0,document.documentElement.scrollHeight-innerHeight);
    if(!force&&(waiting||maxY+1<target.y&&!main.querySelector('[data-scroll-ready="true"]')))return;
+   for(const element of main.querySelectorAll<HTMLElement>('[data-scroll-restore]')){
+    const saved=target.regions?.[element.dataset.scrollRestore||''];
+    if(saved)element.scrollTo({left:saved.x,top:saved.y,behavior:'instant'});
+   }
    window.scrollTo({left:target.x,top:Math.min(target.y,maxY),behavior:'instant'});stop();
   };
   const schedule=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>attempt());};

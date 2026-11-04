@@ -27,7 +27,7 @@ export function OrderList({orders,pagination,page,pending,onPrevious,onNext}:{or
   </form>
   <p role="status">{text(`${pagination.total??matching.length} đơn phù hợp · Mới nhất trước`,`${pagination.total??matching.length} matching orders · Newest first`)}</p>
 
-  <div className="glass-card order-list"><div className="order-column-head" aria-hidden="true"><span>{text('STT','No.')}</span><span>{text('Đơn / sản phẩm','Order / product')}</span><span>{text('Ngày ghi nhận','Recorded date')}</span><span>{text('Trạng thái','Status')}</span><span>{text('Tiền hàng / thao tác','Amount / actions')}</span></div>
+  <div className="glass-card order-list" data-scroll-restore="buyer-orders"><div className="order-column-head" aria-hidden="true"><span>{text('STT','No.')}</span><span>{text('Đơn / sản phẩm','Order / product')}</span><span>{text('Ngày ghi nhận','Recorded date')}</span><span>{text('Trạng thái','Status')}</span><span>{text('Tiền hàng / thao tác','Amount / actions')}</span></div>
    {shown.map((o,i)=>{const amounts=buyerOrderAmounts(o),gross=orderMoney(o.committedGross);return <article className="order-row" key={o.id} aria-label={text('Đơn ','Order ')+o.id}>
     <span className="order-sequence"><span className="order-mobile-label">{text('STT ','No. ')}</span>{(page-1)*20+i+1}</span>
     <div className="order-summary"><OrderReference id={o.id} href={href(o.id)}/><h2>{o.campaignTitle}</h2><p>{Number.isSafeInteger(o.quantity)&&o.quantity>0?o.quantity:'—'} {text('đơn vị','units')}</p></div>

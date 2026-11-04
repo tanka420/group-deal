@@ -100,3 +100,11 @@ test('order column headings cover the top of their scrolled list',async({page},i
  expect(bounds.scrollTop).toBeGreaterThan(0);expect(Math.abs(bounds.gap)).toBeLessThanOrEqual(1);expect(bounds.covered).toBe(true);
  await list.screenshot({path:info.outputPath('order-sticky-heading.png')});expect(f.writes).toEqual([]);expect(f.errors).toEqual([]);
 });
+
+test('Back restores the scrolled order record inside the list',async({page})=>{
+ const f=await fixture(page);await page.setViewportSize({width:390,height:844});await page.goto('/orders?status=DELIVERED&q=Scroll');await expect(page.getByText('Scroll fixture 0',{exact:true})).toBeVisible();
+ const list=page.locator('.order-list');await list.scrollIntoViewIfNeeded();await list.evaluate(el=>{el.scrollTop=1800;});await frames(page);
+ const href=await list.locator('.order-summary a[href^="/orders/"]').evaluateAll(links=>{const box=document.querySelector('.order-list')!.getBoundingClientRect();return links.find(e=>{const r=e.getBoundingClientRect();return r.top>Math.max(box.top,100)+8&&r.bottom<Math.min(box.bottom,innerHeight)-8;})?.getAttribute('href');});expect(href).toBeTruthy();
+ const saved=await list.evaluate(el=>el.scrollTop),outer=await page.evaluate(()=>scrollY);expect(saved).toBeGreaterThan(1000);await list.locator('a[href="'+href+'"]').first().click();await expect(page.getByRole('heading',{name:'Order details',exact:true})).toBeVisible();await expect(page.locator('.buyer-dashboard')).toHaveAttribute('data-scroll-ready','true');f.state.orderDelay=300;
+ await page.goBack();await expect(page.locator('.buyer-dashboard')).toHaveAttribute('data-scroll-ready','true');await expect.poll(()=>page.evaluate(()=>scrollY)).toBeCloseTo(outer,0);await expect.poll(()=>page.locator('.order-list').evaluate(el=>el.scrollTop)).toBeCloseTo(saved,0);expect(f.writes).toEqual([]);expect(f.errors).toEqual([]);
+});
