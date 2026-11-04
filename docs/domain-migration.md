@@ -1,4 +1,6 @@
-# Tên miền chính thức GroupDeal
+# Lịch sử chuyển tên miền GroupDeal
+
+> **Tài liệu lịch sử.** Nội dung bên dưới ghi lại lần chuyển origin trước đây, không phải cấu hình đích hiện tại. Từ ngày 04/11/2026, `testnet.groupdeal.tech` dành cho Testnet; `groupdeal.tech` dành cho Mainnet và hiển thị trang đang hoàn thiện. Việc tách hạ tầng còn mở. Xem [trạng thái triển khai hiện tại](deployment-status.md) trước khi dùng hướng dẫn cũ trong tài liệu này.
 
 Origin chính thức là `https://groupdeal.tech`. `www.groupdeal.tech` và hostname trước đây `groupdeal.thanhtan.top` chỉ chuyển hướng 308, giữ đường dẫn và query. Mạng và các hợp đồng vẫn là Arc Testnet; đổi domain không chuyển sang Mainnet.
 

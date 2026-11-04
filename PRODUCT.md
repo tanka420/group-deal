@@ -23,7 +23,7 @@ Taste leads composition and visual direction. Impeccable verifies hierarchy, usa
 - Vietnamese and English; English on a first visit, while respecting a saved language choice; desktop and mobile.
 - Arc Testnet and test-token disclosures remain explicit.
 - Static background; no continuously moving grid or tiled perspective image.
-- The public website is temporarily gated by the standalone maintenance notice requested on 4 November. Keep it closed until the user explicitly requests reopening. Interface development continues locally; application releases require checks for the exact commit. Do not alter production data.
+- `testnet.groupdeal.tech` is the Testnet application domain. `groupdeal.tech` is the Mainnet domain and is temporarily gated by the standalone maintenance notice requested on 4 November. Keep the Mainnet website closed until the user explicitly requests reopening; this does not close the Testnet website. Hosting isolation remains open as recorded in `docs/deployment-status.md`. Application releases require checks for the exact commit. Do not alter production data.
 
 ## Evidence
 

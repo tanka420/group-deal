@@ -7,6 +7,12 @@
 - For subsequent work: edit locally, review the diff, run checks appropriate to the change, commit and push to GitHub, then build/deploy the approved exact commit or its recorded artifact. Record frontend and backend versions separately if only one is released. Do not deploy an uncommitted checkout or treat a local sample preview as production evidence.
 - Keep credentials, runtime databases, local archives, and generated private evidence out of Git. Baseline synchronization does not authorize moving production data, restarting services, or deploying changes. Follow the user's current scope for those actions.
 
+# Domain and environment boundaries
+
+- `testnet.groupdeal.tech` is the Testnet application domain; `groupdeal.tech` is the Mainnet domain. The apex construction page must remain until the user explicitly requests reopening.
+- Do not infer the environment from a domain or service label alone. Check the target virtual host, static root, backend upstream, chain and configured origins before a release.
+- At the 4 November 2026 inspection the two domains still shared an application root and Testnet backend. Separation is an open task in `ROADMAP.md` and `docs/deployment-status.md`; do not claim that separate Mainnet services or data stores already exist. The apex website gate does not block its API.
+
 # Testnet interface design
 
 - Use the pinned project-local Taste and Impeccable skills recorded in `docs/ui-skills.json`. Taste leads visual direction; Impeccable supplies review and verification. Read `PRODUCT.md` for the current task and product constraints.
