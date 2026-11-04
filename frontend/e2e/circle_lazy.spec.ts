@@ -55,7 +55,7 @@ test('installed SDK completes local OTP callback under a CSP that blocks eval',a
  await expect(dialog).toHaveCount(0);await expect(page.locator('.account-pill-btn')).toContainText('@fixture_circle');expect(f.counts.device).toBe(1);expect(f.counts.otp).toBe(1);expect(f.counts.login).toBe(1);expect(f.errors).toEqual([]);expect(await f.violations()).toEqual([]);await untouched(page);
 });
 test('provider readiness without device result reaches a bounded timeout and permits explicit retry',async({page})=>{
- await page.clock.install();const f=await fixture(page,{mode:'stall'});await page.goto('/');const dialog=await open(page);await expect(dialog.getByRole('status')).toContainText('Initializing the Circle connection');await expect.poll(()=>f.counts.device).toBe(1);await page.clock.fastForward(15_001);
+ await page.clock.install();const f=await fixture(page,{mode:'stall'});await page.goto('/');const dialog=await open(page);await expect(dialog.locator('form[aria-labelledby="auth-email-title"]').getByRole('status')).toHaveText('Connecting…');await expect.poll(()=>f.counts.device).toBe(1);await page.clock.fastForward(15_001);
  const retry=dialog.getByRole('button',{name:'Retry connection',exact:true});await expect(retry).toBeEnabled();await expect(dialog.getByRole('button',{name:'Send OTP',exact:true})).toBeDisabled();expect(f.counts.otp).toBe(0);await expect(page.locator('#sdkIframe')).toHaveCount(0);
  // Explicit retry reuses the actual SDK singleton and starts one new device request.
  await retry.click();await expect(dialog.getByLabel("Email address",{exact:true})).toBeFocused();await expect.poll(()=>f.counts.device).toBe(2);await page.clock.fastForward(15_001);await expect(retry).toBeEnabled();expect(f.errors).toEqual([]);await untouched(page);

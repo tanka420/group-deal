@@ -101,7 +101,7 @@ for (const language of ["vi", "en"]) test(`Circle account ${language} retains ac
   page.on("request", request => { if (new URL(request.url()).pathname.startsWith("/api/") && request.method() !== "GET") writes++; });
   const dialog = await open(page, en, true);
   await expect(dialog.getByRole("region", { name: en ? "Account information" : "Thông tin tài khoản", exact: true })).toContainText(wallet);
-  await expect(dialog).toContainText(en ? "Your account session is active" : "Phiên tài khoản còn hiệu lực");
+  await expect(dialog).toContainText(en ? "Sign in again to continue with your email wallet." : "Đăng nhập lại để tiếp tục với ví email.");
   await expect(dialog.getByRole("button", { name: en ? "Send OTP" : "Gửi mã OTP", exact: true })).toBeDisabled();
   expect(writes).toBe(0); expect(await page.evaluate(() => localStorage.getItem("groupdeal_token"))).toBe("fixture-auth-dialog-session"); await preserved(page);
 });

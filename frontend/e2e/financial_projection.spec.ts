@@ -3,6 +3,9 @@ import { test, expect, Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 const catalogHub=JSON.parse(readFileSync(new URL("../../shared/contracts.json",import.meta.url),"utf8")).contracts.GroupDealHub.address;
 
+// These claim/recovery scenarios assert Vietnamese copy; first-visit English is covered separately.
+test.beforeEach(async({page})=>{await page.addInitScript(()=>localStorage.setItem('groupdeal_lang','vi'));});
+
 const buyer = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC";
 const claimHash="0x"+"ab".repeat(32);
 async function ordersFixture(page: Page, verified = true, unknownReceipt=false) {
