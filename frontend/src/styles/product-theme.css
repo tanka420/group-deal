@@ -42,3 +42,8 @@
 .app-container .footer-groups strong{font-size:14px;color:var(--text-primary);font-weight:600}
 .app-container .footer-groups a,.app-container .footer-bottom{font-size:13px;color:var(--text-secondary)}
 .app-container .footer-bottom{margin-top:35px;padding-top:24px;border-top:1px solid var(--border-subtle)}
+/* Wallet review controls must wrap inside the narrow account dialog. */
+.wallet-manager-panel{grid-template-columns:minmax(0,1fr)}
+.wallet-manager-panel>.session-review{min-width:0}
+.wallet-manager-panel .btn{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.wallet-manager-panel .session-review .btn{margin-inline:0}
