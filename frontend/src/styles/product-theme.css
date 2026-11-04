@@ -1,0 +1,44 @@
+/* Shared buyer, seller and administration visual language. */
+@font-face{font-family:'Be Vietnam Pro';src:url('/fonts/be-vietnam-pro/400.ttf') format('truetype');font-style:normal;font-weight:400;font-display:swap}
+@font-face{font-family:'Be Vietnam Pro';src:url('/fonts/be-vietnam-pro/500.ttf') format('truetype');font-style:normal;font-weight:500;font-display:swap}
+@font-face{font-family:'Be Vietnam Pro';src:url('/fonts/be-vietnam-pro/600.ttf') format('truetype');font-style:normal;font-weight:600;font-display:swap}
+@font-face{font-family:'Be Vietnam Pro';src:url('/fonts/be-vietnam-pro/700.ttf') format('truetype');font-style:normal;font-weight:700;font-display:swap}
+:root{
+ --font-display:'Be Vietnam Pro',system-ui,sans-serif;--font-body:'Be Vietnam Pro',system-ui,sans-serif;
+ --bg-primary:#fff;--bg-secondary:#fff;--bg-tertiary:#f1f5fb;--bg-card:#fff;--bg-card-hover:#f7f9fc;
+ --text-primary:#17243a;--text-secondary:#53647c;--text-muted:#5e6d82;
+ --primary:#1757e5;--primary-light:#164fce;--primary-dark:#1048c7;--border-subtle:#e1e7f0;--border-medium:#cdd7e6;
+ --shadow-sm:none;--shadow-md:0 8px 24px #0000000d;--shadow-lg:0 12px 36px #0000001a;
+}
+.app-container{background:#fff;font-family:var(--font-body);font-size:14px;line-height:1.7;font-variant-numeric:tabular-nums;}
+:is(.app-container,.modal-overlay) ::selection{background:#dce7ff;color:#142b50}
+:is(.app-container,.modal-overlay) :is(input,textarea){caret-color:var(--primary)}
+.app-container :is(h1,h2,h3){letter-spacing:-.035em;text-wrap:balance;line-height:1.25}
+:is(.app-container,.modal-overlay) :is(a,button,input,select,summary):focus-visible{outline:3px solid var(--primary);outline-offset:4px}
+.app-container a{text-underline-offset:5px}
+:is(.app-container,.modal-overlay) .btn{font-family:var(--font-body);font-size:13px;font-weight:600;min-height:46px;border-radius:8px;box-shadow:none;transform:none;transition:background-color .15s}
+:is(.app-container,.modal-overlay) .btn-primary{background:var(--primary);border-color:var(--primary);color:#fff}
+:is(.app-container,.modal-overlay) .btn-primary:hover:not(:disabled){background:var(--primary-dark);box-shadow:none;transform:none}
+:is(.app-container,.modal-overlay) .btn:disabled{opacity:.55;cursor:not-allowed}
+:is(.app-container,.modal-overlay) .btn-secondary{background:#fff;border-color:var(--border-medium);color:var(--text-primary)}
+:is(.app-container,.modal-overlay) .btn-secondary:hover{background:#f1f5fc}
+.app-container .text-link{display:inline-flex;align-items:center;gap:12px;min-height:44px;color:var(--text-primary);font-size:14px;font-weight:600;text-decoration:none}
+.app-container .text-link:hover{text-decoration:underline}
+.app-container .header{background:#fff;border-bottom:1px solid var(--border-subtle);backdrop-filter:none}
+.app-container .logo-group{gap:8px}
+.app-container .logo-mark{width:30px;height:36px;background:none;box-shadow:none;color:var(--primary);border-radius:0}
+.app-container .logo-text{font-size:23px;font-weight:700;letter-spacing:-.04em;background:none;-webkit-text-fill-color:currentColor;color:#12243e}
+.app-container .desktop-navigation .primary-navigation{gap:24px;flex-wrap:nowrap}
+.app-container .desktop-navigation .primary-navigation a{font-size:14px;padding:4px 0;border-radius:0;font-weight:500;position:relative;background:none}
+.app-container .desktop-navigation .primary-navigation svg{display:none}
+.app-container .desktop-navigation .primary-navigation a[aria-current]{color:var(--text-primary)}
+.app-container .desktop-navigation .primary-navigation a[aria-current]:after{content:'';position:absolute;inset:auto 0 -5px;height:2px;background:var(--primary)}
+.app-container .header-actions{gap:12px;flex-wrap:nowrap}
+.app-container .header-language{border:0;background:none;padding:6px}
+.app-container .header-login{background:var(--primary);color:#fff;border-color:var(--primary)}
+.app-container .header-login:hover{background:var(--primary-dark);color:#fff}
+.app-container .header-funding{font-size:12px}
+.app-container .account-dropdown-menu{box-shadow:var(--shadow-lg)}
+.app-container .footer-groups strong{font-size:14px;color:var(--text-primary);font-weight:600}
+.app-container .footer-groups a,.app-container .footer-bottom{font-size:13px;color:var(--text-secondary)}
+.app-container .footer-bottom{margin-top:35px;padding-top:24px;border-top:1px solid var(--border-subtle)}

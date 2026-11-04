@@ -12,7 +12,7 @@ GroupDeal lets buyers buy digital goods together using USDC, review pinned licen
 
 ## Approved task
 
-The user asked to leave `codex/ui-v2` aside and use Taste and Impeccable on the actual Testnet branch, `codex/arc-candidate`. The two directions were presented with the same illustrative content. On 3 November 2026 the user selected A, the product-led gallery. Implement it in the real Home, Explore and deal-detail screens, with a consistent shared buyer shell. Preserve the other workspaces and all transaction behavior.
+The user asked to leave `codex/ui-v2` aside and use Taste and Impeccable on the actual Testnet branch, `codex/arc-candidate`. The two directions were presented with the same illustrative content. On 3 November 2026 the user selected A, the product-led gallery. Implement it in the real Home, Explore and deal-detail screens, with a consistent shared buyer shell. On 4 November the user extended the shared visual language to seller and admin, retaining their full-width operational layouts and existing behavior, and supplied `image/banner home.jpg` as the replacement homepage artwork.
 
 Taste leads composition and visual direction. Impeccable verifies hierarchy, usability, consistency and implementation quality. The previous UI-UX skill and UI V2 design are not the visual authority for this task.
 
@@ -23,7 +23,7 @@ Taste leads composition and visual direction. Impeccable verifies hierarchy, usa
 - Vietnamese and English; English on a first visit, while respecting a saved language choice; desktop and mobile.
 - Arc Testnet and test-token disclosures remain explicit.
 - Static background; no continuously moving grid or tiled perspective image.
-- No deployment or production data operations in this design step.
+- The public website is temporarily gated by the standalone maintenance notice requested on 4 November. Keep it closed until the user explicitly requests reopening. Interface development continues locally; application releases require checks for the exact commit. Do not alter production data.
 
 ## Evidence
 

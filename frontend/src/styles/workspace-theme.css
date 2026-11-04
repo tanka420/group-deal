@@ -1,0 +1,80 @@
+/* Operational layouts share the buyer identity, with room for navigation and data. */
+.workspace-app{--radius-sm:8px;--radius-md:8px;--radius-lg:12px;--radius-xl:16px;--primary-bg:#eef3fa;--bg-surface:#f1f5fb;--shadow-glow:none}
+.workspace-app .header{background:#fff;border-bottom:1px solid var(--border-subtle);backdrop-filter:none}
+.workspace-app .header .header-inner{max-width:none;min-height:84px;padding:16px var(--workspace-gutter)}
+.workspace-app .main-content{background:#fff;padding-top:32px}
+.workspace-app .workspace-heading{gap:20px;margin-bottom:28px}
+.workspace-app .workspace-heading>div{min-width:0}
+.workspace-app .workspace-heading h1{font-size:30px;font-weight:700;line-height:1.25;margin:0 0 8px;letter-spacing:-.03em}
+.workspace-app .workspace-heading p{font-size:14px;line-height:1.7}
+.workspace-app .workspace-heading>.btn{flex-shrink:1;max-width:100%;white-space:normal}
+.workspace-app :is(input,textarea,select){font-family:var(--font-body);font-size:14px}
+.workspace-app :is(.form-input,.form-select,.form-textarea){border-radius:8px;border-color:var(--border-medium);background:#fff;box-shadow:none}
+.workspace-app :is(input,textarea)::placeholder{color:var(--text-muted);opacity:1}
+.workspace-app .btn-success{background:var(--success);border-color:var(--success);color:#fff;box-shadow:none;transform:none}
+.workspace-app .btn-danger{background:var(--danger);border-color:var(--danger);color:#fff;box-shadow:none;transform:none}
+.workspace-app :is(.btn-success,.btn-danger):hover:not(:disabled){filter:brightness(.9);box-shadow:none;transform:none}
+.workspace-app .glass-card{border-color:var(--border-subtle);border-radius:12px;box-shadow:none;backdrop-filter:none;transition:none}
+.workspace-app .glass-card:hover{box-shadow:none}
+.workspace-app .glass-card.highlight{border-color:var(--border-subtle)}
+.workspace-app :is(.seller-workspace-nav,.operator-workspace-nav){background:#fff}
+.workspace-app :is(.seller-workspace-nav,.operator-workspace-nav) h2{color:var(--text-secondary);font-size:13px;font-weight:600}
+.workspace-app :is(.seller-workspace-nav,.operator-workspace-nav,.seller-menu-drawer,.operator-navigation-drawer) .btn{font-size:13px;font-weight:400;gap:12px;line-height:1.6;padding:11px 12px;box-shadow:none}
+.workspace-app :is(.seller-workspace-nav,.operator-workspace-nav,.seller-menu-drawer,.operator-navigation-drawer) .btn[aria-current=page]{background:var(--bg-tertiary);color:var(--primary-dark);border-color:transparent;font-weight:600}
+.workspace-app :is(.seller-workspace-nav,.operator-workspace-nav,.seller-menu-drawer,.operator-navigation-drawer) .btn-secondary{background:transparent;border-color:transparent;color:var(--text-secondary)}
+.workspace-app :is(.seller-workspace-nav,.operator-workspace-nav,.seller-menu-drawer,.operator-navigation-drawer) .btn:hover:not(:disabled){background:var(--bg-tertiary);border-color:transparent;color:var(--text-primary)}
+.workspace-app :is(.seller-workspace-nav,.operator-workspace-nav) .btn svg{color:currentColor;width:18px;height:18px;flex:none}
+.workspace-app .overview-intro h2{font-size:20px;font-weight:600;margin-bottom:6px}
+/* Four peer metrics occupy one divided strip: 4 equal cells, no card gaps. */
+.workspace-app .overview-metrics{gap:0;border:1px solid var(--border-subtle);border-radius:12px;overflow:hidden}
+.workspace-app .overview-metric{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;border:0;border-radius:0;padding:20px;background:#fff}
+.workspace-app .overview-metric+.overview-metric{border-left:1px solid var(--border-subtle)}
+.workspace-app .overview-metric:hover{background:var(--bg-card-hover)}
+.workspace-app .overview-metric>span{grid-column:1/-1;grid-row:auto;font-size:13px}
+.workspace-app .overview-metric>strong{font-size:26px;font-weight:600;line-height:1.4}
+.workspace-app .overview-metric>small{font-size:12px;grid-row:3;grid-column:1}
+.workspace-app .overview-metric>svg{grid-row:3;grid-column:2;align-self:center;color:var(--text-secondary)}
+.workspace-app .overview-actions strong{color:var(--text-primary)}
+.workspace-app :is(.overview-funds dd,.campaign-commitments,.campaign-schedule,.deal-price){font-variant-numeric:tabular-nums}
+.workspace-app :is(.record-list,.campaign-list,.product-record-list){border-radius:12px;box-shadow:none}
+.workspace-app .campaign-table thead th{background:#fff;font-weight:500}
+.workspace-app .campaign-icon-action{border-radius:8px}
+.workspace-app .operator-view-nav{gap:8px;padding-bottom:12px;border-bottom:1px solid var(--border-subtle)}
+.workspace-app :is(.operator-view-nav,.section-switcher) .btn-primary{background:var(--bg-tertiary);color:var(--primary-dark);border-color:var(--border-medium)}
+.workspace-app .operator-exception-grid .btn strong{color:var(--text-primary);font-size:24px;font-weight:600}
+.workspace-app .operator-overview-grid{align-items:start}
+.workspace-app .operator-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+.workspace-app .operator-metrics dt{font-size:13px}
+.workspace-app .operator-deal-card h2{font-size:24px;font-weight:600}
+.workspace-app .operator-deal-card .eyebrow{font-size:13px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-secondary)}
+.workspace-app .ui-stat-grid dd{font-size:24px;font-weight:600;color:var(--text-primary)}
+.workspace-app .admin-identity{padding:28px;max-width:760px}
+.workspace-app .admin-identity h1{font-size:30px;line-height:1.25;margin-bottom:16px}
+.workspace-app .admin-identity p{line-height:1.7;max-width:65ch}
+.workspace-app .admin-identity.is-signed-in{max-width:none}
+.workspace-app .admin-identity.is-signed-in h1{font-size:22px;margin:0}
+.workspace-app .app-footer{background:#fff;border-top:1px solid var(--border-subtle)}
+.workspace-app .footer-groups{gap:24px}
+.workspace-app .workspace-access-symbol{display:flex;justify-content:center;color:var(--primary);margin-bottom:24px}
+.workspace-app .access-state h1{font-size:30px;line-height:1.3;margin-bottom:16px}
+@media(min-width:768px) and (max-width:1199px){
+ .workspace-app .operator-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .workspace-app .overview-metric:nth-child(3){border-left:0}
+ .workspace-app .overview-metric:nth-child(n+3){border-top:1px solid var(--border-subtle)}
+}
+@media(max-width:767px){
+ .workspace-app .header .header-inner{min-height:72px;padding:12px 16px}
+ .workspace-app .main-content{padding-top:24px}
+ .workspace-app .workspace-heading{gap:16px;margin-bottom:24px}
+ .workspace-app .workspace-heading h1,.workspace-app .admin-identity h1,.workspace-app .access-state h1{font-size:26px}
+ .workspace-app .admin-identity{padding:20px}
+ .workspace-app .overview-metric{padding:16px}
+ .workspace-app .overview-metric:nth-child(3){border-left:0}
+ .workspace-app .overview-metric:nth-child(n+3){border-top:1px solid var(--border-subtle)}
+ .workspace-app .overview-metric>strong{font-size:23px}
+ .workspace-app .overview-metric>span{padding-right:0}
+ .workspace-app .operator-exception-grid .btn strong{font-size:22px}
+ .workspace-app .operator-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:399px){.workspace-app .operator-metrics{grid-template-columns:minmax(0,1fr)}}
+@media(prefers-reduced-motion:reduce){.workspace-app .btn{transition:none}}

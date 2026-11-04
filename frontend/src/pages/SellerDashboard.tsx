@@ -155,7 +155,7 @@ export const SellerDashboard: React.FC = () => {
       {loadError&&<div role="alert" className="notice notice-error">{loadError==='SELLER_SIGN_IN_REQUIRED'?text('Đăng nhập để tải dữ liệu seller.','Sign in to load seller data.'):text('Không tải được dữ liệu. Thử lại khi kết nối ổn định.','Unable to load seller data. Retry when your connection is stable.')}<button className="btn btn-secondary" onClick={fetchSellerData}>{text('Thử lại','Retry')}</button></div>}
       <div className="workspace-heading">
         <div>
-          <h1 style={{ fontSize: "1.85rem", marginBottom: "0.25rem" }}>{text("Kênh người bán","Seller studio")}</h1>
+          <h1>{text("Kênh người bán","Seller studio")}</h1>
           <p style={{ color: "var(--text-secondary)", fontSize: "0.92rem" }}>
             {text("Quản lý sản phẩm, deal, giao quyền truy cập và khoản được claim.","Manage products, deals, access delivery and claimable allocations.")}
           </p>

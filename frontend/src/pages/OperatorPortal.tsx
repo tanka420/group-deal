@@ -103,7 +103,7 @@ export const OperatorPortal: React.FC<{accountPanel?:React.ReactNode;dealSelecti
       {loadError&&<div role="alert" className="notice notice-error">{language==="en"?"Operator data could not be loaded. Retry when the connection is stable.":loadError}<button className="btn btn-secondary" onClick={fetchOperatorData}>{language==="en"?"Retry":"Thử lại"}</button></div>}
       <div className="workspace-heading">
         <div>
-          <h1 style={{ fontSize: "1.85rem", marginBottom: "0.25rem" }}>{activeTab==='VERIFICATIONS'?(language==='en'?'Verifications and rights':'Xác minh và bản quyền'):t("operatorTitle")}</h1>
+          <h1>{activeTab==='VERIFICATIONS'?(language==='en'?'Verifications and rights':'Xác minh và bản quyền'):t("operatorTitle")}</h1>
           <p style={{ color: "var(--text-secondary)", fontSize: "0.92rem" }}>
             {language==="en"?"Review deals, distribution rights, disputes and financial reconciliation.":"Kiểm tra deal, quyền phân phối, tranh chấp và đối soát tài chính."}
           </p>

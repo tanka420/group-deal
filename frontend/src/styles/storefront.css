@@ -1,55 +1,12 @@
 /* Product-led gallery, selected by the user on 2026-11-03. */
-@font-face{font-family:'Be Vietnam Pro';src:url('/fonts/be-vietnam-pro/400.ttf') format('truetype');font-style:normal;font-weight:400;font-display:swap}
-@font-face{font-family:'Be Vietnam Pro';src:url('/fonts/be-vietnam-pro/500.ttf') format('truetype');font-style:normal;font-weight:500;font-display:swap}
-@font-face{font-family:'Be Vietnam Pro';src:url('/fonts/be-vietnam-pro/600.ttf') format('truetype');font-style:normal;font-weight:600;font-display:swap}
-@font-face{font-family:'Be Vietnam Pro';src:url('/fonts/be-vietnam-pro/700.ttf') format('truetype');font-style:normal;font-weight:700;font-display:swap}
-.storefront-app{
- --storefront-width:1360px;--storefront-gutter:24px;
- --font-display:'Be Vietnam Pro',system-ui,sans-serif;--font-body:'Be Vietnam Pro',system-ui,sans-serif;
- --bg-primary:#fff;--bg-secondary:#fff;--bg-tertiary:#f1f5fb;--bg-card:#fff;--bg-card-hover:#f7f9fc;
- --text-primary:#17243a;--text-secondary:#53647c;--text-muted:#5e6d82;
- --primary:#1757e5;--primary-light:#164fce;--primary-dark:#1048c7;--border-subtle:#e1e7f0;--border-medium:#cdd7e6;
- --shadow-sm:none;--shadow-md:0 8px 24px #0000000d;--shadow-lg:0 12px 36px #0000001a;
- background:#fff;font-family:var(--font-body);font-size:14px;line-height:1.7;font-variant-numeric:tabular-nums;
-}
-.storefront-app ::selection{background:#dce7ff;color:#142b50}
-.storefront-app :is(input,textarea){caret-color:var(--primary)}
-.storefront-app :is(h1,h2,h3){letter-spacing:-.035em;text-wrap:balance;line-height:1.25}
-.storefront-app :is(a,button,input,select,summary):focus-visible{outline:3px solid var(--primary);outline-offset:4px}
-.storefront-app a{text-underline-offset:5px}
+.storefront-app{--storefront-width:1360px;--storefront-gutter:24px}
 .storefront-app :is(.main-content,.app-header .header-inner,.footer-content){width:min(var(--storefront-width),calc(100% - var(--storefront-gutter) * 2));max-width:var(--storefront-width);padding-inline:0;margin-inline:auto}
 .storefront-app .main-content{padding-block:0 76px}
 .storefront-app .main-content>:is(section,.app-page){width:100%;max-width:none;margin-inline:0;padding-inline:0}
-.storefront-app .btn{font-family:var(--font-body);font-size:13px;font-weight:600;min-height:46px;border-radius:8px;box-shadow:none;transform:none;transition:background-color .15s}
-.storefront-app .btn-primary{background:var(--primary);border-color:var(--primary);color:#fff}
-.storefront-app .btn-primary:hover:not(:disabled){background:var(--primary-dark);box-shadow:none;transform:none}
-.storefront-app .btn:disabled{opacity:.55;cursor:not-allowed}
-.storefront-app .btn-secondary{background:#fff;border-color:var(--border-medium);color:var(--text-primary)}
-.storefront-app .btn-secondary:hover{background:#f1f5fc}
-.storefront-app .text-link{display:inline-flex;align-items:center;gap:12px;min-height:44px;color:var(--text-primary);font-size:14px;font-weight:600;text-decoration:none}
-.storefront-app .text-link:hover{text-decoration:underline}
-.storefront-app .app-header{background:#fff;border-bottom:1px solid var(--border-subtle);backdrop-filter:none}
 .storefront-app .app-header .header-inner{max-width:1360px;min-height:84px;padding:16px 0;gap:24px}
-.storefront-app .logo-group{gap:8px}
-.storefront-app .logo-mark{width:30px;height:36px;background:none;box-shadow:none;color:var(--primary);border-radius:0}
-.storefront-app .logo-text{font-size:23px;font-weight:700;letter-spacing:-.04em;background:none;-webkit-text-fill-color:currentColor;color:#12243e}
-.storefront-app .desktop-navigation .primary-navigation{gap:24px;flex-wrap:nowrap}
-.storefront-app .desktop-navigation .primary-navigation a{font-size:14px;padding:4px 0;border-radius:0;font-weight:500;position:relative;background:none}
-.storefront-app .desktop-navigation .primary-navigation svg{display:none}
-.storefront-app .desktop-navigation .primary-navigation a[aria-current]{color:var(--text-primary)}
-.storefront-app .desktop-navigation .primary-navigation a[aria-current]:after{content:'';position:absolute;inset:auto 0 -5px;height:2px;background:var(--primary)}
-.storefront-app .header-actions{gap:12px;flex-wrap:nowrap}
-.storefront-app .header-language{border:0;background:none;padding:6px}
-.storefront-app .header-login{background:var(--primary);color:#fff;border-color:var(--primary)}
-.storefront-app .header-login:hover{background:var(--primary-dark);color:#fff}
-.storefront-app .header-funding{font-size:12px}
-.storefront-app .account-dropdown-menu{box-shadow:var(--shadow-lg)}
 .storefront-app .app-footer{background:white;padding:44px 0 28px;border-top:1px solid var(--border-subtle)}
 .storefront-app .footer-content{padding:0}
 .storefront-app .footer-groups{gap:40px}
-.storefront-app .footer-groups strong{font-size:14px;color:var(--text-primary);font-weight:600}
-.storefront-app .footer-groups a,.storefront-app .footer-bottom{font-size:13px;color:var(--text-secondary)}
-.storefront-app .footer-bottom{margin-top:35px;padding-top:24px;border-top:1px solid var(--border-subtle)}
 
 /* Home content foundations; the supplied marketplace banner is defined below. */
 .storefront-app .home-hero{display:grid;grid-template-columns:1.1fr 1fr;gap:100px;align-items:end;padding:54px 0 42px;background:none;border:0;border-radius:0;overflow:visible}
@@ -312,7 +269,7 @@
 
 
 /* Preserve the complete supplied image; copy is overlaid on its empty left side. */
-.storefront-app .marketplace-hero{position:relative;isolation:isolate;display:block;aspect-ratio:1896/829;min-height:0;margin:30px 0 32px;padding:0;background:none;border-radius:16px;overflow:hidden}
+.storefront-app .marketplace-hero{position:relative;isolation:isolate;display:block;aspect-ratio:1600/700;min-height:0;margin:30px 0 32px;padding:0;background:none;border-radius:16px;overflow:hidden}
 .storefront-app .marketplace-hero-art{position:absolute;inset:0;margin:0;overflow:visible;z-index:0}
 .storefront-app .marketplace-hero-art img{display:block;position:static;width:100%;height:100%;max-width:100%;object-fit:contain}
 .storefront-app .marketplace-hero .home-hero-copy{position:absolute;inset:0 auto 0 0;z-index:1;display:flex;flex-direction:column;justify-content:center;width:35%;max-width:none;min-width:0;margin:0;padding:24px 28px;background:none}

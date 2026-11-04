@@ -156,25 +156,13 @@ const MainApp: React.FC = () => {
                 <SellerDashboard key={user?.id}/>
               ) : (
                 <div className="glass-card access-state">
-                  <div className="ui-row"
-                    style={{
-                      width: 64,
-                      height: 64,
-                      borderRadius: "50%",
-                      background: "rgba(6, 182, 212, 0.15)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      margin: "0 auto 1.5rem",
-                      boxShadow: "none",
-                    }}
-                  >
-                    <Store size={32} color="var(--cyan)" />
+                  <div className="workspace-access-symbol">
+                    <Store size={28} aria-hidden="true" />
                   </div>
 
-                  <h2 style={{ fontSize: "1.6rem", marginBottom: "0.75rem" }}>
+                  <h1>
                     {language === "en" ? "Seller profile required" : "Kênh Người Bán Chưa Được Kích Hoạt"}
-                  </h2>
+                  </h1>
                   <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem", lineHeight: 1.6, marginBottom: "2rem" }}>
                     {language === "en" ? "Set up your seller profile with a verified account wallet before creating group-buy campaigns for digital products." : "Để tạo chiến dịch mua chung sản phẩm số, hãy đăng ký hồ sơ người bán và ký bằng ví nhận tiền đã xác minh thuộc tài khoản."}
                   </p>

@@ -26,7 +26,7 @@ export function HomePage({onSelectCampaign}:{onSelectCampaign:(id:string)=>void}
  const browseHref=catalogHref({...defaultCatalogFilters,category});
  return <section className="home-page" aria-labelledby="home-title">
   <header className="home-hero marketplace-hero">
-   <figure className="marketplace-hero-art"><img src="/images/marketplace-banner.png" alt={text('Minh họa người mua cùng mở bậc giá tốt hơn','Illustration of buyers unlocking better group prices')} width={1896} height={829} decoding="async"/></figure>
+   <figure className="marketplace-hero-art"><img src="/images/marketplace-banner.jpg" alt={text('Minh họa người mua cùng mở bậc giá tốt hơn','Illustration of buyers unlocking better group prices')} width={1600} height={700} decoding="async"/></figure>
    <div className="home-hero-copy">
     <h1 id="home-title">{text('Phần mềm tốt hơn.','Better software.')}{' '}<span>{text('Giá tốt hơn. Cùng nhau.','Lower prices. Together.')}</span></h1>
     <p>{text('Tham gia mua chung phần mềm và sản phẩm số. Càng nhiều người mua, cả nhóm càng gần bậc giá tốt hơn.','Join group deals for premium software and digital products. More buyers unlock lower prices for everyone.')}</p>

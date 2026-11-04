@@ -13,6 +13,8 @@ colors:
   text-muted: "#5e6d82"
   border-subtle: "#e1e7f0"
   border-medium: "#cdd7e6"
+  selection-surface: "#dce7ff"
+  selection-text: "#142b50"
   status-positive-surface: "#e4f2ea"
   status-positive-text: "#256545"
   status-discount-surface: "#eaf5ee"
@@ -45,7 +47,7 @@ components:
 
 Give the product and buying decision room to be understood: real catalog items lead, with price, availability, delivery, and license details nearby. The shared buyer language is open and calm: white static surfaces, navy text, cobalt actions, fine dividers, and restrained status colors.
 
-Be Vietnam Pro supports English and Vietnamese. Catalog images come from product data and use a labeled fallback when unavailable. Seller and operator workspaces are outside this `.storefront-app` system.
+Be Vietnam Pro supports English and Vietnamese. Catalog images come from product data and use a labeled fallback when unavailable. Buyer, seller and operator share the tokens and controls in `product-theme.css`; their page layouts remain scoped to `.storefront-app` and `.workspace-app`.
 
 **Key Characteristics:** product-led; spacious and static; bilingual; factual status colors.
 
@@ -80,7 +82,7 @@ Clear cobalt emphasizes actions and tier progress. Navy and slate carry informat
 
 ## Layout
 
-Buyer main content, header inner content and footer inner content share one container: up to 1360px wide, with 24px outer gutters and 16px at 700px and below. Their inner horizontal padding is zero. Seller and operator remain full width for sidebars. Home shows the complete supplied banner at its 1896:829 aspect ratio. HTML copy and actions overlay the empty left side of that image with a transparent background; never split it into image and information panels. How it works and a separate user-benefits section follow, then category tabs and the product grid. All is the default tab; categories filter through the catalog API and retain pagination. The grid drops to two columns below 1100px and one below 700px. Deal detail stacks below 992px.
+Buyer main content, header inner content and footer inner content share one container: up to 1360px wide, with 24px outer gutters and 16px at 700px and below. Their inner horizontal padding is zero. Seller and operator remain full width for sidebars. Home shows the complete supplied JPEG banner at its 1600:700 aspect ratio. HTML copy and actions overlay the empty left side of that image with a transparent background; never split it into image and information panels. How it works and a separate user-benefits section follow, then category tabs and the product grid. All is the default tab; categories filter through the catalog API and retain pagination. The grid drops to two columns below 1100px and one below 700px. Deal detail stacks below 992px.
 
 Explore's advanced filters start closed on desktop. At 768px the filter button opens a dialog; its initial state is closed. Keep search, categories, active-filter chips, prices, availability, and pagination in the real catalog flow.
 
@@ -97,6 +99,13 @@ Catalog tiles, galleries, and the purchase panel are flat at rest. Pale surfaces
 Use the frontmatter radius scale for controls, badges, and panels. Product cards have a 1px quiet border, 14px corner radius, clipped image corners and 20px content padding. The banner uses a 16px radius; detail image wells remain flat. Seller avatars are circular. Keyboard focus is a cobalt outline with offset, not a glow.
 
 ## Components
+
+### Seller and Operator Workspaces
+
+- Keep the full viewport width, existing 256px desktop sidebars and keyboard-accessible mobile drawers. Share Be Vietnam Pro, navy/slate text, cobalt actions, focus outlines and header/footer treatments with buyer pages.
+- Use 30px workspace headings (26px on phones), 14px body text, 13px control labels, 8px controls and flat 12px panels. Status colors retain their existing meanings.
+- A neutral selected navigation row identifies the current section. The seller overview's four linked metrics form one divided strip, with two columns on smaller screens. Operator monetary summaries use four columns, then two, then one on narrow phones; values remain exact and tabular.
+- Financial, wallet, permission, payout, fulfillment and recovery behavior remains in the existing components. Styling does not imply verification of projected financial values.
 
 ### Buttons and Inputs
 - Primary buttons are solid cobalt; secondary actions are white with a quiet outline. Base buttons are at least 46px tall, search controls 48px, the in-panel purchase action 50px on every screen, and the separate mobile footer action at least 58px. Hover deepens color without lift; focus uses a 3px outline with 4px offset.

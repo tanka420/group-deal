@@ -107,17 +107,20 @@ for (const width of [375, 1440]) test(`self-hosted Vietnamese and English fonts 
   await expect(page.locator(".catalog-deal").first()).toBeVisible();
   const loaded = await page.evaluate(async () => {
     const vietnamese = "Tiền hoàn • Đơn vị • Quyền nhận sản phẩm số", english = "Refund • 1234567890.000001 USDC";
-    for (const family of ["Plus Jakarta Sans Variable", "JetBrains Mono Variable"])
-      for (const sample of [vietnamese, english]) await document.fonts.load(`400 16px "${family}"`, sample);
+    for (const family of ["Be Vietnam Pro", "JetBrains Mono Variable"])
+      for (const weight of [400, 700])
+        for (const sample of [vietnamese, english]) await document.fonts.load(`${weight} 16px "${family}"`, sample);
     await document.fonts.ready;
-    return ["Plus Jakarta Sans Variable", "JetBrains Mono Variable"].map(family => ({
+    return ["Be Vietnam Pro", "JetBrains Mono Variable"].map(family => ({
       family, vietnamese: document.fonts.check(`400 16px "${family}"`, vietnamese),
       english: document.fonts.check(`400 16px "${family}"`, english),
       loadedFaces: [...document.fonts].filter(face => face.family.includes(family) && face.status === "loaded").length,
     }));
   });
   expect(loaded.every(font => font.vietnamese && font.english && font.loadedFaces >= 2)).toBe(true);
-  expect(state.requests.some(path => /plus-jakarta-sans-vietnamese.*\.woff2$/.test(path))).toBe(true);
+  expect(await page.evaluate(() => getComputedStyle(document.body).fontFamily)).toContain("Be Vietnam Pro");
+  expect(state.requests.some(path => /\/fonts\/be-vietnam-pro\/400\.ttf$/.test(path))).toBe(true);
+  expect(state.requests.some(path => /\/fonts\/be-vietnam-pro\/700\.ttf$/.test(path))).toBe(true);
   expect(state.requests.some(path => /jetbrains-mono-vietnamese.*\.woff2$/.test(path))).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   expect(state.hosts.some(host => host === "fonts.googleapis.com" || host === "fonts.gstatic.com")).toBe(false);
