@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>GroupDeal · Under construction</title>
+  <style>
+    @font-face{font-family:'Be Vietnam Pro';src:url('/__maintenance/font-400.ttf') format('truetype');font-weight:400;font-display:swap}
+    @font-face{font-family:'Be Vietnam Pro';src:url('/__maintenance/font-700.ttf') format('truetype');font-weight:700;font-display:swap}
+    *{box-sizing:border-box}body{margin:0;background:#fff;color:#17243a;font:400 16px/1.75 'Be Vietnam Pro',system-ui,sans-serif;min-height:100svh;display:flex;flex-direction:column}
+    header,main,footer{width:min(1120px,calc(100% - 48px));margin-inline:auto}header{display:flex;align-items:center;justify-content:space-between;gap:24px;padding-block:28px;border-bottom:1px solid #e1e7f0}
+    .brand{display:flex;align-items:center;gap:10px;font-size:23px;font-weight:700;letter-spacing:-.04em}.brand svg{color:#1757e5;flex:none}.languages{display:flex;gap:8px}
+    button{font:inherit;font-size:13px;color:#53647c;border:1px solid transparent;border-radius:8px;min-width:44px;min-height:44px;padding:8px;background:#fff;cursor:pointer}button[aria-pressed=true]{color:#17243a;background:#f1f5fb}button:hover{border-color:#cdd7e6}button:focus-visible{outline:3px solid #1757e5;outline-offset:4px}
+    main{flex:1;display:flex;align-items:center;padding-block:64px}.message{max-width:760px}h1{font-size:clamp(30px,5vw,52px);font-weight:700;line-height:1.2;letter-spacing:-.035em;text-wrap:balance;margin:0 0 24px}h1 span{color:#1757e5}p{max-width:56ch;margin:0;color:#53647c}.testnet{margin-top:32px;font-size:13px}
+    footer{padding-block:24px;border-top:1px solid #e1e7f0;font-size:13px;color:#53647c}[hidden]{display:none!important}::selection{background:#dce7ff;color:#142b50}
+    @media(max-width:600px){header,main,footer{width:calc(100% - 32px)}header{padding-block:16px}.brand{font-size:21px}main{padding-block:56px}h1{font-size:32px}.message p{font-size:15px}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand"><svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m20 0v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/><circle cx="9" cy="7" r="4"/></svg>GroupDeal</div>
+    <nav class="languages" aria-label="Language"><button type="button" lang="en" data-language="en" aria-pressed="true">EN</button><button type="button" lang="vi" data-language="vi" aria-pressed="false">VI</button></nav>
+  </header>
+  <main>
+    <section class="message" aria-labelledby="message-title">
+      <h1 id="message-title"><span data-copy="heading">We’re putting the finishing touches on GroupDeal.</span></h1>
+      <p data-copy="body">The website is temporarily unavailable while we complete the experience. Please check back later.</p>
+      <p class="testnet">Arc Testnet</p>
+      <noscript><p lang="vi">GroupDeal đang trong quá trình hoàn thiện. Website tạm thời chưa mở. Vui lòng quay lại sau.</p></noscript>
+    </section>
+  </main>
+  <footer>© 2026 GroupDeal</footer>
+  <script>
+    const copy={en:{heading:'We’re putting the finishing touches on GroupDeal.',body:'The website is temporarily unavailable while we complete the experience. Please check back later.',title:'GroupDeal · Under construction'},vi:{heading:'GroupDeal đang trong quá trình hoàn thiện.',body:'Website tạm thời chưa mở trong lúc chúng tôi hoàn thiện trải nghiệm. Vui lòng quay lại sau.',title:'GroupDeal · Đang hoàn thiện'}};
+    function show(language){const value=copy[language]?language:'en';document.documentElement.lang=value;document.title=copy[value].title;document.querySelectorAll('[data-copy]').forEach(e=>e.textContent=copy[value][e.dataset.copy]);document.querySelectorAll('[data-language]').forEach(e=>e.setAttribute('aria-pressed',String(e.dataset.language===value)));try{localStorage.setItem('groupdeal_lang',value);}catch{}}
+    let saved='en';try{saved=localStorage.getItem('groupdeal_lang')||'en';}catch{}show(saved);document.querySelectorAll('[data-language]').forEach(e=>e.addEventListener('click',()=>show(e.dataset.language)));
+  </script>
+</body>
+</html>
