@@ -4,11 +4,11 @@ The user selected **A — Sản phẩm dẫn dắt / product-led gallery** on 3 
 
 ## Design contract
 
-Home answers “What could I buy together?” with an actual catalog product as the leading visual. Explore answers “Which product fits my needs?” with product covers, exact prices, categories, search and existing advanced filters. Deal detail answers “What do I receive, and what am I committing?” with a title, gallery, price tiers and the existing purchase review.
+Home introduces group buying with the supplied full banner, practical steps and user benefits before category-filtered catalog deals. Explore answers “Which product fits my needs?” with product covers, exact prices, categories, search and existing advanced filters. Deal detail answers “What do I receive, and what am I committing?” with a title, gallery, price tiers and the existing purchase review.
 
 Use a white static surface, navy text, cobalt actions and restrained status colors. Be Vietnam Pro supports Vietnamese and English. Product images come from the catalog; unavailable images have an honest fallback. Do not invent live products, sales, testimonials or verification badges. Do not reuse the perspective-grid image or UI V2's frontend/design contract.
 
-The chosen composition is a broad gallery: a split title/introduction, a large featured product, three product columns, then categories and practical buying steps. On phones the same information becomes one column. Keep primary product text at 14px or above; 12–13px is for supporting facts, 11px only for compact status metadata.
+The current composition follows the user’s refinement: the complete banner with transparent text overlay, practical buying steps, user benefits, category tabs with All selected by default, and a three-column product grid. On phones the same information becomes one column. Keep primary product text at 14px or above; 12–13px is for supporting facts, 11px only for compact status metadata.
 
 ## Implementation boundary
 

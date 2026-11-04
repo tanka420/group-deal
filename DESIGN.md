@@ -80,7 +80,7 @@ Clear cobalt emphasizes actions and tier progress. Navy and slate carry informat
 
 ## Layout
 
-Buyer main content, header inner content and footer inner content share one container: up to 1360px wide, with 24px outer gutters and 16px at 700px and below. Their inner horizontal padding is zero. Seller and operator remain full width for sidebars. Home shows the complete supplied banner at its 1896:829 aspect ratio. HTML copy and actions overlay the empty left side of that image with a transparent background; never split it into image and information panels. The featured catalog item and product grid follow. The grid drops to two columns below 1100px and one below 700px. Deal detail stacks below 992px.
+Buyer main content, header inner content and footer inner content share one container: up to 1360px wide, with 24px outer gutters and 16px at 700px and below. Their inner horizontal padding is zero. Seller and operator remain full width for sidebars. Home shows the complete supplied banner at its 1896:829 aspect ratio. HTML copy and actions overlay the empty left side of that image with a transparent background; never split it into image and information panels. How it works and a separate user-benefits section follow, then category tabs and the product grid. All is the default tab; categories filter through the catalog API and retain pagination. The grid drops to two columns below 1100px and one below 700px. Deal detail stacks below 992px.
 
 Explore's advanced filters start closed on desktop. At 768px the filter button opens a dialog; its initial state is closed. Keep search, categories, active-filter chips, prices, availability, and pagination in the real catalog flow.
 
@@ -103,7 +103,7 @@ Use the frontmatter radius scale for controls, badges, and panels. Product cards
 - Search is a labeled form. Keep price validation and USDC-per-unit meaning visible.
 
 ### Catalog Products and Filters
-- Product cards are bordered and rounded. Use the catalog thumbnail with a labeled fallback on absence or error. Active campaign badges show days remaining, rounded up: 0–24 hours shows 1 day; expired campaigns show Ended.
+- Product cards are bordered and rounded. Use a centered cover-fill catalog thumbnail with a labeled fallback on absence or error. Active campaign badges show remaining hours below 24 hours, otherwise remaining days, rounded up; expired campaigns show Ended.
 - Keep current price, tier progress, deadline and seller facts with the card. Cards omit the license/delivery disclosure and the per-unit personal-rebate sentence; the full license and delivery facts remain on deal detail and purchase review.
 - Desktop advanced filters begin closed. Compact screens use the existing filter dialog; selected categories and removable filter chips retain clear states.
 

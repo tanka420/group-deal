@@ -345,7 +345,7 @@
     {
       "name": "Catalog Product",
       "kind": "card",
-      "description": "Bordered, rounded catalog card with an upward-rounded day countdown and exact pricing.",
+      "description": "Bordered, rounded catalog card with cover-fill imagery, remaining hours below 24h and rounded-up days thereafter, and exact pricing.",
       "html": "<article class=\"ds-product\"><div>Product image</div><section><h3>Product title</h3><p>Current price and progress</p><span>1 day left</span></section></article>",
       "css": ".ds-product{border:1px solid var(--border-subtle);border-radius:14px;overflow:hidden;font-family:var(--font-body);color:var(--text-primary)}.ds-product>div{height:250px;display:grid;place-items:center;background:#f0f4fa}.ds-product>section{padding:20px}.ds-product h3{font-size:20px;font-weight:600;line-height:1.4}"
     },
