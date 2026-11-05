@@ -1,6 +1,6 @@
 # Deployment status and domain roles
 
-Last checked: **4 November 2026**. This is a public summary, not an instruction to deploy or open a website.
+Last checked: **5 November 2026**. This is a public summary, not an instruction to deploy or open a website.
 
 | Domain | Intended role | Observed website |
 | --- | --- | --- |
@@ -21,11 +21,11 @@ The intended next step is to separate asset roots, API routing, origins and rele
 
 | Component | Source | Scope |
 | --- | --- | --- |
-| Frontend | `1edb3dfd1452423ea7c0741be1feec0510c73c56` | Banner and shared buyer/seller/operator theme, including narrow wallet-panel fix |
+| Frontend | `a70f6a94576e52b9e8b29404b9e2fb4ee3ff0274` | Contact page and footer credit, direct Circle email login, and cancellation of pending admin login when leaving administration |
 | Backend | `8c32212fdb051cdb01f98226932f3a61afa3e9bf` | Existing backend retained during the frontend update |
 
-The frontend source passed [full CI, run 41795933334](https://github.com/tanka420/group-deal/actions/runs/41795933334): 78 executed steps, all PASS with zero exit codes and complete scope. A separately prepared configured artifact was installed and its hashes checked. The fixture CI build and configured public build are not claimed to have identical bytes.
+The frontend source passed [full CI, run 41980221849](https://github.com/tanka420/group-deal/actions/runs/41980221849): 78 executed steps, all PASS with zero exit codes and complete scope. A separately prepared configured artifact was installed and all 192 file hashes checked. The fixture CI build and configured public build are not claimed to have identical bytes.
 
-Public checks verified the apex notice and backend health. Local artifact browser checks used defined fixture scopes; live authenticated journeys and independent security acceptance are separate work. Private receipts, artifact inventories and backup paths are intentionally not published.
+Public checks verified the contact route, support footer link, email address, credit and login dialog in English and Vietnamese at mobile and desktop widths, plus the apex notice and backend health. Live Circle initialization reached ready without requesting an OTP. Local artifact browser checks used defined fixture scopes; live OTP and authenticated journeys were not performed. Independent security acceptance remains separate work. Private receipts, artifact inventories and backup paths are intentionally not published.
 
 Documentation may be newer than either running component. Use component release records rather than treating the repository's latest commit as the deployed backend version.
