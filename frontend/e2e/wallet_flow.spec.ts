@@ -140,7 +140,7 @@ for(const foreign of [false,true])test('Circle missing profile email reauthentic
 for(const code of ['WALLET_CIRCLE_STATUS_UNAVAILABLE','WALLET_SERVICE_UNAVAILABLE'])test('missing Circle challenge with '+code+' never claims an active observer',async({page})=>{const f=await fixture(page,true);let d=await openTransfer(page);await expect(d).toBeVisible();f.records[0].steps[0].state='SIGNING';f.records[0].steps[0].nonce='0';await d.getByRole('button',{name:'Close',exact:true}).click();await expect(page.locator('.wallet-activity')).toContainText('Result needs checking');await page.getByRole('button',{name:'View request',exact:true}).click();d=page.getByRole('dialog',{name:'Review wallet transaction',exact:true});f.readFailureCode=code;await d.getByRole('button',{name:'Check result',exact:true}).click();await expect(d.getByRole('alert')).toContainText('unavailable');await expect(d).not.toContainText('updating automatically');await expect(d).not.toContainText('Waiting for transaction confirmation');await expect(d.getByRole('button',{name:'Check result',exact:true})).toBeEnabled();expect(f.signs).toBe(0);expect(f.readies).toBe(0);expect(f.writes.filter(p=>p.endsWith('/circle/challenge'))).toHaveLength(0);});
 
 test('successful Circle login prefills its OTP email after a reload without a profile email claim',async({page})=>{
- const f=await fixture(page,'reauth',true,false);await page.getByRole('button',{name:'Sign in',exact:true}).first().click();const auth=page.getByRole('dialog',{name:'Choose a sign-in method',exact:true});await auth.getByLabel('Email address',{exact:true}).fill('wallet@example.test');await auth.getByRole('button',{name:'Send OTP',exact:true}).click();await auth.getByRole('button',{name:'Enter OTP',exact:true}).click();await expect(auth).toHaveCount(0);await expect(page.locator('.wallet-balance')).toContainText('12.5');await page.reload();await page.getByRole('button',{name:'Transfers & swaps',exact:true}).click();const d=await openTransfer(page);await expect(d.getByLabel('Circle login email')).toHaveValue('wallet@example.test');await expect(d.getByRole('button',{name:'Send code',exact:true})).toBeEnabled();expect(f.otpRequests).toBe(1);expect(f.signs).toBe(0);expect(f.errors).toEqual([]);
+ const f=await fixture(page,'reauth',true,false);await page.getByRole('button',{name:'Sign in',exact:true}).first().click();const auth=page.getByRole('dialog',{name:'Log in to GroupDeal',exact:true});await auth.getByLabel('Email address',{exact:true}).fill('wallet@example.test');await auth.getByRole('button',{name:'Log in',exact:true}).click();await expect(auth).toHaveCount(0);await expect(page.locator('.wallet-balance')).toContainText('12.5');await page.reload();await page.getByRole('button',{name:'Transfers & swaps',exact:true}).click();const d=await openTransfer(page);await expect(d.getByLabel('Circle login email')).toHaveValue('wallet@example.test');await expect(d.getByRole('button',{name:'Send code',exact:true})).toBeEnabled();expect(f.otpRequests).toBe(1);expect(f.signs).toBe(0);expect(f.errors).toEqual([]);
 });
 
 test('Circle inline connection failure retries initialization before requesting any OTP',async({page})=>{
@@ -149,16 +149,15 @@ test('Circle inline connection failure retries initialization before requesting 
 
 for(const mode of ['blank','ready'] as const)test('Circle '+mode+' OTP window releases the blocked login and retries the same code',async({page},info)=>{
  const f=await fixture(page,'reauth',true,false);f.otpWindowMode=mode;
- await page.getByRole('button',{name:'Sign in',exact:true}).first().click();const auth=page.getByRole('dialog',{name:'Choose a sign-in method',exact:true});
- await auth.getByLabel('Email address',{exact:true}).fill('wallet@example.test');await auth.getByRole('button',{name:'Send OTP',exact:true}).click();
- await page.clock.install();await auth.getByRole('button',{name:'Enter OTP',exact:true}).click();await expect(page.locator('#sdkIframe')).toBeVisible();
+ await page.getByRole('button',{name:'Sign in',exact:true}).first().click();const auth=page.getByRole('dialog',{name:'Log in to GroupDeal',exact:true});
+ await auth.getByLabel('Email address',{exact:true}).fill('wallet@example.test');await expect(auth.getByRole('button',{name:'Log in',exact:true})).toBeEnabled();await page.clock.install();await auth.getByRole('button',{name:'Log in',exact:true}).click();await expect(page.locator('#sdkIframe')).toBeVisible();
  // A message from the application frame cannot stand in for the Circle frame.
  if(mode==='blank')await page.evaluate(()=>window.postMessage({onFrameReady:true},location.origin));
  else await expect(page.frameLocator('#sdkIframe').locator('script')).toHaveCount(1);
  await page.clock.fastForward(mode==='blank'?15_100:120_100);
- await expect(page.locator('#sdkIframe')).toHaveCount(0);await expect(auth.getByRole('button',{name:'Enter OTP',exact:true})).toBeEnabled();
+ await expect(page.locator('#sdkIframe')).toHaveCount(0);await expect(auth.getByRole('button',{name:'Log in',exact:true})).toBeEnabled();
  await expect(auth.getByRole('alert')).toContainText(mode==='blank'?'window did not load':'timeout');expect(f.otpRequests).toBe(1);expect(f.signs).toBe(0);expect(f.reauthRequests).toBe(0);
- await page.screenshot({path:info.outputPath('otp-'+mode+'-recovered.png')});f.otpWindowMode='normal';await auth.getByRole('button',{name:'Enter OTP',exact:true}).click();
+ await page.screenshot({path:info.outputPath('otp-'+mode+'-recovered.png')});f.otpWindowMode='normal';await auth.getByRole('button',{name:'Log in',exact:true}).click();
  await expect(auth).toHaveCount(0);expect(f.otpRequests).toBe(1);expect(f.writes.filter(p=>p==='/api/circle/session')).toHaveLength(1);expect(f.signs).toBe(0);expect(f.errors).toEqual([]);
 });
 

@@ -66,7 +66,7 @@ async function fixture(page:Page,{holdAccounts=false,holdSignature=false,csp=fal
  if(csp)await page.route('**/',async r=>{if(r.request().resourceType()!=='document')return r.continue();const response=await r.fetch();return r.fulfill({response,headers:{...response.headers(),'Content-Security-Policy':`default-src 'self'; script-src 'self'${process.env.GROUPDEAL_BROWSER_MODE==='preview'?'':" 'unsafe-inline'"}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.web3modal.org; font-src 'self' data:; connect-src 'self' ws://127.0.0.1:* https://api.web3modal.org https://rpc.walletconnect.org https://rpc.testnet.arc.io https://rpc.drpc.testnet.arc.io wss://relay.walletconnect.org wss://relay.walletconnect.com; frame-src https://pw-auth.circle.com; object-src 'none'; base-uri 'none';`}});});
  return {counts,errors,blocked,account};
 }
-async function open(page:Page){await page.getByRole('button',{name:'Log In',exact:true}).click();return page.getByRole('dialog',{name:'Choose a sign-in method',exact:true});}
+async function open(page:Page){await page.getByRole('button',{name:'Log In',exact:true}).click();return page.getByRole('dialog',{name:'Log in to GroupDeal',exact:true});}
 async function untouched(page:Page){expect(await page.evaluate(()=>localStorage.getItem('groupdeal_operation_checkpoints'))).toBe('fixture-preserved-reown-checkpoint');}
 async function chooseWallet(page:Page){const modal=page.locator('w3m-modal');await expect(modal).toBeVisible();await modal.getByText('Fixture Wallet',{exact:true}).click();}
 async function closedWallet(page:Page){await expect.poll(()=>page.evaluate(()=>Boolean((document.querySelector('w3m-modal') as any)?.open))).toBe(false);await expect(page.locator('w3m-modal').getByRole('alertdialog')).not.toBeVisible();}
@@ -101,10 +101,10 @@ for(const width of [320,1440])test(`stored account purchase ${width} yields to a
 
 test('configured public page and email intent defer AppKit until an explicit wallet action',async({page})=>{
  const f=await fixture(page);await page.goto('/');await expect(page.getByRole('button',{name:'Log In',exact:true})).toBeVisible();expect(f.counts.reown).toBe(0);await expect(page.locator('w3m-modal')).toHaveCount(0);
- const dialog=await open(page);await expect(dialog.getByRole('button',{name:'Send OTP',exact:true})).toBeEnabled();expect(f.counts.reown).toBe(0);expect(f.counts.device).toBe(1);expect(f.counts.challenge).toBe(0);expect(await page.evaluate(()=>(window as any).fixtureWalletRequests||[])).toEqual([]);expect(f.errors).toEqual([]);await untouched(page);
+ const dialog=await open(page);await expect(dialog.getByRole('button',{name:'Log in',exact:true})).toBeEnabled();expect(f.counts.reown).toBe(0);expect(f.counts.device).toBe(1);expect(f.counts.challenge).toBe(0);expect(await page.evaluate(()=>(window as any).fixtureWalletRequests||[])).toEqual([]);expect(f.errors).toEqual([]);await untouched(page);
 });
 test('actual AppKit injected connection signs one verified login and preserves the application',async({page})=>{
- const f=await fixture(page);await page.goto('/');const dialog=await open(page);await expect(dialog.getByRole('button',{name:'Send OTP',exact:true})).toBeEnabled();await dialog.getByRole('button',{name:'Connect wallet',exact:true}).click();await chooseWallet(page);
+ const f=await fixture(page);await page.goto('/');const dialog=await open(page);await expect(dialog.getByRole('button',{name:'Log in',exact:true})).toBeEnabled();await dialog.getByRole('button',{name:'Connect wallet',exact:true}).click();await chooseWallet(page);
  await expect(page.locator('.account-pill-btn')).toBeVisible();expect(f.counts.challenge).toBe(1);expect(f.counts.verify).toBe(1);expect(f.counts.sign).toBe(1);expect(f.counts.device).toBe(1);expect(f.counts.reown).toBeGreaterThan(0);expect(f.counts.projectConfig).toBe(1);expect(f.counts.remoteFont).toBe(0);expect(f.errors).toEqual([]);await closedWallet(page);await untouched(page);
  expect(await page.evaluate(()=>(window as any).fixtureWalletRequests.filter((m:string)=>/sendTransaction|signTypedData/.test(m)))).toEqual([]);
 });
@@ -114,7 +114,7 @@ test('changing the account while the wallet is approving connection prevents the
  await closedWallet(page);await expect(page.getByRole('dialog',{name:'Your account',exact:true})).toBeVisible();expect(f.counts.challenge).toBe(0);expect(f.counts.verify).toBe(0);expect(f.counts.sign).toBe(0);expect(await page.evaluate(()=>localStorage.getItem('groupdeal_token'))).toBe('fixture-other-session');expect(f.errors).toEqual([]);await untouched(page);
 });
 test('closing actual AppKit permits retry without discarding the email form or loading the SDK twice',async({page})=>{
- const f=await fixture(page);await page.goto('/');const dialog=await open(page);const email=dialog.getByLabel('Email address',{exact:true});await expect(dialog.getByRole('button',{name:'Send OTP',exact:true})).toBeEnabled();await email.fill('kept@example.test');
+ const f=await fixture(page);await page.goto('/');const dialog=await open(page);const email=dialog.getByLabel('Email address',{exact:true});await expect(dialog.getByRole('button',{name:'Log in',exact:true})).toBeEnabled();await email.fill('kept@example.test');
  await dialog.getByRole('button',{name:'Connect wallet',exact:true}).click();await expect(page.locator('w3m-modal').getByRole('alertdialog')).toBeVisible();const sdkLoads=f.counts.reown;await page.keyboard.press('Escape');await closedWallet(page);
  await expect(dialog.getByRole('alert')).toContainText('You declined or closed authentication');await expect(email).toHaveValue('kept@example.test');expect(f.counts.device).toBe(1);expect(f.counts.challenge).toBe(0);
  await dialog.getByRole('button',{name:'Connect wallet',exact:true}).click();await chooseWallet(page);await expect(page.locator('.account-pill-btn')).toBeVisible();expect(f.counts.reown).toBe(sdkLoads);expect(f.counts.sign).toBe(1);expect(f.errors).toEqual([]);await untouched(page);
@@ -125,7 +125,7 @@ test('a late signature from a previous account cannot verify or replace the curr
  await expect(page.getByRole('dialog',{name:'Your account',exact:true})).toBeVisible();expect(f.counts.verify).toBe(0);expect(await page.evaluate(()=>localStorage.getItem('groupdeal_token'))).toBe('fixture-other-session');expect(f.errors).toEqual([]);await untouched(page);
 });
 test('actual AppKit and ethers sign the isolated challenge under a script policy without eval',async({page})=>{
- const f=await fixture(page,{csp:true});await page.goto('/');const dialog=await open(page);await expect(dialog.getByRole('button',{name:'Send OTP',exact:true})).toBeEnabled();await dialog.getByRole('button',{name:'Connect wallet',exact:true}).click();await chooseWallet(page);await expect(page.locator('.account-pill-btn')).toBeVisible();expect(f.counts.sign).toBe(1);expect(f.counts.verify).toBe(1);expect(f.errors).toEqual([]);expect(await page.evaluate(()=>(window as any).fixtureCspViolations||[])).toEqual([]);await untouched(page);
+ const f=await fixture(page,{csp:true});await page.goto('/');const dialog=await open(page);await expect(dialog.getByRole('button',{name:'Log in',exact:true})).toBeEnabled();await dialog.getByRole('button',{name:'Connect wallet',exact:true}).click();await chooseWallet(page);await expect(page.locator('.account-pill-btn')).toBeVisible();expect(f.counts.sign).toBe(1);expect(f.counts.verify).toBe(1);expect(f.errors).toEqual([]);expect(await page.evaluate(()=>(window as any).fixtureCspViolations||[])).toEqual([]);await untouched(page);
 });
 test('installed wallet and bridge SDKs block a source with USDC but zero native gas before signing or checkpointing',async({page})=>{
  test.skip(true,'The product removed the new CCTP bridge entry in fdd09de10e829573490f2fe9885dc23c8d283842; this historical new-bridge journey is unavailable and is not a PASS. Existing burn recovery and gas-budget checks remain active.');
@@ -138,19 +138,19 @@ test('closing AppKit while provider approval is pending never turns a late conne
  expect(f.counts.challenge).toBe(0);expect(f.counts.verify).toBe(0);expect(f.counts.sign).toBe(0);expect(await page.evaluate(()=>localStorage.getItem('groupdeal_token'))).toBeNull();expect(f.errors).toEqual([]);await untouched(page);
 });
 test('cloud authentication overrides are refused before opening the wallet or requesting a signature',async({page})=>{
- const f=await fixture(page,{cloudAuth:true});await page.goto('/');const dialog=await open(page);await expect(dialog.getByRole('button',{name:'Send OTP',exact:true})).toBeEnabled();await dialog.getByRole('button',{name:'Connect wallet',exact:true}).click();await expect(dialog.getByRole('alert')).toContainText('Wallet connection settings need an update');expect(f.counts.projectConfig).toBe(1);await expect(page.locator('w3m-modal').getByRole('alertdialog')).not.toBeVisible();expect(f.counts.challenge).toBe(0);expect(f.counts.sign).toBe(0);expect(await page.evaluate(()=>(window as any).fixtureWalletRequests.includes('eth_requestAccounts'))).toBe(false);await expect(dialog.getByRole('button',{name:'Send OTP',exact:true})).toBeEnabled();expect(f.errors).toEqual([]);await untouched(page);
+ const f=await fixture(page,{cloudAuth:true});await page.goto('/');const dialog=await open(page);await expect(dialog.getByRole('button',{name:'Log in',exact:true})).toBeEnabled();await dialog.getByRole('button',{name:'Connect wallet',exact:true}).click();await expect(dialog.getByRole('alert')).toContainText('Wallet connection settings need an update');expect(f.counts.projectConfig).toBe(1);await expect(page.locator('w3m-modal').getByRole('alertdialog')).not.toBeVisible();expect(f.counts.challenge).toBe(0);expect(f.counts.sign).toBe(0);expect(await page.evaluate(()=>(window as any).fixtureWalletRequests.includes('eth_requestAccounts'))).toBe(false);await expect(dialog.getByRole('button',{name:'Log in',exact:true})).toBeEnabled();expect(f.errors).toEqual([]);await untouched(page);
 });
 
 test('a failed actual modal resource offers explicit reload and keeps Circle and checkpoints available',async({page})=>{
  const f=await fixture(page);let failures=0;
  await page.route(modalResource,r=>{failures++;return r.fulfill({status:404,contentType:'text/plain',body:'Fixture missing SDK UI resource'});});
  await page.goto('/');const dialog=await open(page),email=dialog.getByLabel('Email address',{exact:true});
- await expect(dialog.getByRole('button',{name:'Send OTP',exact:true})).toBeEnabled();await email.fill('kept@example.test');
+ await expect(dialog.getByRole('button',{name:'Log in',exact:true})).toBeEnabled();await email.fill('kept@example.test');
  await dialog.getByRole('button',{name:'Connect wallet',exact:true}).click();
  await expect(dialog.getByRole('alert')).toContainText('Reload the page to retry');expect(failures).toBeGreaterThan(0);
  const reload=dialog.getByRole('button',{name:'Reload page to connect wallet',exact:true});await expect(reload).toBeVisible();
  await expect(dialog.getByRole('button',{name:'Connect wallet',exact:true})).toBeDisabled();
- await expect(dialog.getByRole('button',{name:'Send OTP',exact:true})).toBeEnabled();await expect(email).toHaveValue('kept@example.test');
+ await expect(dialog.getByRole('button',{name:'Log in',exact:true})).toBeEnabled();await expect(email).toHaveValue('kept@example.test');
  expect(f.counts.challenge).toBe(0);expect(f.counts.sign).toBe(0);expect(f.counts.verify).toBe(0);await untouched(page);
  // Reload is a user action. Restore the real resource and verify a fresh,
  // usable SDK without deleting wallet storage or the financial checkpoint.
@@ -165,13 +165,13 @@ test('delayed modal resources during readiness cannot open or approve the expire
  const gate=new Promise<void>(resolve=>release=resolve);
  await page.route(modalResource,async r=>{requested++;await gate;await r.continue();});
  await page.goto('/');const dialog=await open(page),email=dialog.getByLabel('Email address',{exact:true});
- await expect(dialog.getByRole('button',{name:'Send OTP',exact:true})).toBeEnabled();await email.fill('kept@example.test');
+ await expect(dialog.getByRole('button',{name:'Log in',exact:true})).toBeEnabled();await email.fill('kept@example.test');
  await page.clock.install();await dialog.getByRole('button',{name:'Connect wallet',exact:true}).click();
  await expect.poll(()=>requested).toBeGreaterThan(0);await page.clock.fastForward(20_050);
  await expect(dialog.getByRole('alert')).toContainText('Authentication did not complete before the timeout');
  await expect(dialog.getByRole('button',{name:'Connect wallet',exact:true})).toBeEnabled();release();
  await expect(page.locator('w3m-modal')).toHaveCount(1);await closedWallet(page);
- await expect(dialog.getByRole('button',{name:'Send OTP',exact:true})).toBeEnabled();await expect(email).toHaveValue('kept@example.test');
+ await expect(dialog.getByRole('button',{name:'Log in',exact:true})).toBeEnabled();await expect(email).toHaveValue('kept@example.test');
  expect(f.counts.challenge).toBe(0);expect(f.counts.sign).toBe(0);expect(f.counts.verify).toBe(0);
  expect(await page.evaluate(()=>(window as any).fixtureWalletRequests.includes('eth_requestAccounts'))).toBe(false);expect(f.errors).toEqual([]);await untouched(page);
  await dialog.getByRole('button',{name:'Connect wallet',exact:true}).click();await chooseWallet(page);
@@ -182,7 +182,7 @@ test('a slow readiness response can be adopted only by another explicit wallet r
  const f=await fixture(page);let requested=0,release!:()=>void;
  const gate=new Promise<void>(resolve=>release=resolve);
  await page.route(/^https:\/\/api\.web3modal\.org\/appkit\/v1\/config(?:\?|$)/,async r=>{requested++;await gate;await r.fulfill({json:{features:[]}});});
- await page.goto('/');const dialog=await open(page);await expect(dialog.getByRole('button',{name:'Send OTP',exact:true})).toBeEnabled();
+ await page.goto('/');const dialog=await open(page);await expect(dialog.getByRole('button',{name:'Log in',exact:true})).toBeEnabled();
  await page.clock.install();await dialog.getByRole('button',{name:'Connect wallet',exact:true}).click();
  await expect.poll(()=>requested).toBe(1);await page.clock.fastForward(20_050);
  await expect(dialog.getByRole('alert')).toContainText('Authentication did not complete before the timeout');
@@ -197,14 +197,16 @@ test('a failed wallet entry resource has a reload path in Vietnamese without lea
  const resource=/(?:\/src\/context\/ReownEnabledProvider\.tsx|\/assets\/ReownEnabledProvider-[^/]+\.js)(?:\?|$)/;
  await page.addInitScript(()=>{if(top===self)localStorage.setItem('groupdeal_lang','vi');});
  await page.route(resource,r=>{failures++;return r.fulfill({status:404,contentType:'text/plain',body:'Fixture missing wallet entry resource'});});
- await page.goto('/');await page.getByRole('button',{name:'Đăng nhập',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Chọn phương thức đăng nhập',exact:true});
- await expect(dialog.getByRole('button',{name:'Gửi mã OTP',exact:true})).toBeEnabled();
+ await page.goto('/');await page.getByRole('button',{name:'Đăng nhập',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Đăng nhập GroupDeal',exact:true});
+ await expect(dialog.getByRole('button',{name:'Đăng nhập',exact:true})).toBeEnabled();
  await dialog.getByRole('button',{name:'Kết nối ví',exact:true}).click();
  await expect(dialog.getByRole('alert')).toContainText('Tải lại trang để thử lại');expect(failures).toBeGreaterThan(0);
  await expect(dialog.getByRole('button',{name:'Kết nối ví',exact:true})).toBeDisabled();
  const reload=dialog.getByRole('button',{name:'Tải lại trang để kết nối ví',exact:true});await expect(reload).toBeVisible();
- await expect(dialog.getByRole('alert')).toBeFocused();await page.keyboard.press('Tab');await expect(reload).toBeFocused();
+ await expect(dialog.getByRole('alert')).toBeFocused();await page.keyboard.press('Tab');await expect(dialog.getByLabel('Địa chỉ email',{exact:true})).toBeFocused();
+ await page.keyboard.press('Tab');await expect(dialog.getByRole('button',{name:'Đăng nhập',exact:true})).toBeFocused();
+ await page.keyboard.press('Tab');await expect(reload).toBeFocused();
  await expect(dialog.getByRole('alert')).not.toContainText('WALLET_RELOAD_REQUIRED');await expect(dialog.getByRole('alert')).not.toContainText('Fixture missing');
- await expect(dialog.getByRole('button',{name:'Gửi mã OTP',exact:true})).toBeEnabled();
+ await expect(dialog.getByRole('button',{name:'Đăng nhập',exact:true})).toBeEnabled();
  expect(f.counts.challenge).toBe(0);expect(f.counts.sign).toBe(0);expect(f.errors).toEqual([]);await untouched(page);
 });

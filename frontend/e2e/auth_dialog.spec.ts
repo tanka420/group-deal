@@ -40,7 +40,7 @@ async function open(page: Page, en = false, owned = false) {
     await page.locator(".account-pill-btn").click();
     await page.getByRole("button", { name: en ? "Account details" : "Thông tin tài khoản", exact: true }).click();
   } else await page.getByRole("button", { name: en ? "Log In" : "Đăng nhập", exact: true }).click();
-  return page.getByRole("dialog", { name: owned ? (en ? "Your account" : "Tài khoản của bạn") : (en ? "Choose a sign-in method" : "Chọn phương thức đăng nhập"), exact: true });
+  return page.getByRole("dialog", { name: owned ? (en ? "Your account" : "Tài khoản của bạn") : (en ? "Log in to GroupDeal" : "Đăng nhập GroupDeal"), exact: true });
 }
 async function preserved(page: Page) {
   expect(await page.evaluate(() => localStorage.getItem("groupdeal_operation_checkpoints"))).toBe("fixture-preserved-financial-checkpoint");
@@ -49,10 +49,10 @@ function otpResponse() { return { deviceToken: "fixture-device-token", deviceEnc
 
 for(const language of ['vi','en'])test(`R7 forms auth ${language} text200 keeps the heading close action and field visible`,async({page},info)=>{
  const en=language==='en';await fixture(page,language);let writes=0;page.on('request',r=>{if(new URL(r.url()).pathname.startsWith('/api/')&&r.method()!=='GET')writes++;});await page.setViewportSize({width:375,height:900});const dialog=await open(page,en);await expect(dialog.getByRole('button',{name:en?'Retry connection':'Thử lại kết nối',exact:true})).toBeVisible({timeout:18_000});await page.evaluate(()=>document.documentElement.style.fontSize='200%');
- const fit=await dialog.evaluate(el=>{const r=el.getBoundingClientRect(),title=el.querySelector('.auth-title')!.getBoundingClientRect(),close=el.querySelector('.modal-close')!.getBoundingClientRect();return{width:el.scrollWidth,client:el.clientWidth,inside:r.left>=0&&r.right<=innerWidth+1&&r.top>=0&&r.bottom<=innerHeight+1,headerOverlap:Math.min(title.right,close.right)-Math.max(title.left,close.left)>1&&Math.min(title.bottom,close.bottom)-Math.max(title.top,close.top)>1};});expect(fit,JSON.stringify(fit)).toMatchObject({inside:true,headerOverlap:false});expect(fit.width).toBeLessThanOrEqual(fit.client+1);const email=dialog.getByLabel(en?'Email address':'Địa chỉ email',{exact:true});await email.fill('draft-fixture@example.test');await email.focus();await info.attach('focus-geometry-before-reveal',{body:JSON.stringify(await email.evaluate(e=>{const d=e.closest('[role=dialog]')!;return{input:e.getBoundingClientRect().toJSON(),dialog:d.getBoundingClientRect().toJSON(),scrollTop:d.scrollTop,scrollHeight:d.scrollHeight,clientHeight:d.clientHeight,active:document.activeElement===e};})),contentType:'application/json'});await expect.poll(()=>email.evaluate(e=>{const r=e.getBoundingClientRect(),d=e.closest('[role=dialog]')!.getBoundingClientRect();return r.top>=d.top+4&&r.bottom<=d.bottom-4&&r.left>=d.left&&r.right<=d.right;})).toBe(true);await page.screenshot({path:info.outputPath('auth-text200-'+language+'.png'),animations:'disabled'});await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await expect(page.getByRole('button',{name:en?'Log In':'Đăng nhập',exact:true})).toBeFocused();expect(writes).toBe(0);await preserved(page);
+ const fit=await dialog.evaluate(el=>{const r=el.getBoundingClientRect(),title=el.querySelector('.auth-brand,.auth-title')!.getBoundingClientRect(),close=el.querySelector('.modal-close')!.getBoundingClientRect();return{width:el.scrollWidth,client:el.clientWidth,inside:r.left>=0&&r.right<=innerWidth+1&&r.top>=0&&r.bottom<=innerHeight+1,headerOverlap:Math.min(title.right,close.right)-Math.max(title.left,close.left)>1&&Math.min(title.bottom,close.bottom)-Math.max(title.top,close.top)>1};});expect(fit,JSON.stringify(fit)).toMatchObject({inside:true,headerOverlap:false});expect(fit.width).toBeLessThanOrEqual(fit.client+1);const email=dialog.getByLabel(en?'Email address':'Địa chỉ email',{exact:true});await email.fill('draft-fixture@example.test');await email.focus();await info.attach('focus-geometry-before-reveal',{body:JSON.stringify(await email.evaluate(e=>{const d=e.closest('[role=dialog]')!;return{input:e.getBoundingClientRect().toJSON(),dialog:d.getBoundingClientRect().toJSON(),scrollTop:d.scrollTop,scrollHeight:d.scrollHeight,clientHeight:d.clientHeight,active:document.activeElement===e};})),contentType:'application/json'});await expect.poll(()=>email.evaluate(e=>{const r=e.getBoundingClientRect(),d=e.closest('[role=dialog]')!.getBoundingClientRect();return r.top>=d.top+4&&r.bottom<=d.bottom-4&&r.left>=d.left&&r.right<=d.right;})).toBe(true);await page.screenshot({path:info.outputPath('auth-text200-'+language+'.png'),animations:'disabled'});await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await expect(page.getByRole('button',{name:en?'Log In':'Đăng nhập',exact:true})).toBeFocused();expect(writes).toBe(0);await preserved(page);
 });
 for(const language of ['vi','en'])test(`R7 forms auth ${language} email errors are localized focus the field and block OTP requests`,async({page},info)=>{
- test.skip(isBuilt,'Ready Circle SDK is a dev-only module fixture; no real OTP is requested.');const en=language==='en';await fixture(page,language,false,true);let writes=0;await page.route('**/api/circle/email/token',r=>{writes++;return r.fulfill({status:503,json:{error:'Private provider diagnostic fixture'}});});const dialog=await open(page,en),email=dialog.getByLabel(en?'Email address':'Địa chỉ email',{exact:true}),send=dialog.getByRole('button',{name:en?'Send OTP':'Gửi mã OTP',exact:true});await expect(send).toBeEnabled();await send.click();await expect(email).toBeFocused();await expect(email).toHaveAttribute('aria-invalid','true');await expect(dialog.locator('#circle-email-error')).toContainText(en?'Enter your email address':'Nhập địa chỉ email');expect(writes).toBe(0);await email.fill('invalid@');await expect(email).toHaveAttribute('aria-invalid','false');await send.click();await expect(email).toBeFocused();await expect(dialog.locator('#circle-email-error')).toContainText(en?'Enter a valid email address':'Nhập địa chỉ email hợp lệ');expect(writes).toBe(0);await page.screenshot({path:info.outputPath('auth-email-error-'+language+'.png'),animations:'disabled'});await email.fill('fixture@example.test');await expect(dialog.locator('#circle-email-error')).toHaveCount(0);await send.click();await expect(dialog.getByRole('alert')).toContainText(en?'The OTP request could not be confirmed':'Chưa xác nhận được yêu cầu gửi OTP');await expect(email).toHaveValue('fixture@example.test');await expect(email).toHaveAttribute('aria-invalid','false');await expect(dialog).not.toContainText('Private provider diagnostic');expect(writes).toBe(1);await preserved(page);
+ test.skip(isBuilt,'Ready Circle SDK is a dev-only module fixture; no real OTP is requested.');const en=language==='en';await fixture(page,language,false,true);let writes=0;await page.route('**/api/circle/email/token',r=>{writes++;return r.fulfill({status:503,json:{error:'Private provider diagnostic fixture'}});});const dialog=await open(page,en),email=dialog.getByLabel(en?'Email address':'Địa chỉ email',{exact:true}),send=dialog.getByRole('button',{name:en?'Log in':'Đăng nhập',exact:true});await expect(send).toBeEnabled();await send.click();await expect(email).toBeFocused();await expect(email).toHaveAttribute('aria-invalid','true');await expect(dialog.locator('#circle-email-error')).toContainText(en?'Enter your email address':'Nhập địa chỉ email');expect(writes).toBe(0);await email.fill('invalid@');await expect(email).toHaveAttribute('aria-invalid','false');await send.click();await expect(email).toBeFocused();await expect(dialog.locator('#circle-email-error')).toContainText(en?'Enter a valid email address':'Nhập địa chỉ email hợp lệ');expect(writes).toBe(0);await page.screenshot({path:info.outputPath('auth-email-error-'+language+'.png'),animations:'disabled'});await email.fill('fixture@example.test');await expect(dialog.locator('#circle-email-error')).toHaveCount(0);await send.click();await expect(dialog.getByRole('alert')).toContainText(en?'The OTP request could not be confirmed':'Chưa xác nhận được yêu cầu gửi OTP');await expect(email).toHaveValue('fixture@example.test');await expect(email).toHaveAttribute('aria-invalid','false');await expect(dialog).not.toContainText('Private provider diagnostic');expect(writes).toBe(1);await preserved(page);
 });
 
 for (const language of ["vi", "en"]) test(`sign-in ${language} seven widths keyboard containment and clean reopening`, async ({ page }, info) => {
@@ -102,7 +102,7 @@ for (const language of ["vi", "en"]) test(`Circle account ${language} retains ac
   const dialog = await open(page, en, true);
   await expect(dialog.getByRole("region", { name: en ? "Account information" : "Thông tin tài khoản", exact: true })).toContainText(wallet);
   await expect(dialog).toContainText(en ? "Sign in again to continue with your email wallet." : "Đăng nhập lại để tiếp tục với ví email.");
-  await expect(dialog.getByRole("button", { name: en ? "Send OTP" : "Gửi mã OTP", exact: true })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: en ? "Log in" : "Đăng nhập", exact: true })).toBeDisabled();
   expect(writes).toBe(0); expect(await page.evaluate(() => localStorage.getItem("groupdeal_token"))).toBe("fixture-auth-dialog-session"); await preserved(page);
 });
 
@@ -110,7 +110,7 @@ test("closed OTP request cannot advance a newly reopened dialog", async ({ page 
   test.skip(isBuilt, "Circle SDK module fixture is available only in the dev server; built checks cover the real emitted view.");
   await fixture(page, "en", false, true); let release!: () => void, writes = 0; const gate = new Promise<void>(done => release = done);
   await page.route("**/api/circle/email/token", async route => { writes++; expect(route.request().postDataJSON()).toEqual({ email: "fixture@example.test", deviceId: "fixture-browser-device" }); await gate; await route.fulfill({ json: otpResponse() }); });
-  const dialog = await open(page, true), send = dialog.getByRole("button", { name: "Send OTP", exact: true });
+  const dialog = await open(page, true), send = dialog.getByRole("button", { name: "Log in", exact: true });
   await expect(send).toBeEnabled(); await dialog.getByLabel("Email address", { exact: true }).fill("fixture@example.test"); await send.click(); await expect.poll(() => writes).toBe(1);
   await dialog.getByRole("button", { name: "Close sign-in", exact: true }).click();
   await page.getByRole("button", { name: "Log In", exact: true }).click(); release();
@@ -123,26 +123,43 @@ for (const language of ["vi", "en"]) test(`OTP ${language} failure is localized 
   const en = language === "en"; await fixture(page, language, false, true); let writes = 0;
   await page.route("**/api/circle/email/token", route => { writes++; return route.fulfill({ status: 503, json: { error: "Private provider diagnostic fixture; do not render this text." } }); });
   const dialog = await open(page, en); await dialog.getByLabel(en ? "Email address" : "Địa chỉ email", { exact: true }).fill("fixture@example.test");
-  await dialog.getByRole("button", { name: en ? "Send OTP" : "Gửi mã OTP", exact: true }).click();
+  await dialog.getByRole("button", { name: en ? "Log in" : "Đăng nhập", exact: true }).click();
   await expect(dialog.getByRole("alert")).toContainText(en ? "The OTP request could not be confirmed" : "Chưa xác nhận được yêu cầu gửi OTP");
   await expect(dialog.getByRole("alert")).toBeFocused(); await expect(dialog).not.toContainText("Private provider diagnostic"); expect(writes).toBe(1); await preserved(page);
 });
 
-for (const language of ["vi", "en"]) test(`OTP ${language} explicit Circle handoff allows provider cancellation without a local code field`, async ({ page }) => {
-  test.skip(isBuilt, "Circle provider callback/window is a dev-only local fixture, not real OTP evidence.");
+for (const language of ["vi", "en"]) test(`OTP ${language} opens Circle directly and resumes the same code after cancellation`, async ({ page }, info) => {
+  test.skip(isBuilt, "Circle provider callback/window is a local fixture, not live OTP evidence.");
   const en = language === "en"; await fixture(page, language, false, true); let writes = 0;
   await page.route("**/api/circle/email/token", route => { writes++; return route.fulfill({ json: otpResponse() }); });
-  const dialog = await open(page, en); await dialog.getByLabel(en ? "Email address" : "Địa chỉ email", { exact: true }).fill("fixture@example.test");
-  await dialog.getByRole("button", { name: en ? "Send OTP" : "Gửi mã OTP", exact: true }).click();
-  await expect(page.locator("#circle-otp-instructions")).toBeFocused(); await expect(dialog.locator("input")).toHaveCount(0); expect(await page.evaluate(() => (window as any).fixtureCircleVerifications || 0)).toBe(0);
-  const verify = dialog.getByRole("button", { name: en ? "Enter OTP" : "Nhập mã OTP", exact: true }); await verify.click();
-  const frame = page.locator("#sdkIframe"); await expect(frame).toBeVisible(); expect(await frame.evaluate(el => !!el.closest("[inert]"))).toBe(false);
-  await expect(dialog).toHaveAttribute("aria-modal", "false"); await expect(dialog.getByRole("button", { name: en ? "Close sign-in" : "Đóng đăng nhập", exact: true })).toBeDisabled();
-  await expect(dialog.getByRole("status")).toContainText(en ? "Complete authentication in Circle’s window" : "Hoàn tất xác thực trong cửa sổ Circle");
-  await page.frameLocator("#sdkIframe").getByRole("button", { name: "Cancel fixture authentication", exact: true }).click();
-  await expect(frame).toHaveCount(0); await expect(dialog.getByRole("alert")).toContainText(en ? "You declined or closed authentication" : "Bạn đã từ chối hoặc đóng xác thực");
-  await expect(verify).toBeEnabled(); await expect(dialog.getByRole("alert")).toBeFocused(); expect(writes).toBe(1);
-  expect(await page.evaluate(() => (window as any).fixtureCircleVerifications)).toBe(1); expect(await page.evaluate(() => localStorage.getItem("groupdeal_token"))).toBeNull(); await preserved(page);
+  const dialog = await open(page, en), email = dialog.getByLabel(en ? "Email address" : "Địa chỉ email", {exact:true});
+  const login = dialog.getByRole("button", {name:en ? "Log in" : "Đăng nhập",exact:true});
+  expect(await dialog.locator('#auth-email-form').evaluate(el => Boolean(el.compareDocumentPosition(document.querySelector('.auth-wallet-option')!) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
+  await expect(login).toBeEnabled();
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({width, height:900});
+    await page.screenshot({path:info.outputPath('auth-ready-'+language+'-'+width+'.png'),animations:'disabled'});
+  }
+  await email.fill("fixture@example.test"); await login.click();
+  const frame = page.locator("#sdkIframe"), overlay = page.locator('.auth-overlay');
+  await expect(frame).toBeVisible(); await expect(overlay).toBeHidden();
+  expect(await frame.evaluate(el => !!el.closest("[inert]"))).toBe(false);
+  expect(await page.locator('#root').evaluate(el => (el as HTMLElement).inert)).toBe(true);
+  await expect(page.locator('.auth-dialog input[autocomplete="one-time-code"]')).toHaveCount(0);
+  expect(writes).toBe(1); expect(await page.evaluate(() => (window as any).fixtureCircleVerifications)).toBe(1);
+  await page.frameLocator("#sdkIframe").getByRole("button", {name:"Cancel fixture authentication",exact:true}).click();
+  await expect(frame).toHaveCount(0); await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("alert")).toContainText(en ? "You declined or closed authentication" : "Bạn đã từ chối hoặc đóng xác thực");
+  await expect(dialog.getByRole("alert")).toBeFocused(); await expect(email).toHaveValue("fixture@example.test");
+  await page.screenshot({path:info.outputPath('auth-circle-return-'+language+'.png'),animations:'disabled'});
+  await login.click(); await expect(frame).toBeVisible(); await expect(overlay).toBeHidden();
+  expect(writes).toBe(1); expect(await page.evaluate(() => (window as any).fixtureCircleVerifications)).toBe(2);
+  await page.frameLocator("#sdkIframe").getByRole("button", {name:"Cancel fixture authentication",exact:true}).click();
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button',{name:en?'Send a new code':'Gửi mã mới',exact:true}).click();
+  await expect(frame).toBeVisible(); expect(writes).toBe(2);
+  await page.frameLocator("#sdkIframe").getByRole("button", {name:"Cancel fixture authentication",exact:true}).click();
+  await expect(dialog).toBeVisible(); expect(await page.evaluate(() => localStorage.getItem("groupdeal_token"))).toBeNull(); await preserved(page);
 });
 
 test("late OTP response cannot overwrite another tab's authenticated account view", async ({ page }) => {
@@ -151,7 +168,7 @@ test("late OTP response cannot overwrite another tab's authenticated account vie
   await page.route("**/api/circle/email/token", async route => { writes++; await gate; await route.fulfill({ json: otpResponse() }); });
   await page.route("**/api/auth/me", route => route.fulfill({ json: { user: { ...account, id: "fixture-other-account" } } }));
   await page.route("**/api/auth/wallets?**", route => route.fulfill({ json: { userId: "fixture-other-account", activeWallet: wallet, wallets: [{ address: wallet, selected: true, kind: "EXTERNAL", canSignIn: true }], pagination: { nextCursor: null }, serverTime: Date.now() } }));
-  const dialog = await open(page, true); await dialog.getByLabel("Email address", { exact: true }).fill("fixture@example.test"); await dialog.getByRole("button", { name: "Send OTP", exact: true }).click(); await expect.poll(() => writes).toBe(1);
+  const dialog = await open(page, true); await dialog.getByLabel("Email address", { exact: true }).fill("fixture@example.test"); await dialog.getByRole("button", { name: "Log in", exact: true }).click(); await expect.poll(() => writes).toBe(1);
   await page.evaluate(() => { localStorage.setItem("groupdeal_token", "fixture-other-account-session"); dispatchEvent(new StorageEvent("storage", { key: "groupdeal_token", newValue: "fixture-other-account-session", storageArea: localStorage })); });
   const current = page.getByRole("dialog", { name: "Your account", exact: true }); await expect(current).toContainText(wallet); release();
   await expect(current.getByRole("button", { name: "Enter OTP", exact: true })).toHaveCount(0); await expect(current.getByRole("alert")).toHaveCount(0);

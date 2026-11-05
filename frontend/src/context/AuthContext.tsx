@@ -107,7 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
   const [circleInitState,setCircleInitState]=useState<AuthContextType["circleInitState"]>("IDLE");
   const circleLifecycle=useRef({active:true,epoch:0});
   const circleInitRef=useRef<Promise<{sdk:W3SSdk;deviceId:string}>|null>(null);
-  const [loginAttemptId, setLoginAttemptId] = useState<string | null>(null);
+  const loginAttemptIdRef = useRef<string | null>(null);
   const circleSdkRef = useRef<W3SSdk | null>(null);
   const circleSyncAttemptRef = useRef(0);
   const sessionGenerationRef = useRef(0);
@@ -234,7 +234,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
     setCircleWalletChoices([]);setCircleWalletChoiceUnknown(false);circleChoiceFlightRef.current=null;
     loginPromiseRef.current?.reject(new Error("Đã đăng xuất"));
     loginPromiseRef.current = null;
-    setLoginAttemptId(null);
+    loginAttemptIdRef.current = null;
     setIsLoading(false);setCircleProgress(null);
     if(localStorage.getItem(storageKey)===previousToken)localStorage.removeItem(storageKey);
   };
@@ -292,7 +292,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
       sessionGenerationRef.current++;circleSyncAttemptRef.current++;refreshAttemptRef.current++;
       loginPromiseRef.current?.reject(new Error("Phiên đăng nhập đã thay đổi"));loginPromiseRef.current=null;
       tokenRef.current=event.newValue;userRef.current=null;appSessionRef.current=null;
-      setUser(null);setCircleCredentials(null);setCircleWalletSyncing(false);setCircleWalletError(null);setCircleWalletChoices([]);setCircleWalletChoiceUnknown(false);circleChoiceFlightRef.current=null;setCircleProgress(null);setLoginAttemptId(null);
+      setUser(null);setCircleCredentials(null);setCircleWalletSyncing(false);setCircleWalletError(null);setCircleWalletChoices([]);setCircleWalletChoiceUnknown(false);circleChoiceFlightRef.current=null;setCircleProgress(null);loginAttemptIdRef.current=null;
       setLogoutState("NONE");setSessionNotice(event.newValue?null:"ENDED");setIsLoading(!!event.newValue);setToken(event.newValue);
     };
     window.addEventListener("storage",changed);return()=>window.removeEventListener("storage",changed);
@@ -337,7 +337,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
         otpToken: data.otpToken,
       },
     });
-    setLoginAttemptId(data.loginAttemptId);
+    loginAttemptIdRef.current = data.loginAttemptId;
     circleRequestedEmailRef.current=email.trim().toLowerCase();
     return { success: true, message: "OTP đã được Circle gửi qua email.",loginAttemptId:data.loginAttemptId as string };
   };
@@ -384,7 +384,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
     });
   };
 
-  const createLocalSession = async (credentials: CircleCredentials) => {
+  const createLocalSession = async (credentials: CircleCredentials, loginAttemptId: string | null) => {
     if (!loginAttemptId) throw new Error("Circle login attempt không còn hiệu lực");
     return (
     readJson(
@@ -492,6 +492,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
     }finally{reauthFlight.current=false;}
   };
   const verifyOtp = async (_email: string, _code?: string) => {
+    // The email request and SDK handoff can run in the same React turn. Capture
+    // the server-issued attempt immediately, rather than a stale state closure.
+    const loginAttemptId = loginAttemptIdRef.current;
     const hintEmail=circleRequestedEmailRef.current;
     const generation = ++sessionGenerationRef.current;
     circleSyncAttemptRef.current++;circleChoiceFlightRef.current=null;setCircleWalletChoices([]);setCircleWalletChoiceUnknown(false);setCircleWalletSyncing(false);
@@ -509,7 +512,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
       });
 
       setCircleProgress("Đang tạo phiên đăng nhập GroupDeal...");
-      const session = await createLocalSession(credentials);
+      const session = await createLocalSession(credentials, loginAttemptId);
       if (generation !== sessionGenerationRef.current){discardIssuedSession(session.token);throw new Error("Phiên đăng nhập đã bị hủy");}
 
       const next=readUser(session.user);if(typeof session.token!=="string"||!session.token||session.token.length>8192)throw new Error("AUTH_RESPONSE_INVALID");

@@ -68,9 +68,9 @@ test("renders Arc identity and keeps unavailable sign-in actions disabled", asyn
   await expect(walletLogin).toBeDisabled();
   await expect(page.getByText("Kết nối ví tạm chưa sẵn sàng.",{exact:true})).toBeVisible();
   await page.getByLabel("Địa chỉ email", { exact: true }).fill("buyer@example.com");
-  const submit = page.getByRole("button", { name: "Gửi mã OTP", exact: true });
+  const submit = page.locator(".auth-dialog").getByRole("button", { name: "Đăng nhập", exact: true });
   await expect(submit).toBeDisabled();
-  await expect(page.getByText(/Không nhập seed phrase hay private key vào GroupDeal/i)).toBeVisible();
+  await expect(page.getByText(/Không chia sẻ private key hoặc cụm từ khôi phục/i)).toBeVisible();
   expect(consoleErrors).toEqual([]);
 });
 
@@ -153,8 +153,8 @@ test("email session opens immediately and binds an existing wallet even without 
   await page.goto("/");
   await page.getByRole("button", { name: /đăng nhập/i }).click();
   await page.getByLabel("Địa chỉ Email").fill("fixture@example.com");
-  await page.getByRole("button", { name: "Gửi mã OTP" }).click();
-  await page.getByRole("button", { name: "Nhập mã OTP" }).click();
+  await page.locator(".auth-dialog").getByRole("button", { name: "Đăng nhập", exact:true }).click();
+
   await expect(page.getByRole("button", { name: "Đóng đăng nhập" })).not.toBeVisible({ timeout: 2000 });
   await openFunding(page,true);
   await expect(page.getByText(new RegExp(address, "i"))).toBeVisible();
