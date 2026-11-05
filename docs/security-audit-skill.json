@@ -1,0 +1,22 @@
+{
+  "scope": "project",
+  "installedAt": "2026-11-05",
+  "automaticHooks": false,
+  "validation": {
+    "checkedAt": "2026-11-05",
+    "environment": "Ubuntu WSL / Node v18.19.1",
+    "upstreamValidatorTests": { "passed": 65, "failed": 0, "skipped": 0 },
+    "windowsCliSupportedOnCheckedHost": false
+  },
+  "skills": [
+    {
+      "name": "security-audit",
+      "repository": "https://github.com/cloudflare/security-audit-skill",
+      "commit": "c1c8a8c1471069fb0e188eeaff69b8e8db6564a8",
+      "sourcePath": "skills/security-audit",
+      "installedPath": ".agents/skills/security-audit",
+      "license": "MIT",
+      "licenseSourcePath": "LICENSE"
+    }
+  ]
+}
