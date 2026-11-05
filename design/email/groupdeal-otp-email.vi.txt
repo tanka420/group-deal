@@ -1,0 +1,16 @@
+Mã đăng nhập GroupDeal của bạn
+
+Nhập mã dùng một lần này trong cửa sổ xác minh bạn đã mở từ GroupDeal.
+
+{{code}}
+
+Mã hết hạn sau {{expiry_long}}. Nếu mã hết hạn, hãy yêu cầu mã mới từ GroupDeal.
+
+Giữ riêng mã đăng nhập. Chỉ nhập mã trong cửa sổ xác minh được mở từ GroupDeal. Không gửi mã qua email hoặc tin nhắn.
+
+Nếu bạn không yêu cầu mã này, bạn có thể bỏ qua email.
+
+Cần hỗ trợ? admin@groupdeal.tech
+https://testnet.groupdeal.tech/
+Arc Testnet · Tiền thử nghiệm
+© 2026 GroupDeal by tankaa420

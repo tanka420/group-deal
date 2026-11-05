@@ -1,0 +1,16 @@
+Your GroupDeal sign-in code
+
+Enter this one-time code in the verification window you opened from GroupDeal.
+
+{{code}}
+
+This code expires in {{expiry_long}}. If it expires, request a new code from GroupDeal.
+
+Keep this code private. Only enter it in the verification window opened from GroupDeal. Never send it by email or chat.
+
+If you didn’t request this code, you can ignore this email.
+
+Need help? admin@groupdeal.tech
+https://testnet.groupdeal.tech/
+Arc Testnet · Test tokens
+© 2026 GroupDeal by tankaa420
