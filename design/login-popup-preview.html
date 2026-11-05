@@ -1,0 +1,123 @@
+<!doctype html>
+<!-- Icons: Lucide, ISC License. Copyright (c) Lucide Contributors 2022.
+Copyright (c) for portions of Lucide: Cole Bemis 2013-2022 (Feather, MIT).
+Permission to use, copy, modify, and/or distribute this software for any purpose
+with or without fee is hereby granted, provided that the above copyright notice
+and this permission notice appear in all copies.
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE. -->
+<!-- Icons: Lucide, ISC License. Copyright (c) Lucide Contributors 2022.
+Copyright (c) for portions of Lucide: Cole Bemis 2013-2022 (Feather, MIT).
+Permission to use, copy, modify, and/or distribute this software for any purpose
+with or without fee is hereby granted, provided that the above copyright notice
+and this permission notice appear in all copies.
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GroupDeal · Login preview</title>
+<style>
+@font-face{font-family:'Be Vietnam Pro';src:url('../frontend/public/fonts/be-vietnam-pro/400.ttf') format('truetype');font-weight:400;font-display:swap}
+@font-face{font-family:'Be Vietnam Pro';src:url('../frontend/public/fonts/be-vietnam-pro/600.ttf') format('truetype');font-weight:600;font-display:swap}
+@font-face{font-family:'Be Vietnam Pro';src:url('../frontend/public/fonts/be-vietnam-pro/700.ttf') format('truetype');font-weight:700;font-display:swap}
+:root{--ink:#17243a;--muted:#53647c;--blue:#1757e5;--blue-hover:#1048c7;--line:#cdd7e6;--soft:#f1f5fb;--white:#fff;--danger:#b12544;--positive:#256545;font-family:'Be Vietnam Pro',Arial,sans-serif;color:var(--ink);background:var(--soft);font-synthesis:none}
+*{box-sizing:border-box}body{margin:0;min-height:100svh}button,input{font:inherit}button,a,input{-webkit-tap-highlight-color:transparent}button{cursor:pointer}button:disabled{cursor:wait;opacity:.62}a{color:var(--blue);text-underline-offset:3px}button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:4px}::selection{background:#dce7ff;color:#142b50}input{caret-color:var(--blue)}svg{display:block;flex:none;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}[hidden]{display:none!important}
+.page-header{height:84px;display:flex;align-items:center;justify-content:space-between;padding:0 40px;background:var(--white);border-bottom:1px solid #e1e7f0;gap:16px}.brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:21px;letter-spacing:-.035em}.brand svg{color:var(--blue);width:26px;height:26px}.page-header>span{font-size:13px;color:var(--muted)}.landing{min-height:calc(100svh - 84px);display:grid;place-content:center;text-align:center;padding:24px}.landing h1{margin:0 0 12px;font-size:28px;letter-spacing:-.03em}.landing p{margin:0 0 24px;font-size:14px;line-height:1.7;color:var(--muted)}.landing .button{width:220px;justify-self:center}
+dialog{width:440px;max-width:calc(100vw - 32px);max-height:calc(100svh - 32px);padding:0;border:0;border-radius:12px;color:var(--ink);background:var(--white);box-shadow:0 16px 56px #17243a29;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent}dialog::backdrop{background:#17243a5c}.dialog-inner{padding:24px 28px 22px}.dialog-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:24px}.dialog-top .brand{font-size:18px;gap:7px}.dialog-top .brand svg{width:23px;height:23px}.dialog-tools{display:flex;align-items:center;gap:4px}.icon-button,.language-button{display:inline-flex;align-items:center;justify-content:center;background:none;border:0;color:var(--muted);min-height:40px;min-width:40px;border-radius:6px;padding:8px}.icon-button:hover,.language-button:hover{background:var(--soft);color:var(--ink)}.language-button{gap:5px;font-size:12px;font-weight:600}.language-button svg{width:16px;height:16px}.icon-button svg{width:20px;height:20px}
+h1,h2,p{overflow-wrap:anywhere}.dialog-title{font-size:27px;line-height:1.35;letter-spacing:-.035em;font-weight:600;margin:0}.lead{font-size:14px;line-height:1.75;color:var(--muted);margin:9px 0 0}.auth-form{margin-top:26px}.field-label{display:block;font-size:13px;font-weight:600;line-height:1.6;margin-bottom:8px}.input{display:block;width:100%;height:50px;border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--white);color:var(--ink);font-size:15px;line-height:24px}.input::placeholder{color:var(--muted);opacity:1}.input:hover{border-color:var(--muted)}.input[aria-invalid=true]{border-color:var(--danger)}.input:disabled{background:var(--soft)}.helper{font-size:12px;line-height:1.8;color:var(--muted);margin:9px 0 0}.error{font-size:13px;line-height:1.65;color:var(--danger);margin:8px 0 0}.button{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;min-height:48px;border:1px solid transparent;border-radius:8px;padding:11px 16px;font-size:14px;line-height:24px;font-weight:600;background:var(--blue);color:var(--white);transition:background-color .15s}.button:hover:not(:disabled){background:var(--blue-hover)}.button.secondary{border-color:var(--line);background:var(--white);color:var(--ink)}.button.secondary:hover:not(:disabled){background:var(--soft)}.submit{margin-top:22px}.divider{display:flex;align-items:center;gap:16px;font-size:12px;color:var(--muted);margin:22px 0}.divider:before,.divider:after{content:'';height:1px;background:#e1e7f0;flex:1}.wallet-button svg{width:19px;height:19px}.environment{display:flex;align-items:center;justify-content:center;gap:7px;margin:22px 0 0;font-size:12px;line-height:20px;color:var(--muted)}.environment svg{width:15px;height:15px}.preview-note{font-size:11px;line-height:1.7;color:var(--muted);text-align:center;margin:16px 0 0;padding-top:14px;border-top:1px solid #e1e7f0}.preview-note strong{font-weight:600;color:var(--ink)}.notice{margin:12px 0 0;background:var(--soft);padding:12px;font-size:12px;line-height:1.7;color:var(--muted);border-radius:6px}.button[aria-busy=true]:before{content:'';width:16px;height:16px;border:2px solid #ffffff80;border-top-color:var(--white);border-radius:50%;animation:spin .75s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+.recipient{display:flex;align-items:baseline;gap:10px;justify-content:space-between;margin-top:4px}.recipient strong{font-size:14px;font-weight:600;line-height:1.7;overflow-wrap:anywhere;min-width:0}.text-button{background:none;border:0;color:var(--blue);font-size:12px;line-height:20px;min-height:40px;padding:8px 0;font-weight:600;flex:none;text-decoration:underline;text-underline-offset:3px}.code-input{font-size:26px;line-height:34px;letter-spacing:10px;text-align:center;padding-left:24px;height:58px;font-weight:600;font-variant-numeric:tabular-nums}.code-input::placeholder{letter-spacing:10px;color:var(--muted)}.resend-row{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:10px;flex-wrap:wrap}.resend-row>span{font-size:12px;color:var(--muted)}.resend-row button:disabled{color:var(--muted);cursor:default;opacity:1;text-decoration:none}.code-note{color:var(--muted);font-size:12px;text-align:center;margin:10px 0 0;line-height:1.7}.back{display:inline-flex;align-items:center;gap:7px;margin-top:20px}.back svg{width:16px;height:16px}.success-mark{margin:4px 0 20px;color:var(--positive)}.success-mark svg{width:36px;height:36px}.success-actions{margin-top:26px}
+@media(max-width:480px){.page-header{padding:0 20px;height:72px}.page-header>span{max-width:100px;text-align:right;font-size:11px}.dialog-inner{padding:20px 24px}.dialog-title{font-size:25px}.dialog-top{margin-bottom:24px}.dialog-top .brand{font-size:17px}.lead{font-size:13px}.dialog-tools{gap:0}.auth-form{margin-top:23px}.landing{min-height:calc(100svh - 72px)}}
+@media(max-width:359px){dialog{max-width:calc(100vw - 20px)}.dialog-inner{padding:18px 20px}.dialog-title{font-size:23px}.dialog-top .brand{font-size:16px}.dialog-top .brand svg{width:20px;height:20px}.dialog-top{gap:6px}.language-button{padding:7px 3px;min-width:36px}.icon-button{min-width:36px}.code-input{letter-spacing:8px;padding-left:20px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header class="page-header"><div class="brand"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>GroupDeal</div><span data-copy="pageNote">Login layout preview</span></header>
+<main class="landing"><h1 data-copy="landingTitle">A simpler way to log in</h1><p data-copy="landingCopy">Preview the email and verification steps.</p><button class="button" id="open" data-copy="open">Open login preview</button></main>
+<dialog id="auth-dialog" aria-labelledby="dialog-title" aria-describedby="dialog-description">
+ <div class="dialog-inner">
+  <header class="dialog-top"><div class="brand"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>GroupDeal</div><div class="dialog-tools"><button type="button" class="language-button" id="language" aria-label="Switch to Vietnamese"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a16 16 0 0 1 0 18 16 16 0 0 1 0-18"/></svg><span id="language-label">EN</span></button><button type="button" class="icon-button" id="close" aria-label="Close login"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div></header>
+  <section id="email-screen">
+   <h1 class="dialog-title" id="dialog-title" tabindex="-1" data-copy="loginTitle">Log in to GroupDeal</h1>
+   <p class="lead" id="dialog-description" data-copy="loginDescription">Enter your email to continue.</p>
+   <form id="email-form" class="auth-form" novalidate>
+    <label class="field-label" for="email" data-copy="emailLabel">Email address</label>
+    <input class="input" id="email" name="email" type="email" autocomplete="email" inputmode="email" maxlength="254" placeholder="you@example.com" required aria-describedby="email-help email-error">
+    <p class="helper" id="email-help" data-copy="emailHelp">We’ll email you a one-time sign-in code.</p>
+    <p class="error" id="email-error" role="alert" hidden></p>
+    <button class="button submit" id="login" type="submit" data-copy="login">Log in</button>
+   </form>
+   <div class="divider" data-copy="or">or</div>
+   <button class="button secondary wallet-button" id="wallet" type="button"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 8V5a2 2 0 0 0-2-2H6a3 3 0 0 0 0 6h14v12H6a3 3 0 0 1-3-3V6"/><path d="M20 12h-4a2 2 0 0 0 0 4h4"/></svg><span data-copy="wallet">Connect wallet</span></button>
+   <p class="notice" id="wallet-notice" role="status" hidden data-copy="walletNotice">Wallet connection is shown for layout only in this preview.</p>
+  </section>
+  <section id="otp-screen" hidden>
+   <h1 class="dialog-title" id="otp-title" tabindex="-1" data-copy="otpTitle">Check your email</h1>
+   <p class="lead" id="otp-description" data-copy="otpDescription">Enter the 6-digit code sent to</p>
+   <div class="recipient"><strong id="recipient"></strong><button type="button" class="text-button" id="change" data-copy="change">Change</button></div>
+   <form id="otp-form" class="auth-form" novalidate>
+    <label class="field-label" for="code" data-copy="codeLabel">Verification code</label>
+    <input class="input code-input" id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000" required aria-describedby="code-error code-note">
+    <p class="error" id="code-error" role="alert" hidden></p>
+    <button class="button submit" id="verify" type="submit" data-copy="verify">Verify and log in</button>
+   </form>
+   <div class="resend-row"><span data-copy="noCode">Didn’t receive a code?</span><button type="button" class="text-button" id="resend" disabled>Resend in 30s</button></div>
+   <p class="code-note" id="code-note"><span data-copy="sampleCode">Preview code:</span> <strong>123456</strong></p>
+   <button class="text-button back" id="back" type="button"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 5-7 7 7 7M5 12h14"/></svg><span data-copy="back">Back to log in</span></button>
+  </section>
+  <section id="success-screen" hidden>
+   <div class="success-mark"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg></div>
+   <h1 class="dialog-title" id="success-title" tabindex="-1" data-copy="successTitle">Preview complete</h1>
+   <p class="lead" id="success-description" data-copy="successDescription">That’s the complete sample flow. No real account was signed in.</p>
+   <div class="success-actions"><button type="button" class="button" id="restart" data-copy="restart">Try again</button></div>
+  </section>
+  <p class="environment"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg><span data-copy="environment">Arc Testnet · Test tokens</span></p>
+  <p class="preview-note" id="preview-note" data-copy="previewNote">Interactive preview · No email or wallet connection</p>
+  <p class="helper" id="live-status" role="status" aria-live="polite"></p>
+ </div>
+</dialog>
+<script>
+(() => {
+ 'use strict';
+ const $=id=>document.getElementById(id),dialog=$('auth-dialog');
+ const copy={
+  en:{pageNote:'Login layout preview',landingTitle:'A simpler way to log in',landingCopy:'Preview the email and verification steps.',open:'Open login preview',loginTitle:'Log in to GroupDeal',loginDescription:'Enter your email to continue.',emailLabel:'Email address',emailHelp:'We’ll email you a one-time sign-in code.',login:'Log in',sending:'Sending code…',or:'or',wallet:'Connect wallet',walletNotice:'Wallet connection is shown for layout only in this preview.',otpTitle:'Check your email',otpDescription:'Enter the 6-digit code sent to',change:'Change',codeLabel:'Verification code',verify:'Verify and log in',verifying:'Verifying…',noCode:'Didn’t receive a code?',resend:'Resend code',resendWait:n=>'Resend in '+n+'s',sampleCode:'Preview code:',back:'Back to log in',successTitle:'Preview complete',successDescription:'That’s the complete sample flow. No real account was signed in.',restart:'Try again',environment:'Arc Testnet · Test tokens',previewNote:'Interactive preview · No email or wallet connection',otpNote:'OTP layout is illustrative · The live app opens Circle’s verification window.',requiredEmail:'Enter your email address.',invalidEmail:'Enter a valid email address.',invalidCode:'Enter all 6 digits.',wrongCode:'For this preview, use 123456.',resent:'A new code was simulated. No email was sent.',close:'Close login',switchLanguage:'Switch to Vietnamese'},
+  vi:{pageNote:'Xem trước đăng nhập',landingTitle:'Đăng nhập gọn hơn',landingCopy:'Xem thử bước nhập email và xác minh mã.',open:'Mở popup đăng nhập',loginTitle:'Đăng nhập GroupDeal',loginDescription:'Nhập email để tiếp tục.',emailLabel:'Địa chỉ email',emailHelp:'Bạn sẽ nhận được mã đăng nhập dùng một lần.',login:'Đăng nhập',sending:'Đang gửi mã…',or:'hoặc',wallet:'Kết nối ví',walletNotice:'Kết nối ví trong bản này chỉ dùng để xem bố cục.',otpTitle:'Kiểm tra email',otpDescription:'Nhập mã 6 số đã gửi đến',change:'Đổi email',codeLabel:'Mã xác minh',verify:'Xác minh và đăng nhập',verifying:'Đang xác minh…',noCode:'Chưa nhận được mã?',resend:'Gửi lại mã',resendWait:n=>'Gửi lại sau '+n+'s',sampleCode:'Mã minh họa:',back:'Quay lại đăng nhập',successTitle:'Hoàn tất xem thử',successDescription:'Bạn đã đi hết luồng minh họa. Chưa có tài khoản thật nào được đăng nhập.',restart:'Thử lại',environment:'Arc Testnet · Tiền thử nghiệm',previewNote:'Bản minh họa · Không gửi email hay kết nối ví',otpNote:'Layout OTP chỉ để minh họa · Ứng dụng thật mở cửa sổ xác minh Circle.',requiredEmail:'Nhập địa chỉ email.',invalidEmail:'Nhập địa chỉ email hợp lệ.',invalidCode:'Nhập đủ 6 chữ số.',wrongCode:'Trong bản xem thử, hãy dùng mã 123456.',resent:'Đã mô phỏng gửi mã mới. Không có email nào được gửi.',close:'Đóng đăng nhập',switchLanguage:'Switch to English'}
+ };
+ let language='en',screen='email',busy=false,delay=null,countdown=null,remaining=0,errorEmail='',errorCode='';
+ const t=()=>copy[language];
+ function error(field,key){const node=$(field+'-error');node.hidden=!key;node.textContent=key?t()[key]:'';$(field).setAttribute('aria-invalid',String(Boolean(key)));if(field==='email')errorEmail=key;else errorCode=key;}
+ function resendLabel(){$('resend').disabled=remaining>0||busy;$('resend').textContent=remaining>0?t().resendWait(remaining):t().resend;}
+ function render(){document.documentElement.lang=language;document.querySelectorAll('[data-copy]').forEach(node=>node.textContent=t()[node.dataset.copy]);$('language-label').textContent=language.toUpperCase();$('language').setAttribute('aria-label',t().switchLanguage);$('close').setAttribute('aria-label',t().close);$('preview-note').textContent=screen==='otp'?t().otpNote:t().previewNote;error('email',errorEmail);error('code',errorCode);if(busy){$(screen==='email'?'login':'verify').textContent=t()[screen==='email'?'sending':'verifying'];}resendLabel();}
+ function show(next){screen=next;for(const name of ['email','otp','success'])$(name+'-screen').hidden=name!==next;const prefix=next==='email'?'dialog':next;dialog.setAttribute('aria-labelledby',prefix+'-title');dialog.setAttribute('aria-describedby',prefix+'-description');$('live-status').textContent='';render();(next==='email'?$('email'):next==='otp'?$('code'):$('success-title')).focus();}
+ function setBusy(value){busy=value;for(const id of ['email','code','login','verify','wallet','change','back','restart'])$(id).disabled=value;const button=$(screen==='email'?'login':'verify');button.setAttribute('aria-busy',String(value));render();}
+ function startCountdown(){clearInterval(countdown);remaining=30;resendLabel();countdown=setInterval(()=>{remaining=Math.max(0,remaining-1);resendLabel();if(!remaining)clearInterval(countdown);},1000);}
+ function cancelPending(){clearTimeout(delay);clearInterval(countdown);busy=false;remaining=0;for(const id of ['login','verify'])$(id).setAttribute('aria-busy','false');for(const id of ['email','code','login','verify','wallet','change','back','restart'])$(id).disabled=false;}
+ function open(){document.querySelector('.landing').hidden=true;cancelPending();error('email','');error('code','');$('code').value='';$('wallet-notice').hidden=true;show('email');dialog.showModal();$('email').focus();}
+ $('open').addEventListener('click',open);$('close').addEventListener('click',()=>dialog.close());dialog.addEventListener('close',()=>{cancelPending();document.querySelector('.landing').hidden=false;$('open').focus();});dialog.addEventListener('click',event=>{if(event.target===dialog){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();}});
+ $('language').addEventListener('click',()=>{language=language==='en'?'vi':'en';render();});
+ $('email').addEventListener('input',()=>error('email',''));
+ $('email-form').addEventListener('submit',event=>{event.preventDefault();if(busy)return;$('email').value=$('email').value.trim();const key=!$('email').value?'requiredEmail':!$('email').validity.valid?'invalidEmail':'';error('email',key);if(key){$('email').focus();return;}$('wallet-notice').hidden=true;setBusy(true);delay=setTimeout(()=>{if(!dialog.open)return;setBusy(false);$('recipient').textContent=$('email').value;$('code').value='';error('code','');show('otp');startCountdown();},450);});
+ $('wallet').addEventListener('click',()=>{$('wallet-notice').hidden=false;});
+ function back(){cancelPending();error('code','');show('email');}
+ $('change').addEventListener('click',back);$('back').addEventListener('click',back);$('restart').addEventListener('click',back);
+ $('code').addEventListener('input',()=>{$('code').value=$('code').value.replace(/\D/g,'').slice(0,6);error('code','');});
+ $('otp-form').addEventListener('submit',event=>{event.preventDefault();if(busy)return;const key=!/^\d{6}$/.test($('code').value)?'invalidCode':$('code').value!=='123456'?'wrongCode':'';error('code',key);if(key){$('code').focus();return;}setBusy(true);delay=setTimeout(()=>{if(!dialog.open)return;setBusy(false);clearInterval(countdown);show('success');},350);});
+ $('resend').addEventListener('click',()=>{if(remaining||busy)return;$('code').value='';error('code','');$('live-status').textContent=t().resent;startCountdown();$('code').focus();});
+ render();open();
+})();
+</script>
+</body>
+</html>
