@@ -158,7 +158,10 @@ for(const mode of ['blank','ready'] as const)test('Circle '+mode+' OTP window re
  await expect(page.locator('#sdkIframe')).toHaveCount(0);await expect(auth.getByRole('button',{name:'Log in',exact:true})).toBeEnabled();
  await expect(auth.getByRole('alert')).toContainText(mode==='blank'?'window did not load':'timeout');expect(f.otpRequests).toBe(1);expect(f.signs).toBe(0);expect(f.reauthRequests).toBe(0);
  await page.screenshot({path:info.outputPath('otp-'+mode+'-recovered.png')});f.otpWindowMode='normal';await auth.getByRole('button',{name:'Log in',exact:true}).click();
- await expect(auth).toHaveCount(0);expect(f.otpRequests).toBe(1);expect(f.writes.filter(p=>p==='/api/circle/session')).toHaveLength(1);expect(f.signs).toBe(0);expect(f.errors).toEqual([]);
+ // Circle temporarily hides the app dialog. Wait for the accepted account and
+ // actual dialog removal, rather than mistaking that handoff for completion.
+ await expect(page.locator('.account-pill-btn')).toBeVisible();await expect(page.locator('.auth-dialog')).toHaveCount(0);
+ expect(f.otpRequests).toBe(1);expect(f.writes.filter(p=>p==='/api/circle/session')).toHaveLength(1);expect(f.signs).toBe(0);expect(f.errors).toEqual([]);
 });
 
 test('saved Circle signing request resumes directly without granting READY again',async({page})=>{
