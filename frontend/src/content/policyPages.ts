@@ -1,6 +1,42 @@
 import type {ReadingContent} from './readingContent';
 
+const CONTACT_EMAIL = "admin@groupdeal.tech";
+
 export const policyPages:Record<string,ReadingContent> = {
+  "contact": {
+    "title": [
+      "Liên hệ",
+      "Contact"
+    ],
+    "intro": [
+      "Nếu bạn có câu hỏi về GroupDeal, hãy gửi email cho chúng tôi.",
+      "If you have questions about GroupDeal, you are welcome to email us."
+    ],
+    "sections": [
+      {
+        "id": "email",
+        "title": [
+          "Liên hệ qua email",
+          "Contact by email"
+        ],
+        "paragraphs": [
+          [
+            "Bạn có thể gửi câu hỏi về GroupDeal tới địa chỉ email dưới đây.",
+            "You can send questions about GroupDeal to the email address below."
+          ]
+        ],
+        "links": [
+          {
+            "href": "mailto:" + CONTACT_EMAIL,
+            "label": [
+              CONTACT_EMAIL,
+              CONTACT_EMAIL
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "how": {
     "title": [
       "Cách GroupDeal hoạt động",

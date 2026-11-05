@@ -19,7 +19,8 @@ const pages=[
  ['privacy','Privacy','Quyền riêng tư'],
  ['delivery','Digital delivery','Giao sản phẩm số'],
  ['refunds','Rebates, refunds & disputes','Rebate, hoàn tiền & tranh chấp'],
- ['help','GroupDeal user guide','Hướng dẫn sử dụng GroupDeal']
+ ['help','GroupDeal user guide','Hướng dẫn sử dụng GroupDeal'],
+ ['contact','Contact','Liên hệ']
 ];
 for(const language of ['en','vi'])for(const width of [375,1440])test(`footer reading pages and guide stay full width and usable at ${width}px ${language}`,async({page},info)=>{
  const f=await fixture(page,language);await page.setViewportSize({width,height:900});await page.goto('/');
@@ -30,6 +31,15 @@ for(const language of ['en','vi'])for(const width of [375,1440])test(`footer rea
    const a=e.getBoundingClientRect(),h=document.querySelector('.header-inner')!.getBoundingClientRect(),f=document.querySelector('.footer-content')!.getBoundingClientRect();
    return {left:Math.abs(a.left-h.left),width:Math.abs(a.width-h.width),footer:Math.abs(a.width-f.width),overflow:document.documentElement.scrollWidth>innerWidth};
   });expect(layout.left).toBeLessThanOrEqual(1);expect(layout.width).toBeLessThanOrEqual(1);expect(layout.footer).toBeLessThanOrEqual(1);expect(layout.overflow).toBe(false);
+  if(section==='contact'){
+   await expect(page.locator('.information-page a[href="mailto:admin@groupdeal.tech"]')).toHaveText('admin@groupdeal.tech');
+   await expect(page.locator('.footer-bottom')).toContainText('© 2026 GroupDeal by tankaa420');
+   await expect(page.getByRole('navigation',{name:language==='en'?'Support':'Hỗ trợ',exact:true}).getByRole('link',{name:language==='en'?'Contact':'Liên hệ',exact:true})).toHaveAttribute('href','/policies/contact');
+   await page.reload();await expect(page.getByRole('heading',{level:1,name:language==='en'?enTitle:viTitle,exact:true})).toBeVisible();
+   await expect(page.locator('.information-contents > summary')).toContainText(language==='en'?'1 section':'1 mục');
+   await page.goto('/policies/contact/');await expect(page.getByRole('heading',{level:1,name:language==='en'?enTitle:viTitle,exact:true})).toBeVisible();
+   await page.goto('/policies/contact');await expect(page.getByRole('heading',{level:1,name:language==='en'?enTitle:viTitle,exact:true})).toBeVisible();
+  }
   if(section==='help')await page.screenshot({path:info.outputPath('guide-start-'+language+'-'+width+'.png'),animations:'disabled'});
   await page.locator('.information-contents > summary').click();await page.locator('.information-contents button').last().click();
   const heading=page.locator('.information-section h2').last();await expect(heading).toBeFocused();await expect(heading).toBeInViewport();await expect(page.locator('.information-section-content').last().locator('p,li').first()).toBeInViewport();

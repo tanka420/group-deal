@@ -37,7 +37,7 @@ export function parseAppHash(hash: string): AppRoute {
   if (/^#campaign-[A-Za-z0-9_-]{1,180}$/.test(hash)) return { kind: "campaign", id: hash.slice("#campaign-".length) };
   if (/^#seller-profile-[A-Za-z0-9_-]{1,128}$/.test(hash)) return { kind: "public-seller", id: hash.slice("#seller-profile-".length) };
   if (hash === "#support" || /^#support-ticket-tkt_[a-f0-9-]{36}$/.test(hash) || /^#support-order-[A-Za-z0-9_-]{1,180}$/.test(hash)) return { kind: "support", path: hash.slice(1) };
-  const policy=/^#policy-(how|terms|privacy|delivery|refunds|help)$/.exec(hash);if(policy)return {kind:'policy',section:policy[1]};
+  const policy=/^#policy-(how|terms|privacy|delivery|refunds|help|contact)$/.exec(hash);if(policy)return {kind:'policy',section:policy[1]};
   return { kind: "not-found" };
 }
 
@@ -62,8 +62,8 @@ export function routePath(route: AppRoute): string {
 
 export function parseAppPath(path: string): AppRoute {
   if (path === "/") return parseAppHash("#home");
-  if(path.startsWith('/policies/'))return parseAppHash('#policy-'+path.slice(10));
   const normalized = path.replace(/\/$/, "");
+  if(normalized.startsWith('/policies/'))return parseAppHash('#policy-'+normalized.slice(10));
   if (normalized === "/admin") return parseAppHash("#operator");
   if (normalized.startsWith('/seller/')) return parseAppHash('#'+normalized.slice(1));
   if(normalized.startsWith('/admin/')&&!normalized.startsWith('/admin/deals/'))return parseAppHash('#operator/'+normalized.slice(7));

@@ -14,7 +14,7 @@ export function PolicyPage({section}:{section:string}){
    <p>{copy(page.intro)}</p>
   </header>
   <details key={section} className="information-contents">
-   <summary>{en?'On this page':'Nội dung trang'} <span>{page.sections.length} {en?'sections':'mục'}</span></summary>
+   <summary>{en?'On this page':'Nội dung trang'} <span>{page.sections.length} {en?(page.sections.length===1?'section':'sections'):'mục'}</span></summary>
    <nav aria-label={en?'On this page':'Nội dung trang'}>
     <ul>{page.sections.map(item=><li key={item.id}><button type="button" aria-controls={headingId(item.id)} onClick={()=>{const heading=document.getElementById(headingId(item.id));focusPageElement(heading);heading?.scrollIntoView({block:'start',behavior:'instant'});}}>{copy(item.title)}</button></li>)}</ul>
    </nav>
