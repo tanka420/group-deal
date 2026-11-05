@@ -4,7 +4,7 @@ import {walletAuthMessage} from '../../backend/src/domain/walletAuthentication';
 
 async function fixture(page:Page){
  const wallet=ethers.Wallet.createRandom(),publicToken='isolated-public-session',adminToken='isolated-admin-session';
- const state={signs:0,verifies:0,cancel:false,badPurpose:false,hold:undefined as Promise<void>|undefined,active:false,errors:[] as string[],writes:[] as string[]};
+ const state={signs:0,verifies:0,revokes:0,cancel:false,badPurpose:false,hold:undefined as Promise<void>|undefined,verifyHold:undefined as Promise<void>|undefined,active:false,errors:[] as string[],writes:[] as string[]};
  await page.exposeFunction('fixtureAdminSign',async(message:string)=>{state.signs++;if(state.cancel)throw Error('User rejected');await state.hold;return wallet.signMessage(message);});
  await page.addInitScript(({address,token})=>{if(!sessionStorage.getItem('fixture-initialized')){localStorage.setItem('groupdeal_token',token);localStorage.removeItem('groupdeal_admin_token');sessionStorage.setItem('fixture-initialized','1');}localStorage.setItem('groupdeal_lang','en');(window as any).fixtureAdminWallet=address;},{address:wallet.address,token:publicToken});
  page.on('pageerror',e=>state.errors.push(e.message));
@@ -19,9 +19,9 @@ async function fixture(page:Page){
    let challengeMessage=walletAuthMessage({userId:'wallet-login:'+wallet.address.toLowerCase(),action:'WALLET_LOGIN',walletAddress:wallet.address,chainId:5042002,origin:url.origin,realm:'ADMIN',nonce,expiresAt,message:''},timestamp);if(state.badPurpose)challengeMessage+='\nApprove a transfer';
    return route.fulfill({json:{challengeMessage,nonce,expiresAt}});
   }
-  if(p==='/api/admin-auth/wallet/login/verify'){state.verifies++;const v=request.postDataJSON();expect(ethers.verifyMessage(v.message,v.signature)).toBe(wallet.address);state.active=true;return route.fulfill({json:{token:adminToken,user:user(true)}});}
+  if(p==='/api/admin-auth/wallet/login/verify'){state.verifies++;const v=request.postDataJSON();expect(ethers.verifyMessage(v.message,v.signature)).toBe(wallet.address);await state.verifyHold;state.active=true;return route.fulfill({json:{token:adminToken,user:user(true)}});}
   if(p==='/api/auth/me'||p==='/api/admin-auth/me'){expect(request.headers().authorization).toBe('Bearer '+(admin?adminToken:publicToken));return route.fulfill(admin&&!state.active?{status:401,json:{error:'AUTH_SESSION_INACTIVE'}}:{json:{user:user(admin)}});}
-  if(p==='/api/admin-auth/logout'){expect(request.headers().authorization).toBe('Bearer '+adminToken);state.active=false;return route.fulfill({json:{userId:'admin-account',scope:'CURRENT',revoked:true,requestId:request.postDataJSON().idempotencyKey}});}
+  if(p==='/api/admin-auth/logout'){state.revokes++;expect(request.headers().authorization).toBe('Bearer '+adminToken);state.active=false;return route.fulfill({json:{userId:'admin-account',scope:'CURRENT',revoked:true,requestId:request.postDataJSON().idempotencyKey}});}
   if(p==='/api/admin-auth/operator/enrollment')return route.fulfill({status:503,json:{error:'FIXTURE_AUTHORITY_UNAVAILABLE'}});
   return route.fulfill({json:{notifications:[],unread:0,campaigns:[],categories:[],wallets:[],preferences:{inApp:true,email:false},contactStatus:'MISSING'}});
  });
@@ -42,4 +42,25 @@ test('admin login fences a changed signer while the signature is pending',async(
 });
 test('admin login does not exchange a late signature after leaving administration',async({page})=>{
  const f=await fixture(page);let release!:()=>void;f.state.hold=new Promise(r=>release=r);await page.goto('/admin');await login(page).click();await expect.poll(()=>f.state.signs).toBe(1);await page.getByRole('link',{name:'Back to app',exact:true}).click();await expect(page).toHaveURL(/\/$/);release();await page.waitForTimeout(250);expect(f.state.verifies).toBe(0);expect(await page.evaluate(()=>localStorage.getItem('groupdeal_admin_token'))).toBeNull();expect(await page.evaluate(()=>localStorage.getItem('groupdeal_token'))).toBe(f.publicToken);
+});
+
+test('admin login stops after the URL leaves even before the old workspace unmounts',async({page})=>{
+ const f=await fixture(page);let release!:()=>void;f.state.hold=new Promise(r=>release=r);await page.goto('/admin');await login(page).click();await expect.poll(()=>f.state.signs).toBe(1);
+ // Hold the old React view in place to model navigation winning the race with
+ // rendering and provider cleanup. The browser URL has already left admin.
+ await page.evaluate(()=>history.pushState({},'','/'));await expect(page.getByRole('button',{name:'Confirm in your wallet…',exact:true})).toBeVisible();release();
+ await expect(login(page)).toBeEnabled();await expect(page.getByRole('alert')).toContainText('Admin sign-in was not confirmed');
+ expect(f.state.verifies).toBe(0);expect(await page.evaluate(()=>localStorage.getItem('groupdeal_admin_token'))).toBeNull();expect(await page.evaluate(()=>localStorage.getItem('groupdeal_token'))).toBe(f.publicToken);expect(f.state.errors).toEqual([]);
+});
+
+test('leaving and immediately returning to admin cannot revive a pending signature',async({page})=>{
+ const f=await fixture(page);let release!:()=>void;f.state.hold=new Promise(r=>release=r);await page.goto('/admin');await login(page).click();await expect.poll(()=>f.state.signs).toBe(1);
+ await page.evaluate(()=>{history.pushState({},'','/');dispatchEvent(new Event('groupdeal:navigate'));history.pushState({},'','/admin');dispatchEvent(new Event('groupdeal:navigate'));});release();
+ await expect(login(page)).toBeEnabled();await expect(page.getByRole('alert')).toContainText('Admin sign-in was not confirmed');expect(f.state.verifies).toBe(0);expect(await page.evaluate(()=>localStorage.getItem('groupdeal_admin_token'))).toBeNull();expect(await page.evaluate(()=>localStorage.getItem('groupdeal_token'))).toBe(f.publicToken);expect(f.state.errors).toEqual([]);
+});
+
+test('a session issued after leaving admin is revoked without being stored',async({page})=>{
+ const f=await fixture(page);let release!:()=>void;f.state.verifyHold=new Promise(r=>release=r);await page.goto('/admin');await login(page).click();await expect.poll(()=>f.state.verifies).toBe(1);
+ await page.evaluate(()=>history.pushState({},'','/'));release();await expect(login(page)).toBeEnabled();await expect(page.getByRole('alert')).toContainText('Admin sign-in was not confirmed');await expect.poll(()=>f.state.revokes).toBe(1);
+ expect(await page.evaluate(()=>localStorage.getItem('groupdeal_admin_token'))).toBeNull();expect(await page.evaluate(()=>localStorage.getItem('groupdeal_token'))).toBe(f.publicToken);expect(f.state.errors).toEqual([]);
 });

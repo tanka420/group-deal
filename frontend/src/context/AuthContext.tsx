@@ -6,6 +6,12 @@ import {circleDeviceId} from "../services/circleDevice";
 import {InitialCircleWallet,readInitialCircleWalletChoices,readInitialCircleWalletAck} from "../services/circleWalletChoice";
 import {readAdminLoginChallenge} from '../services/adminLogin';
 import {readCircleLoginEmail,rememberCircleLoginEmail,forgetCircleLoginEmail} from '../services/circleLoginEmail';
+import {readAppRoute} from '../utils/appRoute';
+
+function isAdminRouteCurrent() {
+  const route=readAppRoute();
+  return route.kind==='tab' ? route.tab==='operator' : ['operator-deal','operator-section','operator-user','operator-support'].includes(route.kind);
+}
 
 interface EmailLoginResult {
   userToken: string;
@@ -121,6 +127,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
   const [sessionNotice,setSessionNotice]=useState<AuthContextType["sessionNotice"]>(null);
   useEffect(()=>{userRef.current=user;},[user]);
   useEffect(()=>()=>{sessionGenerationRef.current++;circleSyncAttemptRef.current++;refreshAttemptRef.current++;loginPromiseRef.current?.reject(new Error("Phiên đăng nhập đã thay đổi"));loginPromiseRef.current=null;},[]);
+  useLayoutEffect(()=>{
+    if(realm!=='ADMIN')return;
+    // Navigation changes the URL before React necessarily unmounts this realm.
+    // Invalidate pending admin approval at that boundary, including a quick return.
+    const leaving=()=>{if(!isAdminRouteCurrent())sessionGenerationRef.current++;};
+    const events=['popstate','hashchange','groupdeal:navigate'];
+    events.forEach(event=>window.addEventListener(event,leaving));
+    return()=>events.forEach(event=>window.removeEventListener(event,leaving));
+  },[realm]);
 
   const acceptUser=(value:unknown,expectedId?:string)=>{
     const next=readUser(value);if(expectedId&&next.id!==expectedId)throw new Error("AUTH_RESPONSE_INVALID");
@@ -533,9 +548,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
   const loginWithWallet = async (signer: ethers.Signer, expectedEpoch?:number) => {
     if(expectedEpoch!==undefined&&expectedEpoch!==getSessionEpoch())throw new Error("Phiên đăng nhập đã thay đổi");
     const generation = ++sessionGenerationRef.current;
+    const current=()=>generation===sessionGenerationRef.current&&circleLifecycle.current.active&&(realm!=='ADMIN'||isAdminRouteCurrent());
+    if(!current())throw Error('AUTH_SESSION_ENDED');
     setLogoutState("NONE");setSessionNotice(null);
     const walletAddress = await signer.getAddress();
-    if(generation!==sessionGenerationRef.current)throw new Error("Phiên đăng nhập đã bị hủy");
+    if(!current())throw new Error("Phiên đăng nhập đã bị hủy");
     const challenge = await readJson(
       await fetch("/api/auth/wallet/login/challenge", {
         method: "POST",
@@ -543,16 +560,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
         body: JSON.stringify({ walletAddress }),
       })
     );
-    if(generation!==sessionGenerationRef.current)throw new Error("Phiên đăng nhập đã bị hủy");
+    if(!current())throw new Error("Phiên đăng nhập đã bị hủy");
     if(realm==='ADMIN'){
       readAdminLoginChallenge(challenge,walletAddress,location.origin);
       if(Number((await signer.provider?.getNetwork())?.chainId)!==5042002)throw Error('ADMIN_CHALLENGE_INVALID');
-      if(generation!==getSessionEpoch()||document.visibilityState!=='visible')throw Error('AUTH_SESSION_ENDED');
+      if(!current()||document.visibilityState!=='visible')throw Error('AUTH_SESSION_ENDED');
     }
     const signature = await signer.signMessage(challenge.challengeMessage);
-    if(realm==='ADMIN'&&generation!==getSessionEpoch())throw Error('AUTH_SESSION_ENDED');
+    if(realm==='ADMIN'&&!current())throw Error('AUTH_SESSION_ENDED');
     if(realm==='ADMIN'&&((await signer.getAddress()).toLowerCase()!==walletAddress.toLowerCase()||Number((await signer.provider?.getNetwork())?.chainId)!==5042002||ethers.verifyMessage(challenge.challengeMessage,signature).toLowerCase()!==walletAddress.toLowerCase()||challenge.expiresAt<=Date.now()/1000))throw Error('ADMIN_WALLET_CHANGED');
-    if(generation!==sessionGenerationRef.current)throw new Error("Phiên đăng nhập đã bị hủy");
+    if(!current())throw new Error("Phiên đăng nhập đã bị hủy");
     const session = await readJson(
       await fetch("/api/auth/wallet/login/verify", {
         method: "POST",
@@ -565,7 +582,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode;realm?:"APP"|"AD
         }),
       })
     );
-    if (generation !== sessionGenerationRef.current){discardIssuedSession(session.token);throw new Error("Phiên đăng nhập đã bị hủy");}
+    if (!current()){discardIssuedSession(session.token);throw new Error("Phiên đăng nhập đã bị hủy");}
     const next=readUser(session.user);if(typeof session.token!=="string"||!session.token||session.token.length>8192)throw new Error("AUTH_RESPONSE_INVALID");
     circleSyncAttemptRef.current += 1;
     setCircleCredentials(null);
